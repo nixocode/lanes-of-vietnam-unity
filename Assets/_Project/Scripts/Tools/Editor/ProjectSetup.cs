@@ -44,6 +44,7 @@ namespace LanesOfVietnam.Tools
             AssignPipeline(pipeline);
             ConfigureQuality(pipeline);
             ConfigurePlayer();
+            ConfigurePhysics();
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[LOV] setup: pipeline {AssetDatabase.GetAssetPath(GraphicsSettings.defaultRenderPipeline)}, "
@@ -252,6 +253,27 @@ namespace LanesOfVietnam.Tools
             PlayerSettings.WebGL.maximumMemorySize = 1024;
             PlayerSettings.WebGL.memoryGrowthMode = WebGLMemoryGrowthMode.Geometric;
             PlayerSettings.runInBackground = false;
+        }
+
+        /// <summary>
+        /// No physics engine in the build (PLAN §12.9): the simulation owns
+        /// every position, selection is ray-against-men arithmetic, and there
+        /// is no ragdoll. With PhysX selected the empty floor still linked
+        /// eleven physics internal calls — raycasts and collision callbacks
+        /// referenced from UI and rendering code — and with them the native
+        /// PhysX library. 0xDECAFBAD is Unity's no-op backend, what Project
+        /// Settings > Physics calls "None".
+        /// </summary>
+        private static void ConfigurePhysics()
+        {
+            const uint NoPhysics = 0xDECAFBADu;
+            var objs = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/DynamicsManager.asset");
+            if (objs.Length == 0) { Missing.Add("DynamicsManager.asset"); return; }
+            var so = new SerializedObject(objs[0]);
+            var p = so.FindProperty("m_CurrentBackendId");
+            if (p == null) { Missing.Add("PhysicsManager.m_CurrentBackendId"); return; }
+            p.uintValue = NoPhysics;
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // --- helpers -----------------------------------------------------------
