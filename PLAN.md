@@ -8,31 +8,55 @@ is the original brief and still governs everything it covers.
 
 ---
 
-## 0. The blocker, first
+## 0. Toolchain — installed and verified
 
-Unity is not installed here. No Unity Hub, no Editor, no `dotnet`, no `mono`.
-Nothing in this folder can be compiled, built or run until that changes, and
-installing it needs a Unity account login, which is the owner's to do.
+**This is done.** Checked on 2026-09-29 from the terminal, not assumed:
 
-**What the owner needs to do, once:**
+| | |
+|---|---|
+| Unity Hub | `/Applications/Unity Hub.app` — 3.21.3 |
+| Editor | **6000.6.3f1** (Apple silicon) |
+| Web Build Support | **installed** (`modules.json`, `webgl: selected`) |
+| Documentation | installed |
+| Homebrew | 7.0.3, `unity-hub` cask available if a reinstall is ever needed |
 
-1. Install **Unity Hub** — <https://unity.com/download>
-2. Through Hub, install **Unity 6000.x LTS** (Unity 6). During install tick:
-   - **WebGL Build Support** (required)
-   - **Mac Build Support (Mono)** (for fast iteration in the Editor)
-3. Open this folder as a project. Unity will generate `Library/` and the rest.
+**The project compiles.** Run headless:
 
-Until then everything here is authored blind, and this file says so wherever
-that matters. Nothing below claims to have been measured.
+```bash
+"/Applications/Unity/Hub/Editor/6000.6.3f1/Unity.app/Contents/MacOS/Unity" \
+  -batchmode -quit -nographics \
+  -projectPath "$(pwd)" -logFile /tmp/unity.log
+```
 
-**Why that matters more than usual on this project:** the single most
-expensive habit in the three.js build was claiming a thing worked because the
-code looked right. Every wrong claim came from an instrument that could not
-see the defect. Unity cannot be verified from this shell at all, so the rule
-here is stricter — **nothing in this project is "done" until it has been run
-in a browser and measured.** Code written before the Editor exists is a draft.
+Exit code 0, **0 compile errors**, on 2026-09-29 with `Sim/{Rng,Types,Tune,
+Combat,Squads}.cs` in place. This matters more than it looks: it means the
+verification loop this project needs *exists*. Unity can be driven from the
+CLI, so the same discipline that found the real bugs in the three.js build —
+build it, run it, measure it, believe the number — carries over.
 
----
+### Two things learned installing it
+
+**The editor is 6000.6.3f1, which is a tech-stream release, not LTS.** It
+works, and it is what is installed, so it is what this project targets. The
+risk is package churn, and it bit immediately — see below. If that becomes a
+recurring cost, installing 6000.0 LTS alongside it is a Hub checkbox and the
+project version file is one line.
+
+**Input System and Addressables do not compile on 6000.6.3f1.** Both are in
+Unity's own package set and both fail with `CS0619` — `TreeViewItem`,
+`TreeViewState` and `Object.GetInstanceID()` are obsolete-as-error in this
+editor. Dozens of errors, none of them in this project's code, and they abort
+the whole compile.
+
+They have been **removed from `Packages/manifest.json`**. Nothing uses either
+yet. When they are needed:
+
+- *Input* — the old `UnityEngine.Input` API works and is enough for a camera
+  pan, a click and five hotkeys. Reach for the package only if that stops
+  being true.
+- *Addressables* — needed for §6's streaming, and by then either the package
+  will have caught up with the editor or the project moves to 6000.0 LTS.
+  This is a decision to make with a measurement, not now.
 
 ## 1. Why Unity, and what we are giving up
 
@@ -74,17 +98,29 @@ hand-written three.js one — a naive build is 30-60 MB and takes 20 s to load.
 | | target | why |
 |---|---|---|
 | Platform | **WebGL 2.0**, Unity 6 LTS, **URP** | HDRP does not ship to WebGL. WebGPU in Unity 6 is experimental and not worth the risk yet. |
-| Build size | **≤ 25 MB** compressed (Brotli), **≤ 40 MB** total download | Above this the game loses players at the loading bar. The three.js build was 44 MB and that was already too much. |
+| Build size | **≤ 80 MB** total download, **≤ 45 MB** initial | Revised upward — see the note under this table. |
 | First interactive | **≤ 12 s** on a cable connection | |
 | Frame | **60 fps at 1080p with 60 men**, never below 45 | §2 of the brief, unchanged. The three.js build ended at 58 fps and missed it. |
 | Memory | **≤ 512 MB** WebGL heap | WebGL2 on 32-bit heaps; overrunning this is a crash, not a slowdown. |
 | Draw calls | **≤ 400** | WebGL2 draw calls are far more expensive than native. This is the number most likely to be the real limit. |
 | Triangles | **≤ 3 M** visible | An order of magnitude under the three.js build's 24 M, deliberately — see §6. |
 
-These are not aspirations. §7 builds the harness that prints them and fails
-the build when they are missed.
+**The build-size number moved, and it should be understood rather than
+filed.** It was 25 MB. The owner has chosen the photoreal direction — §11 Q1,
+answered 2026-09-29 — and 25 MB does not survive contact with scanned
+vegetation and 2K PBR materials. Pretending otherwise would mean discovering
+it at the end, which is exactly how the last project ran out of road.
 
----
+So the budget is honest instead: **45 MB initial, 80 MB total**, with the
+treeline and the deep background streamed after first interaction. That is a
+real cost — a slower first load than a hand-written WebGL scene — and it is
+the price of the look that was asked for. The mitigations in §6 are what keep
+it from being worse, and every one of them is measured by `Budget` in §7.
+
+The frame, draw call and memory numbers are unchanged and are not negotiable:
+they are what decides whether it *runs*, where the size decides only how long
+someone waits. These are not aspirations. §7 builds the harness that prints
+them and fails the build when they are missed.
 
 ## 3. The map, in detail — lanes and everything on them
 
@@ -454,22 +490,17 @@ Nothing here starts before §0 is done.
 
 ## 11. Questions for the owner
 
-1. **Visual family.** Photoreal-ish (Poly Haven / ambientCG scans, heavier,
-   closer to `TARGET.jpg`) or stylised low-poly (Quaternius, far lighter, ships
-   comfortably to the web, reads as a different game)? This decides the whole
-   art pipeline and I should not pick it alone. `TARGET.jpg` argues for the
-   first; the 25 MB budget argues for the second. **A middle path exists —
-   stylised geometry with scanned PBR materials — and is my recommendation.**
-2. **Unity version.** Unity 6 LTS unless you have a reason to prefer 2022 LTS.
-3. **Audio** — synthesised as before, or sourced CC0?
-4. Is the ±90 m playfield right, or do you want the larger 240 m map back?
+1. ~~**Visual family.**~~ **Answered 2026-09-29: photoreal.** The owner asked
+   for "those OP graphics", which settles it — scanned PBR materials, the
+   heaviest vegetation the frame budget will carry, and `TARGET.jpg` as the
+   bar rather than a stylised reinterpretation of it.
 
----
+   The consequence is recorded in §2: the build-size budget moves from 25 MB
+   to 45 MB initial / 80 MB total, and §6's streaming stops being an
+   optimisation and becomes load-bearing. The frame budget does *not* move,
+   which means the photoreal look has to be bought with texture and material
+   quality rather than with triangles — imposters past 60 m, aggressive LODs,
+   and a treeline that is cards rather than geometry. That is the whole craft
+   of this project now.
 
-## 12. Standing rules
-
-- CC0 only. Nothing downloaded without asking.
-- The simulation imports nothing from the renderer. There is a test.
-- Never push or deploy without asking.
-- Measure before claiming. Nothing is done until it has run in a browser.
-- Kill every dev server, watcher and background job when stopping.
+2
