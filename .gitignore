@@ -36,3 +36,10 @@ crashlytics-build.properties
 # Captures are outputs of the harness; the measured numbers live in the docs.
 captures/*.png
 !captures/.gitkeep
+
+# Headless sim runner build output.
+tools/simcs/bin/
+tools/simcs/obj/
+
+# Burst output the WebGL build writes into the project root.
+/Data/

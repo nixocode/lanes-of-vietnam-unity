@@ -8,7 +8,7 @@ namespace LanesOfVietnam.Sim
     ///
     /// Suppression is the core mechanic, so the shape of this file is: most
     /// shots miss, and a miss is not nothing — it buys pin on the man it
-    /// passed and on anyone near him. Kills are the rare outcome. A fight is
+    /// passed and on everyone near him. Kills are the rare outcome. A fight is
     /// decided by who is pinned, and morale decides the match.
     ///
     /// Concealment: the VC are not visible until they fire or are found, so a
@@ -19,16 +19,13 @@ namespace LanesOfVietnam.Sim
     {
         public static Side Other(Side s) => s == Side.Us ? Side.Vc : Side.Us;
 
-        /// <summary>Which way a side advances along X.</summary>
-        public static float Advance(Side s) => s == Side.Us ? 1f : -1f;
+        /// <summary>Which way a side advances along X. US pushes +x, VC pushes -x.</summary>
+        public static double Advance(Side s) => s == Side.Us ? 1 : -1;
 
-        public static float Dist(float ax, float az, float bx, float bz)
-        {
-            float dx = ax - bx, dz = az - bz;
-            return (float)Math.Sqrt(dx * dx + dz * dz);
-        }
+        public static double Dist(double ax, double az, double bx, double bz)
+            => JsMath.Hypot(ax - bx, az - bz);
 
-        public static float Dist(Man a, Man b) => Dist(a.X, a.Z, b.X, b.Z);
+        public static double Dist(Man a, Man b) => Dist(a.X, a.Z, b.X, b.Z);
 
         public static bool CanEngage(Man a, Man b)
         {
@@ -40,29 +37,24 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// Is this man behind that cover?
-        ///
-        /// Along the lane it is the berm's length that matters; across it, how
-        /// close he is tucked in. The two are not the same distance, and
-        /// treating them as one radius is what left a squad's worth of men
-        /// standing in the open beside a berm long enough to lie down behind.
+        /// Is this point behind that cover? Along the lane it is the berm's
+        /// length that matters; across it, how close he is tucked in. One
+        /// radius for both left a squad's worth of men standing in the open
+        /// beside a berm long enough to lie down behind.
         /// </summary>
-        public static bool InCover(float x, float z, Cover c)
-            => Math.Abs(x - c.X) <= c.Length * 0.5f
+        public static bool InCover(double x, double z, Cover c)
+            => Math.Abs(x - c.X) <= c.Length * 0.5
             && Math.Abs(z - c.Z) <= Tune.CoverRadius;
 
         public static Cover CoverOf(SimState st, Man m)
             => m.Cover >= 0 && m.Cover < st.Cover.Count ? st.Cover[m.Cover] : null;
 
         /// <summary>
-        /// What a piece of cover is actually worth to the man in it.
-        ///
-        /// Quality falls with crowding — each man past capacity costs everyone
-        /// in it — and the position being ranged in is modelled on the
-        /// incoming side in <see cref="HitChance"/>, which is what stops
-        /// holding ground being a free win.
+        /// What a piece of cover is actually worth to the man in it. Falls with
+        /// crowding; being ranged in is modelled on the incoming side in
+        /// <see cref="HitChance"/>.
         /// </summary>
-        public static float CoverValue(SimState st, Cover c)
+        public static double CoverValue(SimState st, Cover c)
         {
             int n = 0;
             for (int i = 0; i < st.Men.Count; i++)
@@ -71,103 +63,84 @@ namespace LanesOfVietnam.Sim
                 if (m.Alive && m.Cover == c.Id) n++;
             }
             int over = Math.Max(0, n - c.Capacity);
-            float crowded = Math.Max(0f, c.Quality * Tune.CoverBoost
-                                        - over * Tune.CrowdingPenalty);
-            return Math.Min(0.85f, crowded);
+            double crowded = Math.Max(0, c.Quality * Tune.CoverBoost - over * Tune.CrowdingPenalty);
+            return Math.Min(0.85, crowded);
         }
-
-        private static float Exposure(Posture p) => p switch
-        {
-            Posture.Standing => Tune.ExposureStand,
-            Posture.Crouched => Tune.ExposureCrouch,
-            _ => Tune.ExposureProne,
-        };
 
         /// <summary>
         /// Chance a single shot from <paramref name="a"/> connects with
-        /// <paramref name="b"/>.
-        ///
-        /// Every term is a rule rather than a fudge: range, the shooter's own
-        /// suppression, the target's posture and cover, whether he is moving,
-        /// and whether his position has been ranged in.
+        /// <paramref name="b"/>. Every term is a rule rather than a fudge:
+        /// range, the shooter's own suppression, the target's posture and
+        /// cover, whether he is moving, whether his position is ranged in.
         /// </summary>
-        public static float HitChance(SimState st, Man a, Man b)
+        public static double HitChance(SimState st, Man a, Man b)
         {
-            float d = Dist(a, b);
-            float t = Math.Min(1f, d / Tune.Range);
-            float p = Tune.HitBase * (1f - t * (1f - Tune.HitAtRange));
+            double d = Dist(a, b);
+            double t = Math.Min(1, d / Tune.Range);
+            double p = Tune.HitBase * (1 - t * (1 - Tune.HitAtRange));
 
             // A suppressed man shoots worse. Veterancy steadies the aim but
             // never raises the ceiling — steadier, not stronger.
-            float steadied = a.Pin * (1f - Tune.VetPinResist * a.Veterancy);
-            p *= Math.Max(0.15f, 1f - steadied);
+            double steadied = a.Pin * (1 - Tune.VetPinResist * a.Veterancy);
+            p *= Math.Max(0.15, 1 - steadied);
 
-            p *= Exposure(b.Posture);
+            p *= Tune.Exposure(b.Posture);
 
             var c = CoverOf(st, b);
             if (c != null)
             {
-                p *= 1f - CoverValue(st, c);
+                p *= 1 - CoverValue(st, c);
                 if (c.RangedIn >= 1) p *= Tune.RangedInBonus;
             }
 
-            // Crossing open ground under fire has to actually cost something,
-            // or there is no value in waiting for someone to cover you. At
-            // 1.18 for any movement and nothing for being in the open,
-            // bounding measured as *neutral* against a plan that simply
-            // walked. A man on his feet in the open is the easiest target on
-            // the field; the same man moving cover to cover is only a little
-            // worse off than one lying still.
-            if (Squads.IsMoving(b)) p *= c != null ? 1.10f : Tune.MovingInOpen;
+            // Crossing open ground under fire has to cost something, or there
+            // is no value in waiting for someone to cover you. At 1.18 for any
+            // movement and nothing for being in the open, bounding measured as
+            // neutral against a plan that simply walked.
+            if (Squads.IsMoving(b)) p *= c != null ? 1.10 : Tune.MovingInOpen;
 
-            return Math.Max(0f, Math.Min(0.9f, p));
+            return Math.Max(0, Math.Min(0.9, p));
         }
 
         /// <summary>
-        /// Does the line between two men pass through smoke?
-        ///
-        /// Smoke is the only thing in the game that breaks a firing line
-        /// without killing anyone. Closest approach of the segment to the
-        /// circle centre — cheap, and exact.
+        /// Does the line between two men pass through smoke? Smoke is the only
+        /// thing that breaks a firing line without killing anyone. Closest
+        /// approach of the segment to the circle centre.
         /// </summary>
-        public static bool SmokeBlocks(SimState st, float ax, float az,
-                                       float bx, float bz)
+        public static bool SmokeBlocks(SimState st, double ax, double az, double bx, double bz)
         {
             if (st.Areas.Count == 0) return false;
-            float dx = bx - ax, dz = bz - az;
-            float len2 = dx * dx + dz * dz;
+            double dx = bx - ax, dz = bz - az;
+            double len2 = dx * dx + dz * dz;
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
                 if (a.Kind != AreaKind.Smoke) continue;
-                float t = len2 > 0 ? ((a.X - ax) * dx + (a.Z - az) * dz) / len2 : 0f;
+                double t = len2 > 0 ? ((a.X - ax) * dx + (a.Z - az) * dz) / len2 : 0;
                 t = t < 0 ? 0 : t > 1 ? 1 : t;
-                float cx = ax + dx * t, cz = az + dz * t;
-                if (Dist(a.X, a.Z, cx, cz) <= a.Radius) return true;
+                double cx = ax + dx * t, cz = az + dz * t;
+                if (JsMath.Hypot(a.X - cx, a.Z - cz) <= a.Radius) return true;
             }
             return false;
         }
 
         /// <summary>
-        /// The nearest enemy this man can engage, or null.
-        ///
-        /// Squared distances, no square root per candidate: this runs over
-        /// every living man and is the hottest thing in the simulation.
+        /// The nearest enemy this man can engage, or null. Squared distances:
+        /// this runs over every living man and is the hottest loop in the sim.
         /// </summary>
         public static Man PickTarget(SimState st, Man a)
         {
             Man best = null;
-            float bestD2 = Tune.Range * Tune.Range;
+            double bestD2 = Tune.Range * Tune.Range;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var b = st.Men[i];
                 if (!b.Alive || !b.Seen || b.Side == a.Side) continue;
-                float dx = a.X - b.X, dz = a.Z - b.Z;
-                float d2 = dx * dx + dz * dz;
+                double dx = a.X - b.X, dz = a.Z - b.Z;
+                double d2 = dx * dx + dz * dz;
                 if (d2 > bestD2) continue;
-                // Checked here rather than in HitChance: a man who cannot see
-                // a target should look for another one, not shoot at this one
-                // badly.
+                // Here rather than in HitChance: a man who cannot see a target
+                // should look for another one, not shoot at this one badly.
                 if (SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
                 bestD2 = d2; best = b;
             }
@@ -175,11 +148,8 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// Resolve one man's fire for this tick. Returns true if he fired.
-        ///
-        /// A pinned man fires far less often rather than not at all: a hard
-        /// cutoff makes a firefight flip between two states, and what is
-        /// wanted is pinned men who shoot less, not men who switch off.
+        /// Resolve one man's fire for this tick. Returns true if he fired. A
+        /// pinned man fires far less often rather than not at all.
         /// </summary>
         public static bool Fire(SimState st, Man a, Rng rng)
         {
@@ -188,25 +158,18 @@ namespace LanesOfVietnam.Sim
             var target = PickTarget(st, a);
             if (target == null)
             {
-                // Nothing to shoot at. Wait before looking again.
-                //
-                // Without this, a man with no target leaves his cooldown at
-                // zero and rescans every living man on every subsequent tick,
-                // for ever. Profiled in the previous build: `fire` and the
-                // distance calls inside it were 55% of the whole simulation,
-                // nearly all of it men out of contact confirming twenty times
-                // a second that they were still out of contact.
+                // Nothing to shoot at: wait before looking again, or he rescans
+                // every living man every tick for ever (55% of the sim).
                 a.Cooldown = Tune.ScanIdle;
                 return false;
             }
 
-            float pinFrac = Math.Min(1f, a.Pin / Tune.PinStop);
-            float rate = 1f - (1f - Tune.PinnedFireRate) * pinFrac;
+            double pinFrac = Math.Min(1, a.Pin / Tune.PinStop);
+            double rate = 1 - (1 - Tune.PinnedFireRate) * pinFrac;
             if (rng.Next() > rate) { a.Cooldown = 2; return false; }
 
             a.Cooldown = Tune.Cooldown;
-            // Firing gives away concealment. The only thing besides being
-            // found at close range that sets this.
+            // Firing gives away concealment.
             a.Seen = true;
             st.Events.Add(new SimEvent
             {
@@ -214,69 +177,245 @@ namespace LanesOfVietnam.Sim
                 Id = a.Id, Target = target.Id,
             });
 
-            float p = HitChance(st, a, target);
+            double p = HitChance(st, a, target);
             if (rng.Next() < p)
             {
-                target.Alive = false;
-                target.Cover = -1;
-                target.DiedAt = st.Tick;
-                st.Events.Add(new SimEvent
-                {
-                    Kind = EventKind.Kill, Tick = st.Tick,
-                    Side = target.Side, Id = target.Id,
-                });
+                Kill(st, target);
                 return true;
             }
 
-            // The miss is the point. It buys pin on the man it passed and on
-            // everyone near him, which is how fire suppresses a *position*
-            // rather than a man.
+            // The miss is the point: pin on the man it passed and everyone
+            // near him, which is how fire suppresses a position.
             ApplyPin(st, target, Tune.PinPerNearMiss);
-            float r2 = Tune.PinSplash * Tune.PinSplash;
+            double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var n = st.Men[i];
                 if (!n.Alive || n.Side != target.Side || n.Id == target.Id) continue;
-                float dx = n.X - target.X, dz = n.Z - target.Z;
-                float d2 = dx * dx + dz * dz;
+                double dx = n.X - target.X, dz = n.Z - target.Z;
+                double d2 = dx * dx + dz * dz;
                 if (d2 < r2)
                 {
-                    float d = (float)Math.Sqrt(d2);
-                    ApplyPin(st, n, Tune.PinPerNearMiss * (1f - d / Tune.PinSplash) * 0.6f);
+                    double d = Math.Sqrt(d2);
+                    ApplyPin(st, n, Tune.PinPerNearMiss * (1 - d / Tune.PinSplash) * 0.6);
                 }
             }
             return true;
         }
 
-        /// <summary>Add suppression, resisted by veterancy, and emit the crossing event.</summary>
-        public static void ApplyPin(SimState st, Man m, float amount)
+        /// <summary>One death, recorded once, the same way whatever killed him.</summary>
+        public static void Kill(SimState st, Man m)
         {
-            float before = m.Pin;
-            float resist = 1f - Tune.VetPinResist * m.Veterancy;
-            m.Pin = Math.Min(1f, m.Pin + amount * resist);
+            m.Alive = false;
+            m.Cover = -1;
+            m.DiedAt = st.Tick;
+            st.Events.Add(new SimEvent
+            {
+                Kind = EventKind.Kill, Tick = st.Tick, Side = m.Side, Id = m.Id,
+            });
+        }
+
+        /// <summary>Add suppression, resisted by veterancy, and emit the crossing event.</summary>
+        public static void ApplyPin(SimState st, Man m, double amount)
+        {
+            double before = m.Pin;
+            double resist = 1 - Tune.VetPinResist * m.Veterancy;
+            m.Pin = Math.Min(1, m.Pin + amount * resist);
             if (before < Tune.PinDrop && m.Pin >= Tune.PinDrop)
             {
                 st.Events.Add(new SimEvent
                 {
-                    Kind = EventKind.Pinned, Tick = st.Tick,
-                    Side = m.Side, Id = m.Id,
+                    Kind = EventKind.Pinned, Tick = st.Tick, Side = m.Side, Id = m.Id,
                 });
             }
         }
 
-        /// <summary>Suppression decays. Emitted as an event when a man comes out of it.</summary>
+        /// <summary>
+        /// Suppression decays, faster for a man who is flat. The last port
+        /// dropped the prone rate; the original has it, and without it a
+        /// pinned man recovers as slowly lying down as standing up.
+        /// </summary>
         public static void Relax(SimState st, Man m)
         {
-            if (m.Pin <= 0) return;
-            float before = m.Pin;
-            m.Pin = Math.Max(0f, m.Pin - Tune.PinDecay * Tune.Dt);
+            double before = m.Pin;
+            double rate = Tune.PinDecay * (m.Posture == Posture.Prone ? Tune.PinDecayProne : 1.0);
+            m.Pin = Math.Max(0, m.Pin - rate * Tune.Dt);
             if (before >= Tune.PinDrop && m.Pin < Tune.PinDrop)
             {
                 st.Events.Add(new SimEvent
                 {
-                    Kind = EventKind.Unpinned, Tick = st.Tick,
-                    Side = m.Side, Id = m.Id,
+                    Kind = EventKind.Unpinned, Tick = st.Tick, Side = m.Side, Id = m.Id,
                 });
+            }
+        }
+
+        // --- per-tick lane aggregates ---------------------------------------------
+
+        /// <summary>
+        /// Per-tick aggregates by side and lane, built in one pass.
+        ///
+        /// The questions "is this lane swept" and "is anyone covering" used to
+        /// each walk every man per squad per tick — S x N x S, which put a full
+        /// match at two seconds against "well under one". Combat in a lane
+        /// game is one-dimensional enough that the enemy's most advanced
+        /// visible man is the right proxy for "is there anyone to shoot at".
+        /// </summary>
+        public sealed class LaneIndex
+        {
+            internal readonly double[] PinSum;
+            internal readonly int[] Count;
+            internal readonly double[] Lead;
+            internal readonly bool[] HasLead;
+            internal readonly List<int>[] Firing;
+
+            internal LaneIndex(int lanes)
+            {
+                int n = 2 * lanes;
+                PinSum = new double[n];
+                Count = new int[n];
+                Lead = new double[n];
+                HasLead = new bool[n];
+                Firing = new List<int>[n];
+                for (int i = 0; i < n; i++) Firing[i] = new List<int>(4);
+            }
+
+            internal static int Key(Side side, int lane) => (int)side * Tune.Lanes.Length + lane;
+        }
+
+        public static LaneIndex BuildLaneIndex(SimState st)
+        {
+            var ix = new LaneIndex(Tune.Lanes.Length);
+            // Squad ids are list indices; see SimState.NextSquadId.
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive) continue;
+                var sq = st.Squads[m.Squad];
+                int k = LaneIndex.Key(sq.Side, sq.Lane);
+                ix.PinSum[k] += m.Pin;
+                ix.Count[k]++;
+                // Only a man who can be seen can be shot at, so only he is a
+                // reason to put covering fire down.
+                if (m.Seen)
+                {
+                    double forward = m.X * Advance(sq.Side);
+                    if (!ix.HasLead[k] || forward > ix.Lead[k])
+                    {
+                        ix.Lead[k] = forward;
+                        ix.HasLead[k] = true;
+                    }
+                }
+            }
+
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive) continue;
+                var sq = st.Squads[m.Squad];
+                if (m.Pin >= Tune.PinDrop) continue;
+                var enemy = Other(sq.Side);
+                int ek = LaneIndex.Key(enemy, sq.Lane);
+                if (!ix.HasLead[ek]) continue;
+                double enemyX = ix.Lead[ek] * Advance(enemy);
+                if (Math.Abs(enemyX - m.X) > Tune.Range) continue;
+                var set = ix.Firing[LaneIndex.Key(sq.Side, sq.Lane)];
+                if (!set.Contains(m.Squad)) set.Add(m.Squad);
+            }
+            return ix;
+        }
+
+        /// <summary>
+        /// Is this lane being swept? Measured as the mean pin of the side's men
+        /// in it — the observable the men themselves have.
+        /// </summary>
+        public static bool LaneSwept(LaneIndex ix, Side side, int lane)
+        {
+            int k = LaneIndex.Key(side, lane);
+            if (ix.Count[k] == 0) return false;
+            return ix.PinSum[k] / ix.Count[k] >= Tune.BoundSweepPin;
+        }
+
+        /// <summary>Is a friendly squad in this lane putting fire down to cover a bound?</summary>
+        public static bool HasCoveringFire(LaneIndex ix, Side side, int lane, int movingSquad)
+        {
+            var set = ix.Firing[LaneIndex.Key(side, lane)];
+            for (int i = 0; i < set.Count; i++) if (set[i] != movingSquad) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// The best cover a squad can make for, or -1.
+        ///
+        /// <paramref name="forwardOnly"/> is the difference between taking
+        /// ground and holding it. An attacker considers only cover ahead of
+        /// him, so moving from one position to the next is his advance. A
+        /// defender considers either side, or "hold" still walks him up the
+        /// map: defend against defend closed to contact and averaged fifty
+        /// casualties a match.
+        /// </summary>
+        public static int BestCover(SimState st, double fromX, int lane, double dir, bool forwardOnly = true)
+        {
+            int best = -1;
+            double bestScore = double.NegativeInfinity;
+            for (int ci = 0; ci < st.Cover.Count; ci++)
+            {
+                var c = st.Cover[ci];
+                if (Math.Abs(c.Z - Tune.Lanes[lane]) > 4.5) continue;
+                double ahead = (c.X - fromX) * dir;
+                if (forwardOnly && ahead <= 0.5) continue;
+                double reach = Math.Abs(ahead);
+                if (!forwardOnly && reach > Tune.HoldRadius) continue;
+                int n = 0;
+                for (int i = 0; i < st.Men.Count; i++)
+                {
+                    var m = st.Men[i];
+                    if (m.Alive && m.Cover == c.Id) n++;
+                }
+                int room = Math.Max(0, c.Capacity - n);
+                if (room <= 0) continue;
+                // Near, roomy, good and not already ranged in.
+                double score = c.Quality * 3 + room * 0.5 - reach * 0.05 - c.RangedIn * 2.5;
+                if (score > bestScore) { bestScore = score; best = c.Id; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Advance the ranged-in timer on every piece of cover: it runs while a
+        /// side sits in it and forgets once the position is abandoned.
+        /// </summary>
+        public static void UpdateRangedIn(SimState st)
+        {
+            for (int ci = 0; ci < st.Cover.Count; ci++)
+            {
+                var c = st.Cover[ci];
+                Side? occupant = null;
+                int n = 0;
+                for (int i = 0; i < st.Men.Count; i++)
+                {
+                    var m = st.Men[i];
+                    if (!m.Alive || m.Cover != c.Id) continue;
+                    occupant = m.Side; n++;
+                }
+                if (n > 0)
+                {
+                    if (c.HeldBy != occupant) { c.HeldBy = occupant; c.RangedIn = 0; }
+                    double before = c.RangedIn;
+                    c.RangedIn += Tune.Dt / Tune.RangeInSeconds;
+                    if (before < 1 && c.RangedIn >= 1)
+                    {
+                        st.Events.Add(new SimEvent
+                        {
+                            Kind = EventKind.RangedIn, Tick = st.Tick,
+                            Side = Other(occupant.Value), Id = c.Id,
+                        });
+                    }
+                }
+                else
+                {
+                    c.HeldBy = null;
+                    c.RangedIn = Math.Max(0, c.RangedIn - Tune.Dt / Tune.RangeInDecay);
+                }
             }
         }
     }

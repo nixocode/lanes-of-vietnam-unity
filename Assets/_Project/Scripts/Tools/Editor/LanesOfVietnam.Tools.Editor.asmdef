@@ -1,0 +1,24 @@
+{
+  "name": "LanesOfVietnam.Tools.Editor",
+  "rootNamespace": "LanesOfVietnam.Tools",
+  "references": [
+    "LanesOfVietnam.Sim",
+    "LanesOfVietnam.View",
+    "Unity.RenderPipelines.GPUDriven.Runtime",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Core.Editor",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Universal.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

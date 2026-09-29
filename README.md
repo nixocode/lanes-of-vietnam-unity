@@ -15,13 +15,40 @@ errors. See `PLAN.md` §0.
 grep -c "error CS" /tmp/unity.log     # expect 0
 ```
 
+## Running things
+
+```bash
+# project settings (URP, Linear, WebGL player) — idempotent
+tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.ProjectSetup.Apply
+
+# the simulation's tests, headless (PLAN §10 step 1's gate)
+tools/unity.sh -nographics -runTests -testPlatform EditMode -testResults "$PWD/Logs/tests.xml"
+
+# the simulation without Unity, on the editor's bundled .NET 8
+tools/simcs/run.sh seeds 48 ceiling floor     # a balance block, with a Wilson interval
+tools/simcs/run.sh audit                      # every event and ending reachable
+tools/simcs/run.sh determinism
+tools/simcs/run.sh bench
+
+# parity against the TypeScript original (needs the sibling "Lanes of vietnam" folder)
+node --experimental-strip-types tools/parity/trace.ts > /tmp/ts-trace.json
+tools/simcs/run.sh parity /tmp/ts-trace.json
+
+# WebGL builds; each writes size.json beside itself
+tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.Build.EmptyFloor
+tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.Build.WebGL
+```
+
 ## What is here
 
 ```
-Assets/_Project/Scripts/Sim/     pure C#, no UnityEngine, no MonoBehaviour
+Assets/_Project/Scripts/Sim/     pure C#, no engine references — the whole game's rules
 Assets/_Project/Scripts/View/    everything that draws. Reads sim state, never writes it
-Packages/manifest.json           URP, Addressables, Input System, Test Framework
-PLAN.md                          the execution plan, the budgets, and the findings carried over
+Assets/_Project/Scripts/Tools/   editor tooling: project setup, builds, capture
+Assets/_Project/Tests/EditMode/  SimTests: determinism, parity, §9 findings as assertions
+tools/simcs/                     the sim headless on .NET 8 (brief §10's simnode)
+tools/parity/                    the TypeScript side of the parity check
+PLAN.md                          the execution plan, budgets, findings and progress (§10a)
 ASSETS.md                        asset ledger: licence, source, date, use
 reference/TARGET.jpg             the specification for the look
 ```
@@ -30,14 +57,10 @@ reference/TARGET.jpg             the specification for the look
 
 | | |
 |---|---|
-| Plan | written — `PLAN.md` |
-| Project scaffold | done: manifest, assembly definitions, `.gitignore` |
-| `Sim.Rng` | ported, **and parity-checked against the original: 31,500 draws over 7 seeds and 5 fork names, 0 mismatches** |
-| `Sim.Types`, `Sim.Tune` | ported |
-| `Sim.Combat` | ported — fire, suppression, cover, hit chance, targeting |
-| `Sim.Squads` | ported — roster, slots, anchor, march |
-| **Compiles** | **yes, verified headless, 0 errors** |
-| Everything else | not started |
+| Toolchain | Unity 6000.6.3f1 + Web Build Support, verified headless |
+| Step 0 — empty WebGL build | **8.00 MB** initial, the floor |
+| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 30/30 tests |
+| Steps 2–10 | not started — PLAN §10 |
 
 ## Direction
 

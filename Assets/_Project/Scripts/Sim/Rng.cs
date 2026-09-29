@@ -77,7 +77,14 @@ namespace LanesOfVietnam.Sim
             return xs[(int)(Next() * xs.Count)];
         }
 
-        /// <summary>Box-Muller, for jitter that should cluster around a mean.</summary>
+        /// <summary>
+        /// Box-Muller, for jitter that should cluster around a mean.
+        ///
+        /// <b>View-side only.</b> It calls <see cref="Math.Log"/> and
+        /// <see cref="Math.Cos"/>, whose last bit is platform-dependent (see
+        /// <see cref="JsMath"/>), so nothing the match depends on may use it.
+        /// The simulation never has.
+        /// </summary>
         public double Normal(double mean = 0, double sd = 1)
         {
             double u = Math.Max(1e-12, Next());
@@ -111,6 +118,42 @@ namespace LanesOfVietnam.Sim
                 }
                 return new Rng(unchecked((int)(_s ^ h)));
             }
+        }
+
+        /// <summary>The raw state, for tests and trace hashing.</summary>
+        public uint State => _s;
+
+        /// <summary>
+        /// Pearson correlation between the first draw of seed n and of seed
+        /// n + 1, over a block of seeds.
+        ///
+        /// Brief §9 finding 9, the one that cost the most: the 2D game's LCG
+        /// made each match reproducible and a block of seeds worthless —
+        /// 0.998 here — so one mission read 8/12 on one block and 0/12 on the
+        /// next with identical code. Near zero means consecutive seeds are a
+        /// usable sample. Run in the tests, not trusted.
+        /// </summary>
+        public static double AdjacentSeedCorrelation(int from, int count, Func<Rng, double> draw = null)
+        {
+            draw ??= r => r.Next();
+            var a = new double[count];
+            var b = new double[count];
+            for (int i = 0; i < count; i++)
+            {
+                a[i] = draw(new Rng(from + i));
+                b[i] = draw(new Rng(from + i + 1));
+            }
+            double ma = 0, mb = 0;
+            for (int i = 0; i < count; i++) { ma += a[i]; mb += b[i]; }
+            ma /= count; mb /= count;
+            double num = 0, da = 0, db = 0;
+            for (int i = 0; i < count; i++)
+            {
+                double x = a[i] - ma, y = b[i] - mb;
+                num += x * y; da += x * x; db += y * y;
+            }
+            double den = Math.Sqrt(da * db);
+            return den == 0 ? 0 : num / den;
         }
     }
 }
