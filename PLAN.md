@@ -518,6 +518,7 @@ Nothing here starts before §0 is done.
 |---|---|---|
 | 0 | empty URP scene builds to WebGL; size recorded | **8.00 MB initial** (wasm 4.95, data 2.97, framework 0.06, loader 0.03 MB, Brotli), 126 s build. `Builds/empty-floor/size.json`. The floor everything else is measured against. |
 | 1 | `SimTests` green headless; determinism asserted | **30/30** under Unity's EditMode runner, 25 s headless. |
+| 3 | grey-box map: lanes readable in a grey-box capture | met: `captures/lanes*.png`. The lanes are bounded as §3.2 says — the firebase's sandbagged front and the wire (gapped at the bank's cuts, the crossings) behind the near lane, the dirt track, scrub, then the treeline's ragged edge behind the far lane, ridges beyond. **91-118 draw calls, ~0.9 M triangles** with the whole grey-box dressing merged per material. LookMeter baseline (flat colours, expected to be wrong): mean L\* 26.7, near lane 24.4 against 31.2, no highlights. |
 | 2 | harnesses run and print numbers | `tools/capture.sh` renders the real game at a frozen moment in **7-9 s**; `lookmeter.py` reproduces the brief's band table off TARGET.jpg within **1.24 L\*, 1.10 S**; `flicker.py`'s zero is proven (**0.000** at mean L\* 51.5, AA off); `budget.py` checks §2 and exits non-zero on a miss. |
 
 **Step 0 found two settings that were never true.** The scaffold described a
@@ -565,6 +566,15 @@ Measured with the port (`tools/simcs/run.sh`):
 | ceiling vs floor | 91.7% as US, 72.9% as VC |
 | cost | **10 µs per tick**, 37 ms per match; worst 236 ms (a 12-minute defend) |
 | audit | all 17 event kinds fire; 5 of 6 endings in 400 matches — "time, drawn" is rare, and a unit test proves its branch is live |
+
+**Step 3: the numbers came from the reference, not from taste.** The first
+grey-box treeline filled the frame, because at 57 m the whole frame is 19 m
+tall; its height is now derived from TARGET.jpg's own angle (crowns top out
+about 3.5° above the horizon, so top = 5.1 m + distance × tan 3.5°), and the
+treeline starts at z −24 as §3.2 says. Ridges are sized the same way (peaks
+2-6° up). And the firebase moved into the middle distance: in the reference
+the near lane's men stand *in front of* the trucks and the tower, and the
+first grey-box put a truck between the near lane and the lens.
 
 **Step 2: three instruments that would have lied, caught before use.**
 

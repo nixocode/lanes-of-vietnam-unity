@@ -26,6 +26,10 @@ namespace LanesOfVietnam.View
         public GroundView GroundView;
         public CoverView CoverView;
         public ArmyView ArmyView;
+        public WorldDressing Dressing;
+
+        /// <summary>The map's own seed: the dressing is part of the map and never changes with the match.</summary>
+        public const int MapSeed = 20260929;
 
         public Side PlayerSide = Side.Us;
 
@@ -52,6 +56,7 @@ namespace LanesOfVietnam.View
             GroundView.Build(Ground);
             var cover = Map.Cover();
             CoverView.Build(cover, Ground);
+            if (Dressing != null) Dressing.Build(Ground, cover, MapSeed);
 
             Seed = cap?.Seed ?? ChooseSeed();
             Driver = new MatchDriver(new MatchOptions

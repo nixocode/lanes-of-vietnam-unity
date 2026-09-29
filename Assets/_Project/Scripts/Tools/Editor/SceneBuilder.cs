@@ -60,7 +60,7 @@ namespace LanesOfVietnam.Tools
             RenderSettings.ambientGroundColor = new Color(0.26f, 0.24f, 0.19f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.0042f;
+            RenderSettings.fogDensity = 0.0017f;
             RenderSettings.fogColor = new Color(0.66f, 0.72f, 0.76f);
 
             // --- the camera ------------------------------------------------------
@@ -112,6 +112,18 @@ namespace LanesOfVietnam.Tools
             army.VcMaterial = Lit("VC", new Color(0.07f, 0.07f, 0.07f), 0.2f);
             army.DeadMaterial = Lit("Dead", new Color(0.16f, 0.14f, 0.12f), 0.1f);
             root.ArmyView = army;
+
+            var dressGo = new GameObject("Dressing");
+            dressGo.transform.SetParent(game.transform, false);
+            var dress = dressGo.AddComponent<WorldDressing>();
+            dress.Foliage = Lit("Foliage", new Color(0.16f, 0.24f, 0.10f), 0.1f);
+            dress.FoliageDark = Lit("Foliage Dark", new Color(0.09f, 0.15f, 0.07f), 0.1f);
+            dress.Mountain = Lit("Mountain", new Color(0.30f, 0.38f, 0.33f), 0.0f);
+            dress.Wire = Lit("Wire", new Color(0.30f, 0.29f, 0.27f), 0.45f);
+            dress.Timber = cover.TimberMaterial;
+            dress.Sandbag = cover.SandbagMaterial;
+            dress.Vehicle = Lit("Vehicle", new Color(0.22f, 0.25f, 0.17f), 0.2f);
+            root.Dressing = dress;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
