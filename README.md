@@ -22,7 +22,7 @@ Assets/_Project/Scripts/Sim/     pure C#, no UnityEngine, no MonoBehaviour
 Assets/_Project/Scripts/View/    everything that draws. Reads sim state, never writes it
 Packages/manifest.json           URP, Addressables, Input System, Test Framework
 PLAN.md                          the execution plan, the budgets, and the findings carried over
-ASSETS.md                        CC0 ledger. Nothing is fetched without asking
+ASSETS.md                        asset ledger: licence, source, date, use
 reference/TARGET.jpg             the specification for the look
 ```
 
@@ -48,7 +48,9 @@ rather than triangles. `PLAN.md` §2 and §11.
 
 ## The rules this project runs under
 
-- CC0 assets only, logged in `ASSETS.md`. Nothing downloaded without asking.
+- Assets: free, highest quality, reputable sources, every one logged in
+  `ASSETS.md` with its licence. Adobe tools (Mixamo, Photoshop) are in scope.
+  Owner's decision, 2026-09-29 — see `PLAN.md` §8.
 - The simulation imports nothing from the renderer. There is a test.
 - A match is a pure function of (seed, plan, orders).
 - **Measure before claiming.** Nothing is done until it has run in a browser.
