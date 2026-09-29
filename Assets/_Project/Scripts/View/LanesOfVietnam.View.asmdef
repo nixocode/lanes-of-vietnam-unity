@@ -1,7 +1,11 @@
 {
   "name": "LanesOfVietnam.View",
   "rootNamespace": "LanesOfVietnam.View",
-  "references": ["LanesOfVietnam.Sim"],
+  "references": [
+    "LanesOfVietnam.Sim",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
