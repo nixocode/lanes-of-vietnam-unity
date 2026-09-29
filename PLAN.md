@@ -389,22 +389,48 @@ cost the whole project.
 
 ---
 
-## 8. Assets — CC0 only, logged, and *looked at*
+## 8. Assets — free, highest quality, reputable, logged, and *looked at*
 
-Carried over from the brief's §1.2 and not relaxed: **CC0 only, reputable
-sources only, every one logged in `ASSETS.md` with its licence, source URL and
-date. If the only thing that fits is not CC0, stop and ask the owner.**
+**Changed by the owner on 2026-09-29, superseding the brief's §1.2 and §6
+CC0-only rule.** The owner's instruction: *pick the assets yourself — they
+must be of the highest quality, from reputable and trusted sources, and
+free.* So:
+
+- **Free and reputable, not CC0-only.** CC0 is still preferred when two
+  candidates are equal, because it carries no obligations. A free asset
+  under another licence (CC-BY, a vendor's royalty-free terms) is acceptable
+  when it is clearly better, and its obligations — attribution, no
+  redistribution of the raw files — are recorded in `ASSETS.md` and met.
+- **Asset selection is delegated.** The old rule "no asset is downloaded
+  without asking the owner first" no longer applies. What still applies:
+  every asset is logged in `ASSETS.md` with its licence, source URL, date and
+  what it is used for, and anything whose licence is unclear is not used.
+- **Adobe tools are in scope and can be used** (owner, 2026-09-29). The owner
+  has an Adobe ID and Creative Cloud on this machine. That puts in reach:
+  - **Mixamo** — Adobe's free character rigging and animation library,
+    royalty-free for commercial games. With Unity's Humanoid retargeting it is
+    the answer to the brief's hardest ask, "the soldier moves": locomotion,
+    posture transitions, weapon handling, reactions and deaths as real motion
+    rather than hand-keyed approximations.
+  - **Photoshop 2026** (installed, scriptable) — authoring and cleaning
+    textures, leaf and foliage atlases, card portraits, UI art.
+  - **Premiere Pro / Media Encoder 2026** (installed) — audio and video
+    processing if it is needed.
+  - Anything else in the owner's Creative Cloud entitlement, installed on
+    request.
 
 **Trusted sources, in order of preference:**
 
 | source | what for | licence |
 |---|---|---|
-| [Poly Haven](https://polyhaven.com) | HDRIs, ground and bark textures, some props | CC0 |
-| [ambientCG](https://ambientcg.com) | PBR materials — earth, sandbag, canvas, metal | CC0 |
-| [Quaternius](https://quaternius.com) | Low-poly vegetation and props, ideal for the web budget | CC0 |
+| [Poly Haven](https://polyhaven.com) | HDRIs, scanned models, ground and bark textures | CC0 |
+| [ambientCG](https://ambientcg.com) | PBR materials — earth, sandbag, canvas, metal, leaves | CC0 |
+| [Mixamo](https://www.mixamo.com) (Adobe) | Humanoid animation, rigging | Adobe royalty-free terms: use in games, no redistribution of raw files |
+| Adobe Photoshop | Textures and atlases authored here | our own work |
 | [Kenney](https://kenney.nl) | UI, prototyping | CC0 |
-| [Freesound](https://freesound.org) (CC0 filter only) | Ambience, weapon layers | CC0 (filter required) |
-| [OpenGameArt](https://opengameart.org) (CC0 filter only) | Gap-filling | CC0 (filter required) |
+| [Freesound](https://freesound.org) | Ambience, weapon layers | per-file; CC0 preferred, CC-BY logged with attribution |
+| [OpenGameArt](https://opengameart.org) | Gap-filling | per-file; checked and logged |
+| [Quaternius](https://quaternius.com) | Low-poly props | CC0 — stylised, so only where style does not clash |
 
 **Rules learned the hard way in the last build:**
 
@@ -415,16 +441,17 @@ date. If the only thing that fits is not CC0, stop and ask the owner.**
    `.bin`: their resolution tiers size the *textures*, not the mesh.
 3. **Reject on style, not only on licence.** Quaternius is CC0 and correctly
    licensed, and stylised low-poly next to a photogrammetry scan reads as two
-   different games. Pick one visual family and hold it. *For a web build the
-   stylised family is probably the right choice and that is a decision for the
-   owner, not for me — see §11.*
+   different games. Pick one visual family and hold it. The owner chose the
+   photoreal family (§11 Q1), so stylised packs are out wherever they would
+   stand next to scanned material.
 4. Audio is **synthesised, not sampled**, unless the owner prefers otherwise.
    "A gun sounds different at 30 m and 300 m" is a propagation problem — travel
    delay, air absorption, spreading, scattered tail — and a recording arrives
    with a room and a distance already baked in. It also means no audio asset
    to license.
-
-**No asset is downloaded without asking the owner first.**
+5. **Log it the moment it lands.** Licence, source URL, date, sha256, what it
+   is used for, and any obligation the licence carries. An asset that is in
+   the project and not in `ASSETS.md` is a bug.
 
 ---
 
@@ -503,4 +530,15 @@ Nothing here starts before §0 is done.
    and a treeline that is cards rather than geometry. That is the whole craft
    of this project now.
 
-2
+2. ~~**Asset licensing.**~~ **Answered 2026-09-29: free, highest quality,
+   reputable — chosen by me, not CC0-only.** Recorded in §8, which is
+   rewritten to match. The ledger discipline stays.
+
+3. ~~**Adobe tools.**~~ **Answered 2026-09-29: in scope.** The owner's Adobe
+   ID and Creative Cloud apps can be used to create assets and textures —
+   Mixamo for animation, Photoshop for textures. See §8.
+
+4. **Real device numbers.** Frame rate and frame time on the owner's machine
+   in a normal browser window. Automation browsers throttle and read-back
+   de-accelerates the canvas (brief §9 finding 11), so the §2 frame budget can
+   only be signed off on real hardware.
