@@ -65,7 +65,7 @@ namespace LanesOfVietnam.Sim
         /// Window for the "is moving" test, in ticks, and the distance that
         /// counts as progress across it. Motion this tick is not movement.
         /// </summary>
-        public const int MoveWindow = (int)(0.3f * TickHz);
+        public const int MoveWindow = 6;    // 0.3 s
         public const float MoveEpsilon = 0.12f;
 
         // --- fire ----------------------------------------------------------
@@ -76,7 +76,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public const float Range = 28f;
 
-        public const int Cooldown = (int)(1.1f * TickHz);
+        public const int Cooldown = 22;     // 1.1 s
 
         /// <summary>
         /// How long a man with no target waits before looking again.
@@ -87,7 +87,7 @@ namespace LanesOfVietnam.Sim
         /// nearly all of it men out of contact confirming it twenty times a
         /// second.
         /// </summary>
-        public const int ScanIdle = (int)(0.25f * TickHz);
+        public const int ScanIdle = 5;      // 0.25 s
 
         public const float HitBase = 0.16f;
         public const float HitAtRange = 0.22f;
@@ -113,7 +113,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public const float PinnedFireRate = 0.18f;
 
-        public const int PostureDwell = (int)(0.8f * TickHz);
+        public const int PostureDwell = 16; // 0.8 s
         public const float MovingInOpen = 1.4f;
 
         public const float ExposureStand = 1.0f;
