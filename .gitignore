@@ -1,0 +1,38 @@
+# Unity generated. None of this belongs in the repository.
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Never commit a WebGL build; it is generated and it is large.
+WebGLBuild/
+
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.booproj
+*.pidb
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+.vs/
+.idea/
+.DS_Store
+
+# Crash reports
+sysinfo.txt
+crashlytics-build.properties
+
+# Captures are outputs of the harness; the measured numbers live in the docs.
+captures/*.png
+!captures/.gitkeep

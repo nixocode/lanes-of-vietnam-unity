@@ -1,0 +1,10 @@
+{
+  "name": "LanesOfVietnam.View",
+  "rootNamespace": "LanesOfVietnam.View",
+  "references": ["LanesOfVietnam.Sim"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
