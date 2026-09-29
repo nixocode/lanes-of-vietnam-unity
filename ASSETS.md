@@ -70,5 +70,4 @@ font.
 The previous build synthesised all audio rather than sourcing it, which means
 there was nothing to license. §11's requirement is that a gun sound different
 at 30 m and 300 m, and that is a propagation problem — travel delay, air
-absorption, spreading, scattered tail — not a property any single sample has.
-Recommended again here; it is a question in PLAN.md §11.
+absorption, spreading, scattered tail — to account for all of these you should source it.

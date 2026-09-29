@@ -35,6 +35,7 @@ crashlytics-build.properties
 
 # Captures are outputs of the harness; the measured numbers live in the docs.
 captures/*.png
+captures/*.json
 !captures/.gitkeep
 
 # Headless sim runner build output.

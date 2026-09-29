@@ -37,6 +37,18 @@ namespace LanesOfVietnam.Sim
         public double X, Z, R, Depth;
     }
 
+    /// <summary>A long low earth bank along the lane, for berm cover.</summary>
+    public struct Mound
+    {
+        public double X, Z, Length, Height, Width;
+    }
+
+    /// <summary>A dug trench along the lane: a flat-bottomed cut with spoil thrown up behind it.</summary>
+    public struct Trench
+    {
+        public double X, Z, Length, Depth, Width;
+    }
+
     /// <summary>
     /// The ground's shape, as pure maths: one height function that the terrain
     /// mesh is built from and that anything standing on the ground asks.
@@ -56,18 +68,42 @@ namespace LanesOfVietnam.Sim
         public readonly GroundParams Params;
         private readonly double[] _o = new double[8];
         private readonly Crater[] _craters;
+        private readonly Mound[] _mounds;
+        private readonly Trench[] _trenches;
 
-        public Ground(GroundParams p, IReadOnlyList<Crater> craters)
+        public Ground(GroundParams p, IReadOnlyList<Crater> craters,
+                      IReadOnlyList<Mound> mounds = null, IReadOnlyList<Trench> trenches = null)
         {
             Params = p;
             var rng = new Rng(p.Seed);
             // Fixed offsets so each noise octave is decorrelated but stable.
             for (int i = 0; i < _o.Length; i++) _o[i] = rng.Range(-800, 800);
-            _craters = new Crater[craters.Count];
-            for (int i = 0; i < craters.Count; i++) _craters[i] = craters[i];
+            _craters = Copy(craters);
+            _mounds = Copy(mounds);
+            _trenches = Copy(trenches);
+        }
+
+        private static T[] Copy<T>(IReadOnlyList<T> src)
+        {
+            if (src == null) return Array.Empty<T>();
+            var a = new T[src.Count];
+            for (int i = 0; i < a.Length; i++) a[i] = src[i];
+            return a;
         }
 
         public IReadOnlyList<Crater> Craters => _craters;
+        public IReadOnlyList<Mound> Mounds => _mounds;
+        public IReadOnlyList<Trench> Trenches => _trenches;
+
+        /// <summary>Smooth 0..1 across a segment [x0 - s, x0] rising and [x1, x1 + s] falling.</summary>
+        private static double Span(double x, double centre, double half, double soft)
+        {
+            double d = Math.Abs(x - centre) - half;
+            if (d <= 0) return 1;
+            if (d >= soft) return 0;
+            double t = 1 - d / soft;
+            return t * t * (3 - 2 * t);
+        }
 
         /// <summary>Where the track's centre line sits in z, for a given x.</summary>
         public double TrackCentre(double x)
@@ -138,6 +174,31 @@ namespace LanesOfVietnam.Sim
                 double bowl = Math.Exp(-dist * dist * 2.2) * c.Depth;
                 double lip = Math.Exp(-Math.Pow(dist - 1.05, 2) * 7.0) * c.Depth * 0.42;
                 h += lip - bowl;
+            }
+
+            // Earth banks for berm cover.
+            for (int i = 0; i < _mounds.Length; i++)
+            {
+                var m = _mounds[i];
+                double along = Span(x, m.X, m.Length * 0.5, 2.0);
+                if (along <= 0) continue;
+                double dzm = (z - m.Z) / m.Width;
+                h += Math.Exp(-dzm * dzm * 1.8) * m.Height * along;
+            }
+
+            // Dug trenches: a flat-bottomed cut, and the spoil thrown up on the
+            // side facing away from the camera, where it is a parapet.
+            for (int i = 0; i < _trenches.Length; i++)
+            {
+                var t = _trenches[i];
+                double along = Span(x, t.X, t.Length * 0.5, 0.9);
+                if (along <= 0) continue;
+                double across = Math.Abs(z - t.Z) / (t.Width * 0.5);
+                double dig = across < 0.75 ? 1 : across > 1.25 ? 0 : 1 - (across - 0.75) / 0.5;
+                dig = dig * dig * (3 - 2 * dig);
+                double ds = (z - (t.Z - t.Width * 1.05)) / 0.7;
+                double spoil = Math.Exp(-ds * ds) * t.Depth * 0.45;
+                h += (spoil - dig * t.Depth) * along;
             }
 
             // Small surface detail: hoof prints, tufts, scuffed earth.

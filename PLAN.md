@@ -452,7 +452,7 @@ free.* So:
    "A gun sounds different at 30 m and 300 m" is a propagation problem — travel
    delay, air absorption, spreading, scattered tail — and a recording arrives
    with a room and a distance already baked in. It also means no audio asset
-   to license.
+   to license.- YOU SHOULD SOURCE IT!
 5. **Log it the moment it lands.** Licence, source URL, date, sha256, what it
    is used for, and any obligation the licence carries. An asset that is in
    the project and not in `ASSETS.md` is a bug.
@@ -525,6 +525,7 @@ Nothing here starts before §0 is done.
 |---|---|---|
 | 0 | empty URP scene builds to WebGL; size recorded | **8.00 MB initial** (wasm 4.95, data 2.97, framework 0.06, loader 0.03 MB, Brotli), 126 s build. `Builds/empty-floor/size.json`. The floor everything else is measured against. |
 | 1 | `SimTests` green headless; determinism asserted | **30/30** under Unity's EditMode runner, 25 s headless. |
+| 2 | harnesses run and print numbers | `tools/capture.sh` renders the real game at a frozen moment in **7-9 s**; `lookmeter.py` reproduces the brief's band table off TARGET.jpg within **1.24 L\*, 1.10 S**; `flicker.py`'s zero is proven (**0.000** at mean L\* 51.5, AA off); `budget.py` checks §2 and exits non-zero on a miss. |
 
 **Step 0 found two settings that were never true.** The scaffold described a
 URP project, but no pipeline asset was assigned anywhere — it was rendering
@@ -571,6 +572,25 @@ Measured with the port (`tools/simcs/run.sh`):
 | ceiling vs floor | 91.7% as US, 72.9% as VC |
 | cost | **10 µs per tick**, 37 ms per match; worst 236 ms (a 12-minute defend) |
 | audit | all 17 event kinds fire; 5 of 6 endings in 400 matches — "time, drawn" is rare, and a unit test proves its branch is live |
+
+**Step 2: three instruments that would have lied, caught before use.**
+
+- *Capture that tested nothing.* `-runTests` with `-quit` exits before the
+  test runner starts, returns 0 and writes no results. `tools/unity.sh` now
+  drops `-quit` for test runs.
+- *Capture that waited forever.* Headless play mode has no Game view, so
+  `WaitForEndOfFrame` never returns. Frames are now rendered by explicit
+  render request, one per frame, so TAA's history advances as in play.
+- *A draw-call budget that could never be missed.* "Draw Calls Count" is
+  registered under UI Toolkit in this Unity; read under Render it gave 0 for a
+  frame with 100,000 triangles. The real total is the sum of the SRP Batcher,
+  standard, instanced, BRG and procedural counters. Grey-box frame: **79 draw
+  calls, 100k triangles**. (Video-memory reads 38 GB on unified memory and is
+  not used.)
+
+TAA on a frozen grey-box scene moves the frame by mean |ΔL\*| 0.07-0.08, with
+0.5% of pixels past 3 L\* — silhouette edges under jitter. That is the
+temporal-stability baseline the art pass is measured against.
 
 **Changed on purpose, with the reason:**
 
