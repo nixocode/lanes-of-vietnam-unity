@@ -41,6 +41,42 @@ namespace LanesOfVietnam.Tools
             Run(EmptyScene, "Builds/empty-floor", development: false);
         }
 
+        /// <summary>
+        /// PLAN §12.9: what each engine module costs once something uses it.
+        /// Builds the empty scene once per <c>LOV_PROBE_*</c> define (see
+        /// <c>View/Diagnostics/ModuleProbe.cs</c>) and prints each against the
+        /// probe-free floor. <c>-lovProbes a,b,c</c> picks the variants.
+        /// </summary>
+        public static void ModuleDeltas()
+        {
+            MakeEmptyScene();
+            var target = UnityEditor.Build.NamedBuildTarget.WebGL;
+            string saved = PlayerSettings.GetScriptingDefineSymbols(target);
+            var variants = (Arg("-lovProbes") ?? "NONE,PARTICLES,TERRAIN,ASSETBUNDLE,ANIMATION,ALL").Split(',');
+            var sizes = new System.Collections.Generic.Dictionary<string, long>();
+            try
+            {
+                foreach (var v in variants)
+                {
+                    string def = v == "NONE" ? "" : "LOV_PROBE_" + v;
+                    PlayerSettings.SetScriptingDefineSymbols(target, string.IsNullOrEmpty(saved) ? def : (def == "" ? saved : saved + ";" + def));
+                    string outDir = $"Builds/probe-{v.ToLowerInvariant()}";
+                    Run(EmptyScene, outDir, development: false);
+                    var initial = Directory.GetFiles(Path.Combine(outDir, "Build")).Sum(f => new FileInfo(f).Length);
+                    sizes[v] = initial;
+                }
+            }
+            finally
+            {
+                PlayerSettings.SetScriptingDefineSymbols(target, saved);
+            }
+            long floor = sizes.TryGetValue("NONE", out long f0) ? f0 : 0;
+            foreach (var kv in sizes)
+            {
+                Debug.Log($"[LOV] module {kv.Key,-12} initial {kv.Value / 1048576.0:F2} MB   delta {(kv.Value - floor) / 1048576.0:+0.00;-0.00} MB");
+            }
+        }
+
         public static void WebGL()
         {
             string scene = Arg("-lovScene") ?? MainScene;

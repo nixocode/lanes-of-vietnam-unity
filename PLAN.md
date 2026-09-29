@@ -43,21 +43,14 @@ risk is package churn, and it bit immediately — see below. If that becomes a
 recurring cost, installing 6000.0 LTS alongside it is a Hub checkbox and the
 project version file is one line.
 
-**Input System and Addressables do not compile on 6000.6.3f1.** Both are in
-Unity's own package set and both fail with `CS0619` — `TreeViewItem`,
-`TreeViewState` and `Object.GetInstanceID()` are obsolete-as-error in this
-editor. Dozens of errors, none of them in this project's code, and they abort
-the whole compile.
-
-They have been **removed from `Packages/manifest.json`**. Nothing uses either
-yet. When they are needed:
-
-- *Input* — the old `UnityEngine.Input` API works and is enough for a camera
-  pan, a click and five hotkeys. Reach for the package only if that stops
-  being true.
-- *Addressables* — needed for §6's streaming, and by then either the package
-  will have caught up with the editor or the project moves to 6000.0 LTS.
-  This is a decision to make with a measurement, not now.
+**Correction (2026-09-30): Input System and Addressables *do* compile on
+6000.6.3f1** — at the versions this editor recommends (Input System 1.20.0,
+Addressables 2.11.2, from the editor's own package manifest). The scaffold had
+pinned older releases, and it was *those* that call APIs 6.6 made
+obsolete-as-error. Measured in a scratch copy: both packages compile and all
+tests pass, on 6.6 and on 6.3 LTS alike. The test-framework and Rider packages
+are now pinned at this editor's recommended versions too. See §12.9a for the
+editor decision this fed.
 
 ## 1. Why Unity, and what we are giving up
 
@@ -1056,6 +1049,21 @@ are scripted in JSX under `tools/photoshop/` and run through `osascript`
 (Photoshop's `do javascript`). That way an asset can be regenerated rather
 than remembered, as in the three.js build, where assets were generated and
 never committed as sources.
+
+### 12.9a Step 2a: decided, with the measurements
+
+*Worked through 2026-09-30.* Every row of §12.9 that can be settled before
+there is foliage to look at is settled here, each with the number that
+settled it. Builds are Brotli WebGL, release, empty scene.
+
+| decision | outcome | the measurement |
+|---|---|---|
+| **Editor version** | **Stay on 6000.6.3f1.** 6000.3.25f1 LTS is installed alongside as a fallback. | The reason to move was false: with each editor's recommended versions, Addressables and Input System compile and all tests pass on **both** editors. With identical packages, the empty floor is **8.51 MB on 6.6 and 9.31 MB on 6.3 LTS** (wasm 5.24 vs 6.17 MB). Moving to 6.3 is also a *downgrade*: URP's global settings asset, saved by URP 17.6, had to be deleted and regenerated before 6.3 would build. The next LTS (6.7, in beta in the Hub) is an upgrade from 6.6, not from 6.3. |
+| **Physics** | **Out.** The physics backend is set to "None" (`m_CurrentBackendId` 0xDECAFBAD) by `ProjectSetup`. | With PhysX selected, even the empty floor linked **11 physics internal calls** (raycasts and collision callbacks referenced from UI and render code), and with them native PhysX. Switching the backend to None: **8.00 → 7.34 MB** initial, wasm 4.95 → 4.25 MB. **7.34 MB is the new floor.** |
+| **Engine modules** | `animation` (now explicit), `particlesystem`, `terrain`, `assetbundle`, `unitywebrequestassetbundle` added to the manifest. | Listing a module costs nothing; *using* one does. With a probe script per module (`View/Diagnostics/ModuleProbe.cs`, `Build.ModuleDeltas`): Particle System **+0.16 MB**, Animator **+0.11**, Terrain **+0.06**, AssetBundle **+0.06**; all four together **+0.39 MB**. |
+| **Streaming** | **Addressables 2.11.2**, added when streaming is built. | §12.9 fell back to raw AssetBundles only because Addressables did not compile, which was wrong. It costs **+0.10 MB** against AssetBundles' +0.06, and buys catalogs and dependency tracking for Part 2's per-operation streaming. |
+| **Photoshop scripting** | `tools/photoshop/run.sh` + JSX. **Blocked on the owner** (§12.14). | AppleScript reaches Photoshop 27.8.0 (`get version` answers), but every `do javascript` call times out, even `"app.version"` — Photoshop's script engine is waiting on something only the owner can see or allow. |
+| AA for foliage, terrain, colour grade, audio bridge, UI | not yet | each needs content that does not exist yet (foliage, the art pass, audio); they are settled in the steps that build that content, against the gates §12.9 gives. |
 
 ### 12.10 Asset sourcing sprint, before the art pass
 
