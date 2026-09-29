@@ -64,6 +64,15 @@ namespace LanesOfVietnam.View
                 yield break;
             }
 
+            var cmd = FindAnyObjectByType<Commander>();
+            if (cmd != null && cap.Select == -2) cmd.Cycle();
+            else if (cmd != null && cap.Select >= 0) cmd.SelectSquad(cap.Select);
+            if (cap.Glasses != null)
+            {
+                root.CameraRig.AimGlasses(new Vector2(cap.Glasses[0], cap.Glasses[1]));
+                root.CameraRig.FieldGlasses = true;
+            }
+
             using var stats = new RenderStats();
             for (int i = 0; i < cap.Warmup; i++)
             {
