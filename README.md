@@ -4,8 +4,16 @@ A single-map, real-time lane-tactics game set in Vietnam, 1965, rebuilt in
 Unity for the browser. `reference/TARGET.jpg` is the specification for the
 look; `Docs/BUILD_BRIEF.md` is the original brief.
 
-**This project does not build yet.** Unity is not installed on this machine.
-See `PLAN.md` §0 for the one-time setup the owner needs to do.
+**The toolchain is installed and the project compiles.** Verified headless on
+2026-09-29: Unity 6000.6.3f1 with Web Build Support, exit code 0, 0 compile
+errors. See `PLAN.md` §0.
+
+```bash
+# compile check, no GUI
+"/Applications/Unity/Hub/Editor/6000.6.3f1/Unity.app/Contents/MacOS/Unity" \
+  -batchmode -quit -nographics -projectPath "$(pwd)" -logFile /tmp/unity.log
+grep -c "error CS" /tmp/unity.log     # expect 0
+```
 
 ## What is here
 
@@ -26,11 +34,17 @@ reference/TARGET.jpg             the specification for the look
 | Project scaffold | done: manifest, assembly definitions, `.gitignore` |
 | `Sim.Rng` | ported, **and parity-checked against the original: 31,500 draws over 7 seeds and 5 fork names, 0 mismatches** |
 | `Sim.Types`, `Sim.Tune` | ported |
+| `Sim.Combat` | ported — fire, suppression, cover, hit chance, targeting |
+| `Sim.Squads` | ported — roster, slots, anchor, march |
+| **Compiles** | **yes, verified headless, 0 errors** |
 | Everything else | not started |
 
-Nothing above has been compiled. The Sim assembly is plain C# with
-`noEngineReferences`, so it should compile standalone, but that has not been
-demonstrated and will not be claimed until it has.
+## Direction
+
+**Photoreal** — decided 2026-09-29. Scanned PBR materials, `TARGET.jpg` as the
+bar. The build-size budget moved to 45 MB initial / 80 MB total to pay for it;
+the frame budget did not move, so the look is bought with material quality
+rather than triangles. `PLAN.md` §2 and §11.
 
 ## The rules this project runs under
 
