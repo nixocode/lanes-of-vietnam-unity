@@ -3,27 +3,28 @@ using System.Collections.Generic;
 
 namespace LanesOfVietnam.Sim
 {
-    public struct Slot { public float X; public float Z; }
+    public struct Slot { public double X; public double Z; }
 
     /// <summary>
     /// Squads: who is in one, where each man should stand, and the anchor that
     /// makes the squad go anywhere.
     ///
-    /// Three of the four functions here carry a bug that cost real time in the
-    /// previous build, written down so it is not rediscovered.
+    /// Brief §9 finding 1 is the expensive one and it lives entirely here. The
+    /// 2D game assigned a man his slot when he spawned and never revised it as
+    /// the squad took casualties, while the anchor was the mean of the living.
+    /// Lone survivors walked off the map (traced to x = 12091 in a 2560-wide
+    /// world). So: <b>slots are recomputed from the live roster every tick and
+    /// never stored on a man.</b>
     /// </summary>
     public static class Squads
     {
         /// <summary>
-        /// The living men of a squad, stable by id.
-        ///
-        /// Sorted, because the simulation must not depend on array order
-        /// changing underneath it — that is a determinism leak that only shows
-        /// up after a few hundred ticks.
+        /// The living men of a squad, stable by id. Sorted, because the
+        /// simulation must not depend on list order changing underneath it.
         /// </summary>
         public static List<Man> Roster(SimState st, int squadId)
         {
-            var outv = new List<Man>();
+            var outv = new List<Man>(Tune.SquadMax);
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var m = st.Men[i];
@@ -38,28 +39,22 @@ namespace LanesOfVietnam.Sim
         ///
         /// Strung out along the lane, one man per rank, staggered either side
         /// of the axis. The obvious wedge — two men per rank separated only in
-        /// Z — is a sensible formation and reads terribly from this camera:
-        /// the lens looks down the Z axis, so a pair differing only in depth
-        /// lands on top of itself and a squad renders as one overlapping
-        /// clump. In a lane game the formation's long axis and the camera's
-        /// long axis are the same axis, and the spacing has to live on it.
-        ///
-        /// Recomputed every tick from <paramref name="live"/>, so a four-man
-        /// squad that loses two re-forms as a two-man squad rather than
-        /// leaving two holes and a displaced anchor.
+        /// Z — reads terribly from this camera: the lens looks down Z, so a
+        /// pair differing only in depth lands on top of itself and a squad
+        /// renders as one clump. In a lane game the formation's long axis and
+        /// the camera's long axis are the same axis.
         /// </summary>
         public static void SlotsFor(Squad sq, IReadOnlyList<Man> live,
-                                    float anchorX, float anchorZ,
-                                    List<Slot> into)
+                                    double anchorX, double anchorZ, List<Slot> into)
         {
             into.Clear();
-            float dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(sq.Side);
             for (int i = 0; i < live.Count; i++)
             {
                 into.Add(new Slot
                 {
                     X = anchorX - dir * i * Tune.SlotGap,
-                    Z = anchorZ + (i % 2 == 0 ? -1f : 1f) * (0.7f + (i % 3) * 0.35f),
+                    Z = anchorZ + (i % 2 == 0 ? -1 : 1) * (0.7 + (i % 3) * 0.35),
                 });
             }
         }
@@ -67,46 +62,37 @@ namespace LanesOfVietnam.Sim
         /// <summary>
         /// Correct a squad's anchor against its living men.
         ///
-        /// The anchor is <b>persistent state that orders move</b> — see
-        /// <see cref="March"/> — and this only leashes it to the men. That
-        /// split is the whole point.
-        ///
-        /// Snapping the anchor onto the lead man instead, which is the obvious
-        /// implementation, looks like it respects that and does not: slot 0
-        /// sits on the anchor, so the lead man is always already in his slot,
-        /// nothing pulls him forward, and the squad never advances. Measured
-        /// in the previous build: floor against floor ran twelve matches to
-        /// the twelve-minute cap with zero casualties, because neither side
-        /// ever moved. The ceiling plan hid it by walking to cover.
+        /// The anchor is persistent state that orders move (<see cref="March"/>)
+        /// and this only leashes it. Snapping it onto the lead man instead —
+        /// the obvious implementation — means slot 0 always sits on the lead
+        /// man, nothing pulls him forward, and the squad never advances:
+        /// floor against floor ran twelve matches to the cap with zero
+        /// casualties.
         /// </summary>
         public static void Reanchor(Squad sq, IReadOnlyList<Man> live)
         {
             if (live.Count == 0) return;
-            float dir = Combat.Advance(sq.Side);
-            float sz = 0, lead = float.NegativeInfinity, rear = float.PositiveInfinity;
+            double dir = Combat.Advance(sq.Side);
+            double sz = 0, lead = double.NegativeInfinity, rear = double.PositiveInfinity;
             for (int i = 0; i < live.Count; i++)
             {
                 var m = live[i];
                 sz += m.Z;
-                float forward = m.X * dir;
+                double forward = m.X * dir;
                 if (forward > lead) lead = forward;
                 if (forward < rear) rear = forward;
             }
 
-            // Z is leashed, not overwritten.
-            //
-            // Setting it to the men's mean every tick erased the Z component
-            // of a march toward cover before the squad could ever arrive: the
-            // anchor crept sideways a fraction of a metre a tick and never got
-            // there, so a cover-using squad wandered out of its own lane —
-            // measured drifting from z 7.0 to 15.2 while never reaching the
-            // cover it had been targeting all match.
-            float meanZ = sz / live.Count;
+            // Z is leashed, not overwritten. Setting it to the men's mean
+            // every tick erased the Z of a march toward cover before the squad
+            // could arrive: measured drifting from z 7.0 to 15.2 while never
+            // reaching the cover it had targeted all match.
+            double meanZ = sz / live.Count;
             sq.AnchorZ = Math.Max(meanZ - Tune.AnchorLeash,
-                         Math.Min(meanZ + Tune.AnchorLeash, sq.AnchorZ));
+                                  Math.Min(meanZ + Tune.AnchorLeash, sq.AnchorZ));
 
-            float ahead = sq.AnchorX * dir;
-            float clamped = Math.Min(lead + Tune.AnchorLeash, Math.Max(rear, ahead));
+            double ahead = sq.AnchorX * dir;
+            double clamped = Math.Min(lead + Tune.AnchorLeash, Math.Max(rear, ahead));
             sq.AnchorX = clamped * dir;
         }
 
@@ -114,32 +100,27 @@ namespace LanesOfVietnam.Sim
         /// Move a squad's anchor under its order. The men chase their slots;
         /// this is the only thing that makes a squad go anywhere.
         /// </summary>
-        public static void March(Squad sq, bool hasTarget, float towardX, float towardZ)
+        public static void March(Squad sq, Cover toward)
         {
-            float dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(sq.Side);
             if (sq.Order == Order.Hold) return;
 
             if (sq.Order == Order.Fallback)
             {
                 sq.AnchorX -= dir * Tune.MarchSpeed * Tune.Dt;
             }
-            else if (hasTarget)
+            else if (toward != null)
             {
-                // Making for cover: the *anchor* goes there and the men keep
-                // their slots around it.
-                //
-                // Sending each man to the cover point itself threw the
-                // formation away every time a squad used cover — it collapsed
-                // onto one spot, tripped its own crowding penalty so the cover
-                // was worth nothing, and bunched up for splash suppression.
-                // Measured by ablation against the floor plan: `useCover`
-                // alone took a side from 54% to 27%. Using cover made you
-                // lose, which is not a tuning value, it is a bug.
-                float dx = towardX - sq.AnchorX, dz = towardZ - sq.AnchorZ;
-                float d = (float)Math.Sqrt(dx * dx + dz * dz);
-                if (d > 0.05f)
+                // Making for cover: the anchor goes there and the men keep
+                // their slots around it. Sending each man to the cover point
+                // collapsed the squad onto one spot, tripped its own crowding
+                // penalty and bunched it for splash suppression — by ablation,
+                // using cover took a side from 54% to 27%.
+                double dx = toward.X - sq.AnchorX, dz = toward.Z - sq.AnchorZ;
+                double d = JsMath.Hypot(dx, dz);
+                if (d > 0.05)
                 {
-                    float stepLen = Math.Min(d, Tune.MarchSpeed * Tune.Dt);
+                    double stepLen = Math.Min(d, Tune.MarchSpeed * Tune.Dt);
                     sq.AnchorX += (dx / d) * stepLen;
                     sq.AnchorZ += (dz / d) * stepLen;
                 }
@@ -149,23 +130,18 @@ namespace LanesOfVietnam.Sim
                 sq.AnchorX += dir * Tune.MarchSpeed * Tune.Dt;
             }
 
-            sq.AnchorX = Math.Max(-Tune.HalfLength,
-                         Math.Min(Tune.HalfLength, sq.AnchorX));
+            sq.AnchorX = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, sq.AnchorX));
         }
 
         /// <summary>
-        /// Has this man made measured progress recently?
-        ///
-        /// Not "moved this tick", which is true on any sub-pixel jitter and
-        /// leaves every stance lock permanently bypassed — that was a real bug
-        /// in the 2D game this descends from. This asks whether he has covered
-        /// <see cref="Tune.MoveEpsilon"/> metres across the whole window.
+        /// Has this man made measured progress recently? Not "moved this
+        /// tick", which is true on any sub-pixel jitter (§9 finding 2).
         /// </summary>
         public static bool IsMoving(Man m)
         {
             if (m.Trail.Count < Tune.MoveWindow) return false;
-            float first = m.Trail[0];
-            float last = m.Trail[m.Trail.Count - 1];
+            double first = m.Trail[0];
+            double last = m.Trail[m.Trail.Count - 1];
             return Math.Abs(last - first) >= Tune.MoveEpsilon;
         }
 
@@ -173,6 +149,13 @@ namespace LanesOfVietnam.Sim
         {
             m.Trail.Add(m.X);
             if (m.Trail.Count > Tune.MoveWindow) m.Trail.RemoveAt(0);
+        }
+
+        /// <summary>Fraction of a squad's original strength still alive, for the break test.</summary>
+        public static double Strength(SimState st, Squad sq, IReadOnlyDictionary<int, int> original)
+        {
+            int n0 = original.TryGetValue(sq.Id, out int v) ? v : 1;
+            return (double)Roster(st, sq.Id).Count / Math.Max(1, n0);
         }
     }
 }

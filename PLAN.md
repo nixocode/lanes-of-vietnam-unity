@@ -4,7 +4,8 @@ A rebuild of the three.js project in Unity, targeting the browser.
 `reference/TARGET.jpg` is the specification for the look. `Docs/BUILD_BRIEF.md`
 is the original brief and still governs everything it covers.
 
-**Status: scaffolded, not yet buildable on this machine.** See §0.
+**Status: §10 steps 0 and 1 done and measured** — see §10a. The project builds
+to WebGL, and the simulation is ported and proven exact against the original.
 
 ---
 
@@ -134,9 +135,12 @@ height, pans along X and dollies slightly in Z. It never orbits — the
 composition is authored and an orbit control lets the player break it in one
 drag. This was right in the three.js build and carries over unchanged.
 
-- Playable extent: **X ∈ [−90, +90] m**. (The three.js build used ±45 after
-  discovering that 240 m is six frames wide at a 19° lens. 180 m is a
-  compromise: enough to flank, small enough to read.)
+- Playable extent: **X ∈ [−45, +45] m for now** — the three.js value, kept by
+  the port. This section proposed ±90 as a compromise, but every balance
+  number carried over was measured at 45, and a longer map is more walking in
+  a game where men already spend ~77% of their time moving with no enemy in
+  range (brief §9 finding 6). Widening it is a measured experiment for later,
+  not a default. (240 m was six frames wide at a 19° lens.)
 - Camera: `y = 5.1`, `z = 44`, **19° vertical FOV**, aimed 0.275° below level.
   These are measured against `TARGET.jpg` and should be treated as given.
 
@@ -514,6 +518,76 @@ Nothing here starts before §0 is done.
 | 10 | Polish, and a build a stranger can load | All §2 budgets |
 
 ---
+
+## 10a. Progress — what is done, and the number that says so
+
+| step | gate | measured |
+|---|---|---|
+| 0 | empty URP scene builds to WebGL; size recorded | **8.00 MB initial** (wasm 4.95, data 2.97, framework 0.06, loader 0.03 MB, Brotli), 126 s build. `Builds/empty-floor/size.json`. The floor everything else is measured against. |
+| 1 | `SimTests` green headless; determinism asserted | **30/30** under Unity's EditMode runner, 25 s headless. |
+
+**Step 0 found two settings that were never true.** The scaffold described a
+URP project, but no pipeline asset was assigned anywhere — it was rendering
+with the built-in pipeline — and the colour space was Gamma. Both are now set
+from code by `ProjectSetup.Apply`, which also fails loudly on any setting name
+that does not resolve.
+
+**Step 1: the port is exact, and that is measured, not claimed.**
+`tools/parity/trace.ts` runs the TypeScript original and hashes the entire
+simulation state after every tick; `tools/simcs` does the same for the C#.
+**22 matches, every tick identical** — plan-driven fights across all four
+plans, and six scripted matches that buy every call-in card (barrages, smoke,
+all three traps, the tunnel, medevac) and give player orders. The tests pin
+hashes from that run, so parity stays checked in Unity without Node.
+
+What exactness needed, each of which would have silently produced a
+*different* match:
+
+- **double, not float.** The previous port used float, which cannot reproduce
+  a double-precision original: positions round differently and matches
+  diverge within ticks. The balance numbers carried over from the three.js
+  build were never going to apply.
+- **V8's own `Math.hypot`** (normalise, Kahan-sum, scale), which is not
+  `sqrt(x*x + y*y)`. 20,000/20,000 test vectors bit-identical.
+- **JavaScript's `Math.round`**: C# rounds halves to even.
+- **fdlibm sine and cosine**, ported into `JsMath`, instead of `Math.Sin`.
+  The Editor's libm and the browser's are different code and may disagree in
+  the last bit; one bit moves a shell burst and flips a lethal roll. This
+  Node's V8 uses glibc-derived trig, which differs from fdlibm by ≤ 1 ulp on
+  0.5% of inputs — so the TypeScript original itself was never deterministic
+  across browsers for barrages. The port is, by construction.
+- **Draw order inside what were object literals** (a man's z before his
+  cooldown; a cover's x, z, then quality).
+- **Three porting bugs fixed**: `Relax` had dropped the faster recovery when
+  prone; `Cover.RangedIn` was an int, so it could never climb past zero and
+  nothing was ever ranged in; `MaxTicks` had moved from 12 to 14 minutes,
+  which moves the time endings.
+
+Measured with the port (`tools/simcs/run.sh`):
+
+| | |
+|---|---|
+| mirror, ceiling vs ceiling, 48 seeds | US 41.7%, 95% CI 28.8–55.7% (fair) |
+| ceiling vs floor | 91.7% as US, 72.9% as VC |
+| cost | **10 µs per tick**, 37 ms per match; worst 236 ms (a 12-minute defend) |
+| audit | all 17 event kinds fire; 5 of 6 endings in 400 matches — "time, drawn" is rare, and a unit test proves its branch is live |
+
+**Changed on purpose, with the reason:**
+
+- **Card cooldowns live in the simulation and tick with it.** The original
+  kept them in the UI and ticked them once per *rendered frame*, so at 60 fps
+  every cooldown ran out three times too fast, and a headless run could not
+  see the economy at all.
+- **Player input is a command log.** Orders and purchases are queued and
+  applied at a tick boundary, and `LiveMatch.Replay(options, log)` reproduces
+  the match exactly (tested). A match is a pure function of (seed, plans,
+  commands), as §4 asks.
+- **A bought squad's strength is recorded when it arrives**, so it can break
+  like any other. The original caught up only at the next reinforcement
+  check, up to six seconds later.
+- **Ground craters are an input**, not fourteen random holes independent of
+  the simulation's crater cover — the map's crater cover and the ground's
+  craters will be one list (§3.3's single source of truth).
 
 ## 11. Questions for the owner
 

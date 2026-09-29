@@ -1,0 +1,389 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using LanesOfVietnam.Sim;
+using NUnit.Framework;
+using Match = LanesOfVietnam.Sim.Match;
+
+namespace LanesOfVietnam.Tests
+{
+    /// <summary>
+    /// The simulation's non-negotiables, as assertions rather than comments.
+    ///
+    /// Each test is a finding from the brief's §9 or a rule from PLAN §4 that
+    /// cost a previous build real time. PLAN §10 step 1's gate is this suite
+    /// passing headless:
+    ///
+    /// <code>tools/unity.sh -nographics -runTests -testPlatform EditMode -testResults Logs/tests.xml</code>
+    /// </summary>
+    public class SimTests
+    {
+        private static string SimDir =>
+            Path.Combine(Directory.GetCurrentDirectory(), "Assets/_Project/Scripts/Sim");
+
+        // --- PLAN §4: the simulation is not the renderer ----------------------------
+
+        [Test]
+        public void Sim_assembly_references_nothing_from_the_engine()
+        {
+            var refs = typeof(Match).Assembly.GetReferencedAssemblies().Select(a => a.Name).ToArray();
+            Assert.That(refs.Where(n => n.StartsWith("UnityEngine") || n.StartsWith("UnityEditor")),
+                        Is.Empty, "Sim references: " + string.Join(", ", refs));
+            StringAssert.Contains("\"noEngineReferences\": true",
+                File.ReadAllText(Path.Combine(SimDir, "LanesOfVietnam.Sim.asmdef")));
+        }
+
+        [Test]
+        public void Sim_reads_no_clock_and_no_global_randomness()
+        {
+            // A match is a pure function of (seed, plans, commands). Any of
+            // these makes it a function of the machine it ran on.
+            var banned = new Regex(@"\b(System\.Random|new Random\(|DateTime\.(Now|UtcNow)|Environment\.TickCount|Stopwatch|Guid\.NewGuid)\b");
+            foreach (var f in Directory.GetFiles(SimDir, "*.cs"))
+            {
+                foreach (var (line, i) in File.ReadAllLines(f).Select((l, i) => (l, i + 1)))
+                {
+                    if (line.TrimStart().StartsWith("//") || line.TrimStart().StartsWith("///")) continue;
+                    Assert.IsFalse(banned.IsMatch(line), $"{Path.GetFileName(f)}:{i}: {line.Trim()}");
+                }
+            }
+        }
+
+        [Test]
+        public void Match_code_calls_no_platform_transcendental()
+        {
+            // Math.Sin and friends may differ in the last bit between the
+            // Editor's libm and the browser's; a different bit is a different
+            // match. The match path uses JsMath's fdlibm port instead.
+            var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs" })
+            {
+                foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
+                {
+                    if (line.TrimStart().StartsWith("//")) continue;
+                    Assert.IsFalse(banned.IsMatch(line), $"{name}:{i}: {line.Trim()}");
+                }
+            }
+        }
+
+        // --- parity with the TypeScript original --------------------------------------
+
+        /// <summary>
+        /// Hashes recorded from the original by tools/parity/trace.ts on
+        /// 2026-09-29. If one of these moves, the simulation has changed —
+        /// which may be intended, and then the balance numbers carried over
+        /// from the three.js build no longer apply and must be re-measured.
+        /// </summary>
+        [TestCase(1, "ceiling", "ceiling", false, 4390, 3004074049u, 1637499518u, 2884798389u, "us morale broke")]
+        [TestCase(1, "floor", "ceiling", false, 1246, 1213854579u, 2552243790u, 1220142971u, "us wiped out")]
+        [TestCase(1, "defend", "defend", false, 14400, 61802080u, 3645062854u, 1847938924u, "time, on morale")]
+        [TestCase(1, "cut-off", "ceiling", false, 2378, 3004074049u, 2506288653u, 3871280973u, "us wiped out")]
+        [TestCase(3, "cut-off", "cut-off", true, 2492, 241283149u, 3723355318u, 736090046u, "vc morale broke")]
+        [TestCase(8, "cut-off", "cut-off", true, 2341, 1666148291u, 960282555u, 2729295840u, "us morale broke")]
+        public void Matches_the_TypeScript_original_bit_for_bit(int seed, string us, string vc, bool scripted,
+            int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var h = Parity.Trace(seed, Plan.ByName(us), Plan.ByName(vc), scripted, out var lm);
+            Assert.AreEqual(at100, h[100], "tick 100");
+            Assert.AreEqual(at1000, h[1000], "tick 1000");
+            Assert.AreEqual(ticks, lm.State.Tick);
+            Assert.AreEqual(final, h[h.Count - 1], "final tick");
+            Assert.AreEqual(reason, lm.State.Reason);
+        }
+
+        [Test]
+        public void JsMath_round_is_JavaScript_round()
+        {
+            Assert.AreEqual(3, JsMath.Round(2.5));
+            Assert.AreEqual(-2, JsMath.Round(-2.5));
+            Assert.AreEqual(0, JsMath.Round(0.49999999999999994));
+            Assert.AreEqual(2, JsMath.Round(1.5));
+        }
+
+        [Test]
+        public void JsMath_trig_is_sane_everywhere_it_is_used()
+        {
+            // Bit-parity with V8 is checked by tools/simcs; this is the floor:
+            // the port is sine and cosine, to 1e-15, across [0, 2pi).
+            var r = new Rng(5);
+            for (int i = 0; i < 10000; i++)
+            {
+                double t = r.Next() * Math.PI * 2;
+                Assert.AreEqual(Math.Sin(t), JsMath.Sin(t), 1e-15);
+                Assert.AreEqual(Math.Cos(t), JsMath.Cos(t), 1e-15);
+            }
+        }
+
+        // --- determinism (§10) -----------------------------------------------------------
+
+        [Test]
+        public void A_match_is_a_pure_function_of_seed_and_plans()
+        {
+            foreach (int seed in new[] { 1, 13, 777 })
+            {
+                var a = Parity.Trace(seed, Plan.Ceiling, Plan.Ceiling, false, out _);
+                var b = Parity.Trace(seed, Plan.Ceiling, Plan.Ceiling, false, out _);
+                CollectionAssert.AreEqual(a, b, $"seed {seed}");
+            }
+        }
+
+        [Test]
+        public void Different_seeds_give_different_matches()
+        {
+            var a = Parity.Trace(1, Plan.Ceiling, Plan.Ceiling, false, out _);
+            var b = Parity.Trace(2, Plan.Ceiling, Plan.Ceiling, false, out _);
+            CollectionAssert.AreNotEqual(a, b);
+        }
+
+        [Test]
+        public void A_command_log_replays_the_match_exactly()
+        {
+            Parity.Trace(42, Plan.NoReinforce, Plan.NoReinforce, true, out var played);
+            Assert.That(played.Log.Count(l => l.Accepted), Is.GreaterThanOrEqualTo(8));
+            var replayed = LiveMatch.Replay(played.Options, played.Log);
+            Assert.AreEqual(Parity.Hash(played.State, 0), Parity.Hash(replayed.State, 0));
+        }
+
+        [Test]
+        public void A_full_match_runs_well_under_a_second()
+        {
+            Match.Run(new MatchOptions { Seed = 5 });
+            var sw = Stopwatch.StartNew();
+            Match.Run(new MatchOptions { Seed = 5 });
+            Assert.Less(sw.ElapsedMilliseconds, 1000);
+        }
+
+        // --- §9 finding 9: seeds are independent ------------------------------------------
+
+        [Test]
+        public void Adjacent_seeds_are_independent()
+        {
+            foreach (int block in new[] { 0, 1000, 2000, 50000, 4000000 })
+            {
+                double c = Rng.AdjacentSeedCorrelation(block, 4000);
+                Assert.Less(Math.Abs(c), 0.05, $"adjacent-seed correlation at block {block}");
+            }
+            double tenth = Rng.AdjacentSeedCorrelation(1000, 4000, r =>
+            {
+                for (int i = 0; i < 9; i++) r.Next();
+                return r.Next();
+            });
+            Assert.Less(Math.Abs(tenth), 0.05, "tenth draw");
+        }
+
+        [Test]
+        public void Rng_is_reproducible_bounded_and_unbiased()
+        {
+            var a = new Rng(12345);
+            var b = new Rng(12345);
+            for (int i = 0; i < 64; i++) Assert.AreEqual(a.Next(), b.Next());
+            var r = new Rng(99);
+            double sum = 0;
+            for (int i = 0; i < 200000; i++)
+            {
+                double v = r.Next();
+                Assert.That(v, Is.GreaterThanOrEqualTo(0).And.LessThan(1));
+                sum += v;
+            }
+            Assert.Less(Math.Abs(sum / 200000 - 0.5), 0.005);
+        }
+
+        [Test]
+        public void Forks_are_independent_and_reproducible()
+        {
+            var x = new Rng(42).Fork("render");
+            var y = new Rng(42).Fork("audio");
+            Assert.AreNotEqual(x.Next(), y.Next());
+            Assert.AreEqual(new Rng(5).Fork("render").Next(), new Rng(5).Fork("render").Next());
+        }
+
+        // --- §9 finding 1: slots come from the live roster -----------------------------------
+
+        private static (Squad sq, List<Man> men) MakeSquad(int n)
+        {
+            var sq = new Squad { Id = 0, Side = Side.Us, Order = Order.Advance, Target = -1 };
+            var men = new List<Man>();
+            for (int i = 0; i < n; i++)
+            {
+                men.Add(new Man { Id = i, Squad = 0, Side = Side.Us, X = -i * Tune.SlotGap, Seen = true });
+            }
+            return (sq, men);
+        }
+
+        [Test]
+        public void The_anchor_stays_inside_the_squad_however_many_die()
+        {
+            // The 2D game's survivors chased a point that ran away from them —
+            // traced to x = 12091 in a 2560-wide world.
+            var (sq, men) = MakeSquad(6);
+            for (int kill = 0; kill < 5; kill++)
+            {
+                men[kill].Alive = false;
+                var live = men.Where(m => m.Alive).ToList();
+                for (int t = 0; t < 200; t++) { Squads.March(sq, null); Squads.Reanchor(sq, live); }
+                double lead = live.Max(m => m.X);
+                Assert.LessOrEqual(sq.AnchorX - lead, Tune.AnchorLeash + 1e-9);
+            }
+        }
+
+        [Test]
+        public void A_lone_survivor_gets_a_slot_on_himself()
+        {
+            var (sq, men) = MakeSquad(5);
+            for (int i = 0; i < 4; i++) men[i].Alive = false;
+            var live = men.Where(m => m.Alive).ToList();
+            Squads.Reanchor(sq, live);
+            var slots = new List<Slot>();
+            Squads.SlotsFor(sq, live, sq.AnchorX, sq.AnchorZ, slots);
+            Assert.AreEqual(1, slots.Count);
+            Assert.LessOrEqual(Math.Abs(slots[0].X - live[0].X), Tune.AnchorLeash + 1e-9);
+        }
+
+        [Test]
+        public void Slot_count_comes_from_the_living_never_the_spawn_size()
+        {
+            var (sq, men) = MakeSquad(6);
+            men[2].Alive = false; men[4].Alive = false;
+            var slots = new List<Slot>();
+            Squads.SlotsFor(sq, men.Where(m => m.Alive).ToList(), 0, 0, slots);
+            Assert.AreEqual(4, slots.Count);
+        }
+
+        // --- §9 finding 2: moving means measured progress ------------------------------------
+
+        [Test]
+        public void Jitter_is_not_movement()
+        {
+            var m = new Man();
+            for (int i = 0; i < Tune.MoveWindow * 3; i++)
+            {
+                m.X += (i % 2 == 0 ? 1 : -1) * 0.001;
+                Squads.PushTrail(m);
+            }
+            Assert.IsFalse(Squads.IsMoving(m));
+        }
+
+        [Test]
+        public void Walking_is_movement_once_the_window_fills()
+        {
+            var m = new Man();
+            for (int i = 0; i < Tune.MoveWindow - 1; i++) { m.X += 1; Squads.PushTrail(m); }
+            Assert.IsFalse(Squads.IsMoving(m), "before the window has filled");
+            m.X += 1; Squads.PushTrail(m);
+            Assert.IsTrue(Squads.IsMoving(m));
+        }
+
+        // --- §8: the match has a shape ----------------------------------------------------------
+
+        [Test]
+        public void Matches_produce_casualties_and_end_with_a_reason()
+        {
+            foreach (var (us, vc) in new[] { (Plan.Ceiling, Plan.Ceiling), (Plan.Floor, Plan.Floor), (Plan.Ceiling, Plan.Floor) })
+            {
+                var r = Match.Run(new MatchOptions { Seed = 3, Us = us, Vc = vc });
+                // Zero casualties is the frozen-anchor bug: twelve seeds ran to
+                // the cap and nobody died.
+                Assert.Greater(r.Casualties[0] + r.Casualties[1], 0, $"{us.Name} vs {vc.Name}");
+                Assert.IsNotEmpty(r.Reason);
+            }
+        }
+
+        [Test]
+        public void Suppression_is_the_mechanic_kills_are_rare()
+        {
+            var r = Match.Run(new MatchOptions { Seed = 9 });
+            int shots = r.EventCounts[EventKind.Fire];
+            int kills = r.EventCounts[EventKind.Kill];
+            Assert.Greater(shots, 0);
+            Assert.Less((double)kills / shots, 0.25);
+            Assert.Greater(r.EventCounts[EventKind.Pinned], 0);
+        }
+
+        [Test]
+        public void Nobody_leaves_the_map()
+        {
+            var lm = new LiveMatch(new MatchOptions { Seed = 4 });
+            for (int i = 0; i < 2000 && !lm.State.Over; i++) lm.Step();
+            foreach (var m in lm.State.Men) Assert.LessOrEqual(Math.Abs(m.X), Tune.HalfLength + 1e-9);
+        }
+
+        [Test]
+        public void The_drawn_time_ending_is_reachable()
+        {
+            // Rare in play — both morales within 0.02 at the twelve-minute cap —
+            // so the audit may never meet it. Rare is fine; dead is the bug, and
+            // this proves the branch is live.
+            var st = Match.Create(new MatchOptions { Seed = 1, Us = Plan.Defend, Vc = Plan.Defend });
+            var original = Match.OriginalStrengths(st);
+            st.Phase = Phase.Fight;
+            st.Morale[0] = st.Morale[1] = 0.7;
+            Match.Step(st, Plan.Defend, Plan.Defend, new Rng(1).Fork("sim"), original, cap: 1);
+            Assert.IsTrue(st.Over);
+            Assert.AreEqual("time, drawn", st.Reason);
+            Assert.IsNull(st.Winner);
+        }
+
+        // --- the deck: every card does something ----------------------------------------------
+
+        [Test]
+        public void Every_card_changes_the_simulation()
+        {
+            // The three.js build shipped eight cards that took the points and did
+            // nothing. Each card here must leave a mark the simulation can see.
+            foreach (var side in Match.Sides)
+            {
+                foreach (var card in Deck.For(side))
+                {
+                    var st = Match.Create(new MatchOptions { Seed = 7 });
+                    st.Cp[(int)side] = 999;
+                    foreach (var m in st.Men) m.Pin = 0.6;
+                    st.Morale[(int)side] = 0.5;
+                    int men = st.Men.Count, areas = st.Areas.Count;
+                    double morale = st.Morale[(int)side];
+                    double pin = st.Men.Where(m => m.Side == side).Sum(m => m.Pin);
+
+                    Assert.IsTrue(Deck.Buy(st, side, card, 1, new Rng(7).Fork("sim"), 5), card.Id);
+                    bool changed = st.Men.Count != men || st.Areas.Count != areas
+                                   || st.Morale[(int)side] != morale
+                                   || st.Men.Where(m => m.Side == side).Sum(m => m.Pin) != pin;
+                    Assert.IsTrue(changed, $"{card.Id} took {card.Cost} CP and changed nothing");
+                    Assert.AreEqual(999 - card.Cost, st.Cp[(int)side], 1e-9, card.Id);
+                    Assert.Greater(Deck.CooldownLeft(st, side, card), 0, card.Id);
+                    Assert.IsFalse(Deck.Buy(st, side, card, 1, new Rng(7).Fork("sim"), 5), $"{card.Id} bought twice inside its cooldown");
+                }
+            }
+        }
+
+        [Test]
+        public void Card_cooldowns_run_on_simulation_ticks()
+        {
+            var lm = new LiveMatch(new MatchOptions { Seed = 2, Us = Plan.NoReinforce, Vc = Plan.NoReinforce });
+            lm.State.Cp[0] = 500;
+            var smoke = Deck.Find(Side.Us, "us-smoke");
+            lm.Issue(Command.Buy(Side.Us, "us-smoke", 0, 0));
+            lm.Step();
+            Assert.AreEqual(smoke.Cooldown - 1, Deck.CooldownLeft(lm.State, Side.Us, smoke));
+            for (int i = 0; i < smoke.Cooldown - 1; i++) lm.Step();
+            Assert.AreEqual(0, Deck.CooldownLeft(lm.State, Side.Us, smoke));
+        }
+
+        [Test]
+        public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
+        {
+            var st = Match.Create(new MatchOptions { Seed = 1 });
+            var sq = st.Squads.First(s => s.Side == Side.Us);
+            sq.Order = Order.Fallback;
+            Assert.IsFalse(Match.OrderSquad(st, sq.Id, Order.Advance), "broken squad obeyed");
+            Assert.IsTrue(Match.OrderSquad(st, sq.Id, Order.Fallback));
+
+            var lm = new LiveMatch(new MatchOptions { Seed = 1 });
+            var enemy = lm.State.Squads.First(s => s.Side == Side.Vc);
+            lm.Issue(Command.OrderSquad(Side.Us, enemy.Id, Order.Hold));
+            lm.Step();
+            Assert.IsFalse(lm.Log[0].Accepted, "the US player ordered a VC squad");
+        }
+    }
+}
