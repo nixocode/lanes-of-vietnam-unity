@@ -125,6 +125,14 @@ namespace LanesOfVietnam.Tools
             dress.Vehicle = Lit("Vehicle", new Color(0.22f, 0.25f, 0.17f), 0.2f);
             root.Dressing = dress;
 
+            var commander = game.AddComponent<Commander>();
+            commander.Root = root;
+            var ringsGo = new GameObject("Selection");
+            ringsGo.transform.SetParent(game.transform, false);
+            var rings = ringsGo.AddComponent<SelectionRings>();
+            rings.Commander = commander;
+            rings.RingMaterial = Mat("Ring", Shader.Find("LOV/Ring"), null);
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();

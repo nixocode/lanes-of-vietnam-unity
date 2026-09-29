@@ -26,6 +26,17 @@ namespace LanesOfVietnam.View
 
         public float PanSpeed = 16f;
 
+        /// <summary>
+        /// Field glasses (PLAN §12.7): held, the lens narrows from 19 degrees to
+        /// about 7 toward the cursor. The aim moves by a bounded amount and comes
+        /// back on release — never an orbit, so the composition holds. This is
+        /// where brief §6's "readable at 400 px" is actually seen.
+        /// </summary>
+        public bool FieldGlasses;
+        public const float GlassesFov = 7f;
+        public float Zoom { get; private set; }          // 0 = authored lens, 1 = glasses
+        private Vector2 _glassesAim;                      // viewport offset from centre, -0.5..0.5
+
         private Camera _cam;
         private float _targetX, _targetDolly;
         private bool _dragging;
@@ -61,6 +72,12 @@ namespace LanesOfVietnam.View
         private void LateUpdate()
         {
             if (CaptureSettings.Active == null) HandleInput(Time.unscaledDeltaTime);
+            // Glasses come up quickly and go down a little slower, like hands.
+            // Where they point is set by whoever raised them (AimGlasses): the
+            // rig reading the mouse itself overrode every other caller — UIAudit
+            // aimed right and the camera turned left, toward a headless mouse
+            // parked at (0, 0).
+            Zoom = Mathf.MoveTowards(Zoom, FieldGlasses ? 1f : 0f, Time.unscaledDeltaTime * (FieldGlasses ? 5f : 3.5f));
             // Critically damped glide toward the target: responsive, never overshoots.
             float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime * 9f);
             X = Mathf.Lerp(X, _targetX, k);
@@ -96,10 +113,24 @@ namespace LanesOfVietnam.View
             }
         }
 
+        /// <summary>Point the glasses at a viewport position (0..1), as a click would. For UIAudit.</summary>
+        public void AimGlasses(Vector2 viewport)
+            => _glassesAim = new Vector2(Mathf.Clamp(viewport.x - 0.5f, -0.5f, 0.5f), Mathf.Clamp(viewport.y - 0.5f, -0.5f, 0.5f));
+
         private void Apply()
         {
             float simZ = Coords.Camera.SimZ - Dolly * DollyRange;
-            transform.SetPositionAndRotation(Coords.World(X, simZ, Coords.Camera.Height), Coords.Camera.Rotation);
+            float e = Zoom * Zoom * (3f - 2f * Zoom);
+            float fov = Mathf.Lerp(Coords.Camera.Fov, GlassesFov, e);
+            var cam = Camera;
+            if (cam != null) cam.fieldOfView = fov;
+            // Turn toward the point that was under the cursor, by the angle it
+            // stood off-centre at the authored lens.
+            float vHalf = Coords.Camera.Fov * 0.5f;
+            float hHalf = Mathf.Atan(Mathf.Tan(vHalf * Mathf.Deg2Rad) * (cam != null ? cam.aspect : 16f / 9f)) * Mathf.Rad2Deg;
+            float yaw = _glassesAim.x * 2f * hHalf * e, pitch = -_glassesAim.y * 2f * vHalf * e;
+            var rot = Coords.Camera.Rotation * Quaternion.Euler(pitch, yaw, 0);
+            transform.SetPositionAndRotation(Coords.World(X, simZ, Coords.Camera.Height), rot);
         }
     }
 }

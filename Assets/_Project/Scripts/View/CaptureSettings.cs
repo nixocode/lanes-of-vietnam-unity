@@ -40,6 +40,10 @@ namespace LanesOfVietnam.View
         /// scene with nothing temporal on must be identical.
         /// </summary>
         public string Aa = "taa";
+        /// <summary>Select this squad (id) before rendering, to see its rings; -1 for none, -2 for Tab's first pick.</summary>
+        public int Select = -1;
+        /// <summary>Raise the field glasses toward this viewport point (x,y in 0..1); null for none.</summary>
+        public float[] Glasses;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
         public static CaptureSettings Active;
@@ -68,6 +72,13 @@ namespace LanesOfVietnam.View
                     case "frames": c.Frames = int.Parse(v, inv); break;
                     case "nopost": c.NoPost = v == "1" || v == "true"; break;
                     case "ui": c.NoUi = !(v == "1" || v == "true"); break;
+                    case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;
+                    case "glasses":
+                    {
+                        var xy = v.Split(':');
+                        c.Glasses = new[] { float.Parse(xy[0], inv), float.Parse(xy[1], inv) };
+                        break;
+                    }
                     case "aa":
                         if (v != "taa" && v != "smaa" && v != "fxaa" && v != "none")
                             throw new ArgumentException($"capture: aa must be taa, smaa, fxaa or none, not \"{v}\"");
