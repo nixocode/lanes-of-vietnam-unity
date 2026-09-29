@@ -636,3 +636,553 @@ temporal-stability baseline the art pass is measured against.
    in a normal browser window. Automation browsers throttle and read-back
    de-accelerates the canvas (brief §9 finding 11), so the §2 frame budget can
    only be signed off on real hardware.
+
+---
+
+## 12. Agent review and Part 2
+
+*Added 2026-09-30 by a second agent, at the owner's request, after reviewing
+this plan against both of the owner's earlier games. **Where this section and
+an earlier one disagree, this section wins.** §12.13 lists every conflict, to
+be folded into the earlier sections when each is next touched.*
+
+The owner's instruction: this is to be **a more photorealistic and more
+immersive game than the owner's earlier ones: a whole new set-up, with the
+technology chosen to beat [Vietnam '65 — Lanes of War](https://nixocode.github.io/vietnam-65-lanes-of-war/)**
+(public repo `nixocode/vietnam-65-lanes-of-war`, local copy `../Vietnam 1965`).
+It is built in Unity with proper assets and real animation, using Adobe
+products wherever they help.
+
+### 12.1 The bar is two games, not one
+
+| | *Vietnam '65 — Lanes of War* (2D) | *Lanes of Vietnam '65* (three.js) |
+|---|---|---|
+| where | `../Vietnam 1965`, public on GitHub, live on GitHub Pages | `../Lanes of vietnam` |
+| its strength | **content**: five historical operations, a campaign alternating sides, 14 unit types, the M113, snipers with glint and duels, night at Khe Sanh, monsoon rain on Hill 937, elevation, perks, three difficulties, guided field orders, music | **look and method**: §4 measured to within a point, a deterministic sim, the harnesses |
+| its weakness | stylised CC0 sprites on a flat side view | one map, bare palms, streaked clouds, procedural animation, synthesised audio, 58 fps |
+
+**To be better, this game has to beat both at once.** A photoreal one-map
+slice loses to the 2D game on everything except looks, and content without
+the look is just the 2D game again. So "better" is three gates:
+
+1. **Look:** the §4 band table *and* histogram against `TARGET.jpg`, plus a
+   side-by-side the owner looks at: this build beside `TARGET.jpg`, and
+   beside the 2D game's `docs/ingame.jpg`. The side-by-side is the one gate
+   that is not a number, and it is the owner's call.
+2. **Content:** every row of §12.8's matrix reads *matched*, *beaten*, or
+   *dropped on purpose, with the reason*.
+3. **It runs:** §2's budgets hold in a normal browser on the owner's
+   machine.
+
+**Part 1** is the slice: one map at `TARGET.jpg` quality, both sides, the
+full interface and sourced audio. It comes first because it proves the
+pipeline every later map reuses. **Part 2** is the content that beats the 2D
+game (§12.8).
+
+### 12.2 The review: what holds
+
+The path is right where it has been walked:
+
+- The simulation is the same game, and **proven** to be: 22 matches identical
+  to the TypeScript at every tick.
+- The map, lanes, camera, cover-as-single-source-of-truth, both decks, all 18
+  cards and the §9 findings carry over.
+- The changes made on purpose are real improvements. Cooldowns tick with the
+  sim (the original ran them 3× fast at 60 fps), the command log makes replay
+  exact, and player orders are built in.
+- Measurement comes before content, as the brief asks.
+
+What the plan lacks is everything that would make the game *look and feel*
+better than its predecessors (§12.3–12.7), the technical decisions those
+depend on (§12.9), and any Part 2 at all.
+
+### 12.3 Soldiers and motion: the missing step, started now
+
+Brief §6: *"It is the hardest part of the project. Start it first."* §10 has
+no step for it: step 4 uses grey-box men, and step 6's art pass names
+vegetation, firebase, treeline and mountains. §5.4 describes the three.js
+build's procedural animation and never mentions clips, an Animator or Mixamo.
+From now on this is its own track, **B** in §12.12, run in parallel with the
+engine track, because it takes longest.
+
+**Bodies: built, as the three.js build already proved they can be.**
+
+- **Base:** MPFB2 (MakeHuman) in Blender. Its assets *and* its output are
+  CC0, and the pipeline already works in
+  `../Lanes of vietnam/pipeline/build_soldier.py`. Blender is at
+  `/Applications/Blender.app` (not on `PATH`). Reuse that pipeline and raise
+  its output to brief §6: **8–15k triangles at LOD0, three LODs, PBR
+  (albedo, normal, ORM)**.
+- **Kit sits on sockets, not baked into the mesh**, per force and per
+  operation date:
+  - *US:* OG-107 fatigues, M1 helmet with cover and band, flak vest, M1956
+    webbing, canteens; M16, M60, M79, PRC-25 radio. ARVN share the body with
+    lighter kit.
+  - *VC/NVA:* black cotton and khaki uniforms, pith helmet, non lá (conical
+    hat), bush hat, chest rig; AK-47/Type 56, SKS, RPD, B-40/RPG, Mosin,
+    satchel charge.
+  - Period kit is researched per operation date and noted in `ASSETS.md`.
+    Where `TARGET.jpg` and history disagree, ask the owner.
+- **Materials:** start from the three.js build's vetted ambientCG scans
+  (Fabric037 fatigue, Fabric019 webbing, Fabric048 vest, Leather032,
+  Metal032), whose licence *and* albedo were already checked. Finish them in
+  **Photoshop**: wear, sweat, mud, per-man tint masks, subdued insignia.
+- **One body, many men:** height, build, skin tone, wear, sleeves, headgear
+  and loadout all vary. *"Two identical men should never stand next to each
+  other"* becomes a test run over every spawn.
+
+**Motion: Mixamo, through the owner's Adobe ID.**
+
+- Every body goes through Mixamo's auto-rigger, or a Humanoid-compatible
+  Blender rig, so that all bodies share one skeleton. Unity's **Humanoid**
+  avatar then retargets every clip onto every body. Humanoid retargets
+  relative to each rig's rest pose, which is exactly the fix for brief §6's
+  "ribboned legs" trap. Every variant is still checked at a zoom where a
+  smear cannot hide.
+- **In-place clips only, with root motion off.** The simulation owns where a
+  man is. The Animator's speed parameter is the sim's distance per tick
+  divided by the clip's authored speed. That is §5.4's "phase advances with
+  distance, not time", expressed in Animator terms.
+- **The clip list.** Download each as *FBX for Unity*, 30 fps, no keyframe
+  reduction, and log each in `ASSETS.md` under its Mixamo name.
+
+  | group | clips |
+  |---|---|
+  | locomotion, per weapon class (rifle, MG, RPG) | idle, walk, run, crouch idle, crouch walk, prone idle, crawl |
+  | posture transitions, **all six, both directions** | stand↔kneel, kneel↔prone, stand↔prone |
+  | weapon, per posture | aim; fire with recoil through the upper body; reload; MG fire prone; grenade throw; RPG kneel-and-fire; sniper aim |
+  | reactions | hit from each of 4 directions; suppressed flinch and duck; dive to cover; **at least 4 deaths per posture that read differently** |
+  | life | look around, adjust helmet, wave forward, point, radio handset (the RTO when a call-in is made) |
+  | VC-specific | sapper run and satchel throw; climb out of a spider hole or tunnel. If Mixamo lacks these, author them in Blender over a Mixamo base |
+
+- **Animator:**
+  - a speed blend tree per posture;
+  - a posture state machine built from the transitions above. Its timing
+    must still meet §5.4's targets: down in 0.20 s, up in 0.62 s. Those are
+    now gates on which clips are chosen, not code;
+  - an **upper-body aim layer** with an avatar mask, so a man aims while
+    moving. The old 2D game could not, and called it its "single biggest
+    limitation";
+  - an additive flinch layer.
+- **IK uses Humanoid's built-in `OnAnimatorIK`** for feet on the ground, head
+  look-at and the off hand on the weapon. It needs no package, which matters
+  because §0 shows this editor rejecting two of Unity's own packages. Use
+  Animation Rigging only if built-in IK measurably falls short *and* the
+  package compiles.
+- **Every animation is driven by a sim state or event, never by its own
+  timer.** A man is never shown firing on a tick where the sim did not fire.
+  Reloads are cosmetic and play only inside long cooldowns.
+- **Deaths:** clips, plus a procedural settle onto the terrain whose roll
+  direction comes from the view's RNG fork. **No ragdoll** (§12.9).
+
+**Grey-box men animate from day one.** Step 4 uses Mixamo's stock mannequin
+(Y Bot) with the real clips. That way the sim→Animator bridge is built and
+measured before the soldiers are finished, and the finished soldiers drop
+straight in.
+
+**The new performance risk.** WebGL 2 has no compute shaders, so skinning may
+run on the CPU, and 60 Animators update on the main thread in wasm. That, not
+art taste, decides the LOD0 triangle count. Mitigations, in order:
+
+1. Animator culling.
+2. LODs with fewer bones, and 2-bone skin weights.
+3. Lower Animator update rates with distance.
+4. Last resort: baked vertex-animation textures for the farthest LOD.
+
+**Proposed sub-budget: animation plus skinning for 60 visible men ≤ 4 ms** of
+the 16.7 ms frame, measured in a **WebGL build**, not the Editor. The first
+measurement confirms or corrects it.
+
+**Gates:**
+
+- a **foot-skate meter**: horizontal drift of a planted foot per stance, read
+  from bone positions, **≤ 2 cm**;
+- a **posture-matrix capture**: every variant in every posture at 40 px and
+  at 400 px, looked at;
+- the "no identical neighbours" test;
+- the 4 ms sub-budget.
+
+### 12.4 The interface: brief §7, built to `TARGET.jpg`
+
+§5 covers selection and what the deck contains. Brief §7 specifies the whole
+screen, and says *"Build this, not something of your own devising."* All of it
+belongs in Part 1:
+
+- **Frame and type:** a thin frame and a subtle vignette. Type is **Stardos
+  Stencil** (OFL, approved 2026-09-28; `OFL.txt` ships beside it). Olive,
+  brass and amber on dark.
+- **Top bar:**
+  - `★ US / ARVN` with a segmented green morale bar, and `VC / NVA ★` with a
+    segmented red one;
+  - **two objective diamonds**, one per lane, coloured by whoever holds it;
+  - the amber **orders line**, e.g. `ORDERS 2/5 — SET PUNJI STAKES IN THEIR
+    PATH [Q]`. These are guided field orders that complete on real sim events,
+    and they are *guidance, never a gate*. Port the 2D game's field-order
+    content from `js/data.js` and `js/tutor.js`;
+  - the **tactical strip**: both lanes drawn schematically, with unit pips,
+    each side's front-line trace and the camera's window;
+  - **pause, speed (1×/2×), SND, MUS and settings** buttons, each showing its
+    own state.
+- **Bottom bar:**
+  - the **CP counter** (`82 / CP`);
+  - unit cards grouped under **LINE · SUPPORT · SPECIAL**, each with a
+    portrait, stencil name, cost and composition pips, dimmed when
+    unaffordable and showing its cooldown;
+  - **call-in cards** with line-art icons, cost and hotkey, visibly different
+    per side. The asymmetry is *"the game's best idea — protect it."*
+- **Portraits are the real models.** A portrait rig renders each unit in the
+  engine (three-quarter view, fixed light), and **Photoshop** finishes it
+  (grade, grain, card frame). The card then shows exactly the men you get.
+  Call-in icons are drawn in Photoshop, or in Illustrator if the owner
+  installs it.
+- **Technology: UI Toolkit.** Its runtime module is already in
+  `manifest.json`, its stylesheets suit a spec this exact, and it avoids
+  adding uGUI. Check that the stencil face renders crisply at 1280×720 and
+  at 4K.
+- **Colour-blind cue.** Side is shown only by green versus red, on tracers,
+  pips and bars, which is the classic colour-blindness failure. Add a shape
+  cue (pip shape, tracer pattern) or a colour-blind-safe palette option.
+- **Gate:** `UIAudit` drives every element in both states, plus a
+  side-by-side of both bars against `TARGET.jpg`.
+
+### 12.5 Match flow: start, opening, ending, settings
+
+The three.js build had all of this; the Unity plan names none of it.
+
+- **Loader:** styled, not Unity's default. Stencil type, a progress bar, and
+  interactive in **≤ 12 s** (§2). Streaming carries on behind the start
+  screen.
+- **Start screen:** over the live scene, slowly panning, not a still image.
+  The player picks side and match length (in Part 2 also operation and
+  difficulty). **Deploy** is the user gesture that lets audio start.
+- **The opening is the infiltration** (three.js D32). Its sim side is already
+  ported: the VC move up concealed in the grass, the US hold, and contact
+  comes at 8–13 s. The view adds only three things: an authored camera settle
+  from the valley onto the firebase, the first radio call, and the first
+  order. It is skippable, moves only the camera, and never touches the sim.
+- **Two endings, not one card with the winner swapped in:** *THE LINE HELD*
+  and *THE WIRE IS BREACHED*, each in its side's colour, with a sub-line taken
+  from the sim's own `reason` string. Below it goes an **after-action
+  report** (losses per side, squads' veterancy, cards used, time) and a
+  **watch the replay** button. The replay costs almost nothing, because
+  `LiveMatch.Replay` already reproduces a match from its command log.
+- **Pause and settings:**
+  - quality tier (vegetation density, shadow distance, render scale);
+  - volumes (master, effects, music, ambience, voice);
+  - subtitles for radio and voice lines;
+  - the key list, camera shake on or off, and hide HUD.
+
+  Settings are saved with `PlayerPrefs` (IndexedDB in WebGL) on a best-effort
+  basis: the game must still work when storage is empty or blocked.
+
+### 12.6 Audio: sourced, on the owner's instruction
+
+**On 2026-09-30 the owner overrode §8 rule 4: the audio is to be sourced**
+(see the owner's note in §8 and the `ASSETS.md` "Audio" paragraph). The
+propagation model stays, applied *on top of* the recordings. The only part of
+the old argument that still holds is that recordings arrive with a distance
+already baked in. So: **choose dry, close-miked recordings, and let the engine
+add the distance.**
+
+**Sources:**
+
+| source | licence | use |
+|---|---|---|
+| **Sonniss #GameAudioGDC bundles** | free, royalty-free, commercial use, no attribution; not for AI/ML training; not to be resold individually | weapons, explosions, foley, vehicles, ambience |
+| **Freesound** | CC0 preferred; CC-BY logged with attribution; **NC rejected** | filling gaps |
+| Premiere Pro / Media Encoder 2026 (installed); Audition if the owner installs it | our own processing | cleanup, loudness normalisation, radio band-pass for voice |
+| ~~BBC Sound Effects~~ | RemArc licence: personal, educational and research use only | **rejected** |
+
+**What is needed:**
+
+- weapons and ordnance: M16, M60, M79, AK-47, SKS, RPD, RPG, Mosin, .50 cal,
+  mortar, 105 mm, napalm, bombs;
+- the **UH-1 Huey rotor** (the war's most recognisable sound), aircraft
+  passes, radio squelch and chatter;
+- ambience beds for each time of day and weather: insects, birds, frogs at
+  night, rain, wind in the elephant grass. They duck under sustained fire, as
+  the three.js graph did.
+
+**A WebGL fact that decides the architecture.** In a browser, Unity's audio
+supports basic positional playback, panning, rolloff, pitch and volume only.
+There are **no audio filters and no Audio Mixer effects**
+([Unity manual, "Audio in Web"](https://docs.unity3d.com/Manual/webgl-audio.html)).
+So the distance model (travel delay, air absorption, late tail, occlusion)
+cannot be built from Unity's audio components. Two ways to build it, in order
+of preference:
+
+1. **A `.jslib` bridge to Web Audio** that ports the three.js build's
+   hand-built, measured graph (`../Lanes of vietnam/src/audio/engine.ts`),
+   with recorded sources in place of synthesised ones. It keeps the measured
+   model and is native to the browser.
+2. **Pre-rendered distance variants** of each sound (close, 100 m, 300 m,
+   600 m), with travel delay applied at play time. Simpler, but a heavier
+   download.
+
+**Music:** the `MUS` button needs a source, which is an owner question
+(§12.14). Period popular songs are under copyright and are out.
+
+**Voice:** radio exchanges make a call-in *"feel like calling for something"*
+(brief §8), and squad barks ("Contact left!", "Moving!") make the line feel
+manned. Vietnamese lines come from a native speaker or are not used at all;
+no put-on accents. All voice is subtitled.
+
+**Gates:**
+
+- the three.js distance table, re-measured on the Unity build. Onset, peak,
+  spectral centroid and late energy must all move with distance, and
+  occlusion must darken the sound rather than just quieten it;
+- no clipping in a scripted 60-man firefight, with peak and loudness measured
+  through a limiter.
+
+### 12.7 Immersion: what neither earlier game had
+
+Each item gets an on/off switch, so a capture with and without it can prove
+it earns its cost. None may raise `Flicker` or break the frame budget.
+
+1. **Call-ins you watch arrive.** These are view-only choreography, timed to
+   the sim's event tick and never touching the sim:
+   - *artillery:* the whistle, then rounds walking through the grass;
+   - *air strike:* a period aircraft (A-1 Skyraider, F-100) crossing the sky;
+   - *medevac:* **a Huey flies in, flares, hovers over the near lane with its
+     downwash flattening the grass, and leaves;**
+   - *smoke:* grenades pop and the cloud builds;
+   - *traps:* the pit opens, the lid lifts;
+   - *tunnel:* men climb out of the ground.
+2. **The radio operator.** When a call-in is made, the squad's radio operator
+   kneels with the handset while the exchange plays, so every call has a
+   person attached.
+3. **Men who look alive:** idle movement, look-at IK tracking the nearest
+   threat, flinching under fire, a leader waving the squad forward.
+4. **Air and light:** cloud shadows moving across the valley (a scrolling
+   light cookie on the sun: cheap, and large on screen); smoke drifting from
+   the firebase and from barrages; dust from movement and impacts; a blob
+   ambient-occlusion shadow under each man so his feet sit on the ground.
+5. **Scars that stay:** scorch marks, flattened and burnt grass, spent
+   casings, lingering smoke; bodies already persist. **A scar that is not
+   cover must not look like cover** (§3.3's rule), so a shell mark is a
+   shallow scorch unless the sim registers it as a crater.
+6. **Field glasses:** hold a key to narrow the field of view toward the cursor
+   (19° down to about 7°). There is no orbit, so the composition holds. This
+   is where brief §6's *"readable at 400 px"* is actually seen.
+7. **Camera shake** from nearby bursts: small, measured, and switchable off
+   in settings. Depth of field on the near ground only, as in three.js D9.
+8. **Wind that does not flicker:** low-frequency wind in the vertex shader,
+   weakening with distance and switched off beyond the imposter distance. The
+   three.js build found that wind turns into aliasing at depth.
+9. **Night and weather** (Part 2 operations):
+   - illumination flares drifting under parachutes, as the light that makes
+     night both photoreal and playable;
+   - muzzle flashes as real lights, drawn from a small fixed pool;
+   - rain with wet materials (darker albedo, lower roughness, puddles in the
+     ruts) and splashes;
+   - fog.
+10. **Documentary tone**, carried over from the 2D game: *neither side is
+    glorified*. Deaths read clearly without gore, and civilians are never
+    targets. Operation briefings may use **public-domain US government
+    photographs** (NARA, US Army), each one logged.
+
+### 12.8 Part 2: content that beats the 2D game
+
+Brief §8 said *"No campaign. One map."* The owner's 2026-09-30 instruction
+supersedes that for Part 2. Part 1 stays one map.
+
+| the 2D game has | Unity Part 1 | Part 2 |
+|---|---|---|
+| **5 historical operations**: Ia Drang (Nov 1965), Cu Chi (Jan 1966), Mekong Delta (Jun 1967), Khe Sanh (Jan 1968, night), Hill 937 (May 1969, rain) | 1: the `TARGET.jpg` firebase, 1965 | all five, as photoreal maps; the slice map stays as the first operation. Proposed order, by how much each reuses: **Khe Sanh** (firebase set + night) → **Cu Chi** (the jungle set + tunnels) → **Ia Drang** (grassland, golden hour, the Chu Pong massif) → **Hill 937** (slope, bunkers, rain) → **Mekong** (paddies, dikes and water: the most new technology) |
+| modes: standard, **siege** (timer), **assault** (timer + capture both flags) | standard | siege and assault |
+| **campaign**: five operations alternating sides, with briefings, objectives and field orders | none | ported from the `CAMPAIGN` table in `js/data.js`. The briefing text is already written; check its history |
+| **difficulty**: Recruit / Veteran / Elite | the sim's plan quality | three levels, set by plan quality and income; balance measured per level |
+| US units: rifleman, **ARVN**, M60, engineer, **LRRP recon**, **scout sniper**, **M113 APC**, grenadier | rifle, weapons, M60, mortar, engineers | add ARVN squad, LRRP team (spotting), sniper team, APC section |
+| VC units: guerrilla, NVA, **RPD**, RPG, sapper, marksman | guerrilla, NVA, RPG, marksman, sapper | add RPD team |
+| US call-ins: fire mission, **napalm**, dustoff, **Air Cav**, **Arc Light** | artillery, smoke, medevac, air strike | napalm (**burns away concealment** in its zone, as in the 2D game); Air Cav (Hueys insert a squad); Arc Light (a line of B-52 bombs, with the longest cooldown) |
+| VC call-ins: punji, tripwire, spider hole, tunnel | the same four | matched |
+| orders: advance, hold, fall back, **frag**, **smoke** | advance, hold, bound, fall back | add frag (a close assault breaks a position that small arms cannot) and squad smoke (the 2D game's AI pops it when bounding is blocked) |
+| **elevation**: firing downhill gains range and damage | flat play | goes into the sim, with Hill 937 |
+| **snipers**: scope glint, duels | the marksman card | glint as a view effect of the sim's aim state; port the duel logic |
+| villages with **firing ports**, MG nests, dikes | trench, sandbag, bunker, crater, bank | added per operation: dikes, huts with firing ports, MG nests, bunkers |
+| **perks**: six, bought with commendation points earned across matches | none | ported, kept as modest as in the 2D game (`js/perks.js`) |
+| music, SND/MUS buttons | the buttons (§12.4) | the music (§12.14) |
+| frame-time readout; self-test of every map × side | `Budget`, `SimTests`, `UIAudit` | extended to every operation × side × difficulty, headless |
+| **mobile version** (a separate repo) | none | **not planned.** A photoreal WebGL build at 45 MB with a 512 MB heap is beyond mobile browsers. This is stated, not quietly dropped (§12.14) |
+
+New in this game, beyond both predecessors: the Mortar team, player orders on
+any squad, the Huey and aircraft on screen, field glasses, replays, flares as
+a night mechanic, and sourced audio with distance.
+
+**The simulation's policy for Part 2. This matters.** The C# sim is proven
+identical to the TypeScript original, but Part 2 adds mechanics the original
+never had, so parity cannot cover them:
+
+1. Tag the proven state (`sim-parity-baseline`) before the first Part 2
+   mechanic goes in.
+2. **Every new mechanic sits behind a match option whose default is the
+   baseline**, so the 22 parity matches keep passing unchanged.
+3. From then on, the C# sim is the source of truth, and its own pinned
+   determinism hashes cover the new content.
+4. Each mechanic lands with a 48-seed balance block (with Wilson intervals),
+   an audit proving its new events are reachable, and a `UIAudit` row for any
+   new control.
+5. **The 2D game's numbers do not transfer.** Its units have hit points; this
+   sim deliberately has none (§5.2). "The M113 takes about 105 rifle rounds
+   and dies to two rockets" is a design intent to translate (immune to
+   small-arms lethality, vulnerable to RPG and satchel rolls), not a number
+   to copy.
+
+**Budget for Part 2.** §2's 80 MB total was for one map. It becomes **≤ 45 MB
+initial** (menu plus the first operation), with **each further operation
+≤ about 40 MB, streamed when chosen**. Changing operation unloads the previous
+one, and `Budget` checks the heap after three switches as a leak test.
+
+### 12.9 Technology decisions: make them before the art
+
+| decision | recommendation | why | settled by |
+|---|---|---|---|
+| **Editor version** | Install the newest **LTS** release listed in the Hub *alongside* 6000.6.3f1, and try a copy of the project on it. Move to it if it compiles the packages below and passes `SimTests`. | Only 6000.6.3f1 (tech stream) is installed, although §2 says "Unity 6 LTS". Addressables and Input System already fail to compile on it, and the soldier and streaming work need more. | a compile, `SimTests`, and a new empty-build floor on the LTS |
+| **Streaming without Addressables** (if 6000.6 stays) | raw **AssetBundles** via `UnityWebRequestAssetBundle`: engine modules, not a package | §6's streaming, and with it the 45 MB initial budget, currently depends on a package that does not compile | a streamed treeline in a WebGL build |
+| **Engine modules** | **Add** `particlesystem`, `terrain`, `assetbundle`, `unitywebrequestassetbundle`, none of which resolve today. `animation` and `physics` already resolve through `render-pipelines.core` (see `packages-lock.json`): **list `animation` explicitly**, so a pipeline upgrade cannot remove the Animator. | each is needed by a step above | a compile, and **each one's build-size delta against the 8.00 MB floor** |
+| **Physics** | **not used, no ragdoll**. It is resolved as a dependency, so confirm in the build report that engine stripping removes it. | download size, and the sim already owns movement. Brief §6 made the ragdoll conditional ("if physics is in"). | the build report |
+| **Effects** | the built-in Particle System | **VFX Graph, STP upscaling and the GPU Resident Drawer all need compute shaders, which WebGL 2 lacks** | none needed |
+| **Anti-aliasing for foliage** | measure **TAA** against **MSAA 4× with alpha-to-coverage**, **in a WebGL build**. Editor captures (`captures/taa.json`) run on Metal and prove nothing about WebGL 2. | URP's TAA on WebGL 2 is unverified here, and alpha-to-coverage is the classic answer for cut-out foliage | `Flicker` and `FrameCapture`, same scene, both ways |
+| **Terrain** | a Unity Terrain whose heightmap is **generated from `Sim/Ground.cs`** | Unity's layering and detail instancing, while the sim's ground stays the truth | a test: terrain height matches `Ground` within 2 cm at sampled points (foot IK depends on it) |
+| **Colour grade** | a LUT graded **in Photoshop** from a neutral capture, against `TARGET.jpg`, and loaded through URP's Color Lookup | a standard Photoshop workflow, and it keeps the grade an asset rather than a pile of sliders | `LookMeter` before and after |
+| **Audio** | the `.jslib` Web Audio bridge (§12.6) | Unity WebGL has no filters and no mixer effects | the distance table |
+| **UI** | UI Toolkit (§12.4) | already present | `UIAudit` |
+| **Skinning cost** | §12.3's mitigations | skinning may run on the CPU in WebGL | the 4 ms sub-budget |
+
+**Adobe work must be reproducible.** Photoshop jobs (frond and leaf atlases,
+seam fixes, portraits, UI chrome, decals, the LUT, the mountain normal map)
+are scripted in JSX under `tools/photoshop/` and run through `osascript`
+(Photoshop's `do javascript`). That way an asset can be regenerated rather
+than remembered, as in the three.js build, where assets were generated and
+never committed as sources.
+
+### 12.10 Asset sourcing sprint, before the art pass
+
+The three.js build lost on exactly this list. So every item is chosen,
+**looked at, measured (triangles, texture sizes) and logged** before the art
+pass starts.
+
+| item | look first | fallback | must |
+|---|---|---|---|
+| **coconut and areca palms** (the three.js build's worst miss) | Sketchfab (CC0 and CC-BY only); free items on Fab and the Unity Asset Store, licence checked per item, and anything restricted to another engine rejected | Blender: a trunk with Poly Haven bark, fronds from a Photoshop atlas cut from CC0 leaf scans | a full, heavy crown that reads in silhouette at 60–120 m, with LODs and an imposter |
+| bamboo | as above | a Blender generator plus an atlas | clumps, not poles |
+| banana, elephant ear | Poly Haven, Sketchfab | Photoshop atlas cards | |
+| understory | **the seven vetted Poly Haven scans**: fern_02, weed_plant_02, calathea_orbifolia_01, nettle_plant, shrub_02, anthurium_botany_01, pachira_aquatica_01. Re-log them here | | |
+| elephant grass | terrain detail with a Photoshop atlas made from CC0 scans | | no speckle under `Flicker` |
+| treeline | imposters baked in the engine from the near species | | clumpy, never a wall |
+| **mountains** | **real terrain: SRTM elevation data** (public domain, NASA/USGS) for the Central Highlands. The Chu Pong massif is a real shape | a hand-shaped mesh with a Photoshop-painted normal map (§6) | three to five ridges with real silhouettes and internal detail |
+| **sky** | a Poly Haven HDRI with real cumulus (CC0) | | cumulus, not streaks (the three.js build's second miss) |
+| terrain materials | the vetted ambientCG set: Ground103 track, Ground109 verge, Ground037 scrub, Grass004 | | albedo measured, not guessed (three.js D7, D12) |
+| firebase: tower, sandbags, revetments, wire, crates, drums, flag | Sketchfab, Fab and Asset Store free items | Blender, with ambientCG sandbag, wood and canvas | |
+| M35 truck, M151 jeep; in Part 2 the M113, UH-1 and aircraft | Sketchfab CC-BY military models, Fab, Asset Store free items | Blender | period-correct, PBR, inside the triangle budget |
+| soldiers | §12.3 | | |
+
+§8's trusted-source table gains Sonniss, Sketchfab (per-model licence, CC0 or
+CC-BY only), free items on Fab and the Asset Store (licence checked per item),
+public-domain US government photographs, and SRTM data. Its rejected list
+gains BBC Sound Effects.
+
+### 12.11 Publishing: GitHub, like the 2D game
+
+The 2D game is a public repo served by GitHub Pages. If this one goes the same
+way, three things break unless they are planned now:
+
+1. **Licences versus a public repo.** Mixamo forbids redistributing its raw
+   files. The Asset Store and Fab licences forbid redistributing source
+   assets. Sonniss sounds may not be resold individually. A public repo
+   holding those files would redistribute them. So either the repo is
+   private, or the licensed source files live outside git (an ignored
+   `Assets/_Licensed/`, restored by a script from the owner's storage) and
+   only builds are published. CC0 assets and our own work can be committed.
+2. **Git LFS for textures, models and audio.** Plain git rejects files over
+   100 MB. Check the LFS quota before the first asset push.
+3. **Brotli on Pages.** Pages cannot send the `Content-Encoding: br` header,
+   so a Brotli-compressed Unity build will not load there unless
+   **Decompression Fallback** is turned on. That is the opposite of §6's
+   "fallback off". Choose one:
+   - Pages with the fallback on (a slower first load, measured against the
+     12 s budget); or
+   - a host that sets the header (Cloudflare Pages, Netlify, Vercel),
+     measured the same way.
+
+Nothing is pushed or deployed without the owner's go-ahead. That rule is
+unchanged.
+
+### 12.12 Execution order: replaces §10 from step 2 on
+
+There are two tracks. **A** is the engine and the game. **B** is the soldiers;
+it starts now, because it is the longest job and brief §6 says so.
+
+**Part 1: the slice**
+
+| # | track | step | gate |
+|---|---|---|---|
+| 2 | A | harnesses: `FrameCapture`, `LookMeter`, `Budget`, `Flicker`: **done** (§10a) | met. One caveat: they run in the Editor on Metal, so any anti-aliasing or timing number must be re-read from a WebGL build |
+| 2a | A | **the technology decisions** (§12.9) | each one written down with its measurement; a new empty-build floor if the editor changes |
+| 3 | A | grey-box map *(in progress)* | lanes readable in a grey-box capture |
+| 3a | B | **soldier proof:** one US body, rigged, six clips, Humanoid, in a WebGL build | foot skate ≤ 2 cm; 60 animated men inside 4 ms |
+| 4 | A | the sim drives Mixamo-mannequin men at 20 Hz through the real Animator (§12.3) | 60 men inside the frame budget |
+| 5 | A | command: selection, orders, camera, field glasses | `UIAudit` green |
+| 5a | A | **the interface to brief §7, plus loader, start screen, opening, endings and settings** (§12.4–12.5) | `UIAudit` on every element; both bars side by side with `TARGET.jpg` |
+| 6a | A | **asset sourcing sprint** (§12.10). It is research, so it can start at any time | every item looked at, measured and logged |
+| 6b | A | art pass: terrain, vegetation, firebase, treeline, mountains, sky, grade | §4 table **and** histogram; `Flicker` at or below the three.js build's 1.30; the owner's side-by-side |
+| 6c | B | **soldiers complete:** both forces, every Part 1 unit, the full clip list, IK, variation, LODs, portraits | posture matrix at 40 and 400 px; every variant checked at zoom; no identical neighbours |
+| 7 | A | gunplay, and the call-in choreography (§12.7 item 1) | visible in a capture; each arrival lands on the sim's event tick |
+| 8 | A | deck: every card does something | `UIAudit` proves all 18 |
+| 9 | A | **audio, sourced** (§12.6) | the distance table on the Unity build; no clipping at 60 men |
+| 9a | A | the immersion layer (§12.7), each item switchable | `Flicker` and the frame budget hold with everything on |
+| 10 | A | polish, and a build a stranger can load from the chosen host (§12.11) | every §2 budget, on the owner's machine |
+
+**Part 2: the content that beats the 2D game.** Each step ships on its own.
+
+| # | step | gate |
+|---|---|---|
+| 11 | sim extensions behind options (§12.8's policy): frag, squad smoke, elevation, sniper glint and duels, napalm versus concealment, armour, flares | the parity baseline still identical; a balance block per mechanic |
+| 12 | unit parity: ARVN, LRRP, sniper team, RPD team, APC section (M113) | each card proven by `UIAudit`; balance |
+| 13 | the operations, one at a time, in §12.8's order | **each needs its own reference frame before its art starts** (§12.14); look, `Flicker` and budget gates per map; both sides winnable |
+| 14 | modes (siege, assault), campaign, difficulty, perks, and field orders for every operation | every operation winnable by both sides at every difficulty: 48 seeds, headless |
+| 15 | the stranger test | someone who has never seen the game plays the first operation cold and finishes it without help |
+
+### 12.13 Corrections to earlier sections
+
+Fold each of these in when its section is next touched.
+
+- **§0 / §2:** the project runs 6000.6.3f1 (tech stream), not "Unity 6 LTS",
+  until §12.9 decides otherwise.
+- **§5.4:** movement is Mixamo clips on a Humanoid Animator, driven by the
+  sim's speed and posture. The 0.20 s and 0.62 s timings stay, as gates.
+- **§6:** physics stays out *on purpose* (§12.9); the module list grows;
+  Addressables may become raw AssetBundles; "Decompression Fallback off"
+  depends on the host (§12.11).
+- **§8 rule 4 and the `ASSETS.md` "Audio" paragraph:** replaced by §12.6. The
+  owner's note ("YOU SHOULD SOURCE IT!") is implemented there; tidy the
+  sentence it was appended to.
+- **§8 sources:** the additions and the rejection in §12.10.
+- **§10:** replaced by §12.12.
+- **README:** "Steps 2–10 — not started" is stale.
+
+### 12.14 Owner questions and actions
+
+1. **Mixamo downloads** need the owner's Adobe sign-in in a browser, and
+   there is no public API. The agent prepares the exact clip list and
+   settings (§12.3). Then either the owner downloads them, or the owner signs
+   in on a browser the agent can drive.
+2. **Music:** (a) a free licensed score (CC-BY or royalty-free, logged),
+   (b) a commissioned one, or (c) no music, ambience only.
+3. **Voices:** who records the radio and squad lines? Vietnamese lines need a
+   native speaker, or they are left out.
+4. **A reference frame for each Part 2 operation:** concept art in the spirit
+   of `TARGET.jpg` (as the three.js project had `concept art.jpeg`), or bands
+   derived from `TARGET.jpg`'s principles. §4's table exists only for
+   `TARGET.jpg`.
+5. **GitHub:** public or private repo? GitHub Pages like the 2D game, or a
+   host that sets headers? (§12.11)
+6. **Mobile:** confirm it is out of scope for the photoreal build (§12.8).
+7. **Adobe installs, if the owner's plan includes them:** Audition (audio
+   cleanup, batch loudness), Illustrator (line-art call-in icons), Substance
+   3D Painter (soldier texturing). Only Photoshop, Premiere Pro, Media Encoder
+   and Lightroom are installed now.
+8. **The Unity LTS editor:** install it alongside the current one (several GB,
+   through the Hub) for §12.9.
+9. **Real-device numbers:** §11 Q4, still open.
