@@ -56,6 +56,24 @@ namespace LanesOfVietnam.View
                     _ => AntialiasingMode.TemporalAntiAliasing,
                 };
                 if (cap.NoPost) camData.renderPostProcessing = false;
+                if (cap.Taa != null)
+                {
+                    var taa = camData.taaSettings;
+                    taa.baseBlendFactor = cap.Taa[0];
+                    taa.varianceClampScale = cap.Taa[1];
+                    camData.taaSettings = taa;
+                }
+            }
+            if (cap.PlantBias >= 0)
+            {
+                var dress = FindAnyObjectByType<WorldDressing>();
+                if (dress != null)
+                    foreach (var r in dress.GetComponentsInChildren<MeshRenderer>())
+                        if (r.sharedMaterial != null && r.sharedMaterial.HasProperty("_MipBias"))
+                        {
+                            var b = r.sharedMaterial.GetVector("_MipBias");
+                            r.material.SetVector("_MipBias", new Vector4(b.x, cap.PlantBias, b.z, b.w));
+                        }
             }
             if (cap.GroundDebug != 0 || cap.GroundGrad > 0)
             {

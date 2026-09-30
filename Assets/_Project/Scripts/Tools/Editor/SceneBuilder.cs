@@ -131,6 +131,7 @@ namespace LanesOfVietnam.Tools
             dress.Timber = cover.TimberMaterial;
             dress.Sandbag = cover.SandbagMaterial;
             dress.Vehicle = Lit("Vehicle", new Color(0.22f, 0.25f, 0.17f), 0.2f);
+            dress.Plants = PlantSets();
             root.Dressing = dress;
 
             var commander = game.AddComponent<Commander>();
@@ -252,6 +253,37 @@ namespace LanesOfVietnam.Tools
             EditorUtility.SetDirty(m);
             Debug.Log($"[LOV] ground layers: 4 x (albedo + normal), {bytes / 1048576f:F1} MB in memory");
             return m;
+        }
+
+        [System.Serializable] private class PlantLayout { public float pitch_deg; }
+
+        /// <summary>
+        /// Every baked species in Art/Plants (tools/blender/plant_bake.py): its
+        /// layout and a material made from its two atlases.
+        /// </summary>
+        private static PlantSet[] PlantSets()
+        {
+            const string dir = "Assets/_Project/Art/Plants";
+            var sets = new System.Collections.Generic.List<PlantSet>();
+            if (!AssetDatabase.IsValidFolder(dir)) return sets.ToArray();
+            foreach (var guid in AssetDatabase.FindAssets("t:TextAsset", new[] { dir }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!path.EndsWith(".json")) continue;
+                string name = System.IO.Path.GetFileNameWithoutExtension(path);
+                var json = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+                var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_albedo.png");
+                var normal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_normal.png");
+                if (albedo == null || normal == null) throw new System.Exception($"{name}: atlas missing beside {path}");
+                var m = Mat($"Plant {name}", Shader.Find("LOV/Foliage"), null);
+                m.SetTexture("_Albedo", albedo);
+                m.SetTexture("_Normal", normal);
+                m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);
+                EditorUtility.SetDirty(m);
+                sets.Add(new PlantSet { Name = name, Layout = json, Material = m });
+            }
+            Debug.Log($"[LOV] plant species: {string.Join(", ", sets.ConvertAll(p => p.Name))}");
+            return sets.ToArray();
         }
 
         private static VolumeProfile PostProfile()

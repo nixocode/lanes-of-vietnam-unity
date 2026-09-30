@@ -1,0 +1,31 @@
+{
+ "species": "jacaranda",
+ "pitch_deg": 6.0,
+ "atlas": [
+  2048,
+  2048
+ ],
+ "ppm": 64,
+ "source": "polyhaven/models/jacaranda_tree/jacaranda_tree_2k.gltf",
+ "variants": [
+  {
+   "key": "a",
+   "rect": [
+    0.005859375,
+    0.005859375,
+    0.78515625,
+    0.68359375
+   ],
+   "size_m": [
+    24.9375,
+    21.6875
+   ],
+   "root": [
+    0.5,
+    0.057
+   ],
+   "height_m": 19.322,
+   "source_polygons": 3863832
+  }
+ ]
+}

@@ -34,6 +34,8 @@ namespace LanesOfVietnam.View
         public Material Timber;
         public Material Sandbag;
         public Material Vehicle;
+        /// <summary>Baked plants (tools/blender/plant_bake.py). A species that is missing falls back to its grey-box shape.</summary>
+        public PlantSet[] Plants;
 
         /// <summary>
         /// The treeline begins here (sim z), 68 m from the lens. Derived from
@@ -56,17 +58,59 @@ namespace LanesOfVietnam.View
         private readonly List<Renderer> _built = new List<Renderer>();
         public IReadOnlyList<Renderer> Built => _built;
 
+        private Dictionary<string, PlantSpecies> _species;
+        private PlantBatch _plants;
+        /// <summary>How many plants were placed.</summary>
+        public int PlantCount => _plants?.Count ?? 0;
+
         public void Build(Ground g, IReadOnlyList<Cover> cover, int seed)
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
+            _species = new Dictionary<string, PlantSpecies>();
+            foreach (var p in Plants ?? System.Array.Empty<PlantSet>())
+                if (p.Layout != null && p.Material != null) _species[p.Name] = new PlantSpecies(p);
+            _plants = new PlantBatch();
             var rng = new Rng(seed).Fork("dressing");
+            // Which plant stands where draws from its own fork, so the layout —
+            // every position the rules chose — is the grey box's exactly.
+            _plantRng = rng.Fork("plants");
             Treeline(g, cover, rng.Fork("treeline"));
             Scrub(g, cover, rng.Fork("scrub"));
+            Foreground(g, cover, rng.Fork("foreground"));
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
             Ridges(rng.Fork("ridges"));
             CombineByMaterial();
+            _built.AddRange(_plants.Build(transform));
+            if (_plants.Count > 0) Debug.Log($"[LOV] plants: {_plants.Count:N0} of {_species.Count} species");
+        }
+
+        private Rng _plantRng;
+
+        private PlantSpecies Species(string name) => _species.TryGetValue(name, out var s) ? s : null;
+
+        /// <summary>
+        /// Place one of several species at a point, at a height (metres), if any
+        /// of them has been baked. Returns false when none has, so the caller can
+        /// fall back to the grey box.
+        /// </summary>
+        private bool Plant(Ground g, double x, double z, float height, params string[] choices)
+        {
+            var avail = new List<PlantSpecies>();
+            foreach (var c in choices) { var s = Species(c); if (s != null) avail.Add(s); }
+            if (avail.Count == 0) return false;
+            var sp = avail[_plantRng.Int(0, avail.Count)];
+            int vi = _plantRng.Int(0, sp.Variants.Length);
+            float scale = height / Mathf.Max(0.05f, sp.Variants[vi].Height);
+            // A little of each plant's own colour: a leaf's green varies a few
+            // percent in brightness and toward yellow or blue.
+            float bright = (float)_plantRng.Range(0.86, 1.08);
+            float warm = (float)_plantRng.Range(-0.05, 0.05);
+            var tint = new Color(bright * (1 + warm), bright, bright * (1 - warm * 1.4f));
+            var root = Coords.World(x, z, (float)g.HeightAt(x, z) - 0.03f);
+            _plants.Add(sp, vi, root, scale, _plantRng.Next() < 0.5, tint, (float)_plantRng.Next());
+            return true;
         }
 
         /// <summary>
@@ -135,7 +179,15 @@ namespace LanesOfVietnam.View
                     {
                         // The front edge: bushes and understory, head to twice head high.
                         float h = (float)rng.Range(2.5, 5.5), w = (float)rng.Range(2, 4);
-                        Prim(PrimitiveType.Sphere, Coords.World(xx, z, y + h * 0.45f), new Vector3(w, h, w * 0.8f), mat, "bush");
+                        if (Plant(g, xx, z, h, "pachira", "ficus"))
+                        {
+                            // A clump, not a specimen: lower plants around its foot.
+                            int n = _plantRng.Int(1, 4);
+                            for (int j = 0; j < n; j++)
+                                Plant(g, xx + _plantRng.Range(-w * 0.6, w * 0.6), z + _plantRng.Range(-1.0, 1.5),
+                                      (float)_plantRng.Range(0.7, 2.0), "anthurium", "fern", "calathea");
+                        }
+                        else Prim(PrimitiveType.Sphere, Coords.World(xx, z, y + h * 0.45f), new Vector3(w, h, w * 0.8f), mat, "bush");
                         continue;
                     }
                     // Crown tops from the reference's own angle: its treeline tops
@@ -146,6 +198,14 @@ namespace LanesOfVietnam.View
                     float cw = (float)rng.Range(5, 10);
                     float ch = cw * (float)rng.Range(0.28, 0.42);    // broad, umbrella-flat
                     float groundTop = top - y;
+                    // The canopy: the broad umbrella crowns, with the smaller
+                    // trees as the lower storey, and never a bare trunk on a lawn:
+                    // the jungle's undergrowth closes up to the crowns.
+                    if (Plant(g, xx, z, groundTop, "jacaranda", "jacaranda", "island_tree"))
+                    {
+                        Undergrowth(g, xx, z, groundTop);
+                        continue;
+                    }
                     Prim(PrimitiveType.Cylinder, Coords.World(xx, z, y + (groundTop - ch) * 0.5f),
                          new Vector3(0.35f, (groundTop - ch) * 0.5f, 0.35f), Timber, "trunk");
                     Prim(PrimitiveType.Sphere, Coords.World(xx, z, top - ch * 0.5f), new Vector3(cw, ch, cw), mat, "crown");
@@ -176,6 +236,25 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
+        /// What fills the space under a canopy tree: saplings and a lower storey
+        /// up to about half its height, then plants at their feet, spread across
+        /// the crown's width and a little in front of it.
+        /// </summary>
+        private void Undergrowth(Ground g, double x, double z, float treeHeight)
+        {
+            if (Species("pachira") == null && Species("ficus") == null && Species("island_tree") == null) return;
+            float spread = treeHeight * 0.45f;
+            int mid = _plantRng.Int(2, 5);
+            for (int j = 0; j < mid; j++)
+                Plant(g, x + _plantRng.Range(-spread, spread), z + _plantRng.Range(-3.0, 2.0),
+                      (float)_plantRng.Range(treeHeight * 0.25, treeHeight * 0.55), "island_tree", "pachira", "ficus");
+            int low = _plantRng.Int(3, 7);
+            for (int j = 0; j < low; j++)
+                Plant(g, x + _plantRng.Range(-spread * 1.2, spread * 1.2), z + _plantRng.Range(-2.0, 3.0),
+                      (float)_plantRng.Range(0.8, 2.4), "anthurium", "fern", "calathea", "pachira");
+        }
+
+        /// <summary>
         /// Knee- to head-high scrub between the far lane and the treeline, so the
         /// far lane sits in front of something rather than on a lawn, and never
         /// on cover.
@@ -188,7 +267,31 @@ namespace LanesOfVietnam.View
                 if (NearCover(cover, x, z, 1.0)) continue;
                 float h = (float)rng.Range(0.8, 2.6), w = (float)rng.Range(0.8, 2.4);
                 float y = (float)g.HeightAt(x, z);
-                Prim(PrimitiveType.Sphere, Coords.World(x, z, y + h * 0.35f), new Vector3(w, h, w * 0.8f), Foliage, "scrub");
+                // The aroid is a cultivated, variegated form: an occasional one only.
+                bool placed = h > 1.7f
+                    ? Plant(g, x, z, h, "pachira", "ficus")
+                    : Plant(g, x, z, h, rng.Next() < 0.12 ? "aroid" : "anthurium", "anthurium", "fern", "calathea");
+                if (!placed) Prim(PrimitiveType.Sphere, Coords.World(x, z, y + h * 0.35f), new Vector3(w, h, w * 0.8f), Foliage, "scrub");
+            }
+        }
+
+        /// <summary>
+        /// Low plants between the lens and the near lane, as in the reference's
+        /// foreground: under 1.4 m, so a sight line to a man in the near lane
+        /// (about 2 m up where it crosses this band) passes over them. In
+        /// clumps, by a slow noise, never a carpet. Not in front of the firebase,
+        /// which has its own cleared ground.
+        /// </summary>
+        private void Foreground(Ground g, IReadOnlyList<Cover> cover, Rng rng)
+        {
+            if (_species.Count == 0) return;
+            for (int i = 0; i < 420; i++)
+            {
+                double x = rng.Range(-150, 150), z = rng.Range(11.5, 22);
+                if (x < FirebaseEastX + 1 || NearCover(cover, x, z, 1.0)) continue;
+                double clump = System.Math.Sin(x * 0.11 + 1.3) * System.Math.Sin(x * 0.037 + z * 0.21);
+                if (rng.Next() > 0.25 + clump * 0.6) continue;
+                Plant(g, x, z, (float)rng.Range(0.45, 1.35), "fern", "calathea", "anthurium");
             }
         }
 

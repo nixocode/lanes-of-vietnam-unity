@@ -1,0 +1,31 @@
+{
+ "species": "ficus",
+ "pitch_deg": 6.0,
+ "atlas": [
+  512,
+  512
+ ],
+ "ppm": 320,
+ "source": "polyhaven/models/potted_plant_01/potted_plant_01_2k.gltf",
+ "variants": [
+  {
+   "key": "a",
+   "rect": [
+    0.0234375,
+    0.0234375,
+    0.3984375,
+    0.6484375
+   ],
+   "size_m": [
+    0.6,
+    1.0
+   ],
+   "root": [
+    0.5,
+    0.0349
+   ],
+   "height_m": 0.925,
+   "source_polygons": 113908
+  }
+ ]
+}

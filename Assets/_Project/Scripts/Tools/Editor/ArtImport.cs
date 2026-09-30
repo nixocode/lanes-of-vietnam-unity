@@ -46,6 +46,30 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
+            else if (p.StartsWith("Assets/_Project/Art/Plants/") && p.EndsWith(".png"))
+            {
+                // Baked plant atlases (tools/blender/plant_bake.py). The normal
+                // atlas is not a Unity normal map: it holds the bake frame's x
+                // and y, the occlusion and the sunlit term, read as plain linear data.
+                bool albedo = p.EndsWith("_albedo.png");
+                ti.textureType = TextureImporterType.Default;
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.sRGBTexture = albedo;
+                ti.alphaSource = TextureImporterAlphaSource.FromInput;
+                ti.alphaIsTransparency = false;          // the bake already dilated the colour under the cut-outs
+                ti.maxTextureSize = 4096;
+                ti.mipmapEnabled = true;
+                // Alpha-tested leaves thin out with distance as mips average
+                // their coverage down; this keeps each mip's coverage at the cutoff.
+                ti.mipMapsPreserveCoverage = albedo;
+                ti.alphaTestReferenceValue = 0.5f;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Trilinear;
+                ti.anisoLevel = 2;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
             {
                 // One albedo (+ height in alpha) and one normal per layer

@@ -1,0 +1,53 @@
+{
+ "species": "island_tree",
+ "pitch_deg": 6.0,
+ "atlas": [
+  2048,
+  1024
+ ],
+ "ppm": 128,
+ "source": [
+  "polyhaven/models/island_tree_01/island_tree_01_2k.gltf",
+  "polyhaven/models/island_tree_02/island_tree_02_2k.gltf"
+ ],
+ "variants": [
+  {
+   "key": "01",
+   "rect": [
+    0.005859375,
+    0.01171875,
+    0.310546875,
+    0.7109375
+   ],
+   "size_m": [
+    4.875,
+    5.5938
+   ],
+   "root": [
+    0.5,
+    0.0549
+   ],
+   "height_m": 5.007,
+   "source_polygons": 1599403
+  },
+  {
+   "key": "02",
+   "rect": [
+    0.322265625,
+    0.01171875,
+    0.591796875,
+    0.49609375
+   ],
+   "size_m": [
+    4.3125,
+    3.875
+   ],
+   "root": [
+    0.5,
+    0.065
+   ],
+   "height_m": 3.39,
+   "source_polygons": 1072212
+  }
+ ]
+}
