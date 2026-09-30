@@ -69,6 +69,14 @@ namespace LanesOfVietnam.View
         public string UsPlan, VcPlan;
         /// <summary>Grenades on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? Frag;
+        /// <summary>Lift, gamma, gain (their w: -1..1) for the grade, replacing the profile's; null keeps it.</summary>
+        public float[] Lgg;
+        /// <summary>Grade saturation (-100..100), replacing the profile's; null keeps it.</summary>
+        public float? Sat;
+        /// <summary>Fog density (exponential squared), replacing the scene's; null keeps it.</summary>
+        public float? Fog;
+        /// <summary>Extra stops on the sky alone (a graduated filter), on top of the scene's; null keeps it.</summary>
+        public float? SkyEv;
         /// <summary>Squad smoke on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? SquadSmoke;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
@@ -105,6 +113,13 @@ namespace LanesOfVietnam.View
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
                     case "usplan": c.UsPlan = v; break;
                     case "frag": c.Frag = v == "1" || v == "true"; break;
+                    case "sat": c.Sat = float.Parse(v, inv); break;
+                    case "fog": c.Fog = float.Parse(v, inv); break;
+                    case "skyev": c.SkyEv = float.Parse(v, inv); break;
+                    case "lgg":
+                        var lg = v.Split(':');
+                        c.Lgg = new[] { float.Parse(lg[0], inv), float.Parse(lg[1], inv), float.Parse(lg[2], inv) };
+                        break;
                     case "squadsmoke": c.SquadSmoke = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":

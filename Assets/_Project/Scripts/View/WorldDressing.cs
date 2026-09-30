@@ -353,16 +353,25 @@ namespace LanesOfVietnam.View
                     double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
                     double density;
                     float lo, hi;
-                    if (pz > 11) { density = 0.9; lo = 0.6f; hi = 1.2f; }                  // foreground
-                    else if (lane < 3.5) { density = 0.6; lo = 0.3f; hi = 0.6f; }         // trodden lanes
-                    else if (pz > -10.5) { density = 0.65; lo = 0.45f; hi = 0.95f; }      // between
-                    else { density = 0.85; lo = 0.7f; hi = 1.25f; }                      // scrub, treeline edge
+                    // Dense everywhere men are not standing on bare earth: the
+                    // reference's lanes are grass and fern with dark gaps, not
+                    // lawn. Measured: the bare ground between tufts was what
+                    // held the lane bands L* 12-17 over TARGET.jpg's.
+                    if (pz > 11) { density = 0.95; lo = 0.6f; hi = 1.2f; }                 // foreground
+                    else if (lane < 3.5) { density = 0.9; lo = 0.35f; hi = 0.75f; }       // the lanes: trodden, not bare
+                    else if (pz > -10.5) { density = 0.95; lo = 0.45f; hi = 1.0f; }       // between
+                    else { density = 0.9; lo = 0.7f; hi = 1.25f; }                       // scrub, treeline edge
                     if (firebase) density *= 0.2;
                     density *= 0.45 + 0.9 * patch;
                     if (rng.Next() > density) continue;
                     bool tall = pz < -10.5 && rng.Next() < 0.1 + 0.25 * patch;
                     if (tall) Plant(g, px, pz, (float)rng.Range(2.0, 3.2), "elephant_grass");
                     else Plant(g, px, pz, (float)rng.Range(lo, hi), "grass_tuft");
+                    // Low broadleaf through the grass, under knee height: never
+                    // above the sight lines the simulation assumes.
+                    if (!tall && pz < 11 && _plantRng.Next() < 0.07 + 0.08 * patch)
+                        Plant(g, px + _plantRng.Range(-0.3, 0.3), pz + _plantRng.Range(-0.3, 0.3),
+                              (float)_plantRng.Range(0.3, 0.6), "fern", "calathea", "anthurium");
                 }
             }
         }

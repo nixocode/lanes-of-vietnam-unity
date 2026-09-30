@@ -55,6 +55,7 @@ namespace LanesOfVietnam.Tools
             // The sun, the ambient and the fog colour are set at load from the
             // same baked sky the player sees (SkyLighting); the values below are
             // only what the Editor shows before play.
+            sunGo.AddComponent<CloudShadows>();
             var skyLight = sunGo.AddComponent<SkyLighting>();
             skyLight.Sun = sun;
             skyLight.SkyMaterial = RenderSettings.skybox;
@@ -67,7 +68,9 @@ namespace LanesOfVietnam.Tools
             RenderSettings.ambientGroundColor = new Color(0.26f, 0.24f, 0.19f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.0017f;
+            // Tropical air: enough that distance lightens (the reference's bands
+            // rise from lane to treeline to sky).
+            RenderSettings.fogDensity = 0.0035f;
             RenderSettings.fogColor = new Color(0.66f, 0.72f, 0.76f);
 
             // --- the camera ------------------------------------------------------
@@ -155,6 +158,7 @@ namespace LanesOfVietnam.Tools
             mount.Heights = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Mountains/mountains.bytes");
             mount.Layout = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Mountains/mountains.json");
             mount.Material = Mat("Mountains", Shader.Find("LOV/Mountain"), null);
+            mount.Material.SetVector("_Haze", new Vector4(MountainHaze, 600, 0, 0));
             if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data — the grey-box ridges stand in (run tools/art/mountains.py)");
             root.Mountains = mount;
 
@@ -336,6 +340,9 @@ namespace LanesOfVietnam.Tools
         private static Vector4 MipBiasFor(string species)
             => species.Contains("grass") ? GrassBias : new Vector4(0.5f, 1.75f, 40, 90);
 
+        /// <summary>Metres of air for 63% haze on the massif (Mountain.shader).</summary>
+        public static float MountainHaze = 2500f;
+
         /// <summary>A baked prop set (Art/Props): lit like the plants, without wind, leaf glow or field shade.</summary>
         private static PlantSet PropSet(string name)
         {
@@ -402,13 +409,18 @@ namespace LanesOfVietnam.Tools
             vig.intensity.Override(0.22f);
             vig.smoothness.Override(0.45f);
             var col = p.Add<ColorAdjustments>(true);
-            // The camera's exposure, set so the photographed sky lands where the
-            // reference's does: pure sky L* 87.0 against 88.5 (0 EV gives 74.4,
-            // +0.6 gives 82.8). Everything else is lit by that same sky, so its
-            // brightness is then a matter of albedo, not of this dial.
-            col.postExposure.Override(1.0f);
+            // The grade, found by measurement against TARGET.jpg's bands (the
+            // search is in the commit that set it). Exposure for the ground, and
+            // the sky held up on its own (SkyLighting.SkyStops, a graduated
+            // filter): the reference's sky is far brighter than its ground, more
+            // than one physical exposure gives. Sum of band |dL*| 52.4 -> 29.9.
+            col.postExposure.Override(0.4f);
             col.contrast.Override(8f);
-            col.saturation.Override(0f);
+            col.saturation.Override(-20f);
+            var lgg = p.Add<LiftGammaGain>(true);
+            lgg.lift.Override(new Vector4(1, 1, 1, 0f));
+            lgg.gamma.Override(new Vector4(1, 1, 1, -0.1f));
+            lgg.gain.Override(new Vector4(1, 1, 1, 0.05f));
             foreach (var c in p.components) AssetDatabase.AddObjectToAsset(c, p);
             EditorUtility.SetDirty(p);
             AssetDatabase.SaveAssets();

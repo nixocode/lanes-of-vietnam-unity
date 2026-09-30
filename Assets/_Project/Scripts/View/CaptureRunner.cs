@@ -88,6 +88,30 @@ namespace LanesOfVietnam.View
                         if (cap.GroundGrad > 0) r.material.SetFloat("_GradScale", cap.GroundGrad);
                     }
             }
+            if (cap.Lgg != null)
+            {
+                var vol = FindAnyObjectByType<Volume>();
+                if (vol != null)
+                {
+                    if (!vol.profile.TryGet<LiftGammaGain>(out var lgg)) lgg = vol.profile.Add<LiftGammaGain>(true);
+                    lgg.lift.Override(new Vector4(1, 1, 1, cap.Lgg[0]));
+                    lgg.gamma.Override(new Vector4(1, 1, 1, cap.Lgg[1]));
+                    lgg.gain.Override(new Vector4(1, 1, 1, cap.Lgg[2]));
+                }
+            }
+            if (cap.Fog.HasValue) RenderSettings.fogDensity = cap.Fog.Value;
+            if (cap.SkyEv.HasValue && RenderSettings.skybox != null)
+            {
+                // RenderSettings.skybox is the scene's material asset: copy it, never write the asset.
+                var sky = new Material(RenderSettings.skybox);
+                sky.SetFloat("_Scale", sky.GetFloat("_Scale") * Mathf.Pow(2f, cap.SkyEv.Value));
+                RenderSettings.skybox = sky;
+            }
+            if (cap.Sat.HasValue)
+            {
+                var vol = FindAnyObjectByType<Volume>();
+                if (vol != null && vol.profile.TryGet<ColorAdjustments>(out var ca)) ca.saturation.Override(cap.Sat.Value);
+            }
             if (cap.Ev.HasValue || cap.Tint != null || cap.Tone != null)
             {
                 // vol.profile is a play-mode copy: the asset is not touched.

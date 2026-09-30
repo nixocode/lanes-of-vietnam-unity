@@ -30,6 +30,11 @@ namespace LanesOfVietnam.View
 
         /// <summary>The scene's light scale: sky radiance 1 becomes this many units.</summary>
         public float Scale = 2f;
+        /// <summary>
+        /// Stops on the visible sky alone, a graduated filter: the lighting keeps
+        /// the photograph's units; only what the lens sees of the sky is lifted.
+        /// </summary>
+        public float SkyStops = 0.6f;
         /// <summary>Shares of the measured sun and sky. 1 is the photograph.</summary>
         [Range(0, 2)] public float SunShare = 1f;
         [Range(0, 2)] public float AmbientShare = 1f;
@@ -66,7 +71,7 @@ namespace LanesOfVietnam.View
             if (SkyMaterial != null)
             {
                 SkyMaterial.SetFloat("_K", info.exposure_k);
-                SkyMaterial.SetFloat("_Scale", Scale);
+                SkyMaterial.SetFloat("_Scale", Scale * Mathf.Pow(2f, SkyStops));
                 SkyMaterial.SetVector("_WindowAz", new Vector4(info.window.az0, info.window.az1));
                 SkyMaterial.SetVector("_WindowEl", new Vector4(info.window.el0, info.window.el1));
                 RenderSettings.skybox = SkyMaterial;

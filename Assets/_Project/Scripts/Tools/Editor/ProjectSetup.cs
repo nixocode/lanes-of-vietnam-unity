@@ -133,7 +133,9 @@ namespace LanesOfVietnam.Tools
             Set(so, "m_SupportsDynamicBatching", false);
             Set(so, "m_ColorGradingMode", 1);     // HDR grading
             Set(so, "m_ColorGradingLutSize", 32);
-            Set(so, "m_SupportsLightCookies", false);
+            // On for the clouds' shadows: a scrolling cookie on the sun
+            // (PLAN §12.7 item 4; CloudShadows).
+            Set(so, "m_SupportsLightCookies", true);
             Set(so, "m_MixedLightingSupported", true);
             so.ApplyModifiedPropertiesWithoutUndo();
 
