@@ -49,6 +49,7 @@ import os
 import re
 import sys
 
+import bmesh
 import bpy
 import mathutils
 import numpy as np
@@ -206,7 +207,17 @@ RECIPES["soldier_us"] = dict(build="soldier", src="soldiers/us_rifleman.glb", pp
 RECIPES["soldier_vc"] = dict(build="soldier", src="soldiers/vc_guerrilla.glb", ppm=280, ground="min", out=SOLDIER_OUT)
 
 
+# Sandbag walls, built: no scanned sandbags exist, and the camera sees every
+# wall face-on, so a baked segment repeated along a wall is the whole wall.
+# Bags are cloth from ambientCG's CC0 fabric scans (Fabric066 weathered olive,
+# Fabric044 rough tan), dusted with earth.
+RECIPES["sandbags"] = dict(build="sandbags", ppm=256, ground="min", out=os.path.join(ROOT, "Assets", "_Project", "Art", "Props"),
+                           fabrics=["Fabric066", "Fabric044"], segments=[("a", 7), ("b", 7), ("c", 7), ("d", 3), ("e", 3)])
+
+
 def import_sources(recipe):
+    if recipe.get("build") == "sandbags":
+        return build_sandbags(recipe)
     if recipe.get("build") == "soldier":
         return build_soldier(recipe)
     if recipe.get("build") == "grass":
@@ -712,6 +723,92 @@ def build_bamboo(recipe):
         bpy.context.view_layer.update()
         groups[key] = objs
         print(f"[plants] bamboo {key}: {n} culms, {len(objs)} parts", flush=True)
+    return groups
+
+
+def bag_mesh(name, rng):
+    """One filled sandbag: a UV sphere pressed into a pillow — flat on top
+    and bottom where the weight of the course above squeezes it, bulging at
+    the sides — with a little of its own sag and lumpiness."""
+    L, W, H = rng.uniform(0.50, 0.58), rng.uniform(0.28, 0.33), rng.uniform(0.12, 0.15)
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=1.0, calc_uvs=True)
+    for v in bm.verts:
+        x, y, z = v.co
+        z = math.copysign(min(abs(z), 0.62) / 0.62, z) ** 1.0      # pressed flat
+        bulge = 1.0 + 0.10 * (1 - z * z)
+        lump = 1.0 + 0.04 * math.sin(x * 7 + y * 5 + rng.uniform(0, 6))
+        v.co = mathutils.Vector((x * L / 2 * bulge * lump, y * W / 2 * bulge, z * H / 2))
+        v.co.z -= 0.012 * (1 - (x * x))                            # sag in the middle
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    return me, L, W, H
+
+
+def fabric_material(atlas, dust):
+    """A bag's cloth: the fabric scan, dulled toward the earth it was filled
+    and dragged through."""
+    name = f"bag {atlas}"
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    d = os.path.join(SRC, GRASS_SRC, atlas)
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    mp = nt.nodes.new("ShaderNodeMapping"); mp.inputs["Scale"].default_value = (3, 3, 3)
+    col = nt.nodes.new("ShaderNodeTexImage"); col.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_Color.png"))
+    nm = nt.nodes.new("ShaderNodeTexImage"); nm.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_NormalGL.png"))
+    nm.image.colorspace_settings.name = "Non-Color"
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    mix = nt.nodes.new("ShaderNodeMix"); mix.data_type = "RGBA"; mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    mix.inputs[7].default_value = (*dust, 1)
+    nt.links.new(tc.outputs["UV"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], col.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], nm.inputs["Vector"])
+    nt.links.new(col.outputs["Color"], mix.inputs[6])
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    nt.links.new(nm.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    bsdf.inputs["Roughness"].default_value = 0.9
+    return mat
+
+
+def build_sandbags(recipe):
+    """Wall segments 2.4 m wide: courses of bags in running bond, two deep,
+    each bag with its own size, sag and tilt; a mix of olive and tan cloth,
+    as bags came to a firebase from wherever they could be had."""
+    rng = np.random.default_rng(1966)
+    mats = [fabric_material(recipe["fabrics"][0], (0.72, 0.68, 0.58)),
+            fabric_material(recipe["fabrics"][1], (0.40, 0.35, 0.28))]      # Fabric044 is albedo 0.47: sun-bleached, but not white
+    groups = {}
+    for si, (key, courses) in enumerate(recipe["segments"]):
+        ox = si * 6.0
+        objs = []
+        z = 0.0
+        for c in range(courses):
+            x = -1.2 + (0.27 if c % 2 else 0.0) - 0.27
+            course_h = 0.0
+            while x < 1.2:
+                for row, y in enumerate((0.0, 0.3)):
+                    me, L, W, H = bag_mesh(f"bag {key}{c}", rng)
+                    me.materials.append(mats[0] if rng.uniform() < 0.62 else mats[1])
+                    o = bpy.data.objects.new(me.name, me)
+                    bpy.context.scene.collection.objects.link(o)
+                    o.location = (ox + x + L / 2 + rng.uniform(-0.02, 0.02), y + rng.uniform(-0.03, 0.03), z + H / 2)
+                    o.rotation_euler = (rng.uniform(-0.05, 0.05), rng.uniform(-0.06, 0.06), rng.uniform(-0.08, 0.08))
+                    objs.append(o)
+                    course_h = max(course_h, H)
+                x += 0.55
+            z += course_h * 0.86                                    # each course settles into the one below
+        bpy.context.view_layer.update()
+        groups[key] = objs
+    print(f"[plants] sandbags: {len(groups)} segments", flush=True)
     return groups
 
 

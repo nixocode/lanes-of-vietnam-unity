@@ -288,6 +288,27 @@ Mixamo-driven Humanoid motion) exist. It costs one quad per man.
 | `soldier_vc_albedo.png` | `3c17f80bf591829b702d482327bab3a68cd453a5df54cb93928e9d95e7d46d48` |
 | `soldier_vc_normal.png` | `14de36eb734f72e56de4133b5ae8a5a7eb9b03e5fa8bec280421e56ef8de7473` |
 
+### Props — `Assets/_Project/Art/Props/`
+
+**Sandbag walls, built** (nothing scanned exists). The bag cloth is ambientCG
+**CC0**, fetched 2026-09-30 as 2K PNG:
+- **Fabric066**, weathered olive, on 62% of bags;
+- **Fabric044**, rough tan, darkened by earth from albedo 0.47 to about 0.17.
+
+`plant_bake.py` presses each bag from a sphere: flat top and bottom, bulging
+sides, sagging in the middle, with its own lumps. They are laid in running
+bond, two deep, each with its own tilt, and the courses settle into each
+other. The result bakes to five 3.2 m segments: three wall height (1.03 m),
+two parapet (0.52 m). The game repeats them along every sandbag wall, the
+bunker, the trench parapets and the firebase revetments.
+
+| file | sha256 |
+|---|---|
+| `Fabric066_2K-PNG.zip` (source) | `40782dab549e9d67a7681a65eaebbc1fb4a8e82972a490722da23daec86eb08f` |
+| `Fabric044_2K-PNG.zip` (source) | `8fb94e4cdc44794970cc36a96e89b024f16773f8ddacf3876c80d976f64ce9e1` |
+| `sandbags_albedo.png` | `8abbf8f5f55387bac05eee3832cad329cbae1db50e21adc49b6f65dc47a0e0a3` |
+| `sandbags_normal.png` | `65f3e1f2150003df53aed071a831fdb8a4613a19a927bcdae6cc543d49eef385` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 
