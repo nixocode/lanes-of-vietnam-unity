@@ -115,6 +115,9 @@ namespace LanesOfVietnam.View
                 Us = CaptureSettings.Active?.UsPlan != null ? Plan.ByName(CaptureSettings.Active.UsPlan) : Plan.Ceiling,
                 Vc = CaptureSettings.Active?.VcPlan != null ? Plan.ByName(CaptureSettings.Active.VcPlan) : Plan.Ceiling,
                 Cover = Map.Cover(), Length = length,
+                // Grenades (PLAN §12.8, Part 2): on in the game. The sim's default
+                // stays the parity baseline; a capture can turn it off (frag=0).
+                Frag = CaptureSettings.Active?.Frag ?? true,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

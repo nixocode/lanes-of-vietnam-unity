@@ -129,6 +129,8 @@ namespace LanesOfVietnam.View
                     case EventKind.Fire: Shot(ev, i, (float)age); break;
                     case EventKind.Shell: Explosion(e, (float)age, 1f); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
+                    case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
+                    case EventKind.GrenadeBlast: Explosion(e, (float)age, 0.32f); break;
                 }
             }
             SmokeScreens(st, now);
@@ -205,6 +207,34 @@ namespace LanesOfVietnam.View
             }
         }
 
+        // --- grenades ---------------------------------------------------------------------
+
+        /// <summary>
+        /// A grenade from the thrower's hand to where it lands, on a lob, then
+        /// lying there until the blast event takes over: a dark speck, which is
+        /// all a grenade is at this distance, and it reads because it moves.
+        /// </summary>
+        private void GrenadeFlight(SimEvent e, float age)
+        {
+            const float flight = 1.1f;
+            float fuse = Tune.FragFuse * (float)Tune.Dt;
+            if (age > fuse || e.X == null) return;
+            var men = _root.Driver.State.Men;
+            if (e.Id >= men.Count) return;
+            var from = Chest(men[e.Id]) + Vector3.up * 0.5f;
+            double lx = e.X.Value, lz = e.Z.Value;
+            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.08f);
+            Vector3 p;
+            if (age < flight)
+            {
+                float t = age / flight;
+                float apex = 2.5f + 0.12f * Vector3.Distance(from, to);
+                p = Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
+            }
+            else p = to;
+            AddPuff(p, 0.22f, new Color(0.035f, 0.035f, 0.03f, 1f), 0.5f, 1f);
+        }
+
         // --- shells and traps -------------------------------------------------------------
 
         private void Explosion(SimEvent e, float age, float scale)
@@ -218,7 +248,9 @@ namespace LanesOfVietnam.View
             if (age < 0.14f)
             {
                 float k = 1 - age / 0.14f;
-                AddGlow(p0 + Vector3.up * 1.2f * scale, (4f + 22f * age) * scale, Flash * (24f * k), 0, (float)Hash(seed, 0));
+                // Intensity with size too: at a grenade's scale the full flash
+                // saturated into a hard white shape.
+                AddGlow(p0 + Vector3.up * 1.2f * scale, (4f + 22f * age) * scale, Flash * (24f * k * scale), 0, (float)Hash(seed, 0));
             }
             if (age < 0.6f)
             {
