@@ -145,6 +145,7 @@ Shader "LOV/Foliage"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile_fragment _ _LIGHT_COOKIES
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
@@ -160,7 +161,8 @@ Shader "LOV/Foliage"
                 float3 n = SurfaceNormal(i, nt);
                 half3 albedo = a.rgb * i.tint.rgb;
 
-                Light sun = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
+                // The three-argument form applies the sun's cookie: the clouds' shadows (CloudShadows).
+                Light sun = GetMainLight(TransformWorldToShadowCoord(i.positionWS), i.positionWS, half4(1, 1, 1, 1));
                 float2 screenUV = GetNormalizedScreenSpaceUV(i.positionCS);
                 AmbientOcclusionFactor ssao = GetScreenSpaceAmbientOcclusion(screenUV);
 

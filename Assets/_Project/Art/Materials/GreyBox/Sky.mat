@@ -35,7 +35,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _K: 0.84035975
-    - _Scale: 2
+    - _Scale: 3.031433
     m_Colors:
     - _WindowAz: {r: -32, g: 32, b: 0, a: 0}
     - _WindowEl: {r: -2, g: 24, b: 0, a: 0}

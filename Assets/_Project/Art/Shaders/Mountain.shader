@@ -47,6 +47,7 @@ Shader "LOV/Mountain"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile_fragment _ _LIGHT_COOKIES
 
             float Hash(float2 p) { p = frac(p * float2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return frac((p.x + p.y) * p.x); }
             float Noise(float2 p)
