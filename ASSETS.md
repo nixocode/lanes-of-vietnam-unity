@@ -181,6 +181,26 @@ They are laid in the game at 10–14 m.
 | `palm_tree_bark_diff_2k.png` (source) | `5ecba9e0d2179b5f0fb553f7ddfc8092e0596162aeeeebbe1cc2c4f55f2856d4` |
 | `palm_tree_bark_nor_gl_2k.png` (source) | `8aace15f59844d98825b3623edfa22d47f7d14fa772d1df448e1a0d5a9eebeca` |
 
+**Bamboo, built** (the fallback, like the palm). Clumping Bambusa, the kind
+that walls a Vietnamese village. The sources are ambientCG **CC0**, fetched
+2026-09-30:
+- **Culms:** **Bamboo001A** (a scanned wall of culms, 1.3 m). One culm's lit
+  middle is wrapped round each tube, and the scan's own nodes ring it about
+  32 cm apart.
+- **Leaves:** **LeafSet013** (scanned lanceolate leaves).
+
+Both scans are yellowish. As baked they came to albedo 0.25 where every other
+plant is 0.07–0.12, so the bake darkens them and shifts them toward green: 0.134.
+
+Four variants, 26–42 culms each, leaning out and arching over, with 24–40
+branches per culm carrying drooping fans of 10–18 leaves. They are laid at
+8–12.5 m, more of them toward the firebase end.
+
+| source | sha256 |
+|---|---|
+| `Bamboo001A_2K-PNG.zip` | `fd85855288754f41048d81f92c7ff50d2c67ff8ceee0a3a88f738055b8d3b265` |
+| `LeafSet013_2K-PNG.zip` | `51ab47b0e2bb8070ea26fc14e1e47ec3b9a869907302f766c032c0f6583b2752` |
+
 **Palms, bamboo, banana, elephant ear: the preferred sources need a login.**
 These were surveyed on Sketchfab through its public API (downloadable,
 commercial use allowed, sorted by likes), and the thumbnails were compared.

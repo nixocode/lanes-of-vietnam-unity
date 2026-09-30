@@ -189,11 +189,17 @@ def camera_frame(co):
     return right.normalized(), up.normalized(), back.normalized()
 
 
+RECIPES["bamboo"] = dict(build="bamboo", variants=4, ppm=56, ground="zero",
+                         culms=(26, 42), height=(8.0, 12.0), spread=0.8, culm="Bamboo001A", leaves="LeafSet013")
+
+
 def import_sources(recipe):
     if recipe.get("build") == "grass":
         return build_grass(recipe)
     if recipe.get("build") == "palm":
         return build_palm(recipe)
+    if recipe.get("build") == "bamboo":
+        return build_bamboo(recipe)
     srcs = recipe["src"] if isinstance(recipe["src"], list) else [recipe["src"]]
     for s in srcs:
         bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, s))
@@ -443,6 +449,25 @@ def dry_blade_material(atlas):
     return mat
 
 
+def tinted(base, name, hue=0.5, sat=1.0, val=1.0):
+    """A copy of a material with its colour texture run through hue, saturation
+    and value: a scan's colour corrected toward what the plant should be."""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = base.copy()
+    mat.name = name
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    col = [n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image.colorspace_settings.name != "Non-Color"][0]
+    hsv = nt.nodes.new("ShaderNodeHueSaturation")
+    hsv.inputs["Hue"].default_value = hue
+    hsv.inputs["Saturation"].default_value = sat
+    hsv.inputs["Value"].default_value = val
+    nt.links.new(col.outputs["Color"], hsv.inputs["Color"])
+    nt.links.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+    return mat
+
+
 def tube(name, pts, radii, ring=12, uv_scale=(1.0, 1.0)):
     """A tube through points with a radius at each; u around, v along (metres / uv_scale)."""
     verts, faces, uvs = [], [], []
@@ -575,6 +600,103 @@ def build_palm(recipe):
         bpy.context.view_layer.update()
         groups[key] = objs
         print(f"[plants] palm {key}: {H:.1f} m, {nf} fronds, {len(objs)} parts", flush=True)
+    return groups
+
+
+def culm_material(atlas):
+    """The scanned wall of culms, one culm's lit middle wrapped round a tube:
+    the scan's own nodes (about 32 cm apart) ring it at the right spacing."""
+    name = f"culm {atlas}"
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    d = os.path.join(SRC, GRASS_SRC, atlas)
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    col = nt.nodes.new("ShaderNodeTexImage"); col.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_Color.png"))
+    nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.4
+    return mat
+
+
+def build_bamboo(recipe):
+    """Clumping bamboo (Bambusa, the kind that walls a Vietnamese village):
+    culms rising from a clump a metre or so across, leaning out and arching
+    over at the top under their leaves; from the nodes of the upper part,
+    short branches carrying fans of drooping leaves."""
+    rng = np.random.default_rng(1968)
+    leaves = blade_rects(recipe["leaves"])
+    for r in leaves:
+        r["base"] = "bottom" if r["vertical"] else "left"         # the scan's leaves stand tip up
+    leaves = [r for r in leaves if r["aspect"] > 3]
+    # LeafSet013's leaves and the culm scan are both yellowish (albedo 0.25
+    # baked, where every other plant here is 0.07-0.12): darker, and toward
+    # the fresh green of a living clump.
+    culm_mat = tinted(culm_material(recipe["culm"]), "culm tinted", hue=0.53, sat=0.9, val=0.55)
+    leaf_mat = tinted(blade_material(recipe["leaves"]), "bamboo leaf", hue=0.54, sat=1.0, val=0.45)
+    twig_mat = flat_material("twig", (0.22, 0.24, 0.08), 0.5)
+    groups = {}
+    for vi in range(recipe["variants"]):
+        key = "abcdefghij"[vi]
+        ox = vi * 40.0
+        objs = []
+        n = int(rng.integers(*recipe["culms"]))
+        H0 = rng.uniform(*recipe["height"])
+        for c in range(n):
+            r = recipe["spread"] * math.sqrt(rng.uniform())
+            az = rng.uniform(0, 2 * math.pi)
+            base = mathutils.Vector((ox + r * math.cos(az), r * math.sin(az), 0))
+            out = mathutils.Vector((math.cos(az), math.sin(az), 0))
+            H = H0 * rng.uniform(0.6, 1.1)
+            lean0 = rng.uniform(0.03, 0.12) + 0.25 * r / recipe["spread"]
+            bend = rng.uniform(0.35, 1.3)
+            segs = 22
+            pts, radii = [base.copy()], []
+            p = base.copy()
+            for i in range(segs):
+                t = (i + 0.5) / segs
+                ang = lean0 + bend * t ** 2.2
+                p = p + (out * math.sin(ang) + mathutils.Vector((0, 0, 1)) * math.cos(ang)) * (H / segs)
+                pts.append(p.copy())
+            rad = rng.uniform(0.035, 0.055)
+            radii = [rad * (1 - 0.6 * (i / segs)) for i in range(segs + 1)]
+            # One culm's lit middle of the scan: u in a narrow strip, v along.
+            u0 = (int(rng.integers(0, 14)) + 0.35) / 16.0
+            me = tube(f"culm {key}{c}", pts, radii, ring=7, uv_scale=(1.0, 1.3))
+            uvl = me.uv_layers[0]
+            for loop in me.loops:
+                uv = uvl.data[loop.index].uv
+                uvl.data[loop.index].uv = (u0 + (uv[0] % 1.0) * 0.3 / 16.0 * 6, uv[1])
+            objs.append(link(me, culm_mat))
+
+            # Branches and their leaves, from the upper nodes.
+            nb = int(rng.integers(24, 40))
+            for b in range(nb):
+                t = rng.uniform(0.3, 0.99) ** 0.7
+                i = min(int(t * segs), segs - 1)
+                bp = pts[i].lerp(pts[i + 1], t * segs - i)
+                baz = rng.uniform(0, 2 * math.pi)
+                bd = mathutils.Vector((math.cos(baz), math.sin(baz), 0)) * 0.7 + out * 0.5
+                bd.z = rng.uniform(-0.1, 0.35)
+                bd.normalize()
+                bl = rng.uniform(0.6, 1.6) * (1.2 - 0.4 * t)
+                tp = [bp, bp + bd * bl * 0.5, bp + bd * bl + mathutils.Vector((0, 0, -0.08 * bl))]
+                objs.append(link(tube(f"twig {key}{c}_{b}", tp, [0.009, 0.006, 0.003], ring=4), twig_mat))
+                # A fan of leaves along the twig's outer half, drooping.
+                for k in range(int(rng.integers(10, 18))):
+                    s_ = rng.uniform(0.35, 1.0)
+                    lp = tp[1].lerp(tp[2], s_) if s_ > 0.5 else tp[0].lerp(tp[1], s_ * 2)
+                    rect = leaves[int(rng.integers(len(leaves)))]
+                    length = rng.uniform(0.2, 0.32)
+                    laz = baz + rng.uniform(-1.3, 1.3)
+                    me = blade_mesh(f"leaf {key}{c}_{b}_{k}", rect, length, length / max(rect["aspect"], 4) * 1.1,
+                                    rng.uniform(1.3, 2.3), rng.uniform(0.0, 0.5), laz, tuple(lp), segments=3,
+                                    twist=rng.uniform(-0.6, 0.6))
+                    objs.append(link(me, leaf_mat))
+        bpy.context.view_layer.update()
+        groups[key] = objs
+        print(f"[plants] bamboo {key}: {n} culms, {len(objs)} parts", flush=True)
     return groups
 
 
