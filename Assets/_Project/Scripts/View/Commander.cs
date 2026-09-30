@@ -21,6 +21,10 @@ namespace LanesOfVietnam.View
     public sealed class Commander : MonoBehaviour
     {
         public GameRoot Root;
+        public Deployer Deployer;
+
+        /// <summary>Set by the HUD: a click on the HUD is not a click on the battlefield.</summary>
+        public Func<bool> HudHasPointer = () => false;
 
         /// <summary>The selected squad's id, or -1.</summary>
         public int Selected { get; private set; } = -1;
@@ -42,9 +46,13 @@ namespace LanesOfVietnam.View
         private void Update()
         {
             if (CaptureSettings.Active != null) return;
-            if (Input.GetMouseButtonDown(0)) SelectAt(Input.mousePosition);
+            // One owner per click: an armed card takes the left click (to place
+            // it), the HUD takes clicks on itself, and only then is it a pick.
+            bool cardInHand = Deployer != null && (Deployer.Armed != null || Deployer.DisarmedFrame == Time.frameCount);
+            if (Input.GetMouseButtonDown(0) && !cardInHand && !HudHasPointer()) SelectAt(Input.mousePosition);
             if (Input.GetKeyDown(KeyCode.Tab)) Cycle(Input.GetKey(KeyCode.LeftShift) ? -1 : 1);
-            if (Input.GetKeyDown(KeyCode.Escape)) Clear();
+            // Escape puts an armed card away first; only a second press clears the selection.
+            if (Input.GetKeyDown(KeyCode.Escape) && !cardInHand) Clear();
             if (Input.GetKeyDown(KeyCode.Alpha1)) Give(Order.Advance);
             if (Input.GetKeyDown(KeyCode.Alpha2)) Give(Order.Hold);
             if (Input.GetKeyDown(KeyCode.Alpha3)) Give(Order.Bound);

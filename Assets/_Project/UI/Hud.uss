@@ -1,0 +1,266 @@
+/*
+ * The interface, to brief §7 and TARGET.jpg ("build this, not something of
+ * your own devising"). Every colour here was sampled from the reference's own
+ * pixels (PLAN §12.4); every size is the reference's, scaled from its 2772 x
+ * 1504 to a 1920 x 1080 panel. Three faces, as the image uses: a stencil for
+ * faction labels and headers, a typewriter for the orders line, a condensed
+ * sans for cards and numbers.
+ */
+
+.lov-root {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    flex-direction: column;
+    justify-content: space-between;
+    -unity-font-definition: url("Fonts/BebasNeue-Regular.ttf");
+    color: rgb(240, 229, 198);
+}
+
+/* ---- top bar ---------------------------------------------------------- */
+
+.topbar {
+    height: 173px;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 8px 46px 0 48px;
+}
+
+.faction { width: 452px; flex-direction: column; }
+.faction.right { align-items: flex-end; }
+
+.faction-label {
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    font-size: 23px;
+    letter-spacing: 3px;
+    color: rgb(230, 215, 187);
+    margin: 2px 0 8px 0;
+    -unity-text-align: middle-left;
+}
+.faction-label.right { -unity-text-align: middle-right; }
+
+.morale { flex-direction: row; height: 14px; width: 440px; }
+.morale-seg {
+    flex-grow: 1; height: 14px; margin-right: 2px;
+    background-color: rgb(31, 29, 28);
+    border-width: 1px; border-color: rgb(14, 13, 12);
+}
+.morale-seg.us.lit { background-color: rgb(154, 167, 113); }
+.morale-seg.vc.lit { background-color: rgb(197, 95, 73); }
+
+.centre { flex-grow: 1; align-items: center; flex-direction: column; }
+
+.diamonds { flex-direction: row; height: 34px; align-items: center; margin-top: 2px; }
+.diamond {
+    width: 21px; height: 21px; margin: 0 5px;
+    rotate: 45deg;
+    background-color: rgb(70, 72, 60);
+    border-width: 1px; border-color: rgb(20, 20, 16);
+}
+.diamond.us { background-color: rgb(136, 153, 102); }
+.diamond.vc { background-color: rgb(193, 86, 73); }
+
+.orders {
+    -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf");
+    font-size: 19px;
+    letter-spacing: 5px;
+    color: rgb(205, 179, 122);
+    margin-top: 1px;
+    -unity-text-align: middle-center;
+}
+
+.strip {
+    width: 356px; height: 80px; margin-top: 8px;
+    background-color: rgb(28, 27, 24);
+    border-width: 1px; border-color: rgb(78, 78, 70);
+    border-radius: 2px;
+}
+
+.buttons { flex-direction: row; margin-top: 18px; }
+.hud-button {
+    width: 56px; height: 40px; margin-left: 12px;
+    background-color: rgb(39, 29, 27);
+    border-width: 1px; border-color: rgb(84, 70, 62);
+    border-radius: 2px;
+    color: rgb(217, 203, 176);
+    font-size: 20px;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+.hud-button:hover { border-color: rgb(205, 179, 122); }
+.hud-button.on { background-color: rgb(78, 56, 40); border-color: rgb(205, 179, 122); color: rgb(240, 214, 150); }
+
+.tutor {
+    position: absolute; top: 176px; left: 0; right: 0;
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 15px; letter-spacing: 2px;
+    color: rgb(222, 212, 185);
+    -unity-text-align: middle-center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* ---- bottom bar ------------------------------------------------------- */
+
+.bottombar {
+    height: 152px;
+    flex-direction: row;
+    align-items: flex-end;
+    padding: 0 40px 6px 50px;
+    background-color: rgba(40, 39, 26, 0.93);
+    border-top-width: 2px; border-color: rgb(116, 104, 70);
+}
+
+.cp {
+    width: 108px; height: 136px; margin-right: 14px; margin-bottom: 4px;
+    background-color: rgb(45, 31, 32);
+    border-width: 1px; border-color: rgb(92, 70, 64);
+    align-items: center; justify-content: center;
+}
+.cp-value { font-size: 62px; color: rgb(222, 188, 106); -unity-text-align: middle-center; margin: 0; padding: 0; }
+.cp-label { font-size: 17px; color: rgb(161, 143, 121); margin-top: -8px; letter-spacing: 2px; }
+
+.group { flex-direction: column; margin-right: 10px; }
+.group-head { flex-direction: row; align-items: center; height: 22px; }
+.group-title {
+    -unity-font-definition: url("Fonts/StardosStencil-Bold.ttf");
+    font-size: 17px; letter-spacing: 4px;
+    color: rgb(194, 171, 114);
+}
+.group-rule { flex-grow: 1; height: 1px; margin-left: 8px; background-color: rgb(110, 98, 66); }
+.group-cards { flex-direction: row; }
+
+.card {
+    width: 118px; height: 124px; margin-right: 10px;
+    border-width: 1px; border-color: rgb(76, 79, 60);
+    background-color: rgb(52, 55, 41);
+    align-items: center;
+    overflow: hidden;
+}
+.card:hover { border-color: rgb(205, 179, 122); }
+.card.armed { border-color: rgb(255, 196, 90); border-width: 2px; }
+.card.poor { opacity: 0.45; }
+.card.call { width: 104px; height: 132px; background-color: rgb(38, 26, 22); border-color: rgb(90, 59, 51); margin-right: 9px; }
+
+.card-key {
+    position: absolute; left: 4px; top: 3px;
+    width: 18px; height: 18px; border-radius: 9px;
+    background-color: rgb(196, 170, 60);
+    color: rgb(40, 30, 14);
+    font-size: 14px; -unity-text-align: middle-center;
+}
+.card.call .card-key {
+    background-color: rgba(0, 0, 0, 0);
+    color: rgb(170, 150, 130);
+    font-size: 12px;
+}
+
+.card-art { width: 100%; height: 56px; margin-top: 2px; }
+.card.call .card-art { height: 58px; margin-top: 16px; }
+.card-name { font-size: 19px; color: rgb(240, 229, 198); margin-top: 1px; -unity-text-align: middle-center; letter-spacing: 1px; }
+.card-cost { font-size: 20px; color: rgb(234, 223, 151); margin-top: -4px; -unity-text-align: middle-center; }
+.card.call .card-cost { color: rgb(199, 170, 120); }
+.card-pips { flex-direction: row; height: 8px; margin-top: 0; }
+.pip { width: 6px; height: 6px; margin: 0 1px; background-color: rgb(206, 150, 64); }
+
+.card-cd {
+    position: absolute; left: 0; right: 0; top: 0;
+    background-color: rgba(0, 0, 0, 0.62);
+}
+
+.armed-hint {
+    position: absolute; bottom: 160px; left: 0; right: 0;
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 15px; letter-spacing: 2px;
+    color: rgb(255, 214, 140);
+    -unity-text-align: middle-center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* ---- the frame -------------------------------------------------------- */
+
+.frame {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    border-left-width: 34px; border-right-width: 6px;
+    border-color: rgb(11, 12, 11);
+}
+
+/* ---- screens: start, settings, ending ---------------------------------- */
+
+.screen {
+    position: absolute;
+    -unity-font-definition: url("Fonts/BebasNeue-Regular.ttf");
+    color: rgb(240, 229, 198);
+    background-color: rgba(18, 20, 15, 0.86);
+    border-width: 1px; border-color: rgb(116, 104, 70);
+    padding: 30px 38px;
+    display: none;
+}
+.start { left: 120px; top: 150px; width: 700px; }
+.settings { left: 540px; right: 540px; top: 150px; }
+.end { left: 380px; right: 380px; top: 210px; align-items: center; }
+
+.title {
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    font-size: 46px; letter-spacing: 2px; color: rgb(230, 215, 187);
+}
+.kicker {
+    -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf");
+    font-size: 16px; letter-spacing: 4px; color: rgb(205, 179, 122);
+    margin-bottom: 18px; white-space: normal;
+}
+.field {
+    -unity-font-definition: url("Fonts/StardosStencil-Bold.ttf");
+    font-size: 17px; letter-spacing: 4px; color: rgb(194, 171, 114);
+    margin: 10px 0 6px 0;
+}
+.choice-row { flex-direction: row; flex-wrap: wrap; margin-bottom: 4px; }
+.choice {
+    min-width: 150px; height: 58px; margin: 0 10px 8px 0; padding: 4px 10px;
+    background-color: rgb(52, 55, 41);
+    border-width: 1px; border-color: rgb(76, 79, 60); border-radius: 2px;
+    color: rgb(240, 229, 198); font-size: 20px; -unity-text-align: middle-center;
+    white-space: normal;
+}
+.choice:hover { border-color: rgb(205, 179, 122); }
+.choice.on { background-color: rgb(78, 86, 56); border-color: rgb(222, 188, 106); color: rgb(255, 238, 190); }
+.deploy {
+    min-width: 220px; height: 58px; margin: 18px 10px 6px 0;
+    background-color: rgb(120, 86, 40);
+    border-width: 1px; border-color: rgb(222, 188, 106); border-radius: 2px;
+    color: rgb(255, 238, 190); font-size: 30px; letter-spacing: 4px; -unity-text-align: middle-center;
+}
+.deploy:hover { background-color: rgb(150, 108, 50); }
+.fineprint { font-size: 14px; color: rgb(161, 143, 121); -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf"); }
+
+.slider-row { flex-direction: row; align-items: center; height: 30px; }
+.slider-label { width: 130px; font-size: 18px; color: rgb(230, 215, 187); }
+.slider { flex-grow: 1; }
+.keys {
+    -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf");
+    font-size: 13px; color: rgb(205, 196, 170); margin: 14px 0 4px 0; white-space: normal;
+}
+
+.end-title {
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    font-size: 64px; letter-spacing: 4px; color: rgb(230, 215, 187); -unity-text-align: middle-center;
+}
+.end-title.us { color: rgb(154, 167, 113); }
+.end-title.vc { color: rgb(197, 95, 73); }
+.verdict { font-size: 30px; letter-spacing: 6px; color: rgb(240, 229, 198); margin-bottom: 12px; }
+.report {
+    -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf");
+    font-size: 15px; color: rgb(222, 212, 185); white-space: normal; margin: 6px 0 16px 0;
+}
+
+.subtitle {
+    position: absolute;
+    color: rgb(240, 229, 198); bottom: 200px; left: 200px; right: 200px;
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 19px; letter-spacing: 2px; color: rgb(240, 229, 198);
+    -unity-text-align: middle-center; white-space: normal;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.95);
+}
+.replay-banner {
+    position: absolute; top: 190px; right: 60px;
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    font-size: 26px; letter-spacing: 6px; color: rgb(197, 95, 73);
+    display: none;
+}

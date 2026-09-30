@@ -15,7 +15,21 @@ be used to create and process assets and textures.
 
 ## In the project
 
-*(none yet)*
+### Fonts — `Assets/_Project/UI/Fonts/`
+
+All **SIL Open Font License 1.1**, from the official Google Fonts repository
+(`github.com/google/fonts`), fetched **2026-09-30**. Each ships unmodified with
+its `OFL-*.txt` beside it, and the licence travels with any build that uses it
+(PLAN §12.4). TARGET.jpg's interface uses three faces, not one: a stencil for
+the faction labels and group headers, a typewriter for the orders line, and a
+condensed sans for card names — brief §7 says the image wins over the text.
+
+| file | family | used for | sha256 |
+|---|---|---|---|
+| `StardosStencil-Regular.ttf`, `-Bold.ttf` | Stardos Stencil (Vernon Adams) | faction labels, headers — owner-approved OFL face, 2026-09-28 | `208b13d15387c282a1c0c439a8e4c38809243d15c361b31da440b25a7e4f39ae`<br>`6b15f50b1b358512d922b5f11937af17e90704587e1d7fb009f1715d2d5dfa74` |
+| `BlackOpsOne-Regular.ttf` | Black Ops One | bold military stencil, candidate for `US / ARVN` | `282a825b5f294377387e3969f765408157dbea8da0f5d0aae68c6bc704b145b3` |
+| `CourierPrime-Regular.ttf`, `-Bold.ttf` | Courier Prime | the orders line (typewritten field orders) | `72f793376f8e2841656bf21d77a5de010f2929bd6956a22ee848ad0c7eb978af`<br>`ff1f38786c849d1c41fa8e447960abdb2bd75fdfb0cfcdeb524fad65a5af3638` |
+| `BebasNeue-Regular.ttf` | Bebas Neue (Dharma Type) | card names and numbers | `08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73` |
 
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|

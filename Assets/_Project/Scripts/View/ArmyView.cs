@@ -32,6 +32,14 @@ namespace LanesOfVietnam.View
             Destroy(probe);
         }
 
+        /// <summary>A new match: every man drawn so far belonged to the old one.</summary>
+        public void ResetView()
+        {
+            foreach (var t in _men) if (t != null) Destroy(t.gameObject);
+            _men.Clear();
+            _renderers.Clear();
+        }
+
         public void Draw(MatchDriver d, Ground g)
         {
             var st = d.State;
