@@ -34,6 +34,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.5
+    - _Dither: 0
+    - _FieldOcclusion: 0.45
     - _MipBias: 0
     - _Pitch: 6
     - _Translucency: 0.35

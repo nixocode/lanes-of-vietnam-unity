@@ -89,7 +89,22 @@ RECIPES = {
                              "polyhaven/models/island_tree_02/island_tree_02_2k.gltf"],
                         group=r"island_tree_(\d+)", ppm=128, ground="zero"),
     "jacaranda": dict(src="polyhaven/models/jacaranda_tree/jacaranda_tree_2k.gltf", group=None, ppm=64, ground="zero"),
+
+    # Built here, not imported: grass clumps from ambientCG's scanned blades
+    # (CC0). Nothing scanned is tall enough — Poly Haven's grass tops out at
+    # 40 cm; elephant grass stands 2-3 m.
+    "elephant_grass": dict(build="grass", variants=6, ppm=150, ground="zero",
+                           blades=["Foliage001", "Foliage008"], count=(90, 150), height=(2.0, 3.1),
+                           spread=0.28, lean=(0.05, 0.55), droop=(0.6, 1.5),
+                           plumes="Foliage002", plume_count=(3, 9), plume_height=(2.4, 3.5)),
+    "grass_tuft": dict(build="grass", variants=6, ppm=240, ground="zero",
+                       # Not Foliage006: its lime green (albedo G 0.27) is a lawn's, not
+                       # the reference's olive field grass.
+                       blades=["Foliage001", "Foliage008", "Foliage005"], count=(45, 80), height=(0.45, 1.0),
+                       spread=0.12, lean=(0.1, 0.7), droop=(0.3, 1.1)),
 }
+
+GRASS_SRC = "ambientcg"
 
 PAD = 12            # texels of dilated border around every variant in an atlas
 SAMPLES = 96
@@ -167,6 +182,8 @@ def camera_frame(co):
 
 
 def import_sources(recipe):
+    if recipe.get("build") == "grass":
+        return build_grass(recipe)
     srcs = recipe["src"] if isinstance(recipe["src"], list) else [recipe["src"]]
     for s in srcs:
         bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, s))
@@ -186,6 +203,183 @@ def import_sources(recipe):
             key = m.group(1) if m else o.name
         groups.setdefault(key, []).append(o)
     return dict(sorted(groups.items()))
+
+
+# --- grass, built from scanned blades ----------------------------------------------
+
+def load_rgba(path):
+    inp = oiio.ImageInput.open(path)
+    spec = inp.spec()
+    px = np.asarray(inp.read_image(0, 0, 0, spec.nchannels, "float")).reshape(spec.height, spec.width, spec.nchannels)
+    inp.close()
+    return px
+
+
+def blade_rects(atlas):
+    """Every blade in a scanned atlas: its bounding box in UV (v up), its long
+    axis, and which end is the base (the wider one). Found by labelling the
+    opacity mask at quarter resolution."""
+    o = load_rgba(os.path.join(SRC, GRASS_SRC, atlas, f"{atlas}_2K-PNG_Opacity.png"))[..., 0]
+    H, W = o.shape
+    k = 4
+    m = o[: H // k * k, : W // k * k].reshape(H // k, k, W // k, k).max((1, 3)) > 0.5
+    h, w = m.shape
+    label = np.zeros((h, w), np.int32)
+    rects = []
+    n = 0
+    for y0 in range(h):
+        for x0 in range(w):
+            if not m[y0, x0] or label[y0, x0]:
+                continue
+            n += 1
+            stack = [(y0, x0)]
+            label[y0, x0] = n
+            ys, xs = [], []
+            while stack:
+                y, x = stack.pop()
+                ys.append(y); xs.append(x)
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < h and 0 <= xx < w and m[yy, xx] and not label[yy, xx]:
+                        label[yy, xx] = n
+                        stack.append((yy, xx))
+            if len(ys) < 40:
+                continue
+            ya, yb, xa, xb = min(ys), max(ys) + 1, min(xs), max(xs) + 1
+            vertical = (yb - ya) >= (xb - xa)
+            sub = (label[ya:yb, xa:xb] == n)
+            if vertical:
+                ends = sub[: max(1, (yb - ya) // 6)].sum(), sub[-max(1, (yb - ya) // 6):].sum()
+                base = "bottom" if ends[1] >= ends[0] else "top"
+            else:
+                ends = sub[:, : max(1, (xb - xa) // 6)].sum(), sub[:, -max(1, (xb - xa) // 6):].sum()
+                base = "left" if ends[0] >= ends[1] else "right"
+            # UV with v up: image row y is v = 1 - y/h.
+            rects.append(dict(u0=xa / w, u1=xb / w, v0=1 - yb / h, v1=1 - ya / h, vertical=vertical, base=base,
+                              aspect=max(yb - ya, xb - xa) / max(1, min(yb - ya, xb - xa))))
+    return rects
+
+
+def blade_material(atlas):
+    name = f"blade {atlas}"
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    d = os.path.join(SRC, GRASS_SRC, atlas)
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    col = nt.nodes.new("ShaderNodeTexImage"); col.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_Color.png"))
+    op = nt.nodes.new("ShaderNodeTexImage"); op.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_Opacity.png"))
+    op.image.colorspace_settings.name = "Non-Color"
+    nm = nt.nodes.new("ShaderNodeTexImage"); nm.image = bpy.data.images.load(os.path.join(d, f"{atlas}_2K-PNG_NormalGL.png"))
+    nm.image.colorspace_settings.name = "Non-Color"
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(op.outputs["Color"], bsdf.inputs["Alpha"])
+    nt.links.new(nm.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    bsdf.inputs["Roughness"].default_value = 0.55
+    return mat
+
+
+def blade_mesh(name, rect, length, width, lean, droop, azimuth, base, segments=8, twist=0.0):
+    """A blade as a strip of quads rising from `base`: it leaves the ground at
+    `lean` radians from vertical and bends further, by `droop` at the tip,
+    toward `azimuth`."""
+    verts, faces, uvs = [], [], []
+    d = mathutils.Vector((math.cos(azimuth), math.sin(azimuth), 0))
+    side = mathutils.Vector((-d.y, d.x, 0))
+    p = mathutils.Vector(base)
+    step = length / segments
+    pts = [p.copy()]
+    for i in range(segments):
+        t = (i + 0.5) / segments
+        ang = lean + droop * t * t
+        p = p + (d * math.sin(ang) + mathutils.Vector((0, 0, 1)) * math.cos(ang)) * step
+        pts.append(p.copy())
+    for i, q in enumerate(pts):
+        t = i / segments
+        tw = side * math.cos(twist * t) + d * math.sin(twist * t) * 0.3
+        verts.append(q - tw * width * 0.5)
+        verts.append(q + tw * width * 0.5)
+    for i in range(segments):
+        a = i * 2
+        faces.append((a, a + 1, a + 3, a + 2))
+
+    def uv(t, s_):                          # t along the blade (0 base), s_ across (0..1)
+        r = rect
+        if r["vertical"]:
+            v = r["v0"] + t * (r["v1"] - r["v0"]) if r["base"] == "bottom" else r["v1"] - t * (r["v1"] - r["v0"])
+            return (r["u0"] + s_ * (r["u1"] - r["u0"]), v)
+        u = r["u0"] + t * (r["u1"] - r["u0"]) if r["base"] == "left" else r["u1"] - t * (r["u1"] - r["u0"])
+        return (u, r["v0"] + s_ * (r["v1"] - r["v0"]))
+
+    me = bpy.data.meshes.new(name)
+    me.from_pydata([tuple(v) for v in verts], [], faces)
+    uvl = me.uv_layers.new(name="UVMap")
+    for f in me.polygons:
+        for li in f.loop_indices:
+            vi = me.loops[li].vertex_index
+            uvl.data[li].uv = uv((vi // 2) / segments, vi % 2)
+    return me
+
+
+def build_grass(recipe):
+    """Grass clumps: blades from the scanned atlases, fanned out from a small
+    base, leaning and drooping more at the edge of the clump than in its
+    heart, with plumes standing above for elephant grass."""
+    rng = np.random.default_rng(20260930 + len(recipe["blades"]))
+    atlases = {a: blade_rects(a) for a in recipe["blades"]}
+    for a, r in atlases.items():
+        print(f"[plants] {a}: {len(r)} blades found", flush=True)
+    plumes = blade_rects(recipe["plumes"]) if recipe.get("plumes") else []
+    groups = {}
+    for vi in range(recipe["variants"]):
+        key = "abcdefghij"[vi]
+        objs = []
+        ox = vi * 20.0                                     # variants side by side, far apart
+        top = rng.uniform(*recipe["height"])
+        n = int(rng.integers(*recipe["count"]))
+        for b in range(n):
+            atlas = recipe["blades"][int(rng.integers(len(recipe["blades"])))]
+            rect = atlas_pick(atlases[atlas], rng)
+            r = recipe["spread"] * math.sqrt(rng.uniform())
+            az = rng.uniform(0, 2 * math.pi)
+            base = (ox + r * math.cos(az), r * math.sin(az), 0.0)
+            edge = r / max(recipe["spread"], 1e-3)
+            lean = rng.uniform(*recipe["lean"]) * (0.4 + 0.8 * edge)
+            droop = rng.uniform(*recipe["droop"]) * (0.5 + 0.7 * edge)
+            length = top * rng.uniform(0.55, 1.1)
+            width = length / max(rect["aspect"], 4) * rng.uniform(0.9, 1.3)
+            me = blade_mesh(f"blade {key}{b}", rect, length, width, lean, droop,
+                            az + rng.uniform(-0.6, 0.6), base, twist=rng.uniform(-1.2, 1.2))
+            me.materials.append(blade_material(atlas))
+            o = bpy.data.objects.new(me.name, me)
+            bpy.context.scene.collection.objects.link(o)
+            objs.append(o)
+        if plumes:
+            for b in range(int(rng.integers(*recipe["plume_count"]))):
+                rect = atlas_pick(plumes, rng)
+                r = recipe["spread"] * 0.6 * math.sqrt(rng.uniform())
+                az = rng.uniform(0, 2 * math.pi)
+                length = rng.uniform(*recipe["plume_height"])
+                width = length / max(rect["aspect"], 6)
+                me = blade_mesh(f"plume {key}{b}", rect, length, width, rng.uniform(0.02, 0.2), rng.uniform(0.05, 0.35),
+                                az, (ox + r * math.cos(az), r * math.sin(az), 0.0), segments=10)
+                me.materials.append(blade_material(recipe["plumes"]))
+                o = bpy.data.objects.new(me.name, me)
+                bpy.context.scene.collection.objects.link(o)
+                objs.append(o)
+        bpy.context.view_layer.update()
+        groups[key] = objs
+    return groups
+
+
+def atlas_pick(rects, rng):
+    # Long blades are the ones worth drawing; the stubs are offcuts.
+    long_ = [r for r in rects if r["aspect"] > 5] or rects
+    return long_[int(rng.integers(len(long_)))]
 
 
 def bounds(objs):
@@ -411,7 +605,9 @@ def bake_species(name, recipe, scene, co, preview_only):
     write_png(os.path.join(OUT, f"{name}_normal.png"), nor[::-1], alpha=True)
     with open(os.path.join(OUT, f"{name}.json"), "w") as f:
         json.dump(dict(species=name, pitch_deg=BAKE_PITCH, atlas=[AW, AH], ppm=recipe["ppm"],
-                       source=recipe["src"], variants=meta), f, indent=1)
+                       source=recipe.get("src") or {"built": recipe.get("build"), "blades": recipe.get("blades"),
+                                                    "plumes": recipe.get("plumes")},
+                       variants=meta), f, indent=1)
     print(f"[plants] {name}: {len(variants)} variants in a {AW}x{AH} atlas", flush=True)
 
 

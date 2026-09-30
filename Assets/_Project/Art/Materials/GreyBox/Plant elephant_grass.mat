@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Plant calathea
+  m_Name: Plant elephant_grass
   m_Shader: {fileID: 4800000, guid: 40372cc7647c746d29fe4ce11ba00ff7, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,23 +24,22 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _Albedo:
-        m_Texture: {fileID: 2800000, guid: afbc7426221314858af969636257d57d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 9c754d69442e04f5d8b9f375d78bc945, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal:
-        m_Texture: {fileID: 2800000, guid: a38d81f390db840b0b382d5fc3d01bb7, type: 3}
+        m_Texture: {fileID: 2800000, guid: a74d0fb39af2747eaa12f294ff25a383, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.5
     - _Dither: 0
-    - _FieldOcclusion: 0.45
-    - _MipBias: 0
+    - _FieldOcclusion: 0.7
     - _Pitch: 6
     - _Translucency: 0.35
     - _Wind: 0.06
     m_Colors:
-    - _MipBias: {r: 0.5, g: 1.75, b: 40, a: 90}
+    - _MipBias: {r: 1.5, g: 2, b: 40, a: 90}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
