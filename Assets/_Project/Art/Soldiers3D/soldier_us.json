@@ -1,0 +1,92 @@
+{
+ "side": "us",
+ "source": "soldiers/us_rifleman.glb",
+ "body_tris": 7000,
+ "body_verts": 6306,
+ "rifle_tris": 1868,
+ "bones": 53,
+ "height_m": 1.893,
+ "muzzle_from_grip_m": 0.861,
+ "clips": [
+  {
+   "name": "hold",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "stand_aim",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "kneel",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "kneel_aim",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "prone",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "prone_aim",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "dead0",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "dead1",
+   "frames": 1,
+   "loop": true,
+   "source": "posed (plant_bake.py poses)"
+  },
+  {
+   "name": "walk",
+   "frames": 35,
+   "loop": true,
+   "stride_m": 1.104,
+   "seconds": 1.158,
+   "source": "CMU 16_15.bvh"
+  },
+  {
+   "name": "run",
+   "frames": 24,
+   "loop": true,
+   "stride_m": 1.836,
+   "seconds": 0.8,
+   "source": "CMU 16_36.bvh"
+  },
+  {
+   "name": "crouch",
+   "frames": 38,
+   "loop": true,
+   "stride_m": 0.98,
+   "seconds": 1.267,
+   "source": "CMU 136_09.bvh"
+  },
+  {
+   "name": "idle",
+   "frames": 178,
+   "loop": true,
+   "stride_m": 0.0,
+   "seconds": 5.933,
+   "source": "CMU 137_28.bvh"
+  }
+ ]
+}

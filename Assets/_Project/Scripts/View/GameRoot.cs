@@ -97,6 +97,7 @@ namespace LanesOfVietnam.View
                 CameraRig.SetDolly(cap.Dolly, instant: true);
                 gameObject.AddComponent<CaptureRunner>();
             }
+            else if (PerfProbe.Param("perf") != null) gameObject.AddComponent<PerfProbe>();
         }
 
         /// <summary>

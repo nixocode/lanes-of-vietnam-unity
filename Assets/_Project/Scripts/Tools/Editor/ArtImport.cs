@@ -71,6 +71,28 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
+            else if (p.StartsWith("Assets/_Project/Art/Soldiers3D/") && p.EndsWith(".png"))
+            {
+                // The 3D soldiers' atlas (tools/blender/soldier_rig.py): albedo,
+                // a tangent-space normal map, and a linear mask (metallic,
+                // occlusion, -, smoothness). Baked at 2048, shipped at 1024: a
+                // man is at most ~330 px tall at full zoom, and 1024 over his
+                // atlas is ~540 texels a metre.
+                bool normal = p.EndsWith("_normal.png");
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+                ti.sRGBTexture = p.EndsWith("_albedo.png");
+                ti.alphaSource = p.EndsWith("_mask.png") ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
+                ti.alphaIsTransparency = false;
+                ti.maxTextureSize = 1024;
+                ti.mipmapEnabled = true;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Trilinear;
+                ti.anisoLevel = 2;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
             {
                 // One albedo (+ height in alpha) and one normal per layer
@@ -93,6 +115,47 @@ namespace LanesOfVietnam.Tools
                 ti.textureCompression = TextureImporterCompression.Compressed;
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
+            }
+        }
+
+        private void OnPreprocessModel()
+        {
+            var mi = (ModelImporter)assetImporter;
+            string p = assetPath.Replace('\\', '/');
+            if (p.StartsWith("Assets/_Project/Art/Soldiers3D/soldier_") && !p.EndsWith("_poses.fbx"))
+            {
+                // The soldiers' bodies. SoldierBuilder makes their avatar (from a
+                // T-pose), their material and their Animator; the importer brings
+                // only the mesh and the bones: Generic without an avatar ("None"
+                // imports the body unskinned, as a plain mesh). Readable, so a
+                // fallen man's pose can be baked into a plain mesh.
+                mi.animationType = ModelImporterAnimationType.Generic;
+                mi.avatarSetup = ModelImporterAvatarSetup.NoAvatar;
+                mi.importAnimation = false;
+                mi.materialImportMode = ModelImporterMaterialImportMode.None;
+                mi.importBlendShapes = false;
+                mi.importCameras = false;
+                mi.importLights = false;
+                mi.importVisibility = false;
+                mi.optimizeGameObjects = false;
+                mi.isReadable = true;
+                mi.meshCompression = ModelImporterMeshCompression.Off;
+                mi.importNormals = ModelImporterNormals.Import;
+                mi.importTangents = ModelImporterTangents.CalculateMikk;
+                mi.skinWeights = ModelImporterSkinWeights.Standard;
+            }
+            else if (p.StartsWith("Assets/_Licensed/Mixamo/"))
+            {
+                // Mixamo's clips (PLAN §12.3): Humanoid, each on the avatar of
+                // its own skeleton (Mixamo's, T-posed), retargeted at run time.
+                // Root motion is left in the clip for its measured speed and
+                // not applied: the simulation owns where a man is.
+                mi.animationType = ModelImporterAnimationType.Human;
+                mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                mi.importAnimation = true;
+                mi.materialImportMode = ModelImporterMaterialImportMode.None;
+                mi.importCameras = false;
+                mi.importLights = false;
             }
         }
     }

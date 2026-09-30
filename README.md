@@ -69,11 +69,11 @@ reference/TARGET.jpg             the specification for the look
 | Step 3 — grey-box map | lanes readable; the map's layout rules kept under the art |
 | Step 5/5a — command and interface | selection, orders, field glasses, the HUD to TARGET.jpg; UIAudit 9/9 |
 | Step 6a/6b — art | photographed sky that lights the scene; scanned ground; 13 baked plant species; palms, bamboo, grass; the real Chu Pong massif (SRTM); sandbags, tower, trucks; cloud shadows; a measured grade |
-| Soldiers (interim) | the rigged MPFB2 men as posed, lit sprites; the §12.3 soldiers wait on Mixamo |
+| Soldiers | skinned 3D men on a Humanoid avatar, stepped by match time, ~0.5 ms a frame in WebGL; interim clips (CMU mocap and poses) until Mixamo's |
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades and squad smoke, behind match options; parity baseline tagged and unchanged |
-| Build | 18.05 MB initial (≤ 45), 121 draws (≤ 400); flicker 0.41 (≤ 1.30) |
+| Build | 25.70 MB initial (≤ 45); flicker 0.41 (≤ 1.30) |
 
 The measured detail, step by step, is in PLAN §10a.
 

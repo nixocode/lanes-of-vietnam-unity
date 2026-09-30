@@ -135,6 +135,9 @@ namespace LanesOfVietnam.Tools
             cover.Sandbags = PropSet("sandbags");
             army.UsSoldiers = SoldierSet("soldier_us");
             army.VcSoldiers = SoldierSet("soldier_vc");
+            // The 3D men (SoldierBuilder.Build makes them), over the sprites when present.
+            army.UsFigure = AssetDatabase.LoadAssetAtPath<GameObject>($"{SoldierBuilder.Dir}/soldier_us.prefab")?.GetComponent<SoldierFigure>();
+            army.VcFigure = AssetDatabase.LoadAssetAtPath<GameObject>($"{SoldierBuilder.Dir}/soldier_vc.prefab")?.GetComponent<SoldierFigure>();
             root.ArmyView = army;
 
             var dressGo = new GameObject("Dressing");

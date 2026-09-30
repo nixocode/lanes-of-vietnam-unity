@@ -142,6 +142,30 @@ namespace LanesOfVietnam.View
         public void AimGlasses(Vector2 viewport)
             => _glassesAim = new Vector2(Mathf.Clamp(viewport.x - 0.5f, -0.5f, 0.5f), Mathf.Clamp(viewport.y - 0.5f, -0.5f, 0.5f));
 
+        /// <summary>A man's chest between the two lanes: what the zoom keeps in frame.</summary>
+        private const float AnchorY = 1.0f;
+        private static float AnchorSimZ => (float)(Tune.Lanes[0] + Tune.Lanes[1]) * 0.5f;
+
+        /// <summary>Degrees below the horizontal, from a camera at this depth, to the lanes' anchor.</summary>
+        private static float AnchorDrop(float camSimZ)
+            => Mathf.Atan2(Coords.Camera.Height - AnchorY, camSimZ - AnchorSimZ) * Mathf.Rad2Deg;
+
+        /// <summary>
+        /// The extra pitch down that keeps the lanes where the authored view has
+        /// them on the screen (~23% up), however far the dolly and the lens have
+        /// zoomed. Without it the lanes left the bottom of the frame: the
+        /// authored camera looks nearly level, and zoomed to 12 degrees from 16 m
+        /// closer, the men were below the picture. 0 at the authored view.
+        /// </summary>
+        public static float ZoomPitch(float camSimZ, float lens)
+        {
+            var look = Coords.Camera.Rotation * Vector3.forward;
+            float basePitch = -Mathf.Asin(look.y) * Mathf.Rad2Deg;
+            float frac = Mathf.Tan((AnchorDrop(Coords.Camera.SimZ) - basePitch) * Mathf.Deg2Rad) / Mathf.Tan(Coords.Camera.Fov * 0.5f * Mathf.Deg2Rad);
+            float off = Mathf.Atan(frac * Mathf.Tan(lens * 0.5f * Mathf.Deg2Rad)) * Mathf.Rad2Deg;
+            return AnchorDrop(camSimZ) - off - basePitch;
+        }
+
         private void Apply()
         {
             float simZ = Coords.Camera.SimZ - Dolly * DollyRange;
@@ -155,6 +179,7 @@ namespace LanesOfVietnam.View
             float vHalf = Coords.Camera.Fov * 0.5f;
             float hHalf = Mathf.Atan(Mathf.Tan(vHalf * Mathf.Deg2Rad) * (cam != null ? cam.aspect : 16f / 9f)) * Mathf.Rad2Deg;
             float yaw = _glassesAim.x * 2f * hHalf * e, pitch = -_glassesAim.y * 2f * vHalf * e;
+            pitch += ZoomPitch(simZ, lens);
             var rot = Coords.Camera.Rotation * Quaternion.Euler(pitch, yaw, 0);
             transform.SetPositionAndRotation(Coords.World(X, simZ, Coords.Camera.Height), rot);
         }
