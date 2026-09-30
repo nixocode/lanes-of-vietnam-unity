@@ -69,6 +69,8 @@ namespace LanesOfVietnam.View
         public string UsPlan, VcPlan;
         /// <summary>Grenades on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? Frag;
+        /// <summary>Frames per second of match time between frames, for watching motion; 0 freezes time (the default).</summary>
+        public float Movie;
         /// <summary>Lift, gamma, gain (their w: -1..1) for the grade, replacing the profile's; null keeps it.</summary>
         public float[] Lgg;
         /// <summary>Grade saturation (-100..100), replacing the profile's; null keeps it.</summary>
@@ -113,6 +115,7 @@ namespace LanesOfVietnam.View
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
                     case "usplan": c.UsPlan = v; break;
                     case "frag": c.Frag = v == "1" || v == "true"; break;
+                    case "movie": c.Movie = float.Parse(v, inv); break;
                     case "sat": c.Sat = float.Parse(v, inv); break;
                     case "fog": c.Fog = float.Parse(v, inv); break;
                     case "skyev": c.SkyEv = float.Parse(v, inv); break;

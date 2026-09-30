@@ -181,6 +181,8 @@ namespace LanesOfVietnam.View
             var tex = new Texture2D(cap.Width, cap.Height, TextureFormat.RGB24, false, false);
             for (int f = 0; f < cap.Frames; f++)
             {
+                // A movie: the match and the view's clock move on by one frame.
+                if (cap.Movie > 0 && f > 0) root.AdvanceForCapture(1f / cap.Movie);
                 yield return null;
                 RenderPipeline.SubmitRenderRequest(cam, request);
                 var prev = RenderTexture.active;

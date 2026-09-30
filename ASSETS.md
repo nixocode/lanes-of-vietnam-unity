@@ -269,12 +269,35 @@ massif's eastern foot, looking along a heading of **262°**.
 MPFB2's 53-bone `game_engine` skeleton, with kit and weapons modelled by that
 pipeline. They are copied into `SourceArt/soldiers/` (gitignored).
 `plant_bake.py` poses the rig per frame and bakes the frames like the plants:
-- **Frames:** stand, a six-frame walk, kneel, prone, two dead, and three aims (standing, kneeling, prone: rifle to the shoulder by two-bone IK, pointed along the rifle's own measured axis).
+- **Frames:** stand, kneel, prone, two dead, three aims, and the motion-captured walk, run, crouched walk and idle below; three aims (standing, kneeling, prone: rifle to the shoulder by two-bone IK, pointed along the rifle's own measured axis).
 - **View:** three-quarter view facing right; the VC are mirrored to face left.
 - **Posing:** rotations about the figure's own axes.
 - **Uniform correction:** the US uniform texture bakes at albedo 0.008. It is
   re-coloured to OG-107 olive drab (the old palette's hue) at 0.085, keeping
   the fabric's pattern.
+
+**Motion: the CMU Graphics Lab Motion Capture Database**
+(`mocap.cs.cmu.edu`), in B. Hahne's BVH conversion from
+`github.com/una-dinosauria/cmu-mocap`, fetched 2026-09-30. The terms: *"free
+for use in research projects. You may include this data in commercially-sold
+products, but you may not resell this data directly, even in converted
+form."* That is permitted under the owner's 2026-09-29 rule; PLAN §8 names it
+the fallback while Mixamo is blocked. The raw BVH files are in
+`SourceArt/mocap/cmu/` (gitignored). What ships is our baked sprites.
+
+`plant_bake.py` retargets them onto the soldier's hips, legs, spine and head;
+the arms keep the rifle. For each bone it takes the rotation relative to the
+take's T-pose, turned so the performer's average heading becomes the
+soldier's, and damps the torso where a clip leans too far for a man with a
+rifle. It cuts one gait cycle from the steady middle of the take, left heel
+ahead to left heel ahead, and records its stride.
+
+| clip | CMU take | frames | stride | cycle | sha256 |
+|---|---|---|---|---|---|
+| walk | 16_15 "walk" | 16 | 1.10 m | 1.16 s | `7459cd4be169477b4e2c629075a9cde9436e37a87cdf4e774574400f4ec942d8` |
+| run | 16_36 "run/jog" | 12 | 1.84 m | 0.80 s | `bc99c89352df21f9fed601b4529f430e364c174b6e87527144b6143e04005caf` |
+| crouch | 136_09 "walk crouched" (torso at 45%) | 12 | 0.98 m | 1.27 s | `f958ad4cfc516b025da94eb1085b7ded2f34e0fad2c0520fb554a29794b28c33` |
+| idle | 137_28 "normal wait": its stillest 3 s by foot travel and hip turn (torso at 60%) | 8 | — | 3 s | `10ee250f5676265860a4fa4bad8c5d74af7116c038f9fea998e1bbd7f4d395ad` |
 
 This is an **interim** until the PLAN §12.3 soldiers (textured kit,
 Mixamo-driven Humanoid motion) exist. It costs one quad per man.
@@ -283,10 +306,10 @@ Mixamo-driven Humanoid motion) exist. It costs one quad per man.
 |---|---|
 | `us_rifleman.glb` (source) | `ff0cd3c3388ae6ede5bbea97e0f40fea93043e33831356a61737d9a89d652b40` |
 | `vc_guerrilla.glb` (source) | `2722ca1736956df6db650c30dee512d957050798a878125a56c4ec820f6b06a8` |
-| `soldier_us_albedo.png` | `1998e0345693591eca23635739a1c4101d80e4ccec277990345a13ada933d07a` |
-| `soldier_us_normal.png` | `946298a68fcdb0e7e3d86c5b7b3b9a5c5189d85d405cca489780a2f05eb998db` |
-| `soldier_vc_albedo.png` | `9dce0bcd1f38f10caa84d814d0cf846b5bd5be10542e77ebf00478957572cefe` |
-| `soldier_vc_normal.png` | `fa77a955bad03c8a6b38e096bbdbcf8588bde8610a6d84a614e65382872f917e` |
+| `soldier_us_albedo.png` | `1199ae2cfc74685e9d9e4ca01d2d0fabd7472b90761f34e263412ddaf8d7fa77` |
+| `soldier_us_normal.png` | `3d857e18777d4af2b63292f5613572c14dd2fb0a39873632dcd3e0baa59cdbb4` |
+| `soldier_vc_albedo.png` | `4d6d02154f9ec7062b75dd80210884c59e0052733aa4ef3aa9e6ea54fdceb2b9` |
+| `soldier_vc_normal.png` | `5de2e0ad9f6b42620e4660678a6770c8a1b4fb98a0b507202393886c51f9f2a8` |
 
 ### Props — `Assets/_Project/Art/Props/`
 

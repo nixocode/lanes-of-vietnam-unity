@@ -132,6 +132,13 @@ namespace LanesOfVietnam.View
             return Math.Sqrt(dx * dx + dz * dz);
         }
 
+        /// <summary>How man <paramref name="id"/> moved over the last tick (sim x, z), for facing and gait.</summary>
+        public (double dx, double dz) LastStep(int id)
+        {
+            if (id >= _prevCount) return (0, 0);
+            return (_curr[id].X - _prev[id].X, _curr[id].Z - _prev[id].Z);
+        }
+
         public IReadOnlyList<SimEvent> Events => State.Events;
     }
 }

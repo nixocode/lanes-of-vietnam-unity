@@ -144,6 +144,13 @@ namespace LanesOfVietnam.View
             return Environment.TickCount & 0x7fffffff;
         }
 
+        /// <summary>Capture only: move the match and the view's clock on by some seconds, as a played frame would.</summary>
+        public void AdvanceForCapture(float seconds)
+        {
+            Driver.Advance(seconds);
+            ViewTime += seconds;
+        }
+
         private void Update()
         {
             if (CaptureSettings.Active == null)
