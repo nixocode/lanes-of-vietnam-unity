@@ -197,12 +197,27 @@ RECIPES["bamboo"] = dict(build="bamboo", variants=4, ppm=56, ground="zero",
 # Soldiers, baked the same way (interim, until the Mixamo-driven 3D men of
 # PLAN §12.3): the earlier build's rigged MPFB2 soldiers (our own work on a
 # CC0 base; SourceArt/soldiers), posed per frame and frozen.
-SOLDIER_FRAMES = ["stand", "walk0", "walk1", "walk2", "walk3", "walk4", "walk5", "kneel", "prone", "dead0", "dead1",
-                  "stand_aim", "kneel_aim", "prone_aim"]
+SOLDIER_FRAMES = ["stand", "kneel", "prone", "dead0", "dead1", "stand_aim", "kneel_aim", "prone_aim"]
 SOLDIER_OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Soldiers")
 # fatigue_to: the old palette's 0.118 was checked under the three.js build's
 # dimmer light rig; in this scene's measured sun and sky it read pale beside
 # grass of albedo 0.064, so 0.085.
+# Motion: CMU Graphics Lab motion capture (free for any use; the raw data may
+# not be resold), in B. Hahne's BVH conversion, retargeted onto our rig's legs,
+# hips and spine; the arms keep the rifle. One gait cycle per clip, from the
+# steady middle of the take; "stride" is measured, so the game steps frames by
+# distance and the feet do not skate.
+MOCAP = [
+    dict(name="walk", file="16_15.bvh", frames=16, cycle=True),     # walk
+    # CMU's jogs are short takes (1.1-1.6 s against a 0.7 s cycle): the first
+    # of these that holds a whole cycle is used.
+    dict(name="run", file=["16_36.bvh", "16_35.bvh", "02_03.bvh", "35_17.bvh", "35_22.bvh"], frames=12, cycle=True),
+    # The performer hunches far forward; with a rifle in the hands that aims
+    # it at the ground, so the torso keeps 45% of his lean and the legs all of it.
+    dict(name="crouch", file="136_09.bvh", frames=12, cycle=True, torso=0.45),  # walk crouched
+    # The stillest 3 s of the take (least foot travel): a man waiting, not stepping.
+    dict(name="idle", file="137_28.bvh", frames=8, cycle=False, window=3.0, torso=0.6),   # normal wait
+]
 RECIPES["soldier_us"] = dict(build="soldier", src="soldiers/us_rifleman.glb", ppm=280, ground="min", out=SOLDIER_OUT,
                              fatigue_to=0.085)
 RECIPES["soldier_vc"] = dict(build="soldier", src="soldiers/vc_guerrilla.glb", ppm=280, ground="min", out=SOLDIER_OUT)
@@ -1178,10 +1193,147 @@ def build_soldier(recipe):
             rot("upperarm_l", F, -1.0); rot("upperarm_r", F, 1.0)
             rot("thigh_l", F, 0.25); rot("thigh_r", F, -0.3); rot("calf_l", P, -0.6)
 
+    # --- motion capture -----------------------------------------------------------
+    BONES = [("pelvis", "Hips"), ("spine_01", "LowerBack"), ("spine_02", "Spine"), ("spine_03", "Spine1"),
+             ("neck_01", "Neck"), ("head", "Head"),
+             ("thigh_l", "LeftUpLeg"), ("calf_l", "LeftLeg"), ("foot_l", "LeftFoot"), ("ball_l", "LeftToeBase"),
+             ("thigh_r", "RightUpLeg"), ("calf_r", "RightLeg"), ("foot_r", "RightFoot"), ("ball_r", "RightToeBase")]
+    reset()
+    tb = {b: (arm.matrix_world @ arm.pose.bones[b].matrix).to_quaternion() for b, _ in BONES}
+    t_pelvis = arm.matrix_world @ arm.pose.bones["pelvis"].head
+    t_foot = min(head("foot_l").z, head("foot_r").z)
+    t_hip_h = t_pelvis.z - t_foot
+
+    def yaw_to(a, b):
+        """The rotation about U that turns horizontal direction a into b."""
+        a = mathutils.Vector((a.x, a.y, 0)).normalized(); b = mathutils.Vector((b.x, b.y, 0)).normalized()
+        return mathutils.Quaternion(U, math.atan2(a.cross(b).z, a.dot(b)))
+
+    def load_clip(spec):
+        path = os.path.join(SRC, "mocap", "cmu", spec["file"])
+        before = set(bpy.data.objects)
+        bpy.ops.import_anim.bvh(filepath=path, axis_forward="-Z", axis_up="Y", update_scene_fps=False,
+                                use_fps_scale=False, frame_start=1)
+        src = [o for o in bpy.data.objects if o not in before][0]
+        sc = bpy.context.scene
+        n = int(src.animation_data.action.frame_range[1])
+
+        def world(fr):
+            sc.frame_set(int(fr), subframe=fr - int(fr))
+            bpy.context.view_layer.update()
+            M = src.matrix_world
+            return {b: (M @ src.pose.bones[b].matrix) for b in ["Hips", "LowerBack", "Spine", "Spine1", "Neck", "Head",
+                    "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase"]}
+
+        T = world(1)                                     # Hahne's conversion: frame 1 is a T-pose
+        rq = {b: T[b].to_quaternion() for b in T}
+        right = T["RightUpLeg"].translation - T["LeftUpLeg"].translation
+        Fs = U.cross(mathutils.Vector((right.x, right.y, 0))).normalized()   # facing, from the hips
+        s_hip = T["Hips"].translation.z - min(T["LeftFoot"].translation.z, T["RightFoot"].translation.z)
+        scale = t_hip_h / s_hip
+        Y0 = yaw_to(Fs, F)
+
+        def heading(W):
+            d = (W["Hips"].to_quaternion() @ rq["Hips"].inverted()) @ Fs
+            return mathutils.Vector((d.x, d.y, 0)).normalized()
+
+        # The cycle: left foot furthest ahead of the hips, twice, mid-take.
+        if spec["cycle"]:
+            lo, hi = (2, n - 1) if spec.get("short") else (max(2, int(n * 0.1)), int(n * 0.95))
+            ahead = []
+            for fr in range(lo, hi):
+                W = world(fr)
+                ahead.append((W["LeftFoot"].translation - W["Hips"].translation).dot(heading(W)))
+            peaks = [lo + i for i in range(1, len(ahead) - 1) if ahead[i] >= ahead[i - 1] and ahead[i] > ahead[i + 1]
+                     and ahead[i] > 0.5 * max(ahead)]
+            if len(peaks) < 2:
+                raise RuntimeError(f"{spec['file']}: no gait cycle found")
+            a, b = peaks[len(peaks) // 2 - 1], peaks[len(peaks) // 2]
+            Wa, Wb = world(a), world(b)
+            travel = Wb["Hips"].translation - Wa["Hips"].translation
+            stride = mathutils.Vector((travel.x, travel.y, 0)).length * scale
+            span = [a + (b - a) * k / spec["frames"] for k in range(spec["frames"])]
+        else:
+            fps = 120.0
+            win = int(spec["window"] * fps)
+            # Foot positions every 10 frames; the window where they travel least.
+            samples = []
+            for fr in range(2, n, 10):
+                W = world(fr)
+                samples.append((fr, W["LeftFoot"].translation.copy(), W["RightFoot"].translation.copy(), heading(W)))
+            best, a = None, 2
+            for i in range(len(samples)):
+                j = i + win // 10
+                if j >= len(samples):
+                    break
+                # Feet that stay put, and hips that stay facing the same way: a
+                # man turning to look at the camera is not waiting.
+                travel = sum((samples[k + 1][1] - samples[k][1]).length + (samples[k + 1][2] - samples[k][2]).length
+                             for k in range(i, j))
+                turn = max(samples[i][3].angle(samples[k][3]) for k in range(i, j + 1))
+                travel += turn * (s_hip * 2.0)
+                if best is None or travel < best:
+                    best, a = travel, samples[i][0]
+            b = a + win
+            span = [a + (b - a) * k / (spec["frames"] - 1) for k in range(spec["frames"])]
+            stride = 0.0
+        H = mathutils.Vector((0, 0, 0))
+        for fr in span:
+            H += heading(world(fr))
+        Yc = yaw_to(Y0 @ H.normalized(), F)
+        z0 = sum(world(fr)["Hips"].translation.z for fr in span) / len(span)
+        poses = []
+        for fr in span:
+            W = world(fr)
+            rots = {}
+            for tb_name, sb in BONES:
+                delta = W[sb].to_quaternion() @ rq[sb].inverted()
+                r = Yc @ (Y0 @ delta @ Y0.inverted()) @ tb[tb_name]
+                if tb_name in ("pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "head") and spec.get("torso", 1) < 1:
+                    r = tb[tb_name].slerp(r, spec["torso"])
+                rots[tb_name] = r
+            poses.append((rots, (W["Hips"].translation.z - z0) * scale))
+        bpy.data.objects.remove(src, do_unlink=True)
+        return poses, stride, (b - a) / 120.0
+
+    def apply_mocap(rots, bob):
+        reset()
+        Minv = arm.matrix_world.inverted()
+        Rinv = arm.matrix_world.to_quaternion().inverted()
+        for b, _ in BONES:
+            pb = arm.pose.bones[b]
+            bpy.context.view_layer.update()
+            h = pb.head.copy()
+            if b == "pelvis":
+                h = Minv @ (t_pelvis + U * bob)
+            pb.matrix = mathutils.Matrix.LocRotScale(h, Rinv @ rots[b], None)
+        bpy.context.view_layer.update()
+
+    frames = [(n_, (lambda n_=n_: pose(n_))) for n_ in SOLDIER_FRAMES]
+    clips_meta = []
+    for spec in MOCAP:
+        files = spec["file"] if isinstance(spec["file"], list) else [spec["file"]]
+        for fi_, fname in enumerate(files):
+            try:
+                poses, stride, seconds = load_clip(dict(spec, file=fname, short=len(files) > 1))
+                spec = dict(spec, file=fname)
+                break
+            except RuntimeError as e:
+                print(f"[plants] mocap {spec['name']}: {e}", flush=True)
+                if fi_ == len(files) - 1:
+                    raise
+        for k, (rots, bob) in enumerate(poses):
+            frames.append((f"{spec['name']}{k:02d}", (lambda r=rots, bb=bob: apply_mocap(r, bb))))
+        clips_meta.append(dict(name=spec["name"], frames=len(poses), stride_m=round(stride, 3), seconds=round(seconds, 3),
+                               source=f"CMU {spec['file']}"))
+        print(f"[plants] mocap {spec['name']}: {len(poses)} frames, stride {stride:.2f} m, cycle {seconds:.2f} s "
+              f"({stride / seconds if seconds else 0:.2f} m/s)", flush=True)
+    recipe["clips_meta"] = clips_meta
+
     groups = {}
     dg = bpy.context.evaluated_depsgraph_get()
-    for fi, name in enumerate(SOLDIER_FRAMES):
-        pose(name)
+    for fi, (name, do_pose) in enumerate(frames):
+        do_pose()
         dg = bpy.context.evaluated_depsgraph_get()
         pelvis = arm.matrix_world @ arm.pose.bones["pelvis"].head
         snaps = []
@@ -1465,7 +1617,7 @@ def bake_species(name, recipe, scene, co, preview_only):
     write_png(os.path.join(out, f"{name}_albedo.png"), alb[::-1], alpha=True)
     write_png(os.path.join(out, f"{name}_normal.png"), nor[::-1], alpha=True)
     with open(os.path.join(out, f"{name}.json"), "w") as f:
-        json.dump(dict(species=name, pitch_deg=BAKE_PITCH, atlas=[AW, AH], ppm=recipe["ppm"],
+        json.dump(dict(species=name, pitch_deg=BAKE_PITCH, atlas=[AW, AH], ppm=recipe["ppm"], clips=recipe.get("clips_meta", []),
                        source=recipe.get("src") or {"built": recipe.get("build"), "blades": recipe.get("blades"),
                                                     "plumes": recipe.get("plumes")},
                        variants=meta), f, indent=1)
