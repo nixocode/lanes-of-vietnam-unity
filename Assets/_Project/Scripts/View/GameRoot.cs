@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Globalization;
 using LanesOfVietnam.Sim;
 using UnityEngine;
@@ -77,7 +78,19 @@ namespace LanesOfVietnam.View
 
             if (cap != null)
             {
-                Driver.FastForward(cap.Tick);
+                // Call-ins the capture asked for go in at their ticks, as the
+                // player's would; the rest of the way is a plain fast-forward.
+                int at = 0;
+                foreach (var call in cap.Calls.OrderBy(c => c.tick))
+                {
+                    if (call.tick > at) { Driver.FastForward(call.tick - at); at = call.tick; }
+                    var side = call.card.StartsWith("us-") ? Side.Us : Side.Vc;
+                    var card = Deck.For(side).FirstOrDefault(c => c.Id == call.card);
+                    string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
+                    Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
+                    if (blocked == null) Driver.Match.Issue(Command.Buy(side, call.card, call.lane, call.x));
+                }
+                if (cap.Tick > at) Driver.FastForward(cap.Tick - at);
                 ViewTime = cap.ViewTime;
                 CameraRig.Focus(cap.CameraX, instant: true);
                 CameraRig.SetDolly(cap.Dolly, instant: true);
@@ -97,7 +110,10 @@ namespace LanesOfVietnam.View
             Seed = seed ?? ChooseSeed();
             Options = new MatchOptions
             {
-                Seed = Seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = length,
+                Seed = Seed,
+                Us = CaptureSettings.Active?.UsPlan != null ? Plan.ByName(CaptureSettings.Active.UsPlan) : Plan.Ceiling,
+                Vc = CaptureSettings.Active?.VcPlan != null ? Plan.ByName(CaptureSettings.Active.VcPlan) : Plan.Ceiling,
+                Cover = Map.Cover(), Length = length,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();
