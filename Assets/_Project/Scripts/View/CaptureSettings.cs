@@ -48,6 +48,14 @@ namespace LanesOfVietnam.View
         public string Screen;
         /// <summary>Post exposure in stops, replacing the profile's for this capture; null keeps it. For tuning by measurement.</summary>
         public float? Ev;
+        /// <summary>A colour filter (linear r:g:b) replacing the profile's, for tuning white balance; null keeps it.</summary>
+        public float[] Tint;
+        /// <summary>Tonemapper for this capture: aces or neutral; null keeps the profile's.</summary>
+        public string Tone;
+        /// <summary>The ground shader's debug view (1 albedo, 2 normal, 3 layers, 4 lit without normal map, 5 grey card); 0 off.</summary>
+        public int GroundDebug;
+        /// <summary>The ground shader's texture gradient scale (mip bias); 0 keeps the material's.</summary>
+        public float GroundGrad;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
         public static CaptureSettings Active;
@@ -75,6 +83,13 @@ namespace LanesOfVietnam.View
                     case "out": c.Out = v; break;
                     case "frames": c.Frames = int.Parse(v, inv); break;
                     case "ev": c.Ev = float.Parse(v, inv); break;
+                    case "ground": c.GroundDebug = int.Parse(v, inv); break;
+                    case "groundgrad": c.GroundGrad = float.Parse(v, inv); break;
+                    case "tint":
+                        var t = v.Split(':');
+                        c.Tint = new[] { float.Parse(t[0], inv), float.Parse(t[1], inv), float.Parse(t[2], inv) };
+                        break;
+                    case "tone": c.Tone = v; break;
                     case "nopost": c.NoPost = v == "1" || v == "true"; break;
                     case "ui": c.NoUi = !(v == "1" || v == "true"); break;
                     case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;

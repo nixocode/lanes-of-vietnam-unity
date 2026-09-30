@@ -57,12 +57,28 @@ namespace LanesOfVietnam.View
                 };
                 if (cap.NoPost) camData.renderPostProcessing = false;
             }
-            if (cap.Ev.HasValue)
+            if (cap.GroundDebug != 0 || cap.GroundGrad > 0)
+            {
+                // Renderer.material makes a per-renderer copy: the asset is not touched.
+                var gv = FindAnyObjectByType<GroundView>();
+                if (gv != null)
+                    foreach (var r in gv.GetComponentsInChildren<MeshRenderer>())
+                    {
+                        if (cap.GroundDebug != 0) r.material.SetFloat("_DebugView", cap.GroundDebug);
+                        if (cap.GroundGrad > 0) r.material.SetFloat("_GradScale", cap.GroundGrad);
+                    }
+            }
+            if (cap.Ev.HasValue || cap.Tint != null || cap.Tone != null)
             {
                 // vol.profile is a play-mode copy: the asset is not touched.
                 var vol = FindAnyObjectByType<Volume>();
                 if (vol != null && vol.profile.TryGet<ColorAdjustments>(out var col))
-                    col.postExposure.Override(cap.Ev.Value);
+                {
+                    if (cap.Ev.HasValue) col.postExposure.Override(cap.Ev.Value);
+                    if (cap.Tint != null) col.colorFilter.Override(new Color(cap.Tint[0], cap.Tint[1], cap.Tint[2]).gamma);
+                }
+                if (vol != null && cap.Tone != null && vol.profile.TryGet<Tonemapping>(out var tone))
+                    tone.mode.Override(cap.Tone == "neutral" ? TonemappingMode.Neutral : TonemappingMode.ACES);
             }
             var request = new RenderPipeline.StandardRequest { destination = rt };
             if (!RenderPipeline.SupportsRenderRequest(cam, request))

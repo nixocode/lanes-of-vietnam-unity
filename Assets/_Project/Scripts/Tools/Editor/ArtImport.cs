@@ -9,11 +9,15 @@ namespace LanesOfVietnam.Tools
     /// Unity's defaults would quietly spoil the sky: the importer caps a
     /// texture at 2048 (the window is 2560 wide, cut to keep 40 px per degree
     /// at a 19 degree lens) and rescales a non-power-of-two image to the
-    /// nearest power of two. Rules by folder, so every file that lands there
+    /// nearest power of two. The ground's layers must be crunched,
+    /// with anisotropic filtering. Rules by folder, so every file that lands there
     /// is treated the same and the settings live in a diff.
     /// </summary>
     public sealed class ArtImport : AssetPostprocessor
     {
+        /// <summary>Crunch quality for the sky and the ground's layers (0-100).</summary>
+        public const int CrunchQuality = 75;
+
         private void OnPreprocessTexture()
         {
             var ti = (TextureImporter)assetImporter;
@@ -25,13 +29,45 @@ namespace LanesOfVietnam.Tools
                 ti.sRGBTexture = true;
                 ti.npotScale = TextureImporterNPOTScale.None;
                 ti.maxTextureSize = 4096;
-                ti.mipmapEnabled = true;
+                // The window is only ever magnified (40 texels a degree against
+                // 57 screen pixels at 1080p through a 19 degree lens), so it
+                // needs no mips; and with mips Unity will not compress it,
+                // because 1040 stops dividing by four three levels down.
+                ti.mipmapEnabled = p.EndsWith("sky_full.png");
                 ti.wrapModeU = p.EndsWith("sky_full.png") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
                 ti.wrapModeV = TextureWrapMode.Clamp;
                 ti.filterMode = FilterMode.Trilinear;
                 ti.anisoLevel = 1;
                 ti.alphaSource = TextureImporterAlphaSource.None;
-                ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                // Crunched DXT. "CompressedHQ" has no format the WebGL build
+                // accepts at this size, and Unity quietly shipped the window
+                // as raw RGBA: 10.2 MB, 63% of the whole build.
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
+            else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
+            {
+                // One albedo (+ height in alpha) and one normal per layer
+                // (tools/art/terrain_pack.py), crunched: DXT alone gave the
+                // WebGL build 11 MB for four layers, and Brotli barely touches
+                // DXT data. Crunch does not take texture arrays, hence the pairs.
+                bool normal = p.EndsWith("_normal.png");
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+                ti.sRGBTexture = !normal;
+                ti.alphaSource = normal ? TextureImporterAlphaSource.None : TextureImporterAlphaSource.FromInput;
+                ti.alphaIsTransparency = false;
+                ti.maxTextureSize = 2048;
+                ti.mipmapEnabled = true;
+                ti.wrapMode = TextureWrapMode.Repeat;
+                ti.filterMode = FilterMode.Trilinear;
+                // The ground is seen at a few degrees: without anisotropy the
+                // mip chain blurs it to mush within 30 m.
+                ti.anisoLevel = 8;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
             }
         }
     }
