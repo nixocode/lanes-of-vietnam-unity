@@ -94,17 +94,25 @@ RECIPES = {
     # (CC0). Nothing scanned is tall enough — Poly Haven's grass tops out at
     # 40 cm; elephant grass stands 2-3 m.
     "elephant_grass": dict(build="grass", variants=6, ppm=150, ground="zero",
-                           blades=["Foliage001", "Foliage008"], count=(90, 150), height=(2.0, 3.1),
-                           spread=0.28, lean=(0.05, 0.55), droop=(0.6, 1.5),
+                           blades=["Foliage001", "Foliage008"], count=(170, 260), height=(2.0, 3.1),
+                           spread=0.35, lean=(0.05, 0.5), droop=(0.9, 2.1), width=0.5,
                            plumes="Foliage002", plume_count=(3, 9), plume_height=(2.4, 3.5)),
     "grass_tuft": dict(build="grass", variants=6, ppm=240, ground="zero",
                        # Not Foliage006: its lime green (albedo G 0.27) is a lawn's, not
                        # the reference's olive field grass.
-                       blades=["Foliage001", "Foliage008", "Foliage005"], count=(45, 80), height=(0.45, 1.0),
-                       spread=0.12, lean=(0.1, 0.7), droop=(0.3, 1.1)),
+                       blades=["Foliage001", "Foliage008", "Foliage005"], count=(90, 150), height=(0.45, 1.0),
+                       spread=0.16, lean=(0.1, 0.6), droop=(0.5, 1.5), width=0.5),
 }
 
 GRASS_SRC = "ambientcg"
+
+# The coconut palm, built: nothing on Poly Haven is a palm, and the Sketchfab
+# ones (ASSETS.md) need the owner's login. A curved, ringed trunk in Poly
+# Haven's palm_tree_bark scan (CC0) and a crown of arching fronds whose
+# leaflets are ambientCG Foliage008's scanned blades (CC0).
+RECIPES["coconut_palm"] = dict(build="palm", variants=4, ppm=48, ground="zero",
+                               height=(13.0, 19.0), fronds=(20, 27), dead=(2, 5), frond_length=(4.2, 5.6),
+                               leaflets=(80, 110), bark="polyhaven/palm_tree_bark/palm_tree_bark", blades="Foliage008")
 
 PAD = 12            # texels of dilated border around every variant in an atlas
 SAMPLES = 96
@@ -184,6 +192,8 @@ def camera_frame(co):
 def import_sources(recipe):
     if recipe.get("build") == "grass":
         return build_grass(recipe)
+    if recipe.get("build") == "palm":
+        return build_palm(recipe)
     srcs = recipe["src"] if isinstance(recipe["src"], list) else [recipe["src"]]
     for s in srcs:
         bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, s))
@@ -351,7 +361,9 @@ def build_grass(recipe):
             lean = rng.uniform(*recipe["lean"]) * (0.4 + 0.8 * edge)
             droop = rng.uniform(*recipe["droop"]) * (0.5 + 0.7 * edge)
             length = top * rng.uniform(0.55, 1.1)
-            width = length / max(rect["aspect"], 4) * rng.uniform(0.9, 1.3)
+            # Blades as scanned are ribbon-broad for a field grass; the width
+            # factor narrows them so a clump reads as grass, not a rosette.
+            width = length / max(rect["aspect"], 4) * rng.uniform(0.9, 1.3) * recipe.get("width", 1.0)
             me = blade_mesh(f"blade {key}{b}", rect, length, width, lean, droop,
                             az + rng.uniform(-0.6, 0.6), base, twist=rng.uniform(-1.2, 1.2))
             me.materials.append(blade_material(atlas))
@@ -373,6 +385,196 @@ def build_grass(recipe):
                 objs.append(o)
         bpy.context.view_layer.update()
         groups[key] = objs
+    return groups
+
+
+def bark_material(stem, name="bark"):
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    col = nt.nodes.new("ShaderNodeTexImage"); col.image = bpy.data.images.load(os.path.join(SRC, f"{stem}_diff_2k.png"))
+    nm = nt.nodes.new("ShaderNodeTexImage"); nm.image = bpy.data.images.load(os.path.join(SRC, f"{stem}_nor_gl_2k.png"))
+    nm.image.colorspace_settings.name = "Non-Color"
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(nm.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    bsdf.inputs["Roughness"].default_value = 0.85
+    return mat
+
+
+def flat_material(name, rgb, rough=0.6):
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    b = mat.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*rgb, 1)
+    b.inputs["Roughness"].default_value = rough
+    return mat
+
+
+def dry_blade_material(atlas):
+    """The blade atlas, browned: an old frond hanging dead against the trunk."""
+    name = f"blade {atlas} dry"
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = blade_material(atlas).copy()
+    mat.name = name
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    col = [n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image.colorspace_settings.name != "Non-Color"][0]
+    # Keep the scan's light and dark, lose its green: nearly grey, then
+    # tinted the grey-brown of a coconut frond that has died on the tree.
+    hsv = nt.nodes.new("ShaderNodeHueSaturation")
+    hsv.inputs["Saturation"].default_value = 0.12
+    hsv.inputs["Value"].default_value = 1.5
+    tint = nt.nodes.new("ShaderNodeMix")
+    tint.data_type = "RGBA"
+    tint.blend_type = "MULTIPLY"
+    tint.inputs["Factor"].default_value = 1.0
+    tint.inputs[7].default_value = (1.55, 1.12, 0.62, 1)
+    nt.links.new(col.outputs["Color"], hsv.inputs["Color"])
+    nt.links.new(hsv.outputs["Color"], tint.inputs[6])
+    nt.links.new(tint.outputs[2], bsdf.inputs["Base Color"])
+    return mat
+
+
+def tube(name, pts, radii, ring=12, uv_scale=(1.0, 1.0)):
+    """A tube through points with a radius at each; u around, v along (metres / uv_scale)."""
+    verts, faces, uvs = [], [], []
+    n = len(pts)
+    along = 0.0
+    frames = []
+    for i in range(n):
+        t = (pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]).normalized()
+        side = t.cross(mathutils.Vector((0, 0, 1)))
+        if side.length < 1e-4:
+            side = mathutils.Vector((1, 0, 0))
+        side.normalize()
+        up = side.cross(t).normalized()
+        frames.append((side, up))
+    vs = []
+    for i in range(n):
+        if i:
+            along += (pts[i] - pts[i - 1]).length
+        side, up = frames[i]
+        for k in range(ring + 1):
+            a = 2 * math.pi * k / ring
+            verts.append(pts[i] + (side * math.cos(a) + up * math.sin(a)) * radii[i])
+            vs.append((k / ring * 2 * math.pi * radii[i] / uv_scale[0], along / uv_scale[1]))
+    for i in range(n - 1):
+        for k in range(ring):
+            a = i * (ring + 1) + k
+            faces.append((a, a + 1, a + ring + 2, a + ring + 1))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata([tuple(v) for v in verts], [], faces)
+    uvl = me.uv_layers.new(name="UVMap")
+    for f in me.polygons:
+        for li in f.loop_indices:
+            uvl.data[li].uv = vs[me.loops[li].vertex_index]
+    return me
+
+
+def link(me, mat):
+    me.materials.append(mat)
+    o = bpy.data.objects.new(me.name, me)
+    bpy.context.scene.collection.objects.link(o)
+    return o
+
+
+def build_palm(recipe):
+    """Coconut palms. The trunk leans and curves, as coconut palms do, swollen
+    at the foot and ringed by its leaf scars (the bark scan); the crown is
+    fronds arching up and out and drooping at the ends, each a rachis with
+    leaflets hanging from both sides in a V; under the crown, a few dead
+    fronds and a bunch of nuts."""
+    rng = np.random.default_rng(1965)
+    blades = [r for r in blade_rects(recipe["blades"]) if r["aspect"] > 5]
+    bark = bark_material(recipe["bark"])
+    leaf = blade_material(recipe["blades"])
+    dry = dry_blade_material(recipe["blades"])
+    rachis_mat = flat_material("rachis", (0.30, 0.27, 0.12), 0.5)
+    nut_mat = flat_material("nut", (0.16, 0.13, 0.05), 0.45)
+    groups = {}
+    for vi in range(recipe["variants"]):
+        key = "abcdefghij"[vi]
+        ox = vi * 40.0
+        objs = []
+        H = rng.uniform(*recipe["height"])
+        # Lean mostly across the view, so the curve reads from the camera.
+        lean_az = rng.choice([0.0, math.pi]) + rng.uniform(-0.6, 0.6)
+        lean = rng.uniform(0.08, 0.28)
+        curve = rng.uniform(-0.12, 0.15)
+        pts, radii = [], []
+        segs = 28
+        for i in range(segs + 1):
+            t = i / segs
+            off = (lean * t + curve * t * t) * H
+            pts.append(mathutils.Vector((ox + math.cos(lean_az) * off, math.sin(lean_az) * off * 0.5, t * H)))
+            radii.append(0.17 + 0.16 * math.exp(-t * 14) + 0.02 * (1 - t))
+        objs.append(link(tube(f"trunk {key}", pts, radii, ring=14, uv_scale=(1.3, 1.3)), bark))
+        top = pts[-1]
+        axis = (pts[-1] - pts[-3]).normalized()
+
+        # The crown.
+        nf = int(rng.integers(*recipe["fronds"]))
+        for f in range(nf + int(rng.integers(*recipe["dead"]))):
+            dead = f >= nf
+            az = rng.uniform(0, 2 * math.pi) if dead else (f * 2.39996 + rng.uniform(-0.2, 0.2))   # golden angle
+            young = (not dead) and rng.uniform() < 0.18
+            L = rng.uniform(*recipe["frond_length"]) * (0.7 if young else 1.0)
+            rise = (1.25 if young else rng.uniform(0.35, 1.0)) if not dead else -1.2
+            droop = 0.4 if young else rng.uniform(1.2, 2.2)
+            d = mathutils.Vector((math.cos(az), math.sin(az), 0))
+            rp = [top.copy()]
+            p = top.copy()
+            n_r = 16
+            for i in range(n_r):
+                t = (i + 0.5) / n_r
+                ang = rise - droop * t * t                     # elevation of the rachis, falling along it
+                p = p + (d * math.cos(ang) + mathutils.Vector((0, 0, 1)) * math.sin(ang)) * (L / n_r)
+                rp.append(p.copy())
+            objs.append(link(tube(f"rachis {key}{f}", rp, [0.035 * (1 - i / (n_r + 1)) + 0.008 for i in range(n_r + 1)], ring=5),
+                             rachis_mat))
+            # Leaflets: along the outer 85%, both sides, hanging in a V.
+            nl = int(rng.integers(*recipe["leaflets"]))
+            for j in range(nl):
+                t = 0.15 + 0.85 * (j + rng.uniform()) / nl
+                i = min(int(t * n_r), n_r - 1)
+                base = rp[i].lerp(rp[i + 1], t * n_r - i)
+                tang = (rp[i + 1] - rp[i]).normalized()
+                side = tang.cross(mathutils.Vector((0, 0, 1)))
+                if side.length < 1e-3:
+                    side = mathutils.Vector((1, 0, 0))
+                side.normalize()
+                for sgn in (-1, 1):
+                    length = (0.25 + 0.85 * math.sin(math.pi * min(1, t * 1.05))) * rng.uniform(0.85, 1.1)
+                    # Out to the side and forward along the rachis, hanging down.
+                    out = (side * sgn * 0.75 + tang * 0.55)
+                    out.z -= 0.55 if not young else 0.15
+                    out.normalize()
+                    az_l = math.atan2(out.y, out.x)
+                    lean_l = math.acos(max(-1, min(1, out.z)))          # from vertical
+                    rect = blades[int(rng.integers(len(blades)))]
+                    me = blade_mesh(f"leaflet {key}{f}_{j}{sgn}", rect, length, length / max(rect["aspect"], 8) * 1.2,
+                                    lean_l, rng.uniform(0.1, 0.5), az_l, tuple(base), segments=4,
+                                    twist=rng.uniform(-0.5, 0.5))
+                    objs.append(link(me, dry if dead else leaf))
+        # Nuts, in a bunch under the crown.
+        for k in range(int(rng.integers(4, 11))):
+            a = rng.uniform(0, 2 * math.pi)
+            c = top + mathutils.Vector((math.cos(a) * 0.32, math.sin(a) * 0.32, -0.35 - rng.uniform(0, 0.3)))
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=rng.uniform(0.11, 0.14), location=c, segments=10, ring_count=6)
+            nut = bpy.context.active_object
+            nut.data.materials.append(nut_mat)
+            objs.append(nut)
+        bpy.context.view_layer.update()
+        groups[key] = objs
+        print(f"[plants] palm {key}: {H:.1f} m, {nf} fronds, {len(objs)} parts", flush=True)
     return groups
 
 

@@ -218,8 +218,13 @@ namespace LanesOfVietnam.View
                     double px = x + rng.Range(-2, 2), pz = edge - rng.Range(2, 25);
                     float ph = (float)rng.Range(14, 20);
                     float py = (float)g.HeightAt(px, pz);
-                    Prim(PrimitiveType.Cylinder, Coords.World(px, pz, py + ph * 0.5f), new Vector3(0.3f, ph * 0.5f, 0.3f), Timber, "palm trunk");
-                    Prim(PrimitiveType.Sphere, Coords.World(px, pz, py + ph), new Vector3(5.5f, 1.8f, 5.5f), Foliage, "palm crown");
+                    // 10-14 m to the crown's top: the reference frames its palms
+                    // whole; at the grey box's 17-23 m the crowns left the frame.
+                    if (!Plant(g, px, pz, (float)_plantRng.Range(10, 14), "coconut_palm"))
+                    {
+                        Prim(PrimitiveType.Cylinder, Coords.World(px, pz, py + ph * 0.5f), new Vector3(0.3f, ph * 0.5f, 0.3f), Timber, "palm trunk");
+                        Prim(PrimitiveType.Sphere, Coords.World(px, pz, py + ph), new Vector3(5.5f, 1.8f, 5.5f), Foliage, "palm crown");
+                    }
                 }
                 // Bamboo at the edge now and then: tall thin culms in a clump.
                 if (rng.Next() < 0.18)
@@ -324,7 +329,7 @@ namespace LanesOfVietnam.View
                     double density;
                     float lo, hi;
                     if (pz > 11) { density = 0.9; lo = 0.6f; hi = 1.2f; }                  // foreground
-                    else if (lane < 3.5) { density = 0.4; lo = 0.3f; hi = 0.6f; }         // trodden lanes
+                    else if (lane < 3.5) { density = 0.6; lo = 0.3f; hi = 0.6f; }         // trodden lanes
                     else if (pz > -10.5) { density = 0.65; lo = 0.45f; hi = 0.95f; }      // between
                     else { density = 0.85; lo = 0.7f; hi = 1.25f; }                      // scrub, treeline edge
                     if (firebase) density *= 0.2;
