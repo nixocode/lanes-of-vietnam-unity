@@ -385,7 +385,57 @@ font.
 
 ## Audio
 
-The previous build synthesised all audio rather than sourcing it, which means
-there was nothing to license. §11's requirement is that a gun sound different
-at 30 m and 300 m, and that is a propagation problem — travel delay, air
-absorption, spreading, scattered tail — to account for all of these you should source it.
+**Sourced, on the owner's instruction (PLAN §12.6).** The previous build
+synthesised all its audio. This one uses recordings: dry, close-miked where
+possible. The distance is added by the engine, a Web Audio port of the
+three.js build's measured graph (`Assets/_Project/Plugins/WebGL/LovAudio.jslib`),
+which handles travel delay, air absorption, 1/d spreading and a scattered
+tail. The valley's impulse response is generated there; it is processing, not
+a sound. `tools/audio/slice_shots.py` builds everything below into
+`Assets/StreamingAssets/Audio/` as AAC 44.1 kHz, mono for effects and stereo
+for the bed.
+
+**Gunfire: The Free Firearm Sound Library, CC0.** From OpenGameArt,
+`https://opengameart.org/content/the-free-firearm-sound-library`; the page
+states CC0. Fetched 2026-09-30 as `Prepared SFX Library.7z`, sha256
+`cc1ab5a99a0a365105c7c5dd783f4b0b1fe90938114d3ceec53856bfe005f7d6`. The takes
+are 96 kHz, 24-bit stereo, several shots each. Single shots are found by
+onset, cut with their tail (up to 1.6 s), folded to mono and peak-normalised
+to −1 dBFS.
+
+| set | from | shots | used for |
+|---|---|---|---|
+| `m16_*` | AR-15 (the M16's civilian twin) | 4 | the US rifles |
+| `ak_*` | AK-47 | 8 | the VC and NVA |
+| `sks_*` | SKS | 4 | the VC and NVA, mixed with the AK so a volley is not one rifle |
+
+These are CC0, so they are committed.
+
+**Explosions, cracks and the jungle: Sonniss #GameAudioGDC 2017.** The terms
+are in the bundle's licence (read 2026-09-30): worldwide, royalty-free,
+personal and commercial use, no attribution required. Sounds may be
+distributed as part of a production, but **may not be sold as-is**. Fetched
+from the official mirror `ftpmirror.your.org/pub/misc/sonniss2017/individual/`
+by `tools/audio/fetch_sonniss.sh`, which checks these hashes. Per the owner's
+public-repo rule, the processed files live in the **git-ignored**
+`Assets/StreamingAssets/Audio/licensed/` (their `.meta` files are committed)
+and are rebuilt from `SourceArt/`.
+
+| set | source file (pack, supplier) | sha256 of the source |
+|---|---|---|
+| `shell_0` | `explosion_large_08.wav` (Explosion Sound Pack, Gamemaster Audio) | `aa26f39d6e9fe6e6942e15fd4260f8da62f201451784995b718b9abfd2af712c` |
+| `shell_1` | `explosion_med_long_tail_01.wav` (same) | `fea8024edfe07c5dbb40db53021dcc1c08b88415783bfe27767e3dffd794c08e` |
+| `grenade_0` | `explosion_large_no_tail_03.wav` (same) | `7e541b20048559e711d10eb1766e8b4717e6c1feb4529e0adebe0d96fbcaba87` |
+| `crack_0` | `bullet_flyby_fast_05.wav` (Bullet Impact Sounds, Gamemaster Audio) | `aaed15696f96ab7e9f6e844eb7b063156720c43abe1fdf88abf3bb50cf0ce7f7` |
+| `thump_0` | `bullet_impact_body_thump_02.wav` (same) | `cb84da810687e966e7ed0ae3da269c65b42231bed22dd52696e4619c413e16ab` |
+| `ambience_0` | `Jungle quiet insects and birds wide _120407_11.wav` (Thailand sound library, Faunethic / Charlie Atanasyan): a Southeast Asian jungle bed; a 60 s seamless loop from 30 s in, −20 dBFS RMS | `df1da8303fb61f1f8bc371c05a60faf00ab75783f5c3d14126c48244baef8b6e` |
+
+Still to source: the M60 and the other weapons in §12.6's list, the 105 mm
+report (the mirror's 2019 bundle has an M101), the UH-1, radio, voice and
+music.
+
+| committed file | sha256 |
+|---|---|
+| `ak_0.m4a` … `ak_7.m4a` | `4e779a7d…`, `1511c2fe…`, `9a162434…`, `09a8da50…`, `52fe1a62…`, `fee98695…`, `93809c5c…`, `6aae7906…` |
+| `m16_0.m4a` … `m16_3.m4a` | `f948d7bf…`, `c0fd1868…`, `a08c0fb8…`, `47efe7e3…` |
+| `sks_0.m4a` … `sks_3.m4a` | `e26df6db…`, `343d3ad1…`, `e0574d50…`, `a3ef3dd8…` |

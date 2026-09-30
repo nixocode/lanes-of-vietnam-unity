@@ -167,6 +167,8 @@ namespace LanesOfVietnam.Tools
             combat.Glow = Mat("FX Glow", Shader.Find("LOV/FX Glow"), null);
             combat.Smoke = Mat("FX Smoke", Shader.Find("LOV/FX Smoke"), null);
             combat.Marks = Mat("Ground Mark", Shader.Find("LOV/Ground Mark"), null);
+            // Sound, from the same events (PLAN §12.6; Web Audio in the browser).
+            game.AddComponent<AudioView>();
 
             var commander = game.AddComponent<Commander>();
             commander.Root = root;
