@@ -68,6 +68,7 @@ namespace LanesOfVietnam.View
             {
                 // The grey box's sphere ridges stand in only when there is no real terrain.
                 Dressing.GreyBoxRidges = Mountains == null || Mountains.Vertices == 0;
+                Dressing.Sandbags = CoverView.Sandbags.Layout != null ? new PlantSpecies(CoverView.Sandbags) : null;
                 Dressing.Build(Ground, cover, MapSeed);
             }
 

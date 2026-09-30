@@ -459,8 +459,17 @@ namespace LanesOfVietnam.View
             }
         }
 
+        /// <summary>Baked sandbag segments for the revetments (set by GameRoot from CoverView's); null: boxes.</summary>
+        public PlantSpecies Sandbags;
+        private int _wallSeed;
+
         private void Wall(Ground g, double x, double z, double lenX, double h, double lenZ)
         {
+            if (Sandbags != null)
+            {
+                CoverView.BagRun(_plants, Sandbags, g, x, z, System.Math.Max(lenX, lenZ), (float)h, false, 1000 + _wallSeed++);
+                return;
+            }
             float y = (float)g.HeightAt(x, z);
             Prim(PrimitiveType.Cube, Coords.World(x, z, y + (float)h * 0.5f - 0.1f),
                  new Vector3((float)lenX, (float)h, (float)lenZ), Sandbag, "revetment");
