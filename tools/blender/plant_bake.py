@@ -197,7 +197,8 @@ RECIPES["bamboo"] = dict(build="bamboo", variants=4, ppm=56, ground="zero",
 # Soldiers, baked the same way (interim, until the Mixamo-driven 3D men of
 # PLAN §12.3): the earlier build's rigged MPFB2 soldiers (our own work on a
 # CC0 base; SourceArt/soldiers), posed per frame and frozen.
-SOLDIER_FRAMES = ["stand", "walk0", "walk1", "walk2", "walk3", "walk4", "walk5", "kneel", "prone", "dead0", "dead1"]
+SOLDIER_FRAMES = ["stand", "walk0", "walk1", "walk2", "walk3", "walk4", "walk5", "kneel", "prone", "dead0", "dead1",
+                  "stand_aim", "kneel_aim", "prone_aim"]
 SOLDIER_OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Soldiers")
 # fatigue_to: the old palette's 0.118 was checked under the three.js build's
 # dimmer light rig; in this scene's measured sun and sky it read pale beside
@@ -1053,6 +1054,91 @@ def build_soldier(recipe):
             pb.matrix_basis = mathutils.Matrix.Identity(4)
         bpy.context.view_layer.update()
 
+    def head(bone):
+        bpy.context.view_layer.update()
+        return arm.matrix_world @ arm.pose.bones[bone].head
+
+    def align(bone, v_from, v_to):
+        """Turn a bone about its head so world direction v_from becomes v_to."""
+        a, b = v_from.normalized(), v_to.normalized()
+        ax = a.cross(b)
+        if ax.length < 1e-6:
+            return
+        rot(bone, ax.normalized(), a.angle(b))
+
+    def two_bone(upper, lower, hand, target, pole):
+        """Analytic two-bone IK: put the hand's head on target, the elbow toward pole."""
+        S, E, W = head(upper), head(lower), head(hand)
+        la, lb = (E - S).length, (W - E).length
+        d = min((target - S).length, (la + lb) * 0.999)
+        axis = (target - S).normalized()
+        # Elbow: along the axis by the law of cosines, then out toward the pole.
+        x = (la * la - lb * lb + d * d) / (2 * d)
+        h = math.sqrt(max(la * la - x * x, 0.0))
+        pdir = (pole - axis * pole.dot(axis)).normalized()
+        E2 = S + axis * x + pdir * h
+        align(upper, E - S, E2 - S)
+        E, W = head(lower), head(hand)
+        align(lower, W - E, (S + axis * d) - E)
+        miss = (head(hand) - target).length
+        if miss > 0.03:
+            print(f"[plants] ik {upper}: hand {miss * 100:.0f} cm from its target (reach {la + lb:.2f} m, asked {(target - S).length:.2f} m)", flush=True)
+
+    # The rifle's axis in the right hand's own frame, measured once from the
+    # bind pose's weapon vertices (everything skinned to hand_r is the rifle).
+    gun_axis_local = None
+    body = meshes[0]
+    hr = body.vertex_groups.get("hand_r")
+    if hr is not None:
+        pts = [body.matrix_world @ v.co for v in body.data.vertices
+               if any(g.group == hr.index and g.weight > 0.9 for g in v.groups)]
+        if len(pts) > 50:
+            P0 = np.array([tuple(p) for p in pts])
+            c = P0.mean(0)
+            _, _, vt = np.linalg.svd(P0 - c, full_matrices=False)
+            ax = mathutils.Vector(vt[0])
+            wrist = head("hand_r")
+            # The muzzle is the end further from the wrist.
+            far = max(pts, key=lambda p: (p - wrist).length)
+            if ax.dot(far - wrist) < 0:
+                ax = -ax
+            Mh = (arm.matrix_world @ arm.pose.bones["hand_r"].matrix).to_3x3()
+            gun_axis_local = Mh.inverted() @ ax
+
+    def lie_prone():
+        """Face down, head toward the enemy. A +angle about P swings a hanging
+        bone's tail forward (P = F x U), so the body tips forward onto its
+        chest by -angle: the spine goes forward, the legs back. The first
+        prone frame used +angle and sat the man up with his legs out."""
+        rot("pelvis", P, -1.5)
+        # Up on the elbows: chest, neck and head lifted to look ahead.
+        rot("spine_02", P, 0.15); rot("spine_03", P, 0.2)
+        rot("neck_01", P, 0.35); rot("head", P, 0.45)
+        rot("thigh_l", F, -0.12); rot("thigh_r", F, 0.12)           # legs a little apart
+
+    def shoulder_rifle(pitch=0.0):
+        """Rifle to the shoulder, aimed along the facing, slightly down (at a man, not the sky)."""
+        if gun_axis_local is None:
+            return
+        S = head("upperarm_r")
+        aim = (F * math.cos(pitch) - U * math.sin(pitch)).normalized()
+        grip = S + aim * 0.30 - U * 0.06 + P * 0.04
+        # The pole was chosen by looking, not derived: with this rig and this
+        # IK, a pole down and toward the chest raises the firing elbow and
+        # brings the stock to the cheek; "down and out", which the textbook
+        # says, left the rifle at the chest.
+        two_bone("upperarm_r", "lowerarm_r", "hand_r", grip, -U * 0.8 - P * 0.6)
+        bpy.context.view_layer.update()
+        Mh = (arm.matrix_world @ arm.pose.bones["hand_r"].matrix).to_3x3()
+        align("hand_r", Mh @ gun_axis_local, aim)
+        # The support hand under the handguard, a forearm's length ahead.
+        # A forearm ahead of the firing hand is beyond this arm's 0.48 m reach
+        # (measured: 24 cm short, and the arm strained off toward the neck);
+        # 0.2 m ahead, under the handguard, it holds.
+        grip2 = head("hand_r") + aim * 0.20 - U * 0.04 - P * 0.06
+        two_bone("upperarm_l", "lowerarm_l", "hand_l", grip2, -U * 0.8 + P * 0.5)
+        rot("head", P, 0.12)
+
     def pose(name):
         reset()
         if name.startswith("walk"):
@@ -1068,17 +1154,25 @@ def build_soldier(recipe):
             rot("thigh_r", P, 1.45); rot("calf_r", P, -1.45)
             rot("thigh_l", P, 0.12); rot("calf_l", P, -1.72); rot("foot_l", P, 0.6)
         elif name == "prone":
-            rot("pelvis", P, 1.5)
-            rot("spine_01", P, -0.25); rot("spine_02", P, -0.3); rot("spine_03", P, -0.4)
-            rot("neck_01", P, -0.25); rot("head", P, -0.3)
-            rot("upperarm_r", P, -0.25); rot("upperarm_l", P, -0.25)
-            rot("thigh_l", F, 0.12); rot("thigh_r", F, -0.1)
-        elif name == "dead0":                           # face down, where he fell
+            lie_prone()
+            rot("upperarm_r", P, 0.9); rot("upperarm_l", P, 0.9)       # arms forward, rifle across in front
+        elif name == "stand_aim":
+            rot("spine_01", P, 0.05)
+            shoulder_rifle(0.04)
+        elif name == "kneel_aim":
+            rot("spine_01", P, 0.14)
+            rot("thigh_r", P, 1.45); rot("calf_r", P, -1.45)
+            rot("thigh_l", P, 0.12); rot("calf_l", P, -1.72); rot("foot_l", P, 0.6)
+            shoulder_rifle(0.03)
+        elif name == "prone_aim":
+            lie_prone()
+            shoulder_rifle(0.0)
+        elif name == "dead0":                           # thrown on his back (+ about P: see lie_prone)
             rot("pelvis", P, 1.55)
             rot("thigh_l", F, 0.35); rot("thigh_r", F, -0.2); rot("calf_r", P, -0.5)
             rot("upperarm_l", P, 1.1); rot("upperarm_r", F, 0.6)
             rot("head", U, 0.9)
-        elif name == "dead1":                           # thrown on his back
+        elif name == "dead1":                           # face down, where he fell
             rot("pelvis", P, -1.52)
             rot("spine_03", P, 0.15); rot("head", F, 0.5)
             rot("upperarm_l", F, -1.0); rot("upperarm_r", F, 1.0)

@@ -53,10 +53,17 @@ namespace LanesOfVietnam.View
             _renderers.Clear();
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
+            for (int k = 0; k < _firedAt.Length; k++) _firedAt[k] = -1000;
+            _eventCursor = 0;
         }
 
         private Sprites _us, _vc;
         private float[] _walked = new float[0];
+        /// <summary>The tick each man last fired, from the sim's events; -1 never.</summary>
+        private int[] _firedAt = new int[0];
+        private int _eventCursor;
+        /// <summary>How long a man who has fired stays in his aim, in ticks: 3 s.</summary>
+        public const int AimTicks = 60;
         private Vector2[] _last = new Vector2[0];
 
         private sealed class Sprites
@@ -104,6 +111,16 @@ namespace LanesOfVietnam.View
             {
                 System.Array.Resize(ref _walked, st.Men.Count * 2);
                 System.Array.Resize(ref _last, st.Men.Count * 2);
+                int old = _firedAt.Length;
+                System.Array.Resize(ref _firedAt, st.Men.Count * 2);
+                for (int k = old; k < _firedAt.Length; k++) _firedAt[k] = -1000;
+            }
+            // Who has fired, and when: the sim's own events, read once each.
+            if (_eventCursor > st.Events.Count) _eventCursor = 0;
+            for (; _eventCursor < st.Events.Count; _eventCursor++)
+            {
+                var e = st.Events[_eventCursor];
+                if (e.Kind == EventKind.Fire && e.Id < _firedAt.Length) _firedAt[e.Id] = e.Tick;
             }
             foreach (var sp in new[] { _us, _vc })
             {
@@ -120,16 +137,18 @@ namespace LanesOfVietnam.View
                 if (step < 1f) _walked[i] += step;          // a new match or a respawn is not a stride
                 _last[i] = here;
 
+                // A man who has just fired, and is not on the move, holds his aim:
+                // the fighting reads as men shooting, not men standing about.
+                bool moving = d.StepLength(i) > 0.02;
+                bool aiming = !moving && st.Tick - _firedAt[i] <= AimTicks;
                 string frame;
                 if (!m.Alive) frame = Hash(m.Id, 1) < 0.5f ? "dead0" : "dead1";
-                else if (m.Posture == Posture.Prone) frame = "prone";
-                else if (m.Posture == Posture.Crouched) frame = "kneel";
-                else
-                {
-                    bool moving = d.StepLength(i) > 0.02;
-                    frame = moving ? "walk" + (int)(Mathf.Repeat(_walked[i] / Stride, 1f) * 6) % 6 : "stand";
-                }
-                if (!sp.Frame.TryGetValue(frame, out int vi)) continue;
+                else if (m.Posture == Posture.Prone) frame = aiming ? "prone_aim" : "prone";
+                else if (m.Posture == Posture.Crouched) frame = aiming ? "kneel_aim" : "kneel";
+                else frame = moving ? "walk" + (int)(Mathf.Repeat(_walked[i] / Stride, 1f) * 6) % 6
+                           : aiming ? "stand_aim" : "stand";
+                // A set baked before the aim frames existed falls back to the plain posture.
+                if (!sp.Frame.TryGetValue(frame, out int vi) && !sp.Frame.TryGetValue(frame.Replace("_aim", ""), out vi)) continue;
                 var v = sp.Species.Variants[vi];
                 float scale = 0.94f + 0.1f * Hash(m.Id, 2);
                 bool mirror = m.Side != Side.Us;
