@@ -41,6 +41,10 @@ namespace LanesOfVietnam.View
         public event Action<int> SelectionChanged;
 
         private Camera Cam => Root.CameraRig.Camera;
+        /// <summary>How far the pointer moves before a left press is a pan, not a click.</summary>
+        public const float DragPixels = 8f;
+        private Vector2 _press;
+        private bool _pressed, _panning;
         private SimState State => Root.Driver.State;
 
         private void Update()
@@ -49,7 +53,29 @@ namespace LanesOfVietnam.View
             // One owner per click: an armed card takes the left click (to place
             // it), the HUD takes clicks on itself, and only then is it a pick.
             bool cardInHand = Deployer != null && (Deployer.Armed != null || Deployer.DisarmedFrame == Time.frameCount);
-            if (Input.GetMouseButtonDown(0) && !cardInHand && !HudHasPointer()) SelectAt(Input.mousePosition);
+            // The left button selects on release if it did not move; moved more
+            // than a few pixels, it drags the camera along the line instead.
+            if (Input.GetMouseButtonDown(0) && !cardInHand && !HudHasPointer())
+            {
+                _press = Input.mousePosition;
+                _pressed = true;
+                _panning = false;
+            }
+            if (_pressed && Input.GetMouseButton(0))
+            {
+                if (!_panning && ((Vector2)Input.mousePosition - _press).magnitude > DragPixels)
+                {
+                    _panning = true;
+                    Root.CameraRig.BeginDrag(_press);
+                }
+                if (_panning) Root.CameraRig.DragTo(Input.mousePosition);
+            }
+            if (_pressed && Input.GetMouseButtonUp(0))
+            {
+                if (!_panning) SelectAt(_press);
+                else Root.CameraRig.EndDrag();
+                _pressed = _panning = false;
+            }
             if (Input.GetKeyDown(KeyCode.Tab)) Cycle(Input.GetKey(KeyCode.LeftShift) ? -1 : 1);
             // Escape puts an armed card away first; only a second press clears the selection.
             if (Input.GetKeyDown(KeyCode.Escape) && !cardInHand) Clear();

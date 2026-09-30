@@ -18,8 +18,14 @@ namespace LanesOfVietnam.View
         /// <summary>0 at the authored distance, 1 at the closest dolly.</summary>
         [Range(0, 1)] public float Dolly;
 
-        /// <summary>How far the dolly brings the camera in, metres.</summary>
-        public const float DollyRange = 9f;
+        /// <summary>
+        /// How far the dolly brings the camera in, metres, and the lens it ends
+        /// on: together about 2.2x closer at full zoom. 16 m stops the camera
+        /// before the foreground plants (sim z 22), so it never zooms into a
+        /// fern. The owner asked for a zoom that is felt; 9 m alone was not.
+        /// </summary>
+        public const float DollyRange = 16f;
+        public const float ZoomFov = 12f;
 
         /// <summary>Pan limit: the playfield plus enough to see the firebase and the jungle edge whole.</summary>
         public static float PanLimit => (float)Tune.HalfLength + 8f;
@@ -94,26 +100,43 @@ namespace LanesOfVietnam.View
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) axis += 1;
             if (axis != 0) _targetX = Mathf.Clamp(_targetX + axis * PanSpeed * dt, -PanLimit, PanLimit);
 
-            float wheel = Input.mouseScrollDelta.y;
-            if (wheel != 0) _targetDolly = Mathf.Clamp01(_targetDolly + wheel * 0.12f);
+            // The wheel zooms; a trackpad's sideways swipe pans.
+            var wheel = Input.mouseScrollDelta;
+            if (wheel.y != 0) ZoomBy(wheel.y * 0.12f);
+            if (wheel.x != 0) PanBy(-wheel.x * 1.5f);
 
-            // Drag with the right or middle button: the ground under the cursor
-            // stays under the cursor.
-            if (Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2))
-            {
-                _dragging = true;
-                _dragFrom = Input.mousePosition;
-                _dragX = _targetX;
-            }
-            if (_dragging && !(Input.GetMouseButton(1) || Input.GetMouseButton(2))) _dragging = false;
-            if (_dragging)
-            {
-                // Metres per pixel at the near lane's distance.
-                float dist = Coords.Camera.SimZ - (float)Tune.Lanes[0];
-                float mpp = 2f * dist * Mathf.Tan(Coords.Camera.Fov * 0.5f * Mathf.Deg2Rad) / Screen.height;
-                _targetX = Mathf.Clamp(_dragX - (Input.mousePosition.x - _dragFrom.x) * mpp, -PanLimit, PanLimit);
-            }
+            // Drag with the right or middle button (the left is Commander's: it
+            // starts a drag only when the press was not a click on a man).
+            if (Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2)) BeginDrag(Input.mousePosition);
+            if (_dragging && !(Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2))) _dragging = false;
+            if (_dragging) DragTo(Input.mousePosition);
         }
+
+        /// <summary>Pan by some metres along the line.</summary>
+        public void PanBy(float metres) => _targetX = Mathf.Clamp(_targetX + metres, -PanLimit, PanLimit);
+
+        /// <summary>Zoom in (+) or out (-): 1 is the whole range.</summary>
+        public void ZoomBy(float amount) => _targetDolly = Mathf.Clamp01(_targetDolly + amount);
+
+        /// <summary>Start a drag at a screen point: the ground under it stays under it.</summary>
+        public void BeginDrag(Vector2 screen)
+        {
+            _dragging = true;
+            _dragFrom = screen;
+            _dragX = _targetX;
+        }
+
+        public void DragTo(Vector2 screen)
+        {
+            if (!_dragging) return;
+            // Metres per pixel at the near lane's distance, through the lens as it is now.
+            float dist = Coords.Camera.SimZ - Dolly * DollyRange - (float)Tune.Lanes[0];
+            float fov = Camera != null ? Camera.fieldOfView : Coords.Camera.Fov;
+            float mpp = 2f * dist * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) / Screen.height;
+            _targetX = Mathf.Clamp(_dragX - (screen.x - _dragFrom.x) * mpp, -PanLimit, PanLimit);
+        }
+
+        public void EndDrag() => _dragging = false;
 
         /// <summary>Point the glasses at a viewport position (0..1), as a click would. For UIAudit.</summary>
         public void AimGlasses(Vector2 viewport)
@@ -123,7 +146,8 @@ namespace LanesOfVietnam.View
         {
             float simZ = Coords.Camera.SimZ - Dolly * DollyRange;
             float e = Zoom * Zoom * (3f - 2f * Zoom);
-            float fov = Mathf.Lerp(Coords.Camera.Fov, GlassesFov, e);
+            float lens = Mathf.Lerp(Coords.Camera.Fov, ZoomFov, Dolly);
+            float fov = Mathf.Lerp(lens, GlassesFov, e);
             var cam = Camera;
             if (cam != null) cam.fieldOfView = fov;
             // Turn toward the point that was under the cursor, by the angle it
