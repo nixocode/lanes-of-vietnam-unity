@@ -309,6 +309,32 @@ bunker, the trench parapets and the firebase revetments.
 | `sandbags_albedo.png` | `8abbf8f5f55387bac05eee3832cad329cbae1db50e21adc49b6f65dc47a0e0a3` |
 | `sandbags_normal.png` | `65f3e1f2150003df53aed071a831fdb8a4613a19a927bcdae6cc543d49eef385` |
 
+**The firebase's structures, built.** They are baked as one atlas,
+`firebase_*.png`, with four props. Each texture is laid in metres, so it sits
+at true scale.
+- **Watchtower:** 10.3 m. Splayed timber legs with X-braces in three bays, a
+  plank deck, a sandbagged cabin, corner posts, a tilted corrugated roof, and
+  a ladder up the front.
+- **M35 2½-ton trucks:** 6×6 with dual rear wheels. One has its OD canvas
+  cover on, the other has its bows bare and ammunition crates in the bed.
+- **M151 jeep:** open, with an antenna and a spare.
+
+Paint is olive drab at albedo 0.075, tyres 0.025.
+
+The textures are **CC0**, fetched 2026-09-30 as 2K PNG:
+- timber: Poly Haven **weathered_planks** (Dario Barresi, Dimitrios Savva;
+  2 m scan);
+- roof: Poly Haven **corrugated_iron_02** (Jenelle van Heerden, Sergej
+  Majboroda; 2.7 m);
+- truck canvas and seats: Fabric066, as above.
+
+| file | sha256 |
+|---|---|
+| `weathered_planks` diff + nor_gl (source, concatenated) | `4e35fe6190d7fc5b2edb433efae9a166a4aa1a9bfa1effa7a1d6832ec7f9adba` |
+| `corrugated_iron_02` diff + nor_gl (source, concatenated) | `9770915fab95fa365cff42e0bf1132cba8b39ea3e6f37bea3bf8b4b750451128` |
+| `firebase_albedo.png` | `c7d2cb305022ab626e48a52d16cfc91efa9cb3873089f975a14b1542dffddeea` |
+| `firebase_normal.png` | `2c6056ba53c6d7dcfb74fcc59a109653470b2b454076a431a8aaa2c01968dd62` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 

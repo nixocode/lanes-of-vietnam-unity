@@ -25,6 +25,8 @@ namespace LanesOfVietnam.View
         public readonly string Name;
         public readonly Material Material;
         public readonly Variant[] Variants;
+        /// <summary>Each variant's name in the bake (a prop is placed by name, a plant at random).</summary>
+        public readonly string[] Keys;
 
         public struct Variant
         {
@@ -40,9 +42,11 @@ namespace LanesOfVietnam.View
             Material = set.Material;
             var l = JsonUtility.FromJson<L>(set.Layout.text);
             Variants = new Variant[l.variants.Length];
+            Keys = new string[l.variants.Length];
             for (int i = 0; i < l.variants.Length; i++)
             {
                 var v = l.variants[i];
+                Keys[i] = v.key;
                 Variants[i] = new Variant
                 {
                     Uv = Rect.MinMaxRect(v.rect[0], v.rect[1], v.rect[2], v.rect[3]),
