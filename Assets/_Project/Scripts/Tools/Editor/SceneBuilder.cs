@@ -144,6 +144,16 @@ namespace LanesOfVietnam.Tools
             dress.Plants = PlantSets();
             root.Dressing = dress;
 
+            // The Chu Pong massif, from real elevation data (tools/art/mountains.py).
+            var mountGo = new GameObject("Mountains");
+            mountGo.transform.SetParent(game.transform, false);
+            var mount = mountGo.AddComponent<MountainView>();
+            mount.Heights = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Mountains/mountains.bytes");
+            mount.Layout = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Mountains/mountains.json");
+            mount.Material = Mat("Mountains", Shader.Find("LOV/Mountain"), null);
+            if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data — the grey-box ridges stand in (run tools/art/mountains.py)");
+            root.Mountains = mount;
+
             var commander = game.AddComponent<Commander>();
             commander.Root = root;
             var ringsGo = new GameObject("Selection");

@@ -36,6 +36,8 @@ namespace LanesOfVietnam.View
         public Material Vehicle;
         /// <summary>Baked plants (tools/blender/plant_bake.py). A species that is missing falls back to its grey-box shape.</summary>
         public PlantSet[] Plants;
+        /// <summary>Build the grey box's sphere ridges (false when MountainView has the real terrain).</summary>
+        public bool GreyBoxRidges = true;
 
         /// <summary>
         /// The treeline begins here (sim z), 68 m from the lens. Derived from
@@ -81,7 +83,7 @@ namespace LanesOfVietnam.View
             Grass(g, cover, rng.Fork("grass"));
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
-            Ridges(rng.Fork("ridges"));
+            if (GreyBoxRidges) Ridges(rng.Fork("ridges"));
             CombineByMaterial();
             _built.AddRange(_plants.Build(transform));
             if (_plants.Count > 0) Debug.Log($"[LOV] plants: {_plants.Count:N0} of {_species.Count} species");

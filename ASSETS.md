@@ -234,6 +234,34 @@ they are used.
 | `island_tree_02` | `aa2928da4f9c5b12cb51631ef10fe7546648cfe628d34f4947e5f873a0c74945` |
 | `jacaranda_tree` | `c34c3711074f3348f740425ddd4c944326835d5ed9291c760229eb9ca5529539` |
 
+### Mountains — `Assets/_Project/Art/Mountains/`
+
+**The real Chu Pong massif**, from **SRTM elevation data (public domain,
+NASA/USGS)**. It was read through the **AWS Open Data "Terrain Tiles"**
+(terrarium encoding), fetched **2026-09-30**: zoom 13, tiles x 6541–6552,
+y 3778–3788 (132 tiles, 4.2 MB, about 18.6 m a sample), from
+`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/<x>/<y>.png`.
+No login is needed. The raw tiles are in `SourceArt/terrain/` (gitignored).
+Attribution kept in the credits: *"Terrain data: SRTM (NASA/USGS), via AWS
+Terrain Tiles"*.
+
+`tools/art/mountains.py` renders the view from **LZ X-Ray** (13.567°N,
+107.717°E), the landing zone of November 1965 in the Ia Drang valley at the
+massif's eastern foot, looking along a heading of **262°**.
+- **Choosing the view:** skylines from nine candidate viewpoints and headings
+  were rendered and compared. From here the massif stands at 6–8°, where the
+  reference's peaks stand at 5–9°; from 4–8 km east it sinks to 2–3°. So there
+  is no vertical exaggeration.
+- **The grid:** a fan of 240 rings × 720 columns, 0.9–22 km out, ±25° about
+  the heading.
+- **Detail:** 7 m and 2.5 m of noise below the data's own resolution.
+- **What ships:** the heights only, as float16 (`mountains.bytes`, 346 KB). The
+  game builds the mesh at load.
+
+| file | sha256 |
+|---|---|
+| `mountains.bytes` | `9397666d04ed41c86c3194cf9dd879bb7c81e9562b861c0a8506e4fa2aba6028` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 

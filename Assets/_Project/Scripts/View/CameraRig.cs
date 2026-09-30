@@ -50,7 +50,9 @@ namespace LanesOfVietnam.View
             _cam = GetComponent<Camera>();
             _cam.fieldOfView = Coords.Camera.Fov;
             _cam.nearClipPlane = 0.5f;
-            _cam.farClipPlane = 4000f;
+            // The mountains reach 22 km (MountainView). A 0.5 m near plane still
+            // leaves WebGL's 24-bit depth about a millimetre of precision at 100 m.
+            _cam.farClipPlane = 24000f;
             _targetX = X;
             _targetDolly = Dolly;
             Apply();
