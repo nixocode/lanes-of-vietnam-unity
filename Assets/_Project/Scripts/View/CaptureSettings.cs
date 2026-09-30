@@ -56,6 +56,10 @@ namespace LanesOfVietnam.View
         public int GroundDebug;
         /// <summary>The ground shader's texture gradient scale (mip bias); 0 keeps the material's.</summary>
         public float GroundGrad;
+        /// <summary>The plants' far mip bias (every map); negative keeps the material's.</summary>
+        public float PlantBias = -1;
+        /// <summary>TAA base blend factor and variance clamp scale; null keeps URP's defaults.</summary>
+        public float[] Taa;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
         public static CaptureSettings Active;
@@ -85,6 +89,11 @@ namespace LanesOfVietnam.View
                     case "ev": c.Ev = float.Parse(v, inv); break;
                     case "ground": c.GroundDebug = int.Parse(v, inv); break;
                     case "groundgrad": c.GroundGrad = float.Parse(v, inv); break;
+                    case "plantbias": c.PlantBias = float.Parse(v, inv); break;
+                    case "taa":
+                        var ta = v.Split(':');
+                        c.Taa = new[] { float.Parse(ta[0], inv), float.Parse(ta[1], inv) };
+                        break;
                     case "tint":
                         var t = v.Split(':');
                         c.Tint = new[] { float.Parse(t[0], inv), float.Parse(t[1], inv), float.Parse(t[2], inv) };

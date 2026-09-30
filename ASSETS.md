@@ -108,6 +108,73 @@ seams and repeats, then rendered in the frame and through the field glasses.
 | `ground_3_disturbed_earth_albedo.png` | `418a06647f450156440b7a39c1152d5a4399161eb9843f5c9d70d0b712f5b5e6` |
 | `ground_3_disturbed_earth_normal.png` | `b8a71bcc585081f49057f900020c5aa3bd673c2f888c7a329c5a2391482ccbda` |
 
+### Plants — `Assets/_Project/Art/Plants/`
+
+Scanned Poly Haven models, all **CC0**, fetched **2026-09-30** as 2K glTF from
+`https://api.polyhaven.com/files/<id>`. `tools/blender/plant_bake.py` bakes them
+into billboard atlases. Every variant is rendered by Cycles from the game's view
+(orthographic, 6° down) into these maps:
+- albedo and coverage;
+- the normal, in the bake camera's frame;
+- ambient occlusion;
+- **sunlit**: cos × visibility under the game's own fixed sun, from sky.json.
+
+The game lights them with its own sun and sky, so the triangle count of a source
+costs nothing at runtime. A 3.9 M-polygon tree is one quad. All eight atlases
+come to **2.3 MB** in the WebGL build (crunched).
+
+| species | Poly Haven id | authors | variants | source polygons | laid in the game as |
+|---|---|---|---|---|---|
+| fern | `fern_02` | Rob Tuytel, Rico Cilliers | 4 | 784–2,384 | foreground and understory, 0.45–2.4 m (bird's-nest fern) |
+| calathea | `calathea_orbifolia_01` | Rob Tuytel, Rico Cilliers | 5 | 1,802–5,904 | foreground, understory |
+| anthurium | `anthurium_botany_01` | Rob Tuytel, Rico Cilliers | 6 | 7,664–15,808 | foreground, understory |
+| pachira | `pachira_aquatica_01` | Rob Tuytel, Rico Cilliers | 4 | 5,091–28,105 | treeline edge, saplings, 1.2–5.5 m |
+| ficus | `potted_plant_01` (pot, pebbles removed) | Rico Cilliers | 1 | 113,908 | treeline edge, scrub |
+| aroid | `potted_plant_02` (pot, soil removed) | Rico Cilliers | 1 | 10,692 | occasional scrub plant (a cultivated, variegated form) |
+| island_tree | `island_tree_01`, `_02` | Rob Tuytel, Rico Cilliers | 2 | 1.07–1.60 M | the lower storey of the treeline |
+| jacaranda | `jacaranda_tree` | Rob Tuytel, Rico Cilliers | 1 | 3.86 M | canopy trees, the broad umbrella crowns |
+
+**Rejected:**
+- **`shrub_02`**: sparse and willow-like, with only 4–7% coverage.
+- **`island_tree_03`**: its mesh carries a patch of sand at its foot.
+- **`weed_plant_02`** (7.5 cm) and **`nettle_plant`** (22 cm): too small to read
+  from this camera.
+- **`grass_medium_02`**: tufts of 16–40 cm, where elephant grass is 2–4 m.
+- Nothing on Poly Haven is a palm, bamboo or banana.
+
+**Palms, bamboo, banana, elephant ear: the preferred sources need a login.**
+These were surveyed on Sketchfab through its public API (downloadable,
+commercial use allowed, sorted by likes), and the thumbnails were compared.
+Downloading needs the owner's Sketchfab account (PLAN §12.14: the owner's
+browser). All are **CC-BY 4.0**: attribution in the credits.
+
+| use | model | author | faces | uid |
+|---|---|---|---|---|
+| coconut palms (a grove of curved trunks) | Realistic Palm Tree 2 Free | Next Spring | 60,764 | `d05c8ffb6ec64a7184c4b673e21f7224` |
+| coconut palm | Coconut Palm | evolveduk | 7,432 | `26e787f2ff2e4c0fb004c3b0210805a3` |
+| palms, banana, monstera | Tropical Plants Pack M02P | MozzarellaARC | 46,575 | `2f093afb792742438f0f7ba7eaab90f0` |
+| bamboo | Free Bamboo Set | JonhGillessen | 37,834 | `e9f9fa5397814f81bf85ad06acf5bf30` |
+| elephant ear (Alocasia) | Elephant Ear Plant | BANDANNA | 1,514 | `9cd6cf1553844d4999530f8916991cef` |
+| banana | Banana Plant | evolveduk | 4,402 | `85695b82c7ba4b3497a663616cc3bf25` |
+
+The fallback needs no login: build them in Blender from ambientCG's CC0 scanned
+leaf atlases. Foliage008's long blades serve as palm leaflets, LeafSet013's
+lanceolate leaves as bamboo, Foliage001, 006 and 002 as grass blades and
+plumes, and ambientCG `Bamboo001`/`002` as culms. These will be logged here when
+they are used.
+
+| source (glTF + bin) | sha256 |
+|---|---|
+| `fern_02` | `a2b165d3bf54cc93072be481aaff28479cfff6cc662383922baa5e4896848190` |
+| `calathea_orbifolia_01` | `4b493b62c6de7498fe5a332d45da59eafc1ce3a41e8b082b717c8fcd38dbe3a0` |
+| `anthurium_botany_01` | `6eb0953be25812cf03c07a648fa353c77f3076191563eb27ef148e48886280ab` |
+| `pachira_aquatica_01` | `a1e14d1284f1530082be8fd33489aa6c5ff8392da566b94b3dd06243c3ade4ec` |
+| `potted_plant_02` | `71261d7f603c9a80ef3ee3f9e3796cdb5f3ba8eadffc625b22f609bdcbe59f59` |
+| `potted_plant_01` | `adb58e313bb17c140e58348fc71db0923fdf97d8b1c30b364d57b1e26408d967` |
+| `island_tree_01` | `f7992c461094ab8592e556851614cf0cd4ed097e046f762f7797d4b17c623de2` |
+| `island_tree_02` | `aa2928da4f9c5b12cb51631ef10fe7546648cfe628d34f4947e5f873a0c74945` |
+| `jacaranda_tree` | `c34c3711074f3348f740425ddd4c944326835d5ed9291c760229eb9ca5529539` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 

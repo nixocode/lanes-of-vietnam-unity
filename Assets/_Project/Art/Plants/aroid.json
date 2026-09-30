@@ -1,0 +1,31 @@
+{
+ "species": "aroid",
+ "pitch_deg": 6.0,
+ "atlas": [
+  256,
+  256
+ ],
+ "ppm": 320,
+ "source": "polyhaven/models/potted_plant_02/potted_plant_02_2k.gltf",
+ "variants": [
+  {
+   "key": "a",
+   "rect": [
+    0.046875,
+    0.046875,
+    0.953125,
+    0.9375
+   ],
+   "size_m": [
+    0.725,
+    0.7125
+   ],
+   "root": [
+    0.5,
+    0.0585
+   ],
+   "height_m": 0.633,
+   "source_polygons": 10692
+  }
+ ]
+}
