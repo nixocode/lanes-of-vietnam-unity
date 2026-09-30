@@ -51,3 +51,14 @@ tools/.venv/
 
 # Raw downloaded sources (large; re-fetchable). Derived assets live in Assets/.
 SourceArt/
+
+# Audio derived from licensed (non-CC0) sources: Sonniss #GameAudioGDC. The
+# owner's rule for a public repo — licensed files stay out of git, their .meta
+# files go in. Rebuilt by tools/audio/fetch_sonniss.sh + slice_shots.py.
+Assets/StreamingAssets/Audio/licensed/*
+!Assets/StreamingAssets/Audio/licensed/*.meta
+
+# Licensed source assets (Mixamo, Asset Store, Fab, Sonniss): out of git, .meta in
+# (the owner's decision for a public repo, 2026-09-30).
+Assets/_Licensed/*
+!Assets/_Licensed/**/*.meta

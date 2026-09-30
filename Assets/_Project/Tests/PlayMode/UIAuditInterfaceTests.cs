@@ -44,6 +44,52 @@ namespace LanesOfVietnam.Tests
         private static GameRoot Root => GameRoot.Instance;
         private static Hud HudOf => Object.FindAnyObjectByType<Hud>();
 
+        /// <summary>
+        /// PLAN §12.6: the fighting is heard. Outside a browser AudioView plays
+        /// into a recorder, so what it asked for can be checked: shots are
+        /// heard, never more than three new ones in a frame, each from where a
+        /// man of the right side actually stands, and the bed is running.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_fighting_is_heard_rationed_and_from_where_it_happened()
+        {
+            yield return LoadAndDeploy();
+            var audio = Object.FindAnyObjectByType<AudioView>();
+            Assert.IsNotNull(audio, "no AudioView in the scene");
+            var rec = audio.Out as RecordingSoundOut;
+            Assert.IsNotNull(rec, "outside a browser the recorder should be listening");
+            var st = Root.Driver.State;
+            // Paused, so only FastForward moves the men: the check against where
+            // they stand is then exact, not raced by the game's own clock.
+            if (!Root.Paused) HudOf.TogglePause();
+            Root.Driver.FastForward(560);          // into the fight
+            yield return null;
+            rec.Played.Clear();
+
+            int shotsHeard = 0;
+            for (int f = 0; f < 90; f++)
+            {
+                int before = rec.Played.Count;
+                Root.Driver.FastForward(2);
+                yield return new WaitForSecondsRealtime(0.06f);   // past the 55 ms ration
+                var fresh = rec.Played.Skip(before).Where(p => p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")).ToList();
+                Assert.LessOrEqual(fresh.Count, AudioView.ShotsPerTick, $"frame {f}: {fresh.Count} new shots");
+                foreach (var shot in fresh)
+                {
+                    bool us = shot.name.StartsWith("m16");
+                    Assert.IsTrue(st.Men.Any(m => (m.Side == Side.Us) == us
+                                                  && System.Math.Abs(m.X - shot.x) < 0.01 && System.Math.Abs(m.Z - shot.z) < 0.01),
+                                  $"a {shot.name} shot from where no man of that side stands");
+                    Assert.IsFalse(shot.immediate, "a rifle report skipped its travel time");
+                }
+                shotsHeard += fresh.Count;
+            }
+            Assert.Greater(shotsHeard, 0, "a firefight made no sound");
+            Assert.Greater(rec.AmbienceLevel, 0f, "the jungle bed is not running");
+            var cam = Root.CameraRig.Camera.transform.position;
+            Assert.AreEqual(cam.x, rec.ListenerX, 0.01f, "the listener is not at the camera");
+        }
+
         [UnityTest, Category("UIAudit")]
         public IEnumerator The_hud_shows_the_match()
         {

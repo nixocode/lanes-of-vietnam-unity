@@ -1,0 +1,154 @@
+{
+ "sets": [
+  {
+   "name": "m16",
+   "files": [
+    {
+     "file": "m16_0.m4a",
+     "source": "AR-15/D_24P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "m16_1.m4a",
+     "source": "AR-15/D_24P.wav shot 1",
+     "seconds": 1.6
+    },
+    {
+     "file": "m16_2.m4a",
+     "source": "AR-15/D_32P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "m16_3.m4a",
+     "source": "AR-15/D_32P.wav shot 1",
+     "seconds": 0.977
+    }
+   ]
+  },
+  {
+   "name": "ak",
+   "files": [
+    {
+     "file": "ak_0.m4a",
+     "source": "AK-47/C_27P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_1.m4a",
+     "source": "AK-47/C_28P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_2.m4a",
+     "source": "AK-47/C_28P.wav shot 3",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_3.m4a",
+     "source": "AK-47/C_29P.wav shot 1",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_4.m4a",
+     "source": "AK-47/C_34P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_5.m4a",
+     "source": "AK-47/C_34P.wav shot 2",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_6.m4a",
+     "source": "AK-47/C_34P.wav shot 5",
+     "seconds": 1.6
+    },
+    {
+     "file": "ak_7.m4a",
+     "source": "AK-47/C_36P.wav shot 0",
+     "seconds": 1.6
+    }
+   ]
+  },
+  {
+   "name": "sks",
+   "files": [
+    {
+     "file": "sks_0.m4a",
+     "source": "SKS/U_14P.wav shot 0",
+     "seconds": 1.131
+    },
+    {
+     "file": "sks_1.m4a",
+     "source": "SKS/U_14P.wav shot 2",
+     "seconds": 1.365
+    },
+    {
+     "file": "sks_2.m4a",
+     "source": "SKS/U_14P.wav shot 4",
+     "seconds": 1.6
+    },
+    {
+     "file": "sks_3.m4a",
+     "source": "SKS/U_19P.wav shot 1",
+     "seconds": 1.6
+    }
+   ]
+  },
+  {
+   "name": "shell",
+   "files": [
+    {
+     "file": "licensed/shell_0.m4a",
+     "source": "sonniss2017/explosion_large_08.wav",
+     "seconds": 3.718
+    },
+    {
+     "file": "licensed/shell_1.m4a",
+     "source": "sonniss2017/explosion_med_long_tail_01.wav",
+     "seconds": 3.101
+    }
+   ]
+  },
+  {
+   "name": "grenade",
+   "files": [
+    {
+     "file": "licensed/grenade_0.m4a",
+     "source": "sonniss2017/explosion_large_no_tail_03.wav",
+     "seconds": 1.304
+    }
+   ]
+  },
+  {
+   "name": "crack",
+   "files": [
+    {
+     "file": "licensed/crack_0.m4a",
+     "source": "sonniss2017/bullet_flyby_fast_05.wav",
+     "seconds": 0.422
+    }
+   ]
+  },
+  {
+   "name": "thump",
+   "files": [
+    {
+     "file": "licensed/thump_0.m4a",
+     "source": "sonniss2017/bullet_impact_body_thump_02.wav",
+     "seconds": 0.455
+    }
+   ]
+  },
+  {
+   "name": "ambience",
+   "files": [
+    {
+     "file": "licensed/ambience_0.m4a",
+     "source": "sonniss2017/Jungle quiet insects and birds wide _120407_11.wav 30-90 s",
+     "seconds": 60.0
+    }
+   ]
+  }
+ ]
+}
