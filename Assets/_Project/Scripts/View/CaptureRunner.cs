@@ -57,6 +57,13 @@ namespace LanesOfVietnam.View
                 };
                 if (cap.NoPost) camData.renderPostProcessing = false;
             }
+            if (cap.Ev.HasValue)
+            {
+                // vol.profile is a play-mode copy: the asset is not touched.
+                var vol = FindAnyObjectByType<Volume>();
+                if (vol != null && vol.profile.TryGet<ColorAdjustments>(out var col))
+                    col.postExposure.Override(cap.Ev.Value);
+            }
             var request = new RenderPipeline.StandardRequest { destination = rt };
             if (!RenderPipeline.SupportsRenderRequest(cam, request))
             {

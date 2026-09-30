@@ -46,6 +46,8 @@ namespace LanesOfVietnam.View
         public float[] Glasses;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
         public string Screen;
+        /// <summary>Post exposure in stops, replacing the profile's for this capture; null keeps it. For tuning by measurement.</summary>
+        public float? Ev;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
         public static CaptureSettings Active;
@@ -72,6 +74,7 @@ namespace LanesOfVietnam.View
                     case "time": c.ViewTime = float.Parse(v, inv); break;
                     case "out": c.Out = v; break;
                     case "frames": c.Frames = int.Parse(v, inv); break;
+                    case "ev": c.Ev = float.Parse(v, inv); break;
                     case "nopost": c.NoPost = v == "1" || v == "true"; break;
                     case "ui": c.NoUi = !(v == "1" || v == "true"); break;
                     case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;

@@ -44,3 +44,9 @@ tools/simcs/obj/
 
 # Burst output the WebGL build writes into the project root.
 /Data/
+
+# Python environment for the measurement tools (tools/requirements.txt).
+tools/.venv/
+
+# Raw downloaded sources (large; re-fetchable). Derived assets live in Assets/.
+SourceArt/
