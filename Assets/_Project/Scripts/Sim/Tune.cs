@@ -165,6 +165,24 @@ namespace LanesOfVietnam.Sim
         /// <summary>Cover barely helps against a grenade that comes down inside it; lying flat in the open helps more.</summary>
         public const double FragCoverFactor = 0.85, FragProneFactor = 0.55;
 
+        // --- squad smoke (MatchOptions.SquadSmoke, Part 2) -----------------------------
+        /// <summary>An M18 or two per squad.</summary>
+        public const int SquadSmokeCarried = 1;
+        /// <summary>
+        /// A thrown canister: much less than the fire-mission screen (14 m,
+        /// 22 s). Smoke here blocks every firing line through it outright, so
+        /// it is kept small. Measured over 48 seeds, ceiling v ceiling: 7 m and
+        /// 16 s on any advance halved the match (189 -> 84 s) and made ground
+        /// the main cause of breaking (0.08 -> 0.79 morale). 3.5 m and 8 s on
+        /// a stalled bound takes it to 148 s.
+        /// </summary>
+        public const double SquadSmokeRadius = 3.5;
+        public const int SquadSmokeTicks = TickHz * 8;
+        /// <summary>The squad's mean pin before it pops smoke: pinned past firing back, not merely down.</summary>
+        public const double SquadSmokePin = PinStop;
+        /// <summary>How far toward the enemy it lands, as a share of the distance.</summary>
+        public const double SquadSmokeReach = 0.4;
+
         /// <summary>
         /// A pinned man fires this much as often, rather than not at all. A
         /// hard cutoff makes a firefight flip between two states.

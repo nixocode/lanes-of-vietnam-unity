@@ -69,6 +69,8 @@ namespace LanesOfVietnam.View
         public string UsPlan, VcPlan;
         /// <summary>Grenades on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? Frag;
+        /// <summary>Squad smoke on or off for the capture's match; null keeps the game's (on).</summary>
+        public bool? SquadSmoke;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -103,6 +105,7 @@ namespace LanesOfVietnam.View
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
                     case "usplan": c.UsPlan = v; break;
                     case "frag": c.Frag = v == "1" || v == "true"; break;
+                    case "squadsmoke": c.SquadSmoke = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

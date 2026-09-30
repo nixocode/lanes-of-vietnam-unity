@@ -130,6 +130,9 @@ namespace LanesOfVietnam.Sim
         public Side Side;
         public Order Order;
 
+        /// <summary>Smoke grenades the squad still has (MatchOptions.SquadSmoke).</summary>
+        public int Smoke = Tune.SquadSmokeCarried;
+
         /// <summary>
         /// The point the formation hangs off. Persistent state that orders
         /// move (<see cref="Squads.March"/>), leashed to the living men every
@@ -302,6 +305,8 @@ namespace LanesOfVietnam.Sim
         /// Off is the parity baseline: with it off, nothing below is read.
         /// </summary>
         public bool Frag;
+        /// <summary>Part 2 rule: a squad pinned down on the move pops smoke (PLAN §12.8). Off is the baseline.</summary>
+        public bool SquadSmoke;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();
