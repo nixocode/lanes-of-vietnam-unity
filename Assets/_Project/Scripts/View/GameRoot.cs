@@ -27,6 +27,7 @@ namespace LanesOfVietnam.View
         public CoverView CoverView;
         public ArmyView ArmyView;
         public WorldDressing Dressing;
+        public MountainView Mountains;
 
         /// <summary>The map's own seed: the dressing is part of the map and never changes with the match.</summary>
         public const int MapSeed = 20260929;
@@ -61,7 +62,13 @@ namespace LanesOfVietnam.View
             GroundView.Build(Ground);
             var cover = Map.Cover();
             CoverView.Build(cover, Ground);
-            if (Dressing != null) Dressing.Build(Ground, cover, MapSeed);
+            if (Mountains != null) Mountains.Build();
+            if (Dressing != null)
+            {
+                // The grey box's sphere ridges stand in only when there is no real terrain.
+                Dressing.GreyBoxRidges = Mountains == null || Mountains.Vertices == 0;
+                Dressing.Build(Ground, cover, MapSeed);
+            }
 
             Settings = GameSettings.Load();
             Settings.ApplyQuality();
