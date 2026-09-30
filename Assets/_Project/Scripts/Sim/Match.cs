@@ -79,6 +79,9 @@ namespace LanesOfVietnam.Sim
         /// passes the map's own list, the one its geometry is built from.
         /// </summary>
         public IReadOnlyList<Cover> Cover;
+
+        /// <summary>Part 2: grenades (PLAN §12.8). False is the parity baseline.</summary>
+        public bool Frag;
     }
 
     public sealed class MatchResult
@@ -93,6 +96,8 @@ namespace LanesOfVietnam.Sim
         public double[] MoraleLostToGround;
         /// <summary>Count of every event kind that fired, for §9 finding 5.</summary>
         public Dictionary<EventKind, int> EventCounts;
+        /// <summary>Kills made by grenade blasts (MatchOptions.Frag): each blast's kills follow it in the log.</summary>
+        public int GrenadeKills;
     }
 
     /// <summary>
@@ -168,7 +173,10 @@ namespace LanesOfVietnam.Sim
             {
                 Tick = 0, Phase = Phase.Opening, ContactTick = -1,
                 MoraleScale = LengthScale(opts.Length),
+                Frag = opts.Frag,
             };
+            // A fork reads the parent's state without drawing from it.
+            if (opts.Frag) st.FragRng = rng.Fork("frag");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
@@ -399,6 +407,9 @@ namespace LanesOfVietnam.Sim
                 for (int i = 0; i < live.Count; i++) MoveMan(st, live[i], sq, slots[i], plan);
             }
 
+            // --- grenades (Part 2, MatchOptions.Frag) -------------------------------
+            if (st.Frag && !opening) Frag.Tick(st);
+
             // --- fire ------------------------------------------------------------
             // The shooter list is taken once, before anyone fires, as the
             // original does: a man killed earlier in this loop still has his
@@ -584,6 +595,13 @@ namespace LanesOfVietnam.Sim
         {
             var counts = new Dictionary<EventKind, int>();
             foreach (var e in st.Events) counts[e.Kind] = counts.TryGetValue(e.Kind, out int c) ? c + 1 : 1;
+            int grenadeKills = 0;
+            for (int i = 0; i < st.Events.Count; i++)
+            {
+                if (st.Events[i].Kind != EventKind.GrenadeBlast) continue;
+                for (int j = i + 1; j < st.Events.Count && st.Events[j].Kind == EventKind.Kill && st.Events[j].Tick == st.Events[i].Tick; j++)
+                    grenadeKills++;
+            }
             var cas = new int[2];
             foreach (var m in st.Men) if (!m.Alive) cas[(int)m.Side]++;
             return new MatchResult
@@ -595,6 +613,7 @@ namespace LanesOfVietnam.Sim
                 MoraleLostToCasualties = (double[])st.MoraleLostToCasualties.Clone(),
                 MoraleLostToGround = (double[])st.MoraleLostToGround.Clone(),
                 EventCounts = counts,
+                GrenadeKills = grenadeKills,
             };
         }
 

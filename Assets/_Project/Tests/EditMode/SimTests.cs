@@ -59,7 +59,7 @@ namespace LanesOfVietnam.Tests
             // Editor's libm and the browser's; a different bit is a different
             // match. The match path uses JsMath's fdlibm port instead.
             var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
-            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs" })
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs" })
             {
                 foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
                 {
@@ -368,6 +368,78 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(smoke.Cooldown - 1, Deck.CooldownLeft(lm.State, Side.Us, smoke));
             for (int i = 0; i < smoke.Cooldown - 1; i++) lm.Step();
             Assert.AreEqual(0, Deck.CooldownLeft(lm.State, Side.Us, smoke));
+        }
+
+        // --- Part 2: grenades, behind MatchOptions.Frag (PLAN §12.8) ----------------------
+
+        private static (List<uint> hashes, LiveMatch m) FragTrace(int seed, bool frag)
+        {
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag });
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            return (h, m);
+        }
+
+        [Test]
+        public void Grenades_are_off_by_default_and_the_baseline_draws_nothing_for_them()
+        {
+            var st = Match.Create(new MatchOptions { Seed = 1 });
+            Assert.IsFalse(st.Frag);
+            Assert.IsNull(st.FragRng, "the baseline created a grenade stream");
+            var (_, m) = FragTrace(1, false);
+            Assert.IsFalse(m.State.Events.Any(e => e.Kind == EventKind.GrenadeThrown || e.Kind == EventKind.GrenadeBlast));
+            // The baseline's own ending, as the parity cases pin it.
+            Assert.AreEqual(4390, m.State.Tick);
+            Assert.AreEqual("us morale broke", m.State.Reason);
+        }
+
+        /// <summary>
+        /// The C# sim is the source of truth for Part 2 (§12.8 item 3): these
+        /// pin the rule's own matches. Recorded by `tools/simcs/run.sh hash N frag`.
+        /// </summary>
+        [TestCase(1, 2938, 4053502112u, 2462005751u, 614838045u, "vc morale broke")]
+        [TestCase(5, 4307, 406757276u, 1608758779u, 3366859818u, "us morale broke")]
+        public void With_grenades_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var (a, m) = FragTrace(seed, true);
+            var (b, _) = FragTrace(seed, true);
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        [Test]
+        public void Grenades_are_thrown_go_off_and_kill_and_never_in_the_opening()
+        {
+            int thrown = 0, blasts = 0, kills = 0;
+            for (int seed = 1; seed <= 6; seed++)
+            {
+                var (_, m) = FragTrace(seed, true);
+                var ev = m.State.Events;
+                foreach (var e in ev.Where(e => e.Kind == EventKind.GrenadeThrown))
+                {
+                    thrown++;
+                    Assert.GreaterOrEqual(e.Tick, m.State.ContactTick, "a grenade before first contact");
+                    var man = m.State.Men[e.Id];
+                    Assert.AreEqual(e.Side, man.Side);
+                    Assert.IsTrue(e.X.HasValue && e.Z.HasValue && e.Target.HasValue);
+                }
+                for (int i = 0; i < ev.Count; i++)
+                {
+                    if (ev[i].Kind != EventKind.GrenadeBlast) continue;
+                    blasts++;
+                    for (int j = i + 1; j < ev.Count && ev[j].Kind == EventKind.Kill && ev[j].Tick == ev[i].Tick; j++) kills++;
+                }
+                Assert.IsTrue(m.State.Men.All(x => x.Grenades >= 0 && x.Grenades <= Tune.GrenadesCarried));
+            }
+            Assert.Greater(thrown, 0, "nobody threw");
+            Assert.Greater(blasts, 0, "nothing went off");
+            Assert.LessOrEqual(blasts, thrown, "more blasts than throws");
+            Assert.Greater(kills, 0, "grenades never killed anyone");
         }
 
         [Test]

@@ -74,6 +74,17 @@ namespace LanesOfVietnam.Sim
                 h = MixD(h, a.X); h = MixD(h, a.Z); h = MixD(h, a.Radius); h = MixI(h, a.Ticks);
                 h = MixI(h, a.Next); h = MixD(h, a.Power);
             }
+            // Part 2 state, hashed only when its rule is on, so the baseline's
+            // hashes are the ones the TypeScript original produced.
+            if (st.Frag)
+            {
+                foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }
+                foreach (var g in st.Grenades)
+                {
+                    h = MixI(h, g.Id); h = MixI(h, (int)g.Side); h = MixI(h, g.Thrower);
+                    h = MixD(h, g.X); h = MixD(h, g.Z); h = MixI(h, g.Ticks);
+                }
+            }
             for (int s = 0; s < 2; s++)
             {
                 h = MixD(h, st.Morale[s]); h = MixD(h, st.Cp[s]); h = MixD(h, st.Front[s]);

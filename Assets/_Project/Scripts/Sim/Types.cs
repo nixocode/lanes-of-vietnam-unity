@@ -104,6 +104,24 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>0..1. Veterancy makes a man steadier, never stronger.</summary>
         public double Veterancy;
+
+        /// <summary>Grenades left (MatchOptions.Frag). Two, as a rifleman carried.</summary>
+        public int Grenades = Tune.GrenadesCarried;
+
+        /// <summary>Ticks until he may throw again (MatchOptions.Frag).</summary>
+        public int FragCooldown;
+    }
+
+    /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
+    public sealed class Grenade
+    {
+        public int Id;
+        public Side Side;
+        public int Thrower;
+        /// <summary>Where it came down, where it will go off.</summary>
+        public double X, Z;
+        /// <summary>Ticks until it detonates.</summary>
+        public int Ticks;
     }
 
     public sealed class Squad
@@ -229,6 +247,9 @@ namespace LanesOfVietnam.Sim
         // Called-in effects. Shell is one detonation, not one barrage: the
         // renderer needs a position per burst and a barrage is a dozen.
         Shell, AreaStart, AreaEnd, TrapSprung,
+        // Part 2, behind MatchOptions.Frag (PLAN §12.8). Appended, so every
+        // earlier kind keeps its number.
+        GrenadeThrown, GrenadeBlast,
     }
 
     public struct SimEvent
@@ -274,6 +295,17 @@ namespace LanesOfVietnam.Sim
         public readonly List<Squad> Squads = new List<Squad>();
         public readonly List<Cover> Cover = new List<Cover>();
         public readonly List<Area> Areas = new List<Area>();
+
+        /// <summary>
+        /// Part 2 rule: men throw grenades at enemies in cover (PLAN §12.8,
+        /// "frag: a close assault breaks a position that small arms cannot").
+        /// Off is the parity baseline: with it off, nothing below is read.
+        /// </summary>
+        public bool Frag;
+        /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
+        public Rng FragRng;
+        public readonly List<Grenade> Grenades = new List<Grenade>();
+        public int GrenadeId;
 
         /// <summary>Next area id. Monotonic, so an id is never reused while one is on screen.</summary>
         public int AreaId;

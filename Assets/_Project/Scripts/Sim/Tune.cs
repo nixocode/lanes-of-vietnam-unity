@@ -142,6 +142,29 @@ namespace LanesOfVietnam.Sim
         /// <summary>Past this he mostly stops shooting.</summary>
         public const double PinStop = 0.72;
 
+        // --- grenades (MatchOptions.Frag, Part 2) --------------------------------
+        // A design translation, not numbers from the 2D game (§12.8 item 5): it
+        // gives cover a counter at close range, the way a real assault breaks
+        // a position the rifles cannot.
+        /// <summary>Carried per man: an M26 or a Chinese stick grenade or two.</summary>
+        public const int GrenadesCarried = 2;
+        /// <summary>A throw from cover, or from a knee: 20 m, and never at his own feet.</summary>
+        public const double FragRange = 20, FragMin = 7;
+        /// <summary>Chance a tick, while he has a target, that he throws: about one second's hesitation.</summary>
+        public const double FragThrowChance = 0.05;
+        /// <summary>Ticks between one man's throws.</summary>
+        public const int FragInterval = 160;
+        /// <summary>Flight plus fuse: an M26's 4-5 s fuse, less the time he cooks it.</summary>
+        public const int FragFuse = 50;
+        /// <summary>Scatter of the landing point: a fixed part plus a share of the distance thrown.</summary>
+        public const double FragScatterFixed = 0.7, FragScatterPerMetre = 0.1;
+        /// <summary>Lethal radius, and the chance at the centre.</summary>
+        public const double FragRadius = 5, FragKill = 0.6;
+        /// <summary>What the burst suppresses.</summary>
+        public const double FragPinRadius = 11, FragPin = 0.55;
+        /// <summary>Cover barely helps against a grenade that comes down inside it; lying flat in the open helps more.</summary>
+        public const double FragCoverFactor = 0.85, FragProneFactor = 0.55;
+
         /// <summary>
         /// A pinned man fires this much as often, rather than not at all. A
         /// hard cutoff makes a firefight flip between two states.
