@@ -339,13 +339,17 @@ namespace LanesOfVietnam.View
         {
             if (Species("grass_tuft") == null && Species("elephant_grass") == null) return;
             const double cell = 0.8;
+            // Where grass is refused and why, per band: the log line below.
+            var why = new int[4, 4];   // band x (placed, track, earth, density)
             for (double x = -150; x < 150; x += cell)
             {
                 for (double z = -40; z < 23; z += cell)
                 {
                     double px = x + rng.Range(0, cell), pz = z + rng.Range(0, cell);
                     var m = GroundView.Masks(g, px, pz);
-                    if (m.r > 90 || m.g > 100) continue;                  // the track, fresh earth
+                    int bandI = pz > 11 ? 0 : System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1])) < 3.5 ? 1 : pz > -10.5 ? 2 : 3;
+                    if (m.r > 90) { why[bandI, 1]++; continue; }             // the track
+                    if (m.g > 100) { why[bandI, 2]++; continue; }            // fresh earth
                     if (NearCover(cover, px, pz, 0.6)) continue;
                     double patch = 0.5 + 0.5 * System.Math.Sin(px * 0.13 + System.Math.Sin(pz * 0.29) * 2.1)
                                              * System.Math.Cos(pz * 0.17 - px * 0.05);
@@ -358,22 +362,27 @@ namespace LanesOfVietnam.View
                     // lawn. Measured: the bare ground between tufts was what
                     // held the lane bands L* 12-17 over TARGET.jpg's.
                     if (pz > 11) { density = 0.95; lo = 0.6f; hi = 1.2f; }                 // foreground
-                    else if (lane < 3.5) { density = 0.9; lo = 0.35f; hi = 0.75f; }       // the lanes: trodden, not bare
+                    else if (lane < 3.5) { density = 1.0; lo = 0.4f; hi = 0.85f; }        // the lanes: knee-high, as the reference's men stand in
                     else if (pz > -10.5) { density = 0.95; lo = 0.45f; hi = 1.0f; }       // between
                     else { density = 0.9; lo = 0.7f; hi = 1.25f; }                       // scrub, treeline edge
                     if (firebase) density *= 0.2;
                     density *= 0.45 + 0.9 * patch;
-                    if (rng.Next() > density) continue;
+                    if (rng.Next() > density) { why[bandI, 3]++; continue; }
+                    why[bandI, 0]++;
                     bool tall = pz < -10.5 && rng.Next() < 0.1 + 0.25 * patch;
                     if (tall) Plant(g, px, pz, (float)rng.Range(2.0, 3.2), "elephant_grass");
                     else Plant(g, px, pz, (float)rng.Range(lo, hi), "grass_tuft");
                     // Low broadleaf through the grass, under knee height: never
                     // above the sight lines the simulation assumes.
-                    if (!tall && pz < 11 && _plantRng.Next() < 0.07 + 0.08 * patch)
+                    if (!tall && pz < 11 && _plantRng.Next() < 0.14 + 0.12 * patch)
                         Plant(g, px + _plantRng.Range(-0.3, 0.3), pz + _plantRng.Range(-0.3, 0.3),
-                              (float)_plantRng.Range(0.3, 0.6), "fern", "calathea", "anthurium");
+                              (float)_plantRng.Range(0.35, 0.75), "fern", "calathea", "anthurium");
                 }
             }
+            string[] bands = { "foreground", "lanes", "between", "scrub" };
+            var sb = new System.Text.StringBuilder("[LOV] grass placed / refused (track, earth, density):");
+            for (int b = 0; b < 4; b++) sb.Append($" {bands[b]} {why[b, 0]} ({why[b, 1]}, {why[b, 2]}, {why[b, 3]})");
+            Debug.Log(sb.ToString());
         }
 
         /// <summary>
