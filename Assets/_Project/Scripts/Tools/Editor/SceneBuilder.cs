@@ -166,6 +166,7 @@ namespace LanesOfVietnam.Tools
             var combat = game.AddComponent<CombatView>();
             combat.Glow = Mat("FX Glow", Shader.Find("LOV/FX Glow"), null);
             combat.Smoke = Mat("FX Smoke", Shader.Find("LOV/FX Smoke"), null);
+            combat.Marks = Mat("Ground Mark", Shader.Find("LOV/Ground Mark"), null);
 
             var commander = game.AddComponent<Commander>();
             commander.Root = root;

@@ -30,6 +30,8 @@ namespace LanesOfVietnam.View
     {
         public Material Glow;
         public Material Smoke;
+        /// <summary>Contact shadows and scorch marks (LOV/Ground Mark); optional.</summary>
+        public Material Marks;
 
         /// <summary>How fast a tracer is drawn travelling (m/s): a 5.56 or 7.62 round at combat range, slowed a little so the eye can follow it.</summary>
         public const float TracerSpeed = 620f;
@@ -56,6 +58,11 @@ namespace LanesOfVietnam.View
         private readonly List<Vector4> _suv = new List<Vector4>();
         private readonly List<int> _si = new List<int>();
         private readonly Light[] _lights = new Light[4];
+        private Mesh _markMesh;
+        private readonly List<Vector3> _mp = new List<Vector3>();
+        private readonly List<Color> _mc = new List<Color>();
+        private readonly List<Vector4> _muv = new List<Vector4>();
+        private readonly List<int> _mi = new List<int>();
         private readonly List<(Vector3 pos, float intensity)> _flashes = new List<(Vector3, float)>();
         private Vector3 _right, _up, _camPos;
 
@@ -77,6 +84,7 @@ namespace LanesOfVietnam.View
         {
             _glowMf = Child("combat light", Glow, out _glowMesh);
             _smokeMf = Child("combat smoke", Smoke, out _smokeMesh);
+            if (Marks != null) Child("ground marks", Marks, out _markMesh);
             for (int i = 0; i < _lights.Length; i++)
             {
                 var go = new GameObject("shell flash");
@@ -134,6 +142,7 @@ namespace LanesOfVietnam.View
                 }
             }
             SmokeScreens(st, now);
+            if (_markMesh != null) GroundMarks(st, now);
             Upload();
             Lights();
         }
@@ -317,6 +326,63 @@ namespace LanesOfVietnam.View
                             (float)Hash(seed, 4), 1f);
                 }
             }
+        }
+
+        // --- marks on the ground ------------------------------------------------------------
+
+        /// <summary>
+        /// A soft shadow under every man, living or dead, and a scorch wherever
+        /// a shell or a grenade went off, for the rest of the match. The scorch
+        /// darkens in as the blast clears, so it never pops.
+        /// </summary>
+        private void GroundMarks(SimState st, double now)
+        {
+            _mp.Clear(); _mc.Clear(); _muv.Clear(); _mi.Clear();
+            var d = _root.Driver;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                var (x, z) = d.Position(i);
+                bool flat = !m.Alive || m.Posture == Posture.Prone;
+                float w = flat ? 1.9f : m.Posture == Posture.Crouched ? 1.0f : 0.9f;
+                float h = flat ? 0.8f : 0.55f;
+                Flat(x, z, w, h, new Color(0.45f, 0.44f, 0.42f, 0.8f), i * 0.013f, 0f);
+            }
+            var ev = st.Events;
+            for (int i = 0; i < ev.Count; i++)
+            {
+                var e = ev[i];
+                if ((e.Kind != EventKind.Shell && e.Kind != EventKind.GrenadeBlast) || e.X == null) continue;
+                float age = (float)(now - e.Tick * Tune.Dt);
+                if (age < 0) continue;
+                float grow = Mathf.Clamp01(age / 1.5f);
+                float size = e.Kind == EventKind.Shell ? 5.5f : 2.2f;
+                Flat(e.X.Value, e.Z.Value, size, size, new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(i, 90), 1f);
+            }
+            _markMesh.Clear();
+            if (_mp.Count == 0) return;
+            _markMesh.SetVertices(_mp);
+            _markMesh.SetColors(_mc);
+            _markMesh.SetUVs(0, _muv);
+            _markMesh.SetTriangles(_mi, 0, false);
+            _markMesh.bounds = new Bounds(Vector3.zero, Vector3.one * 4000f);
+        }
+
+        /// <summary>A flat quad on the ground at a sim position, following its slope at the corners.</summary>
+        private void Flat(double x, double z, float w, float h, Color col, float seed, float kind)
+        {
+            var g = _root.Ground;
+            int k = _mp.Count;
+            float hw = w * 0.5f, hh = h * 0.5f;
+            foreach (var (dx, dz) in new[] { (-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh) })
+            {
+                double cx = x + dx, cz = z + dz;
+                _mp.Add(Coords.World(cx, cz, (float)g.HeightAt(cx, cz) + 0.04f));
+                _mc.Add(col);
+            }
+            _muv.Add(new Vector4(0, 0, seed, kind)); _muv.Add(new Vector4(1, 0, seed, kind));
+            _muv.Add(new Vector4(1, 1, seed, kind)); _muv.Add(new Vector4(0, 1, seed, kind));
+            _mi.Add(k); _mi.Add(k + 1); _mi.Add(k + 2); _mi.Add(k); _mi.Add(k + 2); _mi.Add(k + 3);
         }
 
         // --- geometry ---------------------------------------------------------------------------
