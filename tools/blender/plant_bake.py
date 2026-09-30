@@ -193,7 +193,22 @@ RECIPES["bamboo"] = dict(build="bamboo", variants=4, ppm=56, ground="zero",
                          culms=(26, 42), height=(8.0, 12.0), spread=0.8, culm="Bamboo001A", leaves="LeafSet013")
 
 
+# Soldiers, baked the same way (interim, until the Mixamo-driven 3D men of
+# PLAN §12.3): the earlier build's rigged MPFB2 soldiers (our own work on a
+# CC0 base; SourceArt/soldiers), posed per frame and frozen.
+SOLDIER_FRAMES = ["stand", "walk0", "walk1", "walk2", "walk3", "walk4", "walk5", "kneel", "prone", "dead0", "dead1"]
+SOLDIER_OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Soldiers")
+# fatigue_to: the old palette's 0.118 was checked under the three.js build's
+# dimmer light rig; in this scene's measured sun and sky it read pale beside
+# grass of albedo 0.064, so 0.085.
+RECIPES["soldier_us"] = dict(build="soldier", src="soldiers/us_rifleman.glb", ppm=280, ground="min", out=SOLDIER_OUT,
+                             fatigue_to=0.085)
+RECIPES["soldier_vc"] = dict(build="soldier", src="soldiers/vc_guerrilla.glb", ppm=280, ground="min", out=SOLDIER_OUT)
+
+
 def import_sources(recipe):
+    if recipe.get("build") == "soldier":
+        return build_soldier(recipe)
     if recipe.get("build") == "grass":
         return build_grass(recipe)
     if recipe.get("build") == "palm":
@@ -700,6 +715,113 @@ def build_bamboo(recipe):
     return groups
 
 
+def build_soldier(recipe):
+    """One frozen copy of the soldier per frame in SOLDIER_FRAMES.
+
+    He is turned to face the camera's right and a third of the way toward it
+    (a pure side view hides the face and the kit), and posed by rotating bones
+    about his own axes — pitch about his side-to-side axis — through each
+    bone's head, parents first. That needs nothing from the bones' local axes,
+    which the glTF importer re-orients. His bind pose already holds the rifle
+    up, so standing, walking and kneeling leave the arms alone."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, recipe["src"]))
+    new = [o for o in bpy.data.objects if o not in before]
+    arm = [o for o in new if o.type == "ARMATURE"][0]
+    # Only what is skinned to the rig is the soldier; the old file also
+    # carries a helper sphere.
+    meshes = [o for o in new if o.type == "MESH" and any(m.type == "ARMATURE" for m in o.modifiers)]
+    for o in new:
+        if o.type == "MESH" and o not in meshes:
+            o.hide_render = True
+            print(f"[plants] soldier: leaving out {o.name} ({len(o.data.vertices)} vertices, not skinned)", flush=True)
+    top = arm
+    while top.parent is not None:                      # the soldier's own root, not the helper
+        top = top.parent
+    # The glTF importer leaves objects in quaternion mode, where Euler angles are ignored.
+    print(f"[plants] soldier root {top.name}: rotation mode {top.rotation_mode}", flush=True)
+    top.rotation_mode = "XYZ"
+    top.rotation_euler = (0, 0, math.radians(60))       # front (-Y) turned to face right, 30 deg toward the lens
+    bpy.context.view_layer.update()
+    F = mathutils.Vector((math.sin(math.radians(60)), -math.cos(math.radians(60)), 0))
+    U = mathutils.Vector((0, 0, 1))
+    P = F.cross(U).normalized()                          # + pitch swings a hanging bone's tail forward
+
+    def rot(bone, axis, angle):
+        pb = arm.pose.bones.get(bone)
+        if pb is None or angle == 0:
+            return
+        bpy.context.view_layer.update()
+        M = arm.matrix_world.to_3x3()
+        a = (M.inverted() @ axis).normalized()
+        h = pb.head.copy()
+        pb.matrix = mathutils.Matrix.Translation(h) @ mathutils.Matrix.Rotation(angle, 4, a) @ mathutils.Matrix.Translation(-h) @ pb.matrix
+        bpy.context.view_layer.update()
+
+    def reset():
+        for pb in arm.pose.bones:
+            pb.matrix_basis = mathutils.Matrix.Identity(4)
+        bpy.context.view_layer.update()
+
+    def pose(name):
+        reset()
+        if name.startswith("walk"):
+            ph = int(name[4:]) / 6 * 2 * math.pi
+            s_ = math.sin(ph)
+            rot("spine_01", P, 0.06)
+            rot("thigh_l", P, 0.42 * s_)
+            rot("thigh_r", P, -0.42 * s_)
+            rot("calf_l", P, -1.05 * max(0.0, -s_))
+            rot("calf_r", P, -1.05 * max(0.0, s_))
+        elif name == "kneel":
+            rot("spine_01", P, 0.14)
+            rot("thigh_r", P, 1.45); rot("calf_r", P, -1.45)
+            rot("thigh_l", P, 0.12); rot("calf_l", P, -1.72); rot("foot_l", P, 0.6)
+        elif name == "prone":
+            rot("pelvis", P, 1.5)
+            rot("spine_01", P, -0.25); rot("spine_02", P, -0.3); rot("spine_03", P, -0.4)
+            rot("neck_01", P, -0.25); rot("head", P, -0.3)
+            rot("upperarm_r", P, -0.25); rot("upperarm_l", P, -0.25)
+            rot("thigh_l", F, 0.12); rot("thigh_r", F, -0.1)
+        elif name == "dead0":                           # face down, where he fell
+            rot("pelvis", P, 1.55)
+            rot("thigh_l", F, 0.35); rot("thigh_r", F, -0.2); rot("calf_r", P, -0.5)
+            rot("upperarm_l", P, 1.1); rot("upperarm_r", F, 0.6)
+            rot("head", U, 0.9)
+        elif name == "dead1":                           # thrown on his back
+            rot("pelvis", P, -1.52)
+            rot("spine_03", P, 0.15); rot("head", F, 0.5)
+            rot("upperarm_l", F, -1.0); rot("upperarm_r", F, 1.0)
+            rot("thigh_l", F, 0.25); rot("thigh_r", F, -0.3); rot("calf_l", P, -0.6)
+
+    groups = {}
+    dg = bpy.context.evaluated_depsgraph_get()
+    for fi, name in enumerate(SOLDIER_FRAMES):
+        pose(name)
+        dg = bpy.context.evaluated_depsgraph_get()
+        pelvis = arm.matrix_world @ arm.pose.bones["pelvis"].head
+        snaps = []
+        for o in meshes:
+            ev = o.evaluated_get(dg)
+            me = bpy.data.meshes.new_from_object(ev, preserve_all_data_layers=True, depsgraph=dg)
+            so = bpy.data.objects.new(f"{name} {o.name}", me)
+            so.matrix_world = o.matrix_world.copy()
+            bpy.context.scene.collection.objects.link(so)
+            snaps.append(so)
+        bpy.context.view_layer.update()
+        zmin = min((so.matrix_world @ v.co).z for so in snaps for v in so.data.vertices)
+        off = mathutils.Vector((fi * 6.0, 0, -zmin))
+        for so in snaps:
+            so.matrix_world = mathutils.Matrix.Translation(off) @ so.matrix_world
+            so["root"] = [pelvis.x + off.x, pelvis.y + off.y]
+        groups[name] = snaps
+    for o in meshes:
+        o.hide_render = True
+    bpy.context.view_layer.update()
+    print(f"[plants] soldier {recipe['src']}: {len(groups)} frames", flush=True)
+    return groups
+
+
 def atlas_pick(rects, rng):
     # Long blades are the ones worth drawing; the stubs are offcuts.
     long_ = [r for r in rects if r["aspect"] > 5] or rects
@@ -728,6 +850,8 @@ def render_variant(scene, co, objs, recipe, tmp):
     xs = [c.dot(right) for c in corners]
     ys = [c.dot(up) for c in corners]
     root = mathutils.Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, ground_z))
+    if "root" in objs[0]:                       # a soldier: his pelvis, so walk frames do not jitter
+        root = mathutils.Vector((objs[0]["root"][0], objs[0]["root"][1], ground_z))
     x0, x1 = min(xs), max(xs)
     y0 = min(min(ys), root.dot(up))
     y1 = max(ys)
@@ -848,6 +972,32 @@ def pack(sizes):
         side *= 2
 
 
+def lift_fatigue(albedo, a, target):
+    """The earlier build's soldiers bake their uniform far darker than their
+    own palette says: its OG-107 cotton sateen is albedo 0.118, and the
+    texture it was worn with bakes the green at about 0.02 — a black suit in
+    this light. Scale the uniform's green (the texels where green leads) so
+    their median reaches the palette's value, keeping the fabric's pattern;
+    skin, webbing, helmet and steel are left alone."""
+    lum = albedo @ np.array([0.2126, 0.7152, 0.0722])
+    green = (albedo[..., 1] > albedo[..., 0] * 1.08) & (albedo[..., 1] > albedo[..., 2] * 1.2) & (a > 0.5)
+    if green.sum() < 50:
+        return albedo
+    # Re-coloured, not scaled: the dark texture's green is saturated, and
+    # scaling it 15x gave lime. OG-107 is a greyed olive (the palette's
+    # 0.118, 0.122, 0.078); the fabric's pattern survives as the texels'
+    # brightness relative to the uniform's median.
+    med = max(float(np.median(lum[green])), 1e-4)
+    od = np.array([0.118, 0.122, 0.078]) * (target / 0.1206)
+    pattern = np.clip(lum / med, 0.35, 2.2) ** 0.6
+    recol = od[None, None, :] * pattern[..., None]
+    # Soft at the uniform's edges so nothing seams where green meets webbing.
+    w = np.clip((albedo[..., 1] / np.maximum(albedo[..., 0], 1e-4) - 1.0) / 0.15, 0, 1)[..., None] * green[..., None]
+    out = albedo * (1 - w) + recol * w
+    print(f"[plants] fatigue: green median {med:.3f} -> OG-107 olive at {target}", flush=True)
+    return np.clip(out, 0, 1)
+
+
 def bake_species(name, recipe, scene, co, preview_only):
     bpy.ops.object.select_all(action="DESELECT")
     for o in list(bpy.data.objects):
@@ -862,6 +1012,8 @@ def bake_species(name, recipe, scene, co, preview_only):
         W, H, w_m, h_m, root_uv, height = render_variant(scene, co, objs, recipe, tmp)
         a, col, nrm, ao, sun = read_passes(tmp, W, H)
         albedo = unpremultiply(col, a)
+        if recipe.get("fatigue_to"):
+            albedo = lift_fatigue(albedo, a, recipe["fatigue_to"])
         n = unpremultiply(nrm, a)
         # Into the bake camera's frame: x right, y up, z toward the camera.
         R, U, B = np.array(right), np.array(up), np.array(back)
@@ -924,10 +1076,11 @@ def bake_species(name, recipe, scene, co, preview_only):
                          size_m=[round(v["w_m"], 4), round(v["h_m"], 4)],
                          root=[round(v["root"][0], 4), round(v["root"][1], 4)],
                          height_m=round(v["height"], 3), source_polygons=v["polys"]))
-    os.makedirs(OUT, exist_ok=True)
-    write_png(os.path.join(OUT, f"{name}_albedo.png"), alb[::-1], alpha=True)
-    write_png(os.path.join(OUT, f"{name}_normal.png"), nor[::-1], alpha=True)
-    with open(os.path.join(OUT, f"{name}.json"), "w") as f:
+    out = recipe.get("out", OUT)
+    os.makedirs(out, exist_ok=True)
+    write_png(os.path.join(out, f"{name}_albedo.png"), alb[::-1], alpha=True)
+    write_png(os.path.join(out, f"{name}_normal.png"), nor[::-1], alpha=True)
+    with open(os.path.join(out, f"{name}.json"), "w") as f:
         json.dump(dict(species=name, pitch_deg=BAKE_PITCH, atlas=[AW, AH], ppm=recipe["ppm"],
                        source=recipe.get("src") or {"built": recipe.get("build"), "blades": recipe.get("blades"),
                                                     "plumes": recipe.get("plumes")},
@@ -956,4 +1109,5 @@ def main():
         bake_species(n, RECIPES[n], scene, co, preview_only)
 
 
-main()
+if __name__ == "__main__":
+    main()

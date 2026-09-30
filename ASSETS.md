@@ -262,6 +262,32 @@ massif's eastern foot, looking along a heading of **262°**.
 |---|---|
 | `mountains.bytes` | `9397666d04ed41c86c3194cf9dd879bb7c81e9562b861c0a8506e4fa2aba6028` |
 
+### Soldiers (interim) — `Assets/_Project/Art/Soldiers/`
+
+**Our own work:** the earlier build's rigged soldiers, from its
+`pipeline/build_soldier.py`. They are an MPFB2 (MakeHuman) body, **CC0**, on
+MPFB2's 53-bone `game_engine` skeleton, with kit and weapons modelled by that
+pipeline. They are copied into `SourceArt/soldiers/` (gitignored).
+`plant_bake.py` poses the rig per frame and bakes the frames like the plants:
+- **Frames:** stand, a six-frame walk, kneel, prone, and two dead.
+- **View:** three-quarter view facing right; the VC are mirrored to face left.
+- **Posing:** rotations about the figure's own axes.
+- **Uniform correction:** the US uniform texture bakes at albedo 0.008. It is
+  re-coloured to OG-107 olive drab (the old palette's hue) at 0.085, keeping
+  the fabric's pattern.
+
+This is an **interim** until the PLAN §12.3 soldiers (textured kit,
+Mixamo-driven Humanoid motion) exist. It costs one quad per man.
+
+| file | sha256 |
+|---|---|
+| `us_rifleman.glb` (source) | `ff0cd3c3388ae6ede5bbea97e0f40fea93043e33831356a61737d9a89d652b40` |
+| `vc_guerrilla.glb` (source) | `2722ca1736956df6db650c30dee512d957050798a878125a56c4ec820f6b06a8` |
+| `soldier_us_albedo.png` | `0c37a6a5739796990cf259e7e297625c5b21a5eb71ea46a344cc1f64100aa93c` |
+| `soldier_us_normal.png` | `54e76ea4c7ab0f1022630f3e0c141f7d0fa7bfb61c741355b6e365364915dbad` |
+| `soldier_vc_albedo.png` | `3c17f80bf591829b702d482327bab3a68cd453a5df54cb93928e9d95e7d46d48` |
+| `soldier_vc_normal.png` | `14de36eb734f72e56de4133b5ae8a5a7eb9b03e5fa8bec280421e56ef8de7473` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 
