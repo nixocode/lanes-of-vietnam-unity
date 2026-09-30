@@ -31,6 +31,8 @@ Shader "LOV/Foliage"
         _Translucency ("Light through thin leaves", Range(0, 1)) = 0.35
         _Wind ("Sway at the top (m)", Float) = 0.06
         _MipBias ("Mip bias near, far (m: from, to)", Vector) = (0.5, 1.75, 40, 90)
+        _Dither ("Dithered coverage (0 off, 1 full)", Range(0, 1)) = 0
+        _FieldOcclusion ("Shade from neighbours, at the root (0..1)", Range(0, 1)) = 0
     }
 
     SubShader
@@ -50,7 +52,18 @@ Shader "LOV/Foliage"
             half _Translucency;
             float _Wind;
             float4 _MipBias;
+            half _Dither;
+            half _FieldOcclusion;
         CBUFFER_END
+
+        // The cutoff, dithered by pixel (interleaved gradient noise, fixed in
+        // time): partial coverage becomes a pattern TAA averages into a soft
+        // edge, where a hard cutoff flips thin blades on and off with its jitter.
+        half Cutoff(float4 positionCS)
+        {
+            float n = frac(52.9829189 * frac(dot(positionCS.xy, float2(0.06711056, 0.00583715))));
+            return lerp(_Cutoff, 0.05 + 0.9 * n, _Dither);
+        }
 
         // Every map is read a little blurrier than the screen asks. A crown
         // baked at leaf scale has light and dark within a pixel or two, and
@@ -82,6 +95,7 @@ Shader "LOV/Foliage"
             float3 positionWS : TEXCOORD1;
             half4 tint : TEXCOORD2;          // rgb tint, a mirror sign
             half fog : TEXCOORD3;
+            half height : TEXCOORD4;         // 0 at the root, 1 at the top
         };
 
         Varyings Vert(Attributes i)
@@ -98,6 +112,7 @@ Shader "LOV/Foliage"
             o.positionCS = TransformWorldToHClip(p);
             o.uv = i.uv;
             o.tint = half4(i.color.rgb, i.plant.y);
+            o.height = h;
             o.fog = ComputeFogFactor(o.positionCS.z);
             return o;
         }
@@ -140,7 +155,7 @@ Shader "LOV/Foliage"
             {
                 float bias = MipBias(i.positionWS);
                 half4 a = AlbedoAt(i.uv, bias);
-                clip(a.a - _Cutoff);
+                clip(a.a - Cutoff(i.positionCS));
                 half4 nt = SurfaceAt(i.uv, bias);
                 float3 n = SurfaceNormal(i, nt);
                 half3 albedo = a.rgb * i.tint.rgb;
@@ -149,8 +164,12 @@ Shader "LOV/Foliage"
                 float2 screenUV = GetNormalizedScreenSpaceUV(i.positionCS);
                 AmbientOcclusionFactor ssao = GetScreenSpaceAmbientOcclusion(screenUV);
 
-                half3 direct = sun.color * (nt.a * sun.shadowAttenuation) * ssao.directAmbientOcclusion;
-                half3 sky = SampleSH(n) * (nt.b * ssao.indirectAmbientOcclusion);
+                // In a dense stand a plant's lower parts are shaded by its
+                // neighbours, which its own bake cannot know: darker toward the
+                // root, by how dense the species grows.
+                half field = lerp(1 - _FieldOcclusion, 1, smoothstep(0, 0.85, i.height));
+                half3 direct = sun.color * (nt.a * sun.shadowAttenuation * field) * ssao.directAmbientOcclusion;
+                half3 sky = SampleSH(n) * (nt.b * ssao.indirectAmbientOcclusion * field);
                 // Through the leaf: from the side away from the sun, as much as
                 // its neighbours let the sun reach it (the occlusion stands in).
                 half through = saturate(-dot(n, sun.direction)) * _Translucency * nt.b * sun.shadowAttenuation;
@@ -198,7 +217,7 @@ Shader "LOV/Foliage"
             #pragma fragment DepthFrag
             half DepthFrag(Varyings i) : SV_Target
             {
-                clip(AlbedoAt(i.uv, MipBias(i.positionWS)).a - _Cutoff);
+                clip(AlbedoAt(i.uv, MipBias(i.positionWS)).a - Cutoff(i.positionCS));
                 return i.positionCS.z;
             }
             ENDHLSL
@@ -216,7 +235,7 @@ Shader "LOV/Foliage"
             half4 NormalsFrag(Varyings i) : SV_Target
             {
                 float bias = MipBias(i.positionWS);
-                clip(AlbedoAt(i.uv, bias).a - _Cutoff);
+                clip(AlbedoAt(i.uv, bias).a - Cutoff(i.positionCS));
                 return LOV_DepthNormalsOutput(SurfaceNormal(i, SurfaceAt(i.uv, bias)));
             }
             ENDHLSL

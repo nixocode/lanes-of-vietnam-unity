@@ -61,6 +61,8 @@ namespace LanesOfVietnam.View
                     var taa = camData.taaSettings;
                     taa.baseBlendFactor = cap.Taa[0];
                     taa.varianceClampScale = cap.Taa[1];
+                    if (cap.Taa.Length > 2) taa.jitterScale = cap.Taa[2];
+                    if (cap.Taa.Length > 3) taa.quality = (TemporalAAQuality)(int)cap.Taa[3];
                     camData.taaSettings = taa;
                 }
             }

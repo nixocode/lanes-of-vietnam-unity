@@ -58,7 +58,7 @@ namespace LanesOfVietnam.View
         public float GroundGrad;
         /// <summary>The plants' far mip bias (every map); negative keeps the material's.</summary>
         public float PlantBias = -1;
-        /// <summary>TAA base blend factor and variance clamp scale; null keeps URP's defaults.</summary>
+        /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
@@ -92,7 +92,7 @@ namespace LanesOfVietnam.View
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
                     case "taa":
                         var ta = v.Split(':');
-                        c.Taa = new[] { float.Parse(ta[0], inv), float.Parse(ta[1], inv) };
+                        c.Taa = System.Array.ConvertAll(ta, t => float.Parse(t, inv));
                         break;
                     case "tint":
                         var t = v.Split(':');

@@ -78,6 +78,7 @@ namespace LanesOfVietnam.View
             Treeline(g, cover, rng.Fork("treeline"));
             Scrub(g, cover, rng.Fork("scrub"));
             Foreground(g, cover, rng.Fork("foreground"));
+            Grass(g, cover, rng.Fork("grass"));
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
             Ridges(rng.Fork("ridges"));
@@ -292,6 +293,47 @@ namespace LanesOfVietnam.View
                 double clump = System.Math.Sin(x * 0.11 + 1.3) * System.Math.Sin(x * 0.037 + z * 0.21);
                 if (rng.Next() > 0.25 + clump * 0.6) continue;
                 Plant(g, x, z, (float)rng.Range(0.45, 1.35), "fern", "calathea", "anthurium");
+            }
+        }
+
+        /// <summary>
+        /// Grass over the whole field, as in the reference, where men stand
+        /// waist-deep in it: tufts everywhere the ground is not bare, shorter
+        /// in the lanes where men have trodden it; elephant grass, two to three
+        /// metres, in clumps in the scrub and along the treeline, never in
+        /// front of the near lane where it would hide the fight. Never on the
+        /// track, in fresh earth or on cover. By a jittered grid and a slow
+        /// noise, so it grows in patches rather than as a carpet.
+        /// </summary>
+        private void Grass(Ground g, IReadOnlyList<Cover> cover, Rng rng)
+        {
+            if (Species("grass_tuft") == null && Species("elephant_grass") == null) return;
+            const double cell = 0.8;
+            for (double x = -150; x < 150; x += cell)
+            {
+                for (double z = -40; z < 23; z += cell)
+                {
+                    double px = x + rng.Range(0, cell), pz = z + rng.Range(0, cell);
+                    var m = GroundView.Masks(g, px, pz);
+                    if (m.r > 90 || m.g > 100) continue;                  // the track, fresh earth
+                    if (NearCover(cover, px, pz, 0.6)) continue;
+                    double patch = 0.5 + 0.5 * System.Math.Sin(px * 0.13 + System.Math.Sin(pz * 0.29) * 2.1)
+                                             * System.Math.Cos(pz * 0.17 - px * 0.05);
+                    bool firebase = px < FirebaseEastX && pz > 0;
+                    double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
+                    double density;
+                    float lo, hi;
+                    if (pz > 11) { density = 0.9; lo = 0.6f; hi = 1.2f; }                  // foreground
+                    else if (lane < 3.5) { density = 0.4; lo = 0.3f; hi = 0.6f; }         // trodden lanes
+                    else if (pz > -10.5) { density = 0.65; lo = 0.45f; hi = 0.95f; }      // between
+                    else { density = 0.85; lo = 0.7f; hi = 1.25f; }                      // scrub, treeline edge
+                    if (firebase) density *= 0.2;
+                    density *= 0.45 + 0.9 * patch;
+                    if (rng.Next() > density) continue;
+                    bool tall = pz < -10.5 && rng.Next() < 0.1 + 0.25 * patch;
+                    if (tall) Plant(g, px, pz, (float)rng.Range(2.0, 3.2), "elephant_grass");
+                    else Plant(g, px, pz, (float)rng.Range(lo, hi), "grass_tuft");
+                }
             }
         }
 

@@ -142,6 +142,25 @@ come to **2.3 MB** in the WebGL build (crunched).
 - **`grass_medium_02`**: tufts of 16–40 cm, where elephant grass is 2–4 m.
 - Nothing on Poly Haven is a palm, bamboo or banana.
 
+**Grass, built from scanned blades** (nothing scanned is tall enough). The
+blades are ambientCG **CC0** foliage atlases, fetched **2026-09-30** as 2K PNG
+from `https://ambientcg.com/get?file=<id>_2K-PNG.zip`.
+`plant_bake.py` finds each blade in an atlas by labelling its opacity, then
+builds clumps of curved strips textured with those blades. They lean and droop
+more at a clump's edge than at its heart.
+- **elephant_grass**: 6 variants, 2–3.1 m, from Foliage001 and Foliage008
+  blades, with Foliage002 seed plumes above.
+- **grass_tuft**: 6 variants, 0.45–1 m, from Foliage001, Foliage008 and
+  Foliage005 (including its dry blade).
+- **Rejected:** Foliage006's lime green (albedo G 0.27) is a lawn's colour.
+
+| source | sha256 |
+|---|---|
+| `Foliage001_2K-PNG.zip` | `32121763ebc2a1adca7ea64dbeb20ee759ea101bc79f6a066cbc2d39ae1dfdaa` |
+| `Foliage002_2K-PNG.zip` | `33cabe1ad1f21d9fcecbc55f80cbe5ae7ce365a0eee240643b628dd26a5e49a1` |
+| `Foliage005_2K-PNG.zip` | `0bb1a252473d9d349d5dc14e4cb6895b34f4647617bf88b5540c059855bddb1e` |
+| `Foliage008_2K-PNG.zip` | `9d09de2c1cc96b818485984e1f6fcacaf11c4119b28f988689cf6c5d82fad98b` |
+
 **Palms, bamboo, banana, elephant ear: the preferred sources need a login.**
 These were surveyed on Sketchfab through its public API (downloadable,
 commercial use allowed, sorted by likes), and the thumbnails were compared.

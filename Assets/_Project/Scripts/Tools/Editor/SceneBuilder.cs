@@ -82,6 +82,16 @@ namespace LanesOfVietnam.Tools
             camData.renderPostProcessing = true;
             camData.antialiasing = AntialiasingMode.TemporalAntiAliasing;
             camData.antialiasingQuality = AntialiasingQuality.High;
+            // TAA tuned against Flicker (PLAN §7) once the grass went in: dense
+            // alpha-tested blades made the default TAA boil, 1.93 mean |dL*| on
+            // a still frame against the 1.30 gate. Very High quality (bicubic
+            // history) with the jitter at 0.35 holds it at 0.65; edges on men
+            // and poles show no stair-steps at 2x zoom. SMAA reads 0 still but
+            // would crawl on grass whenever the camera pans.
+            var taa = camData.taaSettings;
+            taa.quality = TemporalAAQuality.VeryHigh;
+            taa.jitterScale = 0.35f;
+            camData.taaSettings = taa;
             camData.renderShadows = true;
             camData.requiresDepthOption = CameraOverrideOption.On;
             var rig = camGo.AddComponent<CameraRig>();
@@ -279,12 +289,31 @@ namespace LanesOfVietnam.Tools
                 m.SetTexture("_Albedo", albedo);
                 m.SetTexture("_Normal", normal);
                 m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);
+                m.SetVector("_MipBias", MipBiasFor(name));
+                m.SetFloat("_Dither", name.Contains("grass") ? GrassDither : 0f);
+                m.SetFloat("_FieldOcclusion", FieldOcclusionFor(name));
                 EditorUtility.SetDirty(m);
                 sets.Add(new PlantSet { Name = name, Layout = json, Material = m });
             }
             Debug.Log($"[LOV] plant species: {string.Join(", ", sets.ConvertAll(p => p.Name))}");
             return sets.ToArray();
         }
+
+        /// <summary>
+        /// Foliage mip bias (near, far, from m, to m), by measurement against
+        /// Flicker (PLAN §7): the broadleaf plants hold at 0.5 near; grass blades
+        /// are 3 cm wide, a pixel and a half at 25 m, and need more.
+        /// </summary>
+        public static Vector4 GrassBias = new Vector4(1.5f, 2f, 40, 90);
+        public static float GrassDither = 0f;
+        /// <summary>How much a species' neighbours shade its lower parts: grass grows in a dense sward, understory in thickets.</summary>
+        public static float GrassFieldOcclusion = 0.7f;
+        private static float FieldOcclusionFor(string species)
+            => species.Contains("grass") ? GrassFieldOcclusion
+             : species is "jacaranda" or "island_tree" ? 0.25f : 0.45f;
+
+        private static Vector4 MipBiasFor(string species)
+            => species.Contains("grass") ? GrassBias : new Vector4(0.5f, 1.75f, 40, 90);
 
         private static VolumeProfile PostProfile()
         {
