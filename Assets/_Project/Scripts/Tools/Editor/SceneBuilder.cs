@@ -145,6 +145,7 @@ namespace LanesOfVietnam.Tools
             dress.Sandbag = cover.SandbagMaterial;
             dress.Vehicle = Lit("Vehicle", new Color(0.22f, 0.25f, 0.17f), 0.2f);
             dress.Plants = PlantSets();
+            dress.Props = new[] { PropSet("firebase") };
             root.Dressing = dress;
 
             // The Chu Pong massif, from real elevation data (tools/art/mountains.py).

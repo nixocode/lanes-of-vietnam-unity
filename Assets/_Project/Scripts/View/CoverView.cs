@@ -36,7 +36,7 @@ namespace LanesOfVietnam.View
         /// walls, the low ones for parapets.
         /// </summary>
         public static void BagRun(PlantBatch batch, PlantSpecies bags, Ground g, double cx, double cz, double length,
-                                  float height, bool low, int seed)
+                                  float height, bool low, int seed, float lift = 0)
         {
             int first = low ? 3 : 0, count = low ? 2 : 3;
             int n = Mathf.Max(1, Mathf.CeilToInt((float)length / 2.8f));
@@ -45,7 +45,7 @@ namespace LanesOfVietnam.View
                 double x = cx - length / 2 + (k + 0.5) * length / n;
                 int vi = first + Mathf.Abs(seed * 31 + k * 7) % count;
                 float scale = height / Mathf.Max(0.1f, bags.Variants[vi].Height);
-                var root = Coords.World(x, cz, (float)g.HeightAt(x, cz) - 0.04f);
+                var root = Coords.World(x, cz, (float)g.HeightAt(x, cz) - 0.04f + lift);
                 batch.Add(bags, vi, root, scale, (seed + k) % 2 == 0, Color.white, 0);
             }
         }
@@ -66,7 +66,9 @@ namespace LanesOfVietnam.View
                         case CoverKind.Sandbag: BagRun(_batch, _bags, g, c.X, c.Z - 1.3, c.Length, 0.95f, false, c.Id); break;
                         case CoverKind.Bunker:
                             BagRun(_batch, _bags, g, c.X, c.Z - 1.2, c.Length, 1.25f, false, c.Id);
-                            Box(g, c.X, c.Z - 0.4, (float)c.Length + 0.6f, 0.35f, 2.6f, TimberMaterial, $"bunker roof {c.Id}", lift: 1.45f);
+                            // Timbers across, and bags on top of them: overhead cover.
+                            Box(g, c.X, c.Z - 0.4, (float)c.Length + 0.6f, 0.2f, 2.6f, TimberMaterial, $"bunker roof {c.Id}", lift: 1.3f);
+                            BagRun(_batch, _bags, g, c.X, c.Z + 0.5, c.Length + 0.4, 0.45f, true, c.Id + 7, lift: 1.48f);
                             break;
                         case CoverKind.Trench: BagRun(_batch, _bags, g, c.X, c.Z - 1.05, c.Length, 0.45f, true, c.Id); break;
                     }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LanesOfVietnam.Sim;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -36,6 +37,8 @@ namespace LanesOfVietnam.View
         public Material Vehicle;
         /// <summary>Baked plants (tools/blender/plant_bake.py). A species that is missing falls back to its grey-box shape.</summary>
         public PlantSet[] Plants;
+        /// <summary>Baked props placed by name (the firebase's tower and vehicles). Missing: grey boxes.</summary>
+        public PlantSet[] Props;
         /// <summary>Build the grey box's sphere ridges (false when MountainView has the real terrain).</summary>
         public bool GreyBoxRidges = true;
 
@@ -70,7 +73,7 @@ namespace LanesOfVietnam.View
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
             _species = new Dictionary<string, PlantSpecies>();
-            foreach (var p in Plants ?? System.Array.Empty<PlantSet>())
+            foreach (var p in (Plants ?? System.Array.Empty<PlantSet>()).Concat(Props ?? System.Array.Empty<PlantSet>()))
                 if (p.Layout != null && p.Material != null) _species[p.Name] = new PlantSpecies(p);
             _plants = new PlantBatch();
             var rng = new Rng(seed).Fork("dressing");
@@ -92,6 +95,16 @@ namespace LanesOfVietnam.View
         private Rng _plantRng;
 
         private PlantSpecies Species(string name) => _species.TryGetValue(name, out var s) ? s : null;
+
+        /// <summary>Place a baked prop by its variant name, at the size it was built. False if it was not baked.</summary>
+        private bool Prop(Ground g, string species, string key, double x, double z, bool mirror = false)
+        {
+            var sp = Species(species);
+            int vi = sp == null ? -1 : System.Array.IndexOf(sp.Keys, key);
+            if (vi < 0) return false;
+            _plants.Add(sp, vi, Coords.World(x, z, (float)g.HeightAt(x, z) - 0.03f), 1f, mirror, Color.white, 0f);
+            return true;
+        }
 
         /// <summary>
         /// Place one of several species at a point, at a height (metres), if any
@@ -443,17 +456,22 @@ namespace LanesOfVietnam.View
             // about 7 degrees above the horizon, as the reference's does.
             double tx = -39, tz = -7;
             float ty = (float)g.HeightAt(tx, tz);
+            if (!Prop(g, "firebase", "tower", tx, tz))
             for (int i = 0; i < 4; i++)
             {
                 double lx = tx + (i % 2 == 0 ? -1.3 : 1.3), lz = tz + (i < 2 ? -1.3 : 1.3);
                 Prim(PrimitiveType.Cube, Coords.World(lx, lz, ty + 4.2f), new Vector3(0.28f, 8.4f, 0.28f), Timber, "tower leg");
             }
-            Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 9.0f), new Vector3(3.4f, 1.3f, 3.4f), Timber, "tower cabin");
-            Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 10.2f), new Vector3(4.0f, 0.22f, 4.0f), Timber, "tower roof");
+            if (Species("firebase") == null)
+            {
+                Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 9.0f), new Vector3(3.4f, 1.3f, 3.4f), Timber, "tower cabin");
+                Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 10.2f), new Vector3(4.0f, 0.22f, 4.0f), Timber, "tower roof");
+            }
 
             // The vehicle park inside the wire: two M35s and the jeep.
-            foreach (var (vx, vz, len, h) in new[] { (-33.5, -1.5, 6.7, 2.8), (-27.0, -0.8, 6.7, 2.8), (-45.0, -3.0, 3.4, 1.8) })
+            foreach (var (vx, vz, len, h, key) in new[] { (-33.5, -1.5, 6.7, 2.8, "m35_covered"), (-27.0, -0.8, 6.7, 2.8, "m35_open"), (-45.0, -3.0, 3.4, 1.8, "jeep") })
             {
+                if (Prop(g, "firebase", key, vx, vz)) continue;
                 float vy = (float)g.HeightAt(vx, vz);
                 Prim(PrimitiveType.Cube, Coords.World(vx, vz, vy + (float)h * 0.5f), new Vector3((float)len, (float)h, 2.4f), Vehicle, "vehicle");
             }
