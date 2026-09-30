@@ -34,6 +34,10 @@ tools/simcs/run.sh bench
 node --experimental-strip-types tools/parity/trace.ts > /tmp/ts-trace.json
 tools/simcs/run.sh parity /tmp/ts-trace.json
 
+# play the demo locally (Brotli headers set correctly), then open http://127.0.0.1:8065/
+tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.Build.WebGL
+python3 tools/serve.py Builds/web --port 8065
+
 # WebGL builds; each writes size.json beside itself
 tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.Build.EmptyFloor
 tools/unity.sh -nographics -executeMethod LanesOfVietnam.Tools.Build.WebGL
