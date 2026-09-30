@@ -176,7 +176,9 @@ namespace LanesOfVietnam.View
             if (age < 0.05f)
             {
                 float k = 1 - age / 0.05f;
-                AddGlow(muzzle, 0.42f + 0.25f * (float)Hash(i, 3), Flash * (22f * k), 0, (float)Hash(i, 4));
+                // Small and brief: at 0.4-0.7 m and 22x they read as white stars
+                // bigger than a man's head.
+                AddGlow(muzzle, 0.26f + 0.14f * (float)Hash(i, 3), Flash * (9f * k), 0, (float)Hash(i, 4));
                 Flashes++;
             }
             if (Hash(i, 5) < TracerShare)

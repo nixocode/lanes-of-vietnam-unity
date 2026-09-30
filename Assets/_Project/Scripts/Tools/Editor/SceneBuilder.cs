@@ -129,6 +129,8 @@ namespace LanesOfVietnam.Tools
             army.UsMaterial = Lit("US", new Color(0.24f, 0.26f, 0.17f), 0.15f);
             army.VcMaterial = Lit("VC", new Color(0.07f, 0.07f, 0.07f), 0.2f);
             army.DeadMaterial = Lit("Dead", new Color(0.16f, 0.14f, 0.12f), 0.1f);
+            army.UsSoldiers = SoldierSet("soldier_us");
+            army.VcSoldiers = SoldierSet("soldier_vc");
             root.ArmyView = army;
 
             var dressGo = new GameObject("Dressing");
@@ -331,6 +333,25 @@ namespace LanesOfVietnam.Tools
 
         private static Vector4 MipBiasFor(string species)
             => species.Contains("grass") ? GrassBias : new Vector4(0.5f, 1.75f, 40, 90);
+
+        /// <summary>A baked soldier set (Art/Soldiers), lit by the foliage shader without wind, leaf glow or field shade.</summary>
+        private static PlantSet SoldierSet(string name)
+        {
+            const string dir = "Assets/_Project/Art/Soldiers";
+            var json = AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/{name}.json");
+            if (json == null) return default;
+            foreach (var f in new[] { "albedo", "normal" }) AssetDatabase.ImportAsset($"{dir}/{name}_{f}.png", ImportAssetOptions.ForceUpdate);
+            var m = Mat(name, Shader.Find("LOV/Foliage"), null);
+            m.SetTexture("_Albedo", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_albedo.png"));
+            m.SetTexture("_Normal", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_normal.png"));
+            m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);
+            m.SetFloat("_Wind", 0f);
+            m.SetFloat("_Translucency", 0f);
+            m.SetFloat("_FieldOcclusion", 0f);
+            m.SetVector("_MipBias", new Vector4(0.25f, 0.75f, 40, 90));
+            EditorUtility.SetDirty(m);
+            return new PlantSet { Name = name, Layout = json, Material = m };
+        }
 
         private static VolumeProfile PostProfile()
         {
