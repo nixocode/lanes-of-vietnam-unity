@@ -22,7 +22,14 @@ namespace LanesOfVietnam.View
     /// PLAN §12.3; it costs one quad a man and two draw calls, where 60
     /// skinned men were the plan's biggest WebGL risk.
     ///
-    /// Without them, the grey box: a capsule per man, coloured by side,
+    /// With 3D soldiers (SoldierBuilder: a skinned man per side on a Humanoid
+    /// avatar, PLAN §12.3's own step), each man is a <see cref="SoldierFigure"/>
+    /// instead, stepped by match time: he turns to where he is going, to the
+    /// man he is shooting at, and at rest to the enemy; his gait follows his
+    /// smoothed speed; his rifle kicks on every shot the sim fired. They take
+    /// precedence over the sprites.
+    ///
+    /// Without either, the grey box: a capsule per man, coloured by side,
     /// shaped by posture, fallen when dead.
     /// </summary>
     public sealed class ArmyView : MonoBehaviour
@@ -33,6 +40,9 @@ namespace LanesOfVietnam.View
         /// <summary>Baked soldiers, one set per side. Empty: capsules.</summary>
         public PlantSet UsSoldiers;
         public PlantSet VcSoldiers;
+        /// <summary>3D soldiers, one prefab per side. When both are set, they are drawn.</summary>
+        public SoldierFigure UsFigure;
+        public SoldierFigure VcFigure;
 
 
         private readonly List<Transform> _men = new List<Transform>();
@@ -40,6 +50,11 @@ namespace LanesOfVietnam.View
         private Mesh _capsule;
 
         public int Drawn { get; private set; }
+        /// <summary>Milliseconds the last Draw took: for the 3D men, stepping every Animator and its IK.</summary>
+        public float LastDrawMs { get; private set; }
+        /// <summary>The 3D man drawn for a man, or null (sprites, capsules, or not drawn yet).</summary>
+        public SoldierFigure FigureOf(int id) => id >= 0 && id < _figures.Count ? _figures[id] : null;
+        private readonly System.Diagnostics.Stopwatch _clock = new System.Diagnostics.Stopwatch();
 
         private void Awake()
         {
@@ -54,6 +69,12 @@ namespace LanesOfVietnam.View
             foreach (var t in _men) if (t != null) Destroy(t.gameObject);
             _men.Clear();
             _renderers.Clear();
+            foreach (var f in _figures) if (f != null) Destroy(f.gameObject);
+            _figures.Clear();
+            _matchTime = -1f;
+            System.Array.Clear(_vz, 0, _vz.Length);
+            System.Array.Clear(_shot, 0, _shot.Length);
+            for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
             System.Array.Clear(_speed, 0, _speed.Length);
@@ -66,7 +87,19 @@ namespace LanesOfVietnam.View
 
         private Sprites _us, _vc;
         private float[] _walked = new float[0];
-        private float[] _speed = new float[0], _vx = new float[0];
+        private float[] _speed = new float[0], _vx = new float[0], _vz = new float[0], _yaw = new float[0];
+        /// <summary>Whom each man last fired at (-1 no one), and whether he fired since the last frame.</summary>
+        private int[] _target = new int[0];
+        private bool[] _shot = new bool[0];
+        private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
+        private float _matchTime = -1f;
+        /// <summary>Match time each figure is owed, when it is stepped less than every frame.</summary>
+        private float[] _pending = new float[0];
+        private Camera _cam;
+        /// <summary>A man drawn this many pixels tall or more is animated every frame.</summary>
+        public const float NearPixels = 110f;
+        /// <summary>How many figures were stepped in the last Draw.</summary>
+        public int Stepped { get; private set; }
         private bool[] _moving = new bool[0], _faceLeft = new bool[0];
         private int _speedTick = -1;
         /// <summary>Metres a second: above this a standing man jogs rather than walks.</summary>
@@ -137,30 +170,41 @@ namespace LanesOfVietnam.View
             return "idle" + Mathf.RoundToInt(p * (c.frames - 1)).ToString("00");
         }
 
-        private void DrawSprites(MatchDriver d, Ground g)
+        /// <summary>
+        /// What the view knows of each man beyond the sim's state: who fired and
+        /// at whom, read once from the sim's events; and his speed and heading,
+        /// from the sim's own steps, once a tick, smoothed over ~0.3 s and
+        /// started and stopped at different speeds.
+        /// </summary>
+        private void Track(MatchDriver d)
         {
             var st = d.State;
             if (_walked.Length < st.Men.Count)
             {
-                System.Array.Resize(ref _walked, st.Men.Count * 2);
-                System.Array.Resize(ref _last, st.Men.Count * 2);
-                System.Array.Resize(ref _speed, st.Men.Count * 2);
-                System.Array.Resize(ref _vx, st.Men.Count * 2);
-                System.Array.Resize(ref _moving, st.Men.Count * 2);
-                System.Array.Resize(ref _faceLeft, st.Men.Count * 2);
+                int n = st.Men.Count * 2;
+                System.Array.Resize(ref _walked, n);
+                System.Array.Resize(ref _last, n);
+                System.Array.Resize(ref _speed, n);
+                System.Array.Resize(ref _vx, n);
+                System.Array.Resize(ref _vz, n);
+                System.Array.Resize(ref _yaw, n);
+                System.Array.Resize(ref _moving, n);
+                System.Array.Resize(ref _faceLeft, n);
+                System.Array.Resize(ref _shot, n);
                 int old = _firedAt.Length;
-                System.Array.Resize(ref _firedAt, st.Men.Count * 2);
-                for (int k = old; k < _firedAt.Length; k++) _firedAt[k] = -1000;
+                System.Array.Resize(ref _firedAt, n);
+                System.Array.Resize(ref _target, n);
+                for (int k = old; k < n; k++) { _firedAt[k] = -1000; _target[k] = -1; }
             }
-            // Who has fired, and when: the sim's own events, read once each.
             if (_eventCursor > st.Events.Count) _eventCursor = 0;
             for (; _eventCursor < st.Events.Count; _eventCursor++)
             {
                 var e = st.Events[_eventCursor];
-                if (e.Kind == EventKind.Fire && e.Id < _firedAt.Length) _firedAt[e.Id] = e.Tick;
+                if (e.Kind != EventKind.Fire || e.Id >= _firedAt.Length) continue;
+                _firedAt[e.Id] = e.Tick;
+                _target[e.Id] = e.Target ?? -1;
+                _shot[e.Id] = true;
             }
-            // Speed and heading, from the sim's own steps, once a tick: smoothed
-            // over ~0.3 s, and started and stopped at different speeds.
             if (st.Tick != _speedTick)
             {
                 int ticks = _speedTick < 0 || st.Tick < _speedTick ? 1 : st.Tick - _speedTick;
@@ -171,6 +215,7 @@ namespace LanesOfVietnam.View
                     float v = (float)(System.Math.Sqrt(dx * dx + dz * dz) / Tune.Dt);
                     _speed[i] += (v - _speed[i]) * k;
                     _vx[i] += ((float)(dx / Tune.Dt) - _vx[i]) * k;
+                    _vz[i] += ((float)(dz / Tune.Dt) - _vz[i]) * k;
                     if (_moving[i]) { if (_speed[i] < 0.15f) _moving[i] = false; }
                     else if (_speed[i] > 0.35f) _moving[i] = true;
                     // Face the way he is going; at rest, the enemy. A man moving
@@ -180,6 +225,12 @@ namespace LanesOfVietnam.View
                 }
                 _speedTick = st.Tick;
             }
+        }
+
+        private void DrawSprites(MatchDriver d, Ground g)
+        {
+            var st = d.State;
+            Track(d);
             float viewTime = GameRoot.Instance != null ? GameRoot.Instance.ViewTime : Time.time;
             foreach (var sp in new[] { _us, _vc })
             {
@@ -246,8 +297,97 @@ namespace LanesOfVietnam.View
             }
         }
 
+        /// <summary>The muzzle of a man's rifle, where there is a 3D man to have one.</summary>
+        public bool TryMuzzle(int id, out Vector3 p)
+        {
+            var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
+            p = f != null ? f.MuzzlePosition : default;
+            return f != null;
+        }
+
+        private void DrawFigures(MatchDriver d, Ground g)
+        {
+            var st = d.State;
+            Track(d);
+            // The men move on match time: still when paused, faster at 3x. A
+            // jump (a fast-forward, a capture) settles them where the sim is.
+            float now = (float)((st.Tick + d.Alpha) * Tune.Dt);
+            bool jump = _matchTime >= 0 && now - _matchTime > 0.5f;
+            float dt = _matchTime < 0 || now < _matchTime ? 0f : Mathf.Min(now - _matchTime, 0.25f);
+            _matchTime = now;
+            while (_figures.Count < st.Men.Count) _figures.Add(null);
+            while (_pending.Length < _figures.Count) System.Array.Resize(ref _pending, _figures.Count * 2);
+            _cam ??= Camera.main;
+            float pxPerMetre = _cam != null ? Screen.height / (2f * Mathf.Tan(_cam.fieldOfView * 0.5f * Mathf.Deg2Rad)) : 1000f;
+            int frame = Time.frameCount;
+            Drawn = 0;
+            Stepped = 0;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                var (x, z) = d.Position(i);
+                bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (!_moving[i] || _speed[i] < RunAbove);
+                // Where he faces, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
+                float yaw = _yaw[i];
+                if (m.Alive)
+                {
+                    int tg = _target[i];
+                    if (aiming && tg >= 0 && tg < st.Men.Count)
+                    {
+                        var (tx, tz) = d.Position(tg);
+                        yaw = Mathf.Atan2((float)(tx - x), (float)-(tz - z)) * Mathf.Rad2Deg;
+                    }
+                    else if (_moving[i]) yaw = Mathf.Atan2(_vx[i], -_vz[i]) * Mathf.Rad2Deg;
+                    else yaw = m.Side == Side.Us ? 90f : -90f;
+                }
+                var f = _figures[i];
+                bool fresh = f == null;
+                if (fresh)
+                {
+                    f = _figures[i] = Instantiate(m.Side == Side.Us ? UsFigure : VcFigure, transform);
+                    f.name = $"man {i}";
+                    f.transform.localScale = Vector3.one * (0.95f + 0.08f * Hash(m.Id, 2));
+                    _yaw[i] = yaw;
+                }
+                // Turned at most 300 degrees a second of match time: a man pivots, he does not snap.
+                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, 300f * dt);
+                var at = Coords.World(x, z, (float)g.HeightAt(x, z));
+                f.transform.SetPositionAndRotation(at, Quaternion.Euler(0, _yaw[i], 0));
+                int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
+                float speed = _moving[i] ? _speed[i] : 0f;
+                int death = (int)(Hash(m.Id, 1) * 16);
+                if (_shot[i]) { f.Fire(); _shot[i] = false; }
+                Drawn++;
+                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death); _pending[i] = 0; Stepped++; continue; }
+                // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
+                // stepped every other frame and skinned with two bones a vertex;
+                // one off it, every fourth. Staggered by id, so the work is even.
+                int every = 1;
+                if (_cam != null)
+                {
+                    var vp = _cam.WorldToViewportPoint(at + Vector3.up);
+                    float px = vp.z > 0.1f ? 1.8f * pxPerMetre / vp.z : 0f;
+                    bool seen = vp.z > 0.1f && vp.x > -0.08f && vp.x < 1.08f && vp.y > -0.1f && vp.y < 1.2f;
+                    every = !seen ? 4 : px < NearPixels ? 2 : 1;
+                    f.Body.quality = every == 1 ? SkinQuality.Bone4 : SkinQuality.Bone2;
+                }
+                _pending[i] += dt;
+                if ((frame + i) % every != 0) continue;
+                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death);
+                _pending[i] = 0;
+                Stepped++;
+            }
+        }
+
         public void Draw(MatchDriver d, Ground g)
         {
+            if (UsFigure != null && VcFigure != null)
+            {
+                _clock.Restart();
+                DrawFigures(d, g);
+                LastDrawMs = (float)_clock.Elapsed.TotalMilliseconds;
+                return;
+            }
             if (_us == null && UsSoldiers.Layout != null) _us = Load(UsSoldiers, "soldiers us");
             if (_vc == null && VcSoldiers.Layout != null) _vc = Load(VcSoldiers, "soldiers vc");
             if (_us != null && _vc != null) { DrawSprites(d, g); return; }

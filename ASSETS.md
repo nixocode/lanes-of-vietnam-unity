@@ -311,6 +311,45 @@ Mixamo-driven Humanoid motion) exist. It costs one quad per man.
 | `soldier_vc_albedo.png` | `4d6d02154f9ec7062b75dd80210884c59e0052733aa4ef3aa9e6ea54fdceb2b9` |
 | `soldier_vc_normal.png` | `5de2e0ad9f6b42620e4660678a6770c8a1b4fb98a0b507202393886c51f9f2a8` |
 
+### Soldiers (3D) — `Assets/_Project/Art/Soldiers3D/`
+
+**Our own work**, from the same sources as the sprites above: the rigged
+MPFB2 soldiers (CC0 body, our kit, ambientCG CC0 fabric and metal scans),
+made into skinned FBX by `tools/blender/soldier_rig.py` for Unity's Humanoid
+avatar (PLAN §12.3). Per side:
+
+- **Atlas:** the nine materials baked by Cycles into one 2048 atlas (shipped
+  at 1024): albedo, tangent-space normal, and a mask (metallic, occlusion
+  within 8 cm, smoothness). Each material is baked at **its palette albedo**:
+  the earlier build's scans were meant to carry only pattern under a palette
+  colour but were never normalised (fatigue scan median 0.053, leather 0.012),
+  so each is divided by its own median. Baked: boots 0.021, US fatigue 0.083
+  (OG-107, the sprite bake's measured 0.085), VC black cotton 0.030, gun steel
+  0.040, webbing 0.141. Skin set to sun-darkened (0.20 US, 0.17 VC; MPFB's
+  default 0.30 rendered chalk-white).
+- **Rifle:** split off the body, rigid on the right hand, with the support
+  hand's grip and the muzzle marked on it.
+- **Body:** decimated after the bake to 7,000 triangles (US 6,306 vertices);
+  53 bones; 1.89 m (US), 1.69 m (VC).
+
+**Interim clips** (`soldier_poses.fbx`), until Mixamo's: the sprite bake's
+poses (hold, three aims, kneel, prone, two dead) and its four CMU takes (the
+table above) as keyed actions at 30 fps: walk 35 frames, run 24, crouch 38,
+idle 178 (forward and back). Same CMU terms as above: the converted data ships
+inside the game, never on its own.
+
+| file | sha256 |
+|---|---|
+| `soldier_us.fbx` | `21d4aa9f82546c456c9b5752e777ce741a393423a76cb80d2b3cde0780d78d8a` |
+| `soldier_vc.fbx` | `c8fb5cedfffc5f745b545d339cea6a3f6a3d04c39ccd70339b7ff4db6817457b` |
+| `soldier_poses.fbx` | `63719207f01d22d2bca110bef40e9bae2a65464aef441d34aae8ae58bb7c67af` |
+| `soldier_us_albedo.png` | `c8848c63ae3a7394100f5a8643d8c082f10a402dfca0b90c4d33c37e0efd46c5` |
+| `soldier_us_normal.png` | `504bd3f995cc6a30274336a7319ee83a083e6bb8c88b52aac143940646705c54` |
+| `soldier_us_mask.png` | `87f1d24455757db100c253efbbee7639e7e0dce99d72728830371b661dcc0a8a` |
+| `soldier_vc_albedo.png` | `dee3ef69effe588ed99db63fb75e552645eb78df9f647e74254e6ff20e6860a3` |
+| `soldier_vc_normal.png` | `0cbc0ad1ddf107e41aea135f1a8895c360fdfb82bb5e2b937ccedfa93ffe5add` |
+| `soldier_vc_mask.png` | `0549a989669c5312bd3394aeb95d6090e6a20985691cfe0cf135fbc73b00cfa9` |
+
 ### Props — `Assets/_Project/Art/Props/`
 
 **Sandbag walls, built** (nothing scanned exists). The bag cloth is ambientCG

@@ -37,6 +37,7 @@ crashlytics-build.properties
 captures/*.png
 captures/*.json
 captures/plants/
+captures/soldiers/
 !captures/.gitkeep
 
 # Headless sim runner build output.
@@ -62,3 +63,6 @@ Assets/StreamingAssets/Audio/licensed/*
 # (the owner's decision for a public repo, 2026-09-30).
 Assets/_Licensed/*
 !Assets/_Licensed/**/*.meta
+
+# Python's bytecode cache (tools import each other's modules).
+__pycache__/

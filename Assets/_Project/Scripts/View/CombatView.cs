@@ -169,7 +169,8 @@ namespace LanesOfVietnam.View
             var a = Chest(shooter);
             var b = Chest(target);
             var aim = (b - a).normalized;
-            var muzzle = a + aim * 0.6f;
+            // The rifle's own muzzle where there is a 3D man holding one.
+            var muzzle = _root.ArmyView != null && _root.ArmyView.TryMuzzle(shooter.Id, out var mz) ? mz : a + aim * 0.6f;
             Vector3 end;
             if (hit) end = b;
             else
