@@ -161,6 +161,26 @@ more at a clump's edge than at its heart.
 | `Foliage005_2K-PNG.zip` | `0bb1a252473d9d349d5dc14e4cb6895b34f4647617bf88b5540c059855bddb1e` |
 | `Foliage008_2K-PNG.zip` | `9d09de2c1cc96b818485984e1f6fcacaf11c4119b28f988689cf6c5d82fad98b` |
 
+**Coconut palm, built** (the fallback below, used while the Sketchfab palms
+wait for a login):
+- **Trunk:** Poly Haven **`palm_tree_bark`** (Dimitrios Savva, photography;
+  Rico Cilliers, processing; **CC0**; 1.3 m scan), fetched 2026-09-30 as 2K PNG.
+  Grey, ringed by leaf scars, which is exactly a coconut trunk.
+- **Leaflets:** Foliage008's scanned blades.
+
+`plant_bake.py` builds four variants, 13.8–16.1 m of trunk. Each has:
+- a trunk that leans and curves, swollen at the foot;
+- 20–22 fronds at golden-angle spacing, arching and drooping, with leaflets
+  hanging from both sides in a V;
+- 2–4 dead fronds, browned from the same scan;
+- a bunch of nuts.
+They are laid in the game at 10–14 m.
+
+| file | sha256 |
+|---|---|
+| `palm_tree_bark_diff_2k.png` (source) | `5ecba9e0d2179b5f0fb553f7ddfc8092e0596162aeeeebbe1cc2c4f55f2856d4` |
+| `palm_tree_bark_nor_gl_2k.png` (source) | `8aace15f59844d98825b3623edfa22d47f7d14fa772d1df448e1a0d5a9eebeca` |
+
 **Palms, bamboo, banana, elephant ear: the preferred sources need a login.**
 These were surveyed on Sketchfab through its public API (downloadable,
 commercial use allowed, sorted by likes), and the thumbnails were compared.

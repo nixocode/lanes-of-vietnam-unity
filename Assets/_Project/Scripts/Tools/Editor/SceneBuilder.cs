@@ -301,10 +301,12 @@ namespace LanesOfVietnam.Tools
 
         /// <summary>
         /// Foliage mip bias (near, far, from m, to m), by measurement against
-        /// Flicker (PLAN §7): the broadleaf plants hold at 0.5 near; grass blades
-        /// are 3 cm wide, a pixel and a half at 25 m, and need more.
+        /// Flicker (PLAN §7) with TAA at Very High, jitter 0.35: the broadleaf
+        /// plants hold at 0.5 near; grass blades, a pixel or two wide at 25 m,
+        /// need 1.0 (whole frame 0.70, foreground 1.10; at 1.5 the blades blur
+        /// into blobs, at 0.5 the foreground shimmers at 1.46).
         /// </summary>
-        public static Vector4 GrassBias = new Vector4(1.5f, 2f, 40, 90);
+        public static Vector4 GrassBias = new Vector4(1.0f, 1.5f, 40, 90);
         public static float GrassDither = 0f;
         /// <summary>How much a species' neighbours shade its lower parts: grass grows in a dense sward, understory in thickets.</summary>
         public static float GrassFieldOcclusion = 0.7f;
