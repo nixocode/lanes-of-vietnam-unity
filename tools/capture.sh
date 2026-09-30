@@ -20,7 +20,7 @@ UNITY_LOG="${UNITY_LOG:-$proj/Logs/capture.log}" "$here/unity.sh" \
 code=$?
 [[ -f "$proj/$out" || -f "$out" ]] || { echo "capture.sh: no image written ($out)" >&2; exit 1; }
 
-PY="${LOV_PYTHON:-python3}"
+PY="${LOV_PYTHON:-$here/.venv/bin/python}"; [[ -x "$PY" ]] || PY=python3
 if "$PY" -c "import numpy, PIL" 2>/dev/null; then
   "$PY" "$here/lookmeter.py" "$proj/$out"
 else

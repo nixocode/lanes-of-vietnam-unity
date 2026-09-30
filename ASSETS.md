@@ -31,6 +31,29 @@ condensed sans for card names — brief §7 says the image wins over the text.
 | `CourierPrime-Regular.ttf`, `-Bold.ttf` | Courier Prime | the orders line (typewritten field orders) | `72f793376f8e2841656bf21d77a5de010f2929bd6956a22ee848ad0c7eb978af`<br>`ff1f38786c849d1c41fa8e447960abdb2bd75fdfb0cfcdeb524fad65a5af3638` |
 | `BebasNeue-Regular.ttf` | Bebas Neue (Dharma Type) | card names and numbers | `08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73` |
 
+### Sky — `Assets/_Project/Art/Sky/`
+
+**Sunflowers (Pure Sky)**, Poly Haven, **CC0**. Original by Sergej Majboroda,
+sky edits by Jarod Guest; 6550 K white balance, 23 EV captured, midday, partly
+cloudy. Fetched **2026-09-30** from
+`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/16k/sunflowers_puresky_16k.hdr`
+(page: `https://polyhaven.com/a/sunflowers_puresky`). The raw HDRIs are kept in
+`SourceArt/polyhaven/` (gitignored, re-fetchable); what ships is baked from them
+by `tools/blender/sky_bake.py` (sun placed at azimuth −125°, behind the camera's
+left shoulder; image rotated −161.2°; exposure k 0.840).
+
+Chosen because its clouds are cumulus in a
+hazy blue, the reference's sky, and the sun is high (43°) so the light is
+tropical midday rather than golden hour.
+
+| file | what | sha256 |
+|---|---|---|
+| `sunflowers_puresky_16k.hdr` (source) | 16384 × 8192 HDR, 266 MB | `5ed829797dc1c5c555591135bb01e1ce2339f13b1627dcabf39616434bfc090d` |
+| `sunflowers_puresky_1k.hdr` (source) | 1024 × 512, for previews | `39a18be788fda30e1b1929d4ebd78b5da14433a6e2271eff1928a35e481c5111` |
+| `sky_window.png` | the visible window, az −32..32°, el −2..24°, 2560 × 1040 at 40 px/degree | `f7dd88246ced2275db0d6fc2a9c9c09e48c44bfe21961e6e9959e7ab3618929e` |
+| `sky_full.png` | whole sphere, 1024 × 512, sun clamped | `5ade63bd00120a05de5d63043baf43fc7226f54cfd0d4f3b923c7c4dbc57fb87` |
+| `sky.json` | k, window, sun direction and irradiance, 64 × 32 radiance grid | `8c177aede64e05e36c5f6f7116565f1640038f657948565fca88c0ade4452f30` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 

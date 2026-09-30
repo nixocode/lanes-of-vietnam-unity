@@ -52,8 +52,15 @@ namespace LanesOfVietnam.Tools
 
             RenderSettings.sun = sun;
             RenderSettings.skybox = SkyMaterial();
-            // Ambient as three colours for now: sky above, haze at the horizon,
-            // bounced earth below. The art pass derives it from the sky itself.
+            // The sun, the ambient and the fog colour are set at load from the
+            // same baked sky the player sees (SkyLighting); the values below are
+            // only what the Editor shows before play.
+            var skyLight = sunGo.AddComponent<SkyLighting>();
+            skyLight.Sun = sun;
+            skyLight.SkyMaterial = RenderSettings.skybox;
+            skyLight.SkyJson = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Sky/sky.json");
+            if (skyLight.SkyJson == null) throw new System.Exception("sky.json missing — run tools/blender/sky_bake.py");
+            // Edit-mode stand-ins only; SkyLighting replaces all four at load.
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.62f, 0.70f, 0.78f);
             RenderSettings.ambientEquatorColor = new Color(0.55f, 0.58f, 0.55f);
@@ -194,14 +201,15 @@ namespace LanesOfVietnam.Tools
             return ps;
         }
 
+        /// <summary>The photographed sky (tools/blender/sky_bake.py), drawn by LOV/Sky.</summary>
         private static Material SkyMaterial()
         {
-            var m = Mat("Sky", Shader.Find("Skybox/Procedural"), null);
-            m.SetFloat("_SunSize", 0.02f);
-            m.SetFloat("_AtmosphereThickness", 0.72f);
-            m.SetColor("_SkyTint", new Color(0.62f, 0.66f, 0.70f));
-            m.SetColor("_GroundColor", new Color(0.40f, 0.42f, 0.40f));
-            m.SetFloat("_Exposure", 1.25f);
+            const string dir = "Assets/_Project/Art/Sky/";
+            foreach (var f in new[] { "sky_window.png", "sky_full.png" })
+                AssetDatabase.ImportAsset(dir + f, ImportAssetOptions.ForceUpdate);
+            var m = Mat("Sky", Shader.Find("LOV/Sky"), null);
+            m.SetTexture("_Window", AssetDatabase.LoadAssetAtPath<Texture2D>(dir + "sky_window.png"));
+            m.SetTexture("_Full", AssetDatabase.LoadAssetAtPath<Texture2D>(dir + "sky_full.png"));
             EditorUtility.SetDirty(m);
             return m;
         }
@@ -230,7 +238,11 @@ namespace LanesOfVietnam.Tools
             vig.intensity.Override(0.22f);
             vig.smoothness.Override(0.45f);
             var col = p.Add<ColorAdjustments>(true);
-            col.postExposure.Override(0.0f);
+            // The camera's exposure, set so the photographed sky lands where the
+            // reference's does: pure sky L* 87.0 against 88.5 (0 EV gives 74.4,
+            // +0.6 gives 82.8). Everything else is lit by that same sky, so its
+            // brightness is then a matter of albedo, not of this dial.
+            col.postExposure.Override(1.0f);
             col.contrast.Override(8f);
             col.saturation.Override(0f);
             foreach (var c in p.components) AssetDatabase.AddObjectToAsset(c, p);
