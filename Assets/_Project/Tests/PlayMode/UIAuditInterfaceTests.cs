@@ -90,6 +90,41 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(cam.x, rec.ListenerX, 0.01f, "the listener is not at the camera");
         }
 
+        /// <summary>
+        /// The owner: "need to be able to move side to side with mouse as well
+        /// as zoom". Zooming narrows the lens and brings the camera in, and
+        /// back out again; panning and dragging move it along the line, the
+        /// ground following the cursor.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_camera_zooms_and_pans_with_the_mouse()
+        {
+            yield return LoadAndDeploy();
+            var rig = Root.CameraRig;
+            var cam = rig.Camera;
+            float fov0 = cam.fieldOfView, z0 = cam.transform.position.z, x0 = rig.X;
+
+            rig.ZoomBy(1f);
+            yield return new WaitForSecondsRealtime(0.8f);
+            Assert.Less(cam.fieldOfView, fov0 - 5f, "zooming in did not narrow the lens");
+            Assert.Greater(cam.transform.position.z, z0 + 10f, "zooming in did not bring the camera in");
+            rig.ZoomBy(-1f);
+            yield return new WaitForSecondsRealtime(0.8f);
+            Assert.AreEqual(fov0, cam.fieldOfView, 0.3f, "zooming out did not come back");
+
+            rig.PanBy(20f);
+            yield return new WaitForSecondsRealtime(0.8f);
+            Assert.AreEqual(x0 + 20f, rig.X, 0.5f, "panning did not move the camera along the line");
+
+            // Dragging the ground to the left moves the view to the right.
+            float x1 = rig.X;
+            rig.BeginDrag(new Vector2(Screen.width * 0.6f, Screen.height * 0.5f));
+            rig.DragTo(new Vector2(Screen.width * 0.3f, Screen.height * 0.5f));
+            rig.EndDrag();
+            yield return new WaitForSecondsRealtime(0.8f);
+            Assert.Greater(rig.X, x1 + 3f, "a drag did not pan");
+        }
+
         [UnityTest, Category("UIAudit")]
         public IEnumerator The_hud_shows_the_match()
         {
