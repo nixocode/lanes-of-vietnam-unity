@@ -137,7 +137,18 @@ namespace LanesOfVietnam.Tests
                     var view = hud.Cards.Single(c => c.Card == card);
                     st.Cp[(int)side] = 500;
                     foreach (var m in st.Men) if (m.Alive) m.Pin = 0.6;     // so a medevac has pin to take away
+                    // Room under the force cap, through the sim's own kill: buying
+                    // every unit card in a row reaches the cap or not depending on
+                    // how many died in this seed's match, which made this test pass
+                    // or fail by the clock.
+                    if (card.Pips > 0)
+                        foreach (var m in st.Men.Where(m => m.Alive && m.Side == side).ToList())
+                        {
+                            if (Match.AliveCount(st, side) < Tune.ForceCap) break;
+                            Combat.Kill(st, m);
+                        }
                     yield return null;
+                    Assert.IsNull(Deck.Blocked(st, side, card), $"{card.Id} blocked");
                     Assert.IsFalse(view.Poor, $"{card.Id} dimmed with 500 CP");
 
                     Assert.IsTrue(dep.Arm(card), $"{card.Id} would not arm");

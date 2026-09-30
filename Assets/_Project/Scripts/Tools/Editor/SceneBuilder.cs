@@ -93,6 +93,7 @@ namespace LanesOfVietnam.Tools
             vol.isGlobal = true;
             vol.priority = 0;
             vol.sharedProfile = PostProfile();
+            skyLight.Post = vol;
 
             // --- the game -----------------------------------------------------------
             var game = new GameObject("Game");
@@ -102,7 +103,7 @@ namespace LanesOfVietnam.Tools
             var groundGo = new GameObject("Ground");
             groundGo.transform.SetParent(game.transform, false);
             var ground = groundGo.AddComponent<GroundView>();
-            ground.Material = Mat("Ground", Shader.Find("LOV/Ground"), null);
+            ground.Material = GroundMaterial();
             root.GroundView = ground;
 
             var coverGo = new GameObject("Cover");
@@ -214,6 +215,45 @@ namespace LanesOfVietnam.Tools
             return m;
         }
 
+        [System.Serializable] private class TerrainLayer { public string name; public float tile_m; }
+        [System.Serializable] private class TerrainLayers { public int size; public TerrainLayer[] layers; }
+
+        /// <summary>The ground's scanned layers (tools/art/terrain_pack.py), tiled as the pack says.</summary>
+        private static Material GroundMaterial()
+        {
+            const string dir = "Assets/_Project/Art/Terrain/";
+            var json = AssetDatabase.LoadAssetAtPath<TextAsset>(dir + "ground_layers.json");
+            if (json == null) throw new System.Exception("ground_layers.json missing — run tools/art/terrain_pack.py");
+            var info = JsonUtility.FromJson<TerrainLayers>(json.text);
+            if (info.layers.Length != 4) throw new System.Exception($"the ground shader takes 4 layers, the pack has {info.layers.Length}");
+
+            var m = Mat("Ground", Shader.Find("LOV/Ground"), null);
+            var tile = Vector4.zero;
+            long bytes = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                foreach (var map in new[] { "albedo", "normal" })
+                {
+                    string path = $"{dir}ground_{i}_{info.layers[i].name}_{map}.png";
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                    if (tex == null) throw new System.Exception($"{path} missing — run tools/art/terrain_pack.py");
+                    m.SetTexture(map == "albedo" ? $"_Albedo{i}" : $"_Normal{i}", tex);
+                    bytes += UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(tex);
+                    if (i == 0) Debug.Log($"[LOV] ground {map}: {tex.width}x{tex.height} {tex.graphicsFormat}");
+                }
+                tile[i] = info.layers[i].tile_m;
+            }
+            m.SetVector("_Tile", tile);
+            // One mip level of bias. Measured on a still frame (TAA on): near-ground
+            // shimmer 0.424 mean |dL*| at 1, 0.317 at 1.5, 0.242 at 2; through the
+            // field glasses the softening at 2 is barely visible.
+            m.SetFloat("_GradScale", 2f);
+            EditorUtility.SetDirty(m);
+            Debug.Log($"[LOV] ground layers: 4 x (albedo + normal), {bytes / 1048576f:F1} MB in memory");
+            return m;
+        }
+
         private static VolumeProfile PostProfile()
         {
             var p = AssetDatabase.LoadAssetAtPath<VolumeProfile>(PostProfilePath);
@@ -228,8 +268,12 @@ namespace LanesOfVietnam.Tools
             // flashes bloom, and a vignette. PLAN §6's stack, kept small: each
             // piece subtle enough that turning it off is noticeable but turning
             // it on is not obvious.
+            // Neutral, not ACES: with the scanned ground and the photographed
+            // sky, ACES pushed every band's saturation past the reference's
+            // (sky/treeline/far/near 20/28/37/33 against 11/17/22/34), and
+            // Neutral lands near it (14/17/29/29) at the same white balance.
             var tone = p.Add<Tonemapping>(true);
-            tone.mode.Override(TonemappingMode.ACES);
+            tone.mode.Override(TonemappingMode.Neutral);
             var bloom = p.Add<Bloom>(true);
             bloom.threshold.Override(1.15f);
             bloom.intensity.Override(0.35f);
@@ -271,7 +315,29 @@ namespace LanesOfVietnam.Tools
                 AssetDatabase.CreateAsset(m, path);
             }
             else m.shader = shader;
+            PruneStale(m);
             return m;
+        }
+
+        /// <summary>
+        /// Drop saved properties the current shader does not declare. A material
+        /// keeps every property it ever had, so a rewritten shader leaves texture
+        /// references to files that no longer exist.
+        /// </summary>
+        private static void PruneStale(Material m)
+        {
+            var so = new SerializedObject(m);
+            foreach (var list in new[] { "m_TexEnvs", "m_Floats", "m_Colors", "m_Ints" })
+            {
+                var props = so.FindProperty("m_SavedProperties." + list);
+                if (props == null) continue;
+                for (int i = props.arraySize - 1; i >= 0; i--)
+                {
+                    string name = props.GetArrayElementAtIndex(i).FindPropertyRelative("first").stringValue;
+                    if (!m.HasProperty(name)) props.DeleteArrayElementAtIndex(i);
+                }
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

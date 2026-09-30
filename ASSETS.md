@@ -54,6 +54,60 @@ tropical midday rather than golden hour.
 | `sky_full.png` | whole sphere, 1024 × 512, sun clamped | `5ade63bd00120a05de5d63043baf43fc7226f54cfd0d4f3b923c7c4dbc57fb87` |
 | `sky.json` | k, window, sun direction and irradiance, 64 × 32 radiance grid | `8c177aede64e05e36c5f6f7116565f1640038f657948565fca88c0ade4452f30` |
 
+### Ground — `Assets/_Project/Art/Terrain/`
+
+Four scanned layers, all **CC0**, fetched **2026-09-30** as 2K PNG, packed by
+`tools/art/terrain_pack.py` into one albedo (RGB + height in alpha) and one
+normal per layer at 1024², crunched (quality 75). Raw downloads are in
+`SourceArt/` (gitignored). In the WebGL build the eight maps are **3.7 MB**.
+
+| slice | layer | source | scan | laid | albedo Y | URL |
+|---|---|---|---|---|---|---|
+| 0 | grass floor | ambientCG **Grass003** | 1.4 m | 1.6 m | 0.064 | `https://ambientcg.com/get?file=Grass003_2K-PNG.zip` |
+| 1 | verge | ambientCG **Ground047** | 3.0 m | 3.0 m | 0.061 | `https://ambientcg.com/get?file=Ground047_2K-PNG.zip` |
+| 2 | track | ambientCG **Ground103** | ~2 m (not published) | 2.2 m | 0.154 | `https://ambientcg.com/get?file=Ground103_2K-PNG.zip` |
+| 3 | disturbed earth | Poly Haven **brown_mud_03** (Rob Tuytel) | 1.3 m | 1.5 m | 0.077 | `https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/brown_mud_03/` (`_diff`, `_nor_gl`, `_disp`) |
+
+**How they were chosen.** 97 candidates were measured (72 from Poly Haven, 25
+from ambientCG) against the ground in TARGET.jpg: the track is tan-olive (hue
+81–94, chroma 10–19) and the grass olive (hue 92–96, chroma 15–22). About 55
+were compared on contact sheets. The finalists were viewed tiled 2 × 2 for
+seams and repeats, then rendered in the frame and through the field glasses.
+- **Grass003** is broad-bladed carpet grass, the Southeast Asian kind; it tiles
+  seamlessly. It is dark (0.064) because a dense sward shades itself.
+- **Ground047** is dirt broken by clumps of grass, which is what a verge is.
+- **Ground103** is the closest match to the track (hue 77, chroma 16).
+- **brown_mud_03** is dug clods; the craters and trench spoil need freshly
+  turned earth.
+
+**Rejected:**
+- **Grass004** (from the plan's vetted set): lawn green, hue 114 at chroma 35.
+- **Ground037** (from the vetted set): bright moss, albedo 0.30.
+- **Poly Haven `grass_ground`**: tried first, as the grass floor. It is dry
+  European lawn and rendered as sand.
+- **Poly Haven `grass_path_3`**: tried as the verge. A broad bright blob repeats
+  every tile.
+- **Poly Haven `brown_mud_02`**: a dark grid shows at its tile edges.
+- **Red laterite scans** (`red_laterite_soil_stones`, `red_mud_stones`,
+  `red_dirt_mud_01`): hue 48–60, redder than anything in the reference.
+
+| file | sha256 |
+|---|---|
+| `Grass003_2K-PNG.zip` (source) | `82a1db5a546134d06b99c564ef20836828239cd9264dc6995f33cb81242d938f` |
+| `Ground047_2K-PNG.zip` (source) | `742a44e6f25e85a2ba135e5bd95c97e15414e79b8e0d8f420a26ce32c61b3bce` |
+| `Ground103_2K-PNG.zip` (source) | `91dee59d83707a47d5c641ef193eac2473cffb7952df45bc2916aff63306acf3` |
+| `brown_mud_03_diff_2k.png` (source) | `ae08382a69e1e3186e08fbf53d467d8a4e1ca7b700db2e6981e563e2109d1e16` |
+| `brown_mud_03_nor_gl_2k.png` (source) | `bdfbef99813e714883271d1d1a92cd5790e22bd9c8bf54318a4d489cdc60aa3c` |
+| `brown_mud_03_disp_2k.png` (source) | `fac05fffc977b0b2c522660532aac6cbb541471936caa216e03b409073c6977d` |
+| `ground_0_grass_floor_albedo.png` | `50297f88d69bc7c24f54bb5ebe511e90995d2147af58daaafb53e260e7e83652` |
+| `ground_0_grass_floor_normal.png` | `3ce82d4a75c41e4b46230a00479e1b16faa6daa0a1523f9ffffc5ed2d24afcf2` |
+| `ground_1_verge_albedo.png` | `aa5e4b21f1fa6067baedeaecdb434d6cf669c868a2b608af3573eda70213a943` |
+| `ground_1_verge_normal.png` | `67f13de261acb1e3d62c80798e96ce59daf56f2a96e55eb72dede2463e851cdc` |
+| `ground_2_track_albedo.png` | `a34d1024ef6092f689020fe9a4fbc71f46bcf0a5ba064424834aa2799bc72993` |
+| `ground_2_track_normal.png` | `615abea38cbecac061cb35483a28f0d1f18e0ac03b89408f5e577328f263e9f8` |
+| `ground_3_disturbed_earth_albedo.png` | `418a06647f450156440b7a39c1152d5a4399161eb9843f5c9d70d0b712f5b5e6` |
+| `ground_3_disturbed_earth_normal.png` | `b8a71bcc585081f49057f900020c5aa3bd673c2f888c7a329c5a2391482ccbda` |
+
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 

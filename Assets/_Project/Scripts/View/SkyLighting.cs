@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace LanesOfVietnam.View
 {
@@ -32,6 +33,15 @@ namespace LanesOfVietnam.View
         /// <summary>Shares of the measured sun and sky. 1 is the photograph.</summary>
         [Range(0, 2)] public float SunShare = 1f;
         [Range(0, 2)] public float AmbientShare = 1f;
+        /// <summary>
+        /// The camera's white balance, as a photographer sets it: toward a grey
+        /// card lying in this light. 0 leaves the sky's own 6550 K balance, under
+        /// which the sun reads orange; 1 makes the card neutral, which turns
+        /// the greens teal. Set by measurement (see the commit that added it).
+        /// </summary>
+        [Range(0, 1)] public float WhiteBalance = 0.6f;
+        /// <summary>The post-processing volume whose colour filter carries the white balance.</summary>
+        public Volume Post;
 
         [Serializable] private class Win { public float az0, az1, el0, el1; }
         [Serializable] private class SunInfo { public float azimuth, elevation; public float[] dir_to_sun; public float[] irradiance_rgb; }
@@ -43,6 +53,8 @@ namespace LanesOfVietnam.View
         public Color HorizonLinear { get; private set; }
         public float ShCalibration { get; private set; }
         public bool ShDirectionTowardLight { get; private set; }
+        /// <summary>An 18% grey card lying flat in this light, relative to its green.</summary>
+        public Color GreyCard { get; private set; }
 
         private void Awake() => Apply();
 
@@ -67,7 +79,12 @@ namespace LanesOfVietnam.View
             if (Sun != null)
             {
                 Sun.transform.rotation = Quaternion.LookRotation(-toSun, Vector3.up);
-                Sun.color = new Color(E[0] / lumE, E[1] / lumE, E[2] / lumE);
+                // Light.color is read as gamma-encoded and linearised before
+                // use (as material colours are), so the measured linear colour
+                // is handed over gamma-encoded. Uncorrected, the sun was 29%
+                // too red and had half its blue. No colour temperature on top.
+                Sun.useColorTemperature = false;
+                Sun.color = new Color(E[0] / lumE, E[1] / lumE, E[2] / lumE).gamma;
                 SunIntensity = lumE / Mathf.PI * Scale * SunShare;
                 Sun.intensity = SunIntensity;
                 RenderSettings.sun = Sun;
@@ -98,13 +115,27 @@ namespace LanesOfVietnam.View
             RenderSettings.ambientMode = AmbientMode.Custom;
             RenderSettings.ambientProbe = sh;
 
+            // The grey card: the ambient an upward face samples, plus the sun on it.
+            var up = new Color[1];
+            sh.Evaluate(new[] { Vector3.up }, up);
+            var sunLinear = new Color(E[0] / lumE, E[1] / lumE, E[2] / lumE);
+            var card = up[0] + sunLinear * (lumE / Mathf.PI * Scale * SunShare) * Mathf.Max(0f, toSun.y);
+            GreyCard = card / card.g;
+            if (Post != null && Post.profile.TryGet<ColorAdjustments>(out var grade))
+            {
+                // Post.profile is a runtime copy: the asset is not touched.
+                var filter = new Color(Mathf.Pow(1f / GreyCard.r, WhiteBalance), 1f, Mathf.Pow(1f / GreyCard.b, WhiteBalance));
+                grade.colorFilter.Override(filter.gamma);    // read as gamma, like every colour
+            }
+
             // Fog takes the colour of the horizon it is fading toward.
             HorizonLinear = Horizon(g, info.window) * Scale;
             RenderSettings.fogColor = HorizonLinear.gamma;
 
             var win = SkyMaterial != null ? SkyMaterial.GetTexture("_Window") : null;
-            Debug.Log($"[LOV] sky light: window {(win != null ? $"{win.width}x{win.height}" : "none")}, sun {SunIntensity:F2} from az {info.sun.azimuth:F0} el {info.sun.elevation:F0}, "
-                      + $"horizon {HorizonLinear}, SH calibration {ShCalibration:F3} (toward light: {ShDirectionTowardLight})");
+            Debug.Log($"[LOV] sky light: window {(win != null ? $"{win.width}x{win.height} {win.graphicsFormat}" : "none")}, sun {SunIntensity:F2} from az {info.sun.azimuth:F0} el {info.sun.elevation:F0}, "
+                      + $"horizon {HorizonLinear}, SH calibration {ShCalibration:F3} (toward light: {ShDirectionTowardLight}), "
+                      + $"grey card {GreyCard.r:F3}:1:{GreyCard.b:F3}, white balance {WhiteBalance:F2}");
         }
 
         /// <summary>
