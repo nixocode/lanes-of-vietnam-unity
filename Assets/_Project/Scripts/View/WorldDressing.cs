@@ -229,15 +229,25 @@ namespace LanesOfVietnam.View
                 // Bamboo at the edge now and then: tall thin culms in a clump.
                 if (rng.Next() < 0.18)
                 {
+                    // The same draws as the grey box's culms, so the layout after
+                    // this point is unchanged; one baked clump stands for them.
                     int culms = rng.Int(5, 11);
+                    var stems = new List<(double x, double z, float h)>();
                     for (int c = 0; c < culms; c++)
-                    {
-                        double bx = x + rng.Range(-1.2, 1.2), bz = edge + rng.Range(-1.5, 0.5);
-                        float bh = (float)rng.Range(6, 11);
-                        float by = (float)g.HeightAt(bx, bz);
-                        Prim(PrimitiveType.Cylinder, Coords.World(bx, bz, by + bh * 0.5f), new Vector3(0.12f, bh * 0.5f, 0.12f), Foliage, "bamboo");
-                    }
+                        stems.Add((x + rng.Range(-1.2, 1.2), edge + rng.Range(-1.5, 0.5), (float)rng.Range(6, 11)));
+                    float tallest = 0;
+                    foreach (var st in stems) tallest = Mathf.Max(tallest, st.h);
+                    if (!Plant(g, x, edge - 0.5, tallest + 1.5f, "bamboo"))
+                        foreach (var (bx, bz, bh) in stems)
+                        {
+                            float by = (float)g.HeightAt(bx, bz);
+                            Prim(PrimitiveType.Cylinder, Coords.World(bx, bz, by + bh * 0.5f), new Vector3(0.12f, bh * 0.5f, 0.12f), Foliage, "bamboo");
+                        }
                 }
+                // Thickets toward the firebase end, as in the reference: bamboo
+                // walls the camp's side of the clearing.
+                if (x < 0 && _plantRng.Next() < 0.22 + 0.25 * Mathf.Clamp01((float)(-x / 60)))
+                    Plant(g, x + _plantRng.Range(-1.5, 1.5), edge + _plantRng.Range(-2.0, 1.0), (float)_plantRng.Range(8, 12.5), "bamboo");
             }
         }
 
