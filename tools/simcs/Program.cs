@@ -134,11 +134,12 @@ namespace LanesOfVietnam.SimCs
         /// </summary>
         private static int Events(string[] a)
         {
-            bool frag = a.Contains("frag");
-            a = a.Where(x => x != "frag").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
+            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 3;
             var usPlan = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke });
+            var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
             var st = m.State;
             var fire = new Dictionary<int, int>();
@@ -157,11 +158,13 @@ namespace LanesOfVietnam.SimCs
                     if (e.Kind == EventKind.Fire) fire[e.Tick / 20] = fire.GetValueOrDefault(e.Tick / 20) + 1;
                     if (e.Kind == EventKind.Shell) shells.Add((e.Tick, e.X ?? 0, e.Z ?? 0));
                     if (e.Kind == EventKind.GrenadeThrown) grenades.Add((e.Tick, e.X ?? 0, e.Z ?? 0));
+                    if (e.Kind == EventKind.AreaStart) areas.Add((e.Tick, e.X ?? 0, e.Z ?? 0));
                 }
             }
             Console.WriteLine($"  seed {seed}: {st.Tick} ticks, {shells.Count} shells, {fire.Values.Sum()} shots");
             Console.WriteLine("  busiest seconds (tick: shots): " + string.Join(", ", fire.OrderByDescending(kv => kv.Value).Take(8).Select(kv => $"{kv.Key * 20}: {kv.Value}")));
             Console.WriteLine("  us-arty affordable at ticks: " + string.Join(", ", afford.Take(12)));
+            if (smoke) Console.WriteLine("  smoke popped (tick @ x, z): " + string.Join(", ", areas.Take(12).Select(g => $"{g.tick} @ {g.x:F0},{g.z:F0}")));
             if (frag) Console.WriteLine("  grenades thrown (tick @ x, z): " + string.Join(", ", grenades.Take(20).Select(g => $"{g.tick} @ {g.x:F0},{g.z:F0}")));
             Console.WriteLine("  shells (tick @ x, z): " + string.Join(", ", shells.Take(24).Select(s => $"{s.tick} @ {s.x:F0},{s.z:F0}")));
             return 0;
@@ -170,13 +173,13 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag");
-            a = a.Where(x => x != "frag").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
+            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag, SquadSmoke = smoke });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
-            Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
+            Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
             return 0;
         }
 
@@ -210,9 +213,11 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag");
-            a = a.Where(x => x != "frag").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
+            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
             int count = int.Parse(a[1]);
+            long smokes = 0;
+            double lostCas = 0, lostGround = 0;
             var us = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
             var vc = Plan.ByName(a.Length > 3 ? a[3] : "ceiling");
             int from = a.Length > 4 ? int.Parse(a[4]) : 1;
@@ -224,7 +229,10 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Frag = frag });
+                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Frag = frag, SquadSmoke = smoke });
+                smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
+                lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];
+                lostGround += r.MoraleLostToGround[0] + r.MoraleLostToGround[1];
                 thrown += r.EventCounts.GetValueOrDefault(EventKind.GrenadeThrown);
                 blasts += r.EventCounts.GetValueOrDefault(EventKind.GrenadeBlast);
                 byGrenade += r.GrenadeKills;
@@ -235,11 +243,13 @@ namespace LanesOfVietnam.SimCs
                 cas += r.Casualties[0] + r.Casualties[1];
             }
             var (lo, hi) = Wilson(wu, count);
-            Console.WriteLine($"  {us.Name} (us) vs {vc.Name} (vc), seeds {from}..{from + count - 1}{(frag ? ", grenades on" : "")}");
+            Console.WriteLine($"  {us.Name} (us) vs {vc.Name} (vc), seeds {from}..{from + count - 1}{(frag ? ", grenades on" : "")}{(smoke ? ", squad smoke on" : "")}");
             Console.WriteLine($"  us / vc / draw   {wu} / {wv} / {draw}");
             Console.WriteLine($"  us win rate      {100.0 * wu / count:F1}%   95% CI {100 * lo:F1}-{100 * hi:F1}%");
             Console.WriteLine($"  mean length      {secs / count:F1} s (cap {Tune.MaxTicks / Tune.TickHz} s)");
             Console.WriteLine($"  mean casualties  {cas / count:F1}");
+            Console.WriteLine($"  morale lost      {lostCas / count:F2} to casualties, {lostGround / count:F2} to ground (both sides, per match)");
+            if (smoke) Console.WriteLine($"  squad smoke      {smokes / (double)count:F1} canisters per match");
             if (frag) Console.WriteLine($"  grenades        {thrown / (double)count:F1} thrown, {blasts / (double)count:F1} went off, {byGrenade / (double)count:F1} killed, per match");
             Console.WriteLine("  endings:");
             foreach (var kv in reasons.OrderByDescending(kv => kv.Value)) Console.WriteLine($"    {kv.Value,4}  {kv.Key}");

@@ -170,7 +170,8 @@ namespace LanesOfVietnam.Sim
             }
         }
 
-        private static void Push(SimState st, Side side, Area a)
+        /// <summary>Add an area and announce it. Internal so squad smoke (Part 2) lays its areas the way a card does.</summary>
+        internal static void Push(SimState st, Side side, Area a)
         {
             a.Id = st.AreaId++;
             a.Side = side;

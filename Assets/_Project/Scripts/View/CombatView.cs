@@ -310,7 +310,10 @@ namespace LanesOfVietnam.View
                     double x = ar.X + Math.Cos(ang) * r + Math.Sin(t * 0.13 + k) * 1.2;
                     double z = ar.Z + Math.Sin(ang) * r;
                     float y = (float)_root.Ground.HeightAt(x, z) + 1.2f + 2.2f * (float)Hash(seed, 2) + 0.5f * Mathf.Sin(t * 0.21f + k);
-                    AddPuff(Coords.World(x, z, y), 4.5f + 3f * (float)Hash(seed, 3), new Color(0.52f, 0.52f, 0.50f, 0.55f * density),
+                    // Puffs sized to the screen: a fire mission's 14 m bank or a squad's 3.5 m canister.
+                    float size = (float)ar.Radius * (0.32f + 0.2f * (float)Hash(seed, 3));
+                    y = (float)_root.Ground.HeightAt(x, z) + size * (0.25f + 0.35f * (float)Hash(seed, 2));
+                    AddPuff(Coords.World(x, z, y), size, new Color(0.52f, 0.52f, 0.50f, 0.55f * density),
                             (float)Hash(seed, 4), 1f);
                 }
             }

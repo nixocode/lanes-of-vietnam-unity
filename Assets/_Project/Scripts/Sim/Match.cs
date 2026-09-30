@@ -82,6 +82,8 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Part 2: grenades (PLAN §12.8). False is the parity baseline.</summary>
         public bool Frag;
+        /// <summary>Part 2: squads pinned on the move pop smoke (PLAN §12.8). False is the parity baseline.</summary>
+        public bool SquadSmoke;
     }
 
     public sealed class MatchResult
@@ -174,6 +176,7 @@ namespace LanesOfVietnam.Sim
                 Tick = 0, Phase = Phase.Opening, ContactTick = -1,
                 MoraleScale = LengthScale(opts.Length),
                 Frag = opts.Frag,
+                SquadSmoke = opts.SquadSmoke,
             };
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag) st.FragRng = rng.Fork("frag");
@@ -409,6 +412,7 @@ namespace LanesOfVietnam.Sim
 
             // --- grenades (Part 2, MatchOptions.Frag) -------------------------------
             if (st.Frag && !opening) Frag.Tick(st);
+            if (st.SquadSmoke && !opening) SquadSmoke.Tick(st);
 
             // --- fire ------------------------------------------------------------
             // The shooter list is taken once, before anyone fires, as the

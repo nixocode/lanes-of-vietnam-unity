@@ -59,7 +59,7 @@ namespace LanesOfVietnam.Tests
             // Editor's libm and the browser's; a different bit is a different
             // match. The match path uses JsMath's fdlibm port instead.
             var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
-            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs" })
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs" })
             {
                 foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
                 {
@@ -372,9 +372,9 @@ namespace LanesOfVietnam.Tests
 
         // --- Part 2: grenades, behind MatchOptions.Frag (PLAN §12.8) ----------------------
 
-        private static (List<uint> hashes, LiveMatch m) FragTrace(int seed, bool frag)
+        private static (List<uint> hashes, LiveMatch m) FragTrace(int seed, bool frag, bool smoke = false)
         {
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag, SquadSmoke = smoke });
             var h = new List<uint> { Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
             return (h, m);
@@ -440,6 +440,41 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(blasts, 0, "nothing went off");
             Assert.LessOrEqual(blasts, thrown, "more blasts than throws");
             Assert.Greater(kills, 0, "grenades never killed anyone");
+        }
+
+        [TestCase(1, false, 2123, 1619485321u, 4283461350u, 1653315263u, "vc morale broke")]
+        [TestCase(2, true, 3496, 3943026134u, 1248945397u, 3969713137u, "vc morale broke")]
+        public void With_squad_smoke_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool frag, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var (a, m) = FragTrace(seed, frag, true);
+            var (b, _) = FragTrace(seed, frag, true);
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        [Test]
+        public void Squad_smoke_is_off_by_default_and_when_on_a_stalled_bound_pops_one_canister()
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).SquadSmoke);
+            var (_, off) = FragTrace(1, false);
+            // The computer's plans buy no cards, so without the rule there is no smoke at all.
+            Assert.IsFalse(off.State.Events.Any(e => e.Kind == EventKind.AreaStart));
+
+            int smokes = 0;
+            for (int seed = 1; seed <= 6; seed++)
+            {
+                var (_, m) = FragTrace(seed, false, true);
+                var starts = m.State.Events.Where(e => e.Kind == EventKind.AreaStart).ToList();
+                smokes += starts.Count;
+                foreach (var e in starts) Assert.GreaterOrEqual(e.Tick, m.State.ContactTick, "smoke before first contact");
+                Assert.IsTrue(m.State.Squads.All(q => q.Smoke >= 0 && q.Smoke <= Tune.SquadSmokeCarried), "a squad threw more than it carried");
+            }
+            Assert.Greater(smokes, 0, "no squad ever popped smoke");
         }
 
         [Test]
