@@ -40,8 +40,15 @@ namespace LanesOfVietnam.View
         /// <summary>Raised once per simulation tick, after it has run.</summary>
         public event Action<MatchDriver> Ticked;
 
-        public MatchDriver(MatchOptions options)
+        private readonly IReadOnlyList<LiveMatch.Applied> _replay;
+        private int _replayNext;
+
+        /// <summary>Playing back a recorded match: the player's controls are off and the log gives the orders.</summary>
+        public bool IsReplay => _replay != null;
+
+        public MatchDriver(MatchOptions options, IReadOnlyList<LiveMatch.Applied> replay = null)
         {
+            _replay = replay;
             Match = new LiveMatch(options);
             Snapshot(ref _curr, out _currCount);
             Snapshot(ref _prev, out _prevCount);
@@ -80,6 +87,14 @@ namespace LanesOfVietnam.View
         {
             (_prev, _curr) = (_curr, _prev);
             _prevCount = _currCount;
+            // A replay issues each recorded command before the tick it was
+            // applied on, exactly as LiveMatch.Replay does, so the view plays
+            // back the same match the player played.
+            if (_replay != null)
+            {
+                while (_replayNext < _replay.Count && _replay[_replayNext].Tick == State.Tick + 1)
+                    Match.Issue(_replay[_replayNext++].Command);
+            }
             Match.Step();
             Snapshot(ref _curr, out _currCount);
             Ticked?.Invoke(this);

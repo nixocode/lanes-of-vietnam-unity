@@ -133,10 +133,65 @@ namespace LanesOfVietnam.Tools
             rings.Commander = commander;
             rings.RingMaterial = Mat("Ring", Shader.Find("LOV/Ring"), null);
 
+            var deployer = game.AddComponent<Deployer>();
+            deployer.Root = root;
+            deployer.MarkerMaterial = rings.RingMaterial;
+            commander.Deployer = deployer;
+
+            var hudGo = new GameObject("HUD");
+            var doc = hudGo.AddComponent<UnityEngine.UIElements.UIDocument>();
+            doc.panelSettings = PanelSettings();
+            hudGo.SetActive(false);   // so OnEnable runs after the references below are set
+            var hud = hudGo.AddComponent<LanesOfVietnam.View.UI.Hud>();
+            hud.Root = root;
+            hud.Commander = commander;
+            hud.Deployer = deployer;
+            hud.Style = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.StyleSheet>("Assets/_Project/UI/Hud.uss");
+            if (hud.Style == null) throw new System.Exception("Hud.uss did not import as a StyleSheet");
+            var screens = hudGo.AddComponent<LanesOfVietnam.View.UI.Screens>();
+            screens.Root = root;
+            screens.Hud = hud;
+            screens.Commander = commander;
+            screens.Deployer = deployer;
+            hudGo.SetActive(true);
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log($"[LOV] scene built: {ScenePath}");
+        }
+
+        /// <summary>
+        /// The panel the HUD draws on: 1920 x 1080 reference, scaled with the
+        /// screen, and the runtime theme. The theme file is written here too —
+        /// the editor's own "create Panel Settings" menu makes one, and a headless
+        /// build has no menu.
+        /// </summary>
+        private static UnityEngine.UIElements.PanelSettings PanelSettings()
+        {
+            const string themePath = "Assets/_Project/UI/Runtime.tss";
+            const string panelPath = "Assets/_Project/UI/Panel.asset";
+            if (!File.Exists(themePath))
+            {
+                File.WriteAllText(themePath, "@import url(\"unity-theme://default\");\n");
+                AssetDatabase.ImportAsset(themePath);
+            }
+            var theme = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.ThemeStyleSheet>(themePath);
+            if (theme == null) throw new System.Exception("Runtime.tss did not import as a ThemeStyleSheet");
+            var ps = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.PanelSettings>(panelPath);
+            if (ps == null)
+            {
+                ps = ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+                AssetDatabase.CreateAsset(ps, panelPath);
+            }
+            ps.themeStyleSheet = theme;
+            ps.scaleMode = UnityEngine.UIElements.PanelScaleMode.ScaleWithScreenSize;
+            ps.referenceResolution = new Vector2Int(1920, 1080);
+            ps.screenMatchMode = UnityEngine.UIElements.PanelScreenMatchMode.MatchWidthOrHeight;
+            ps.match = 0.5f;
+            EditorUtility.SetDirty(ps);
+            AssetDatabase.SaveAssets();
+            return ps;
         }
 
         private static Material SkyMaterial()

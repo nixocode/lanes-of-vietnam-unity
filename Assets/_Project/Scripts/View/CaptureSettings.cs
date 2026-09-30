@@ -44,6 +44,8 @@ namespace LanesOfVietnam.View
         public int Select = -1;
         /// <summary>Raise the field glasses toward this viewport point (x,y in 0..1); null for none.</summary>
         public float[] Glasses;
+        /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
+        public string Screen;
 
         /// <summary>The active capture, or null when the game is being played.</summary>
         public static CaptureSettings Active;
@@ -79,6 +81,11 @@ namespace LanesOfVietnam.View
                         c.Glasses = new[] { float.Parse(xy[0], inv), float.Parse(xy[1], inv) };
                         break;
                     }
+                    case "screen":
+                        if (v != "start" && v != "settings" && v != "end")
+                            throw new ArgumentException($"capture: screen must be start, settings or end, not \"{v}\"");
+                        c.Screen = v;
+                        break;
                     case "aa":
                         if (v != "taa" && v != "smaa" && v != "fxaa" && v != "none")
                             throw new ArgumentException($"capture: aa must be taa, smaa, fxaa or none, not \"{v}\"");

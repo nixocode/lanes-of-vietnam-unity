@@ -30,14 +30,10 @@ namespace LanesOfVietnam.Tests
     {
         private const string Scene = "Assets/_Project/Scenes/Main.unity";
 
+        /// <summary>Into a match, past the start screen and the opening, as a player gets there.</summary>
         private static IEnumerator Load()
         {
-#if UNITY_EDITOR
-            yield return EditorSceneManager.LoadSceneAsyncInPlayMode(Scene, new LoadSceneParameters(LoadSceneMode.Single));
-#else
-            yield return SceneManager.LoadSceneAsync("Main");
-#endif
-            yield return null;
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
             Assert.IsNotNull(GameRoot.Instance, "GameRoot did not start");
         }
 

@@ -4,6 +4,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UIElements;
 
 namespace LanesOfVietnam.View
 {
@@ -73,6 +74,33 @@ namespace LanesOfVietnam.View
                 root.CameraRig.FieldGlasses = true;
             }
 
+            // The HUD, when asked for: its panel renders into its own transparent
+            // texture (a copy of the panel settings, so the asset is untouched),
+            // composited over the scene below. Headless there is no screen for
+            // the overlay to draw on.
+            var doc = FindAnyObjectByType<UIDocument>();
+            RenderTexture uiRt = null;
+            if (doc != null)
+            {
+                if (cap.NoUi) doc.gameObject.SetActive(false);
+                else
+                {
+                    uiRt = new RenderTexture(cap.Width, cap.Height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { name = "capture ui" };
+                    uiRt.Create();
+                    var ps = Instantiate(doc.panelSettings);
+                    ps.targetTexture = uiRt;
+                    ps.clearColor = true;
+                    ps.colorClearValue = new Color(0, 0, 0, 0);
+                    doc.panelSettings = ps;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(cap.Screen))
+            {
+                var screens = FindAnyObjectByType<UI.Screens>();
+                if (screens != null) screens.ShowForCapture(cap.Screen);
+            }
+
             using var stats = new RenderStats();
             for (int i = 0; i < cap.Warmup; i++)
             {
@@ -93,6 +121,7 @@ namespace LanesOfVietnam.View
                 tex.ReadPixels(new Rect(0, 0, cap.Width, cap.Height), 0, 0);
                 tex.Apply(false);
                 RenderTexture.active = prev;
+                if (uiRt != null) Composite(tex, uiRt);
                 File.WriteAllBytes(PathFor(cap.Out, f, cap.Frames), tex.EncodeToPNG());
             }
 
@@ -120,6 +149,31 @@ namespace LanesOfVietnam.View
             Destroy(tex);
             rt.Release();
             Done = true;
+        }
+
+        /// <summary>
+        /// Lay the HUD over the scene. The panel's texture holds premultiplied
+        /// linear colour stored sRGB-encoded, so the blend happens in linear
+        /// light: out = ui + scene * (1 - ui.alpha).
+        /// </summary>
+        private static void Composite(Texture2D scene, RenderTexture ui)
+        {
+            var uiTex = new Texture2D(ui.width, ui.height, TextureFormat.RGBA32, false, false);
+            var prev = RenderTexture.active;
+            RenderTexture.active = ui;
+            uiTex.ReadPixels(new Rect(0, 0, ui.width, ui.height), 0, 0);
+            RenderTexture.active = prev;
+            var a = scene.GetPixels();
+            var b = uiTex.GetPixels();
+            for (int i = 0; i < a.Length; i++)
+            {
+                var s = a[i].linear; var u = b[i].linear;
+                float k = 1f - b[i].a;
+                a[i] = new Color(u.r + s.r * k, u.g + s.g * k, u.b + s.b * k, 1f).gamma;
+            }
+            scene.SetPixels(a);
+            scene.Apply(false);
+            Destroy(uiTex);
         }
 
         private static string PathFor(string path, int f, int frames)

@@ -34,6 +34,11 @@ namespace LanesOfVietnam.View
         public Side PlayerSide = Side.Us;
 
         public MatchDriver Driver { get; private set; }
+        public MatchOptions Options { get; private set; }
+        public GameSettings Settings { get; private set; }
+
+        /// <summary>Raised whenever a new match (or a replay) replaces the old one.</summary>
+        public event System.Action MatchStarted;
         public Ground Ground { get; private set; }
         public int Seed { get; private set; }
 
@@ -58,12 +63,10 @@ namespace LanesOfVietnam.View
             CoverView.Build(cover, Ground);
             if (Dressing != null) Dressing.Build(Ground, cover, MapSeed);
 
-            Seed = cap?.Seed ?? ChooseSeed();
-            Driver = new MatchDriver(new MatchOptions
-            {
-                Seed = Seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = cover,
-            });
-            Debug.Log($"[LOV] match seed {Seed}");
+            Settings = GameSettings.Load();
+            Settings.ApplyQuality();
+
+            NewMatch(PlayerSide, MatchLength.Standard, cap?.Seed);
 
             if (cap != null)
             {
@@ -73,6 +76,26 @@ namespace LanesOfVietnam.View
                 CameraRig.SetDolly(cap.Dolly, instant: true);
                 gameObject.AddComponent<CaptureRunner>();
             }
+        }
+
+        /// <summary>
+        /// Start a match on the world that is already built: the ground, cover and
+        /// dressing stay; only the simulation is new. With a command log it is a
+        /// replay of a match already played, on the same seed.
+        /// </summary>
+        public void NewMatch(Side player, MatchLength length, int? seed = null,
+                             System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null)
+        {
+            PlayerSide = player;
+            Seed = seed ?? ChooseSeed();
+            Options = new MatchOptions
+            {
+                Seed = Seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = length,
+            };
+            Driver = new MatchDriver(Options, replay);
+            ArmyView.ResetView();
+            Debug.Log($"[LOV] match seed {Seed}, {player} ({length}){(replay != null ? ", replay" : "")}");
+            MatchStarted?.Invoke();
         }
 
         /// <summary>
