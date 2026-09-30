@@ -33,6 +33,7 @@ namespace LanesOfVietnam.SimCs
                     "determinism" => Determinism(),
                     "audit" => Audit(),
                     "bench" => Bench(),
+                    "events" => Events(args),
                     _ => Usage(),
                 };
             }
@@ -45,7 +46,7 @@ namespace LanesOfVietnam.SimCs
 
         private static int Usage()
         {
-            Console.WriteLine("simcs parity <trace.json> | run [seed] [us] [vc] | seeds N [us] [vc] [from] | determinism | audit | bench");
+            Console.WriteLine("simcs parity <trace.json> | run [seed] [us] [vc] | seeds N [us] [vc] [from] | determinism | audit | bench | events [seed] [us plan]");
             return 1;
         }
 
@@ -124,6 +125,41 @@ namespace LanesOfVietnam.SimCs
         }
 
         // --- matches ------------------------------------------------------------------
+
+        /// <summary>
+        /// A match as the game starts one (ceiling against ceiling, the map's
+        /// cover), tick by tick: when shells land and where the firing is
+        /// heaviest. For pointing FrameCapture at a moment worth looking at.
+        /// </summary>
+        private static int Events(string[] a)
+        {
+            int seed = a.Length > 1 ? int.Parse(a[1]) : 3;
+            var usPlan = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard });
+            var st = m.State;
+            var fire = new Dictionary<int, int>();
+            var shells = new List<(int tick, double x, double z)>();
+            int seen = 0;
+            var arty = Deck.For(Side.Us).First(c => c.Id == "us-arty");
+            var afford = new List<int>();
+            while (!st.Over && st.Tick < 20 * 60 * 12)
+            {
+                m.Step();
+                if (Deck.Blocked(st, Side.Us, arty) == null && (afford.Count == 0 || st.Tick - afford[^1] > 200)) afford.Add(st.Tick);
+                if (st.Tick % 400 == 0) Console.WriteLine($"  tick {st.Tick}: US CP {st.Cp[0]:F1}, VC CP {st.Cp[1]:F1}");
+                for (; seen < st.Events.Count; seen++)
+                {
+                    var e = st.Events[seen];
+                    if (e.Kind == EventKind.Fire) fire[e.Tick / 20] = fire.GetValueOrDefault(e.Tick / 20) + 1;
+                    if (e.Kind == EventKind.Shell) shells.Add((e.Tick, e.X ?? 0, e.Z ?? 0));
+                }
+            }
+            Console.WriteLine($"  seed {seed}: {st.Tick} ticks, {shells.Count} shells, {fire.Values.Sum()} shots");
+            Console.WriteLine("  busiest seconds (tick: shots): " + string.Join(", ", fire.OrderByDescending(kv => kv.Value).Take(8).Select(kv => $"{kv.Key * 20}: {kv.Value}")));
+            Console.WriteLine("  us-arty affordable at ticks: " + string.Join(", ", afford.Take(12)));
+            Console.WriteLine("  shells (tick @ x, z): " + string.Join(", ", shells.Take(24).Select(s => $"{s.tick} @ {s.x:F0},{s.z:F0}")));
+            return 0;
+        }
 
         private static int RunOne(string[] a)
         {

@@ -58,6 +58,15 @@ namespace LanesOfVietnam.View
         public float GroundGrad;
         /// <summary>The plants' far mip bias (every map); negative keeps the material's.</summary>
         public float PlantBias = -1;
+        /// <summary>
+        /// Call-ins to play during the fast-forward, through the same command
+        /// the player's card goes through: (card id, lane, x, tick). For
+        /// looking at shells and smoke, which the computer's plans never call.
+        /// </summary>
+        public readonly System.Collections.Generic.List<(string card, int lane, double x, int tick)> Calls =
+            new System.Collections.Generic.List<(string, int, double, int)>();
+        /// <summary>The plans each side plays in the capture's match (Plan.ByName); null keeps the game's ceiling.</summary>
+        public string UsPlan, VcPlan;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -90,6 +99,13 @@ namespace LanesOfVietnam.View
                     case "ground": c.GroundDebug = int.Parse(v, inv); break;
                     case "groundgrad": c.GroundGrad = float.Parse(v, inv); break;
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
+                    case "usplan": c.UsPlan = v; break;
+                    case "vcplan": c.VcPlan = v; break;
+                    case "call":
+                        // call=card:lane:x:tick, repeatable
+                        var cl = v.Split(':');
+                        c.Calls.Add((cl[0], int.Parse(cl[1], inv), double.Parse(cl[2], inv), int.Parse(cl[3], inv)));
+                        break;
                     case "taa":
                         var ta = v.Split(':');
                         c.Taa = System.Array.ConvertAll(ta, t => float.Parse(t, inv));

@@ -154,6 +154,11 @@ namespace LanesOfVietnam.Tools
             if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data — the grey-box ridges stand in (run tools/art/mountains.py)");
             root.Mountains = mount;
 
+            // The fighting, drawn from the simulation's events (step 7).
+            var combat = game.AddComponent<CombatView>();
+            combat.Glow = Mat("FX Glow", Shader.Find("LOV/FX Glow"), null);
+            combat.Smoke = Mat("FX Smoke", Shader.Find("LOV/FX Smoke"), null);
+
             var commander = game.AddComponent<Commander>();
             commander.Root = root;
             var ringsGo = new GameObject("Selection");
