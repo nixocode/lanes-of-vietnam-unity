@@ -76,6 +76,8 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_shot, 0, _shot.Length);
             System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
             System.Array.Clear(_rounds, 0, _rounds.Length);
+            System.Array.Clear(_threw, 0, _threw.Length);
+            System.Array.Clear(_fall, 0, _fall.Length);
             for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
@@ -97,6 +99,9 @@ namespace LanesOfVietnam.View
         private bool[] _pinnedAt = new bool[0];
         /// <summary>Shots each man has fired since he last reloaded.</summary>
         private int[] _rounds = new int[0];
+        /// <summary>Whether each man threw a grenade since the last frame, and how each man fell.</summary>
+        private bool[] _threw = new bool[0];
+        private SoldierFigure.Fall[] _fall = new SoldierFigure.Fall[0];
         /// <summary>A man reloads after this many shots, once he has not fired for LullTicks.</summary>
         public const int ReloadAfter = 6, LullTicks = 50;
         private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
@@ -201,6 +206,8 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _shot, n);
                 System.Array.Resize(ref _pinnedAt, n);
                 System.Array.Resize(ref _rounds, n);
+                System.Array.Resize(ref _threw, n);
+                System.Array.Resize(ref _fall, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -211,6 +218,17 @@ namespace LanesOfVietnam.View
             {
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
+                if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
+                if (e.Kind == EventKind.Kill && e.Id < _fall.Length)
+                {
+                    // The sim writes a kill straight after the shot that made it; a kill
+                    // with no shot before it was a shell or a grenade.
+                    var prev = _eventCursor > 0 ? st.Events[_eventCursor - 1] : default;
+                    bool shot = prev.Kind == EventKind.Fire && prev.Target == e.Id && prev.Tick == e.Tick;
+                    _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
+                                : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
+                    continue;
+                }
                 if (e.Kind != EventKind.Fire || e.Id >= _firedAt.Length) continue;
                 _firedAt[e.Id] = e.Tick;
                 _target[e.Id] = e.Target ?? -1;
@@ -378,7 +396,8 @@ namespace LanesOfVietnam.View
                     _rounds[i] = 0;
                 }
                 Drawn++;
-                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death); _pending[i] = 0; Stepped++; continue; }
+                if (_threw[i]) { if (!jump) f.Throw(); _threw[i] = false; }
+                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i]); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
                 // stepped every other frame and skinned with two bones a vertex;
                 // one off it, every fourth. Staggered by id, so the work is even.
@@ -393,7 +412,7 @@ namespace LanesOfVietnam.View
                 }
                 _pending[i] += dt;
                 if ((frame + i) % every != 0) continue;
-                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death);
+                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death, _fall[i]);
                 _pending[i] = 0;
                 Stepped++;
             }

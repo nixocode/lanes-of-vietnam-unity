@@ -1879,16 +1879,21 @@ MonoBehaviour:
   RifleGripR: {x: 0.0941183, y: 0.34553844, z: 0.0332146}
   RifleGripL: {x: -0.0022235513, y: 0.25422773, z: 0.33600262}
   RifleUp: {x: -0.10121887, y: 0.9426339, z: 0.31811336}
-  RifleInHandPos: {x: 0.124860115, y: 0.19807656, z: 0.27300853}
-  RifleInHandRot: {x: -0.7748362, y: 0.46673515, z: -0.27447844, w: 0.32626602}
-  MixamoStand: 0
-  MixamoCrouch: 0
+  RifleInHandPos: {x: 0.3367, y: -0.09759854, z: -0.08041169}
+  RifleInHandRot: {x: -0.36710927, y: 0.73051673, z: 0.48661813, w: 0.30786216}
+  MixamoStand: 1
+  MixamoCrouch: 1
   MixamoProne: 1
-  WalkSpeed: 0.9533678
-  RunSpeed: 2.2949998
-  CrouchSpeed: 0.7734807
+  AimTurn: {x: 23.903246, y: 42.977802, z: 27.021908}
+  WalkSpeed: 1.599304
+  RunSpeed: 3.9987228
+  CrouchSpeed: 1.7345881
   CrawlSpeed: 0.1953837
-  Deaths: 2
+  Deaths: 8
+  RunDeath: 1
+  BlastDeath: 1
+  CrouchDeath: 1
+  ProneDeath: 1
 --- !u!1 &7946333840901629577
 GameObject:
   m_ObjectHideFlags: 0
