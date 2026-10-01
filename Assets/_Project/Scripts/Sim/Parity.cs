@@ -78,6 +78,8 @@ namespace LanesOfVietnam.Sim
             // hashes are the ones the TypeScript original produced.
             if (st.SquadSmoke)
                 foreach (var s in st.Squads) h = MixI(h, s.Smoke);
+            if (st.Drill)
+                foreach (var s in st.Squads) { h = MixI(h, s.OrderSince); h = MixI(h, s.Rallied ? 1 : 0); }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }

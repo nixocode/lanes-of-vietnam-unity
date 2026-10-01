@@ -84,6 +84,8 @@ namespace LanesOfVietnam.Sim
         public bool Frag;
         /// <summary>Part 2: squads pinned on the move pop smoke (PLAN §12.8). False is the parity baseline.</summary>
         public bool SquadSmoke;
+        /// <summary>Part 2: orders that stand, broken squads that hold, men who keep their places (Drill). False is the parity baseline.</summary>
+        public bool Drill;
     }
 
     public sealed class MatchResult
@@ -177,6 +179,7 @@ namespace LanesOfVietnam.Sim
                 MoraleScale = LengthScale(opts.Length),
                 Frag = opts.Frag,
                 SquadSmoke = opts.SquadSmoke,
+                Drill = opts.Drill,
             };
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag) st.FragRng = rng.Fork("frag");
@@ -291,7 +294,8 @@ namespace LanesOfVietnam.Sim
                 double speed = Tune.Speed(m.Posture);
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
-                if (d > 0.05)
+                // With drill a man close enough to his place stays put (falling back, he always moves).
+                if (d > (st.Drill && sq.Order != Order.Fallback ? Tune.DrillSlack : 0.05))
                 {
                     double stepLen = Math.Min(d, speed * Tune.Dt);
                     m.X += (dx / d) * stepLen;
@@ -377,6 +381,9 @@ namespace LanesOfVietnam.Sim
                     ?? (opening
                         ? (sq.Side == Side.Us ? Order.Hold : Order.Advance)
                         : DecideOrder(st, sq, plan, original, ix));
+                // Part 2 (MatchOptions.Drill): the policy's order, steadied.
+                if (st.Drill && sq.PlayerOrder == null && !opening)
+                    sq.Order = Drill.Steady(st, sq, prev, sq.Order, live, original.TryGetValue(sq.Id, out int raised) ? raised : live.Count);
                 if (sq.Order == Order.Fallback && prev != Order.Fallback)
                 {
                     st.Events.Add(new SimEvent { Kind = EventKind.SquadBroke, Tick = st.Tick, Side = sq.Side, Id = sq.Id });
@@ -406,7 +413,8 @@ namespace LanesOfVietnam.Sim
                 var coverTarget = plan.UseCover && sq.Target >= 0 ? st.Cover[sq.Target] : null;
                 Squads.March(sq, coverTarget);
                 Squads.Reanchor(sq, live);
-                Squads.SlotsFor(sq, live, sq.AnchorX, sq.AnchorZ, slots);
+                if (st.Drill) Drill.SlotsFor(st, sq, live, sq.AnchorX, sq.AnchorZ, slots);
+                else Squads.SlotsFor(sq, live, sq.AnchorX, sq.AnchorZ, slots);
                 for (int i = 0; i < live.Count; i++) MoveMan(st, live[i], sq, slots[i], plan);
             }
 

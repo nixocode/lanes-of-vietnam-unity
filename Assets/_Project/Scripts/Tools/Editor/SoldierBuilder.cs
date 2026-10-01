@@ -121,11 +121,12 @@ namespace LanesOfVietnam.Tools
                     Align(a, b.position - a.position, outward);
                     Align(b, c.position - b.position, outward);
                 }
-                Transform th = t["thigh_" + s], ca = t["calf_" + s], ft = t["foot_" + s];
-                var keep = ft.rotation;
-                Align(th, ca.position - th.position, Vector3.down);
-                Align(ca, ft.position - ca.position, Vector3.down);
-                ft.rotation = keep;
+                // The legs stay as rigged: nearly straight, with the knee's slight
+                // natural bend. Straightened exactly, a leg has no bend to say
+                // which way its knee points; Humanoid then chose one, and every
+                // clip played with the shin rolled half a turn against the thigh:
+                // knees and hips pinched to a point, feet hanging toe-down (the
+                // owner's second playtest: "legs are all janked out of place").
             }
         }
 
@@ -685,6 +686,7 @@ namespace LanesOfVietnam.Tools
                 fig.Muzzle = t["muzzle"];
                 fig.HandR = t["hand_r"]; fig.HandL = t["hand_l"]; fig.LowerArmR = t["lowerarm_r"];
                 fig.Chest = t["spine_03"];
+                fig.Hips = t["pelvis"];
                 // The bind pose does not hold the rifle (it floats at his chest, 38
                 // cm from either wrist; the earlier build posed the arms onto it),
                 // so where the hands go comes from the rifle's own shape.

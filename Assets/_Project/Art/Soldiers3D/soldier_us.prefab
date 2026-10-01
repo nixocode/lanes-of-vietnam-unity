@@ -1876,15 +1876,16 @@ MonoBehaviour:
   HandL: {fileID: 1042337897373110672}
   Chest: {fileID: 8699898500546508350}
   LowerArmR: {fileID: 3574475120521301727}
+  Hips: {fileID: 7468692499052254059}
   RifleGripR: {x: 0.0941183, y: 0.34553844, z: 0.0332146}
   RifleGripL: {x: -0.0022235513, y: 0.25422773, z: 0.33600262}
   RifleUp: {x: -0.10121887, y: 0.9426339, z: 0.31811336}
-  RifleInHandPos: {x: 0.3367, y: -0.09759854, z: -0.08041169}
-  RifleInHandRot: {x: -0.36710927, y: 0.73051673, z: 0.48661813, w: 0.30786216}
+  RifleInHandPos: {x: 0.33669996, y: -0.097598456, z: -0.08041169}
+  RifleInHandRot: {x: -0.36710933, y: 0.73051655, z: 0.48661822, w: 0.3078621}
   MixamoStand: 1
   MixamoCrouch: 1
   MixamoProne: 1
-  AimTurn: {x: 23.903246, y: 42.977802, z: 27.021908}
+  AimTurn: {x: 23.903244, y: 42.97781, z: 27.021927}
   WalkSpeed: 1.599304
   RunSpeed: 3.9987228
   CrouchSpeed: 1.7345881

@@ -59,7 +59,7 @@ namespace LanesOfVietnam.Tests
             // Editor's libm and the browser's; a different bit is a different
             // match. The match path uses JsMath's fdlibm port instead.
             var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
-            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs" })
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs", "Drill.cs" })
             {
                 foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
                 {
@@ -455,6 +455,77 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(at1000, a[1000], "tick 1000");
             Assert.AreEqual(final, a[a.Count - 1], "final tick");
             Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        // --- Part 2: drill, behind MatchOptions.Drill ------------------------------------
+
+        private static (List<uint> hashes, LiveMatch m) DrillTrace(int seed, bool frag, bool smoke, bool drill)
+        {
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag, SquadSmoke = smoke, Drill = drill });
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            return (h, m);
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill`.</summary>
+        [TestCase(1, true, true, 2611, 439446229u, 520356264u, 1092527651u, "us morale broke")]
+        [TestCase(7, false, false, 5110, 422315189u, 270495071u, 2282753341u, "vc morale broke")]
+        public void With_drill_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool frag, bool smoke, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var (a, m) = DrillTrace(seed, frag, smoke, true);
+            var (b, _) = DrillTrace(seed, frag, smoke, true);
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// What the rule is for (the owner's second playtest: "they walk up and
+        /// down randomly, no military brain"): without it a squad's order
+        /// changes hundreds of times a match and a man turns round hundreds of
+        /// times; with it, a handful.
+        /// </summary>
+        [Test]
+        public void Drill_is_off_by_default_and_when_on_squads_stop_dithering()
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Drill);
+            (double orders, double turns) Dither(bool drill)
+            {
+                var m = new LiveMatch(new MatchOptions { Seed = 3, Us = Plan.Ceiling, Vc = Plan.Ceiling, Drill = drill });
+                var st = m.State;
+                var order = new Dictionary<int, Order>(); var changes = new Dictionary<int, int>();
+                var at = new Dictionary<int, double>(); var heading = new Dictionary<int, int>(); var turned = new Dictionary<int, int>();
+                for (int t = 0; t < 2000 && !st.Over; t++)
+                {
+                    m.Step();
+                    foreach (var sq in st.Squads)
+                    {
+                        if (order.TryGetValue(sq.Id, out var o) && o != sq.Order) changes[sq.Id] = changes.GetValueOrDefault(sq.Id) + 1;
+                        order[sq.Id] = sq.Order;
+                    }
+                    foreach (var man in st.Men)
+                    {
+                        if (!man.Alive) continue;
+                        if (at.TryGetValue(man.Id, out double x))
+                        {
+                            int dir = Math.Abs(man.X - x) < 0.01 ? 0 : Math.Sign(man.X - x);
+                            if (dir != 0) { if (heading.TryGetValue(man.Id, out int h) && h != dir) turned[man.Id] = turned.GetValueOrDefault(man.Id) + 1; heading[man.Id] = dir; }
+                        }
+                        at[man.Id] = man.X;
+                    }
+                }
+                return (changes.Values.DefaultIfEmpty(0).Average(), turned.Values.DefaultIfEmpty(0).Average());
+            }
+            var loose = Dither(false);
+            var drilled = Dither(true);
+            Assert.Greater(loose.orders, 100, "the baseline no longer flickers: this test's premise has changed");
+            Assert.Less(drilled.orders, 40, "a drilled squad's orders still flicker");
+            Assert.Less(drilled.turns, 12, "drilled men still turn round and round");
+            Assert.Less(drilled.turns * 10, loose.turns, "drill made no real difference to turning round");
         }
 
         [Test]

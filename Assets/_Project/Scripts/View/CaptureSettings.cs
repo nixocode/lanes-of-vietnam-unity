@@ -81,6 +81,8 @@ namespace LanesOfVietnam.View
         public float? SkyEv;
         /// <summary>Squad smoke on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? SquadSmoke;
+        /// <summary>Part 2: drill (steady orders and places). Null: the game's default (on).</summary>
+        public bool? Drill;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -124,6 +126,7 @@ namespace LanesOfVietnam.View
                         c.Lgg = new[] { float.Parse(lg[0], inv), float.Parse(lg[1], inv), float.Parse(lg[2], inv) };
                         break;
                     case "squadsmoke": c.SquadSmoke = v == "1" || v == "true"; break;
+                    case "drill": c.Drill = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

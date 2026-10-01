@@ -9,7 +9,9 @@
 //   absorption  a one-pole low-pass, 20 kHz x exp(-d / 120 m): a near rifle
 //               cracks, a far one thumps; cover shortens the scale (darker,
 //               not quieter)
-//   spreading   1/d from a 10 m reference
+//   spreading   1/d from a 24 m reference: the camera stands 40-50 m from the
+//               lanes, and from 10 m every shot there arrived at a fifth of its
+//               level (the owner's second playtest: no punch)
 //   scattering  a reverb send that rises with distance while the dry path
 //               falls, into the valley's impulse response
 // Master -> limiter, so a volley ducks under itself instead of clipping.
@@ -23,7 +25,7 @@ mergeInto(LibraryManager.library, {
       ctx: new (window.AudioContext || window.webkitAudioContext)(),
       buffers: {}, voices: 0, maxVoices: 32,
       listenerX: 0, listenerZ: 44, ambience: null, ambienceGain: null,
-      SPEED: 343, REF: 10, ABSORB: 120, MAX: 900
+      SPEED: 343, REF: 24, ABSORB: 120, MAX: 900
     };
     var ctx = A.ctx;
     var comp = ctx.createDynamicsCompressor();

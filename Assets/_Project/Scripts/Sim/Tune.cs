@@ -165,6 +165,12 @@ namespace LanesOfVietnam.Sim
         /// <summary>Cover barely helps against a grenade that comes down inside it; lying flat in the open helps more.</summary>
         public const double FragCoverFactor = 0.85, FragProneFactor = 0.55;
 
+        // --- drill (MatchOptions.Drill, Part 2) ----------------------------------------
+        /// <summary>Ticks an order stands once given (1.5 s), unless the new order is to fall back.</summary>
+        public const int DrillDwell = 30;
+        /// <summary>Metres from his place inside which a man does not move.</summary>
+        public const double DrillSlack = 0.35;
+
         // --- squad smoke (MatchOptions.SquadSmoke, Part 2) -----------------------------
         /// <summary>An M18 or two per squad.</summary>
         public const int SquadSmokeCarried = 1;

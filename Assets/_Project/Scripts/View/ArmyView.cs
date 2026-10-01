@@ -335,6 +335,14 @@ namespace LanesOfVietnam.View
             return f != null;
         }
 
+        /// <summary>Where a man's body is, where there is a 3D man (a fallen one lies where his fall took him).</summary>
+        public bool TryBody(int id, out Vector3 p)
+        {
+            var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
+            p = f != null ? f.Centre : default;
+            return f != null && p != default;
+        }
+
         private void DrawFigures(MatchDriver d, Ground g)
         {
             var st = d.State;

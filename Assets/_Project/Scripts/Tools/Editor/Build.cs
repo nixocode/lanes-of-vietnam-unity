@@ -91,6 +91,9 @@ namespace LanesOfVietnam.Tools
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
 
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
+            // The game fills the window (Assets/WebGLTemplates/Lanes): on the stock
+            // template's 960x600 island a trackpad scrolled the page, not the camera.
+            PlayerSettings.WebGL.template = "PROJECT:Lanes";
             var opts = new BuildPlayerOptions
             {
                 scenes = new[] { scene },
