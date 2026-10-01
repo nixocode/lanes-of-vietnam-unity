@@ -55,6 +55,8 @@ namespace LanesOfVietnam.View
         private static readonly int DeadId = Animator.StringToHash("Dead");
         private static readonly int DeathId = Animator.StringToHash("DeathIndex");
         private static readonly int HitId = Animator.StringToHash("Hit");
+        private static readonly int ReloadId = Animator.StringToHash("Reload");
+        private int _reactLayer = -1;
 
         private float _recoil, _aim, _deadFor = -1f;
         private int _aimLayer = -1;
@@ -66,6 +68,7 @@ namespace LanesOfVietnam.View
             // Stepped by hand (Step), never by Unity's clock.
             Animator.enabled = false;
             _aimLayer = Animator.GetLayerIndex("Aim");
+            _reactLayer = Animator.GetLayerIndex("React");
         }
 
         /// <summary>
@@ -123,8 +126,19 @@ namespace LanesOfVietnam.View
             if (_deadFor < 0 && !_baked) Animator.SetTrigger(HitId);
         }
 
-        /// <summary>A shot: the kick of the rifle into the shoulder.</summary>
-        public void Fire() => _recoil = 1f;
+        /// <summary>A shot: the kick of the rifle into the shoulder; a reload he was in the middle of is over.</summary>
+        public void Fire()
+        {
+            _recoil = 1f;
+            if (_reactLayer >= 0 && _deadFor < 0 && !_baked && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
+                Animator.CrossFadeInFixedTime("Calm", 0.12f, _reactLayer);
+        }
+
+        /// <summary>A lull after shooting: a fresh magazine (where the posture has a reload clip).</summary>
+        public void Reload()
+        {
+            if (_deadFor < 0 && !_baked) Animator.SetTrigger(ReloadId);
+        }
 
         public Vector3 MuzzlePosition => Muzzle != null ? Muzzle.position : transform.position + Vector3.up * 1.4f;
 
