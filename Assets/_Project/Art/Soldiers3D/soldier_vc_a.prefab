@@ -246,11 +246,109 @@ MonoBehaviour:
   Chest: {fileID: 1593102298310036151}
   LowerArmR: {fileID: 2259056914705826384}
   Hips: {fileID: 1587671445252919831}
-  RifleGripR: {x: 0.09419042, y: 0.345821, z: 0.03309813}
-  RifleGripL: {x: -0.0020589703, y: 0.25393, z: 0.33573997}
-  RifleUp: {x: -0.10251896, y: 0.942022, z: 0.31950626}
-  RifleInHandPos: {x: 0.3427574, y: -0.1060884, z: -0.028675877}
-  RifleInHandRot: {x: -0.38798487, y: 0.6985895, z: 0.46451762, w: 0.3816598}
+  RifleGripR: {x: -0.25, y: -0.104, z: 0}
+  RifleGripL: {x: -0.535, y: -0.0869, z: 0}
+  RifleUp: {x: 0, y: 1, z: 0}
+  RifleInHandPos: {x: -0.22076882, y: -0.14361481, z: 0.06286437}
+  RifleInHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  Arms:
+  - Name: ak
+    Mesh: {fileID: -4809502389200715378, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.25, y: -0.104, z: 0}
+    GripL: {x: -0.535, y: -0.0869, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.88, y: 0, z: 0}
+    InHandPos: {x: -0.22076882, y: -0.14361481, z: 0.06286437}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: m16
+    Mesh: {fileID: -3658404682748835264, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.268, y: -0.1, z: 0}
+    GripL: {x: -0.585, y: -0.08098, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.986, y: 0, z: 0}
+    InHandPos: {x: -0.22807099, y: -0.16053315, z: 0.063535795}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: m3
+    Mesh: {fileID: 2754585627051190158, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.286, y: -0.086, z: 0}
+    GripL: {x: -0.45, y: -0.07616, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.757, y: 0, z: 0}
+    InHandPos: {x: -0.22789288, y: -0.18317737, z: 0.060851812}
+    InHandRot: {x: -0.44465113, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: m40
+    Mesh: {fileID: -7707210830492641638, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.276, y: -0.092, z: 0}
+    GripL: {x: -0.6, y: -0.07256, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.117, y: 0, z: 0}
+    InHandPos: {x: -0.22666188, y: -0.17161521, z: 0.061746333}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: m60
+    Mesh: {fileID: 4319440526440242126, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.222, y: -0.104, z: 0}
+    GripL: {x: -0.64, y: -0.07892, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.105, y: 0, z: 0}
+    InHandPos: {x: -0.20475563, y: -0.1208604, z: 0.0597319}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: m79
+    Mesh: {fileID: 8779036877458597403, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.268, y: -0.09, z: 0}
+    GripL: {x: -0.5, y: -0.07608, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.731, y: 0, z: 0}
+    InHandPos: {x: -0.22059074, y: -0.16625918, z: 0.060180336}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: mortar
+    Mesh: {fileID: -4927902933930157329, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.26, y: -0.06, z: 0}
+    GripL: {x: -0.56, y: -0.042, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.819, y: 0, z: 0}
+    InHandPos: {x: -0.19357486, y: -0.17693585, z: 0.049218893}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: mosin
+    Mesh: {fileID: 3166402890799535854, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.244, y: -0.086, z: 0}
+    GripL: {x: -0.62, y: -0.06344, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.232, y: 0, z: 0}
+    InHandPos: {x: -0.20387295, y: -0.14904575, z: 0.056153238}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: ppsh
+    Mesh: {fileID: -3311819593020789841, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.24, y: -0.088, z: 0}
+    GripL: {x: -0.5, y: -0.0724, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -0.843, y: 0, z: 0}
+    InHandPos: {x: -0.20308152, y: -0.14464976, z: 0.056376826}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: rpd
+    Mesh: {fileID: 528491375982451074, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.236, y: -0.1, z: 0}
+    GripL: {x: -0.64, y: -0.07576, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.037, y: 0, z: 0}
+    InHandPos: {x: -0.20977011, y: -0.13452794, z: 0.059955966}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: rpg
+    Mesh: {fileID: -9101383393770162903, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.462, y: -0.072, z: 0}
+    GripL: {x: -0.63, y: -0.06192, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.34, y: 0, z: 0}
+    InHandPos: {x: -0.31807464, y: -0.33422223, z: 0.0758432}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  - Name: sks
+    Mesh: {fileID: -2862743625792731552, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    GripR: {x: -0.24, y: -0.086, z: 0}
+    GripL: {x: -0.56, y: -0.0668, z: 0}
+    Up: {x: 0, y: 1, z: 0}
+    Muzzle: {x: -1.02, y: 0, z: 0}
+    InHandPos: {x: -0.20158544, y: -0.14579503, z: 0.05570578}
+    InHandRot: {x: -0.44465116, y: 0.87747616, z: 0.12643236, w: -0.1278133}
+  ArmsMaterial: {fileID: 2100000, guid: 813ea907b48314d3582c7cfb1e13c887, type: 2}
   MixamoStand: 1
   MixamoCrouch: 1
   MixamoProne: 1
@@ -264,6 +362,15 @@ MonoBehaviour:
   BlastDeath: 1
   CrouchDeath: 1
   ProneDeath: 1
+  Falls:
+  - -0.21622121
+  - -0.5034763
+  - 0.8831999
+  - 1.0103501
+  - 0.9391131
+  - 0.87197155
+  - -0.8276845
+  - -0.8098437
   Blows: 2
   BlowFirst: 0
   Climbs: 1
@@ -327,7 +434,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.54373884, y: 0.24299265, z: 0.64851, w: 0.47406486}
   m_LocalPosition: {x: 0.22103341, y: -0.22898522, z: 0.3924135}
-  m_LocalScale: {x: 1.0000001, y: 1.0000002, z: 1.0000001}
+  m_LocalScale: {x: 1.0000001, y: 1.0000002, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6455585572426081806}
@@ -341,7 +448,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 777444648401421463}
-  m_Mesh: {fileID: 3675064861402208940, guid: 86cdd120e17a44fc88ada9395731a598, type: 3}
+  m_Mesh: {fileID: -4809502389200715378, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
 --- !u!23 &5471499112893520099
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -367,7 +474,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3c8333d088a7644929622b4cde43659e, type: 2}
+  - {fileID: 2100000, guid: 813ea907b48314d3582c7cfb1e13c887, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1671,7 +1778,7 @@ Transform:
   m_GameObject: {fileID: 5988126287814274787}
   serializedVersion: 2
   m_LocalRotation: {x: -0.000000017695132, y: -0.000000105239465, z: -0.00000013317916, w: 1}
-  m_LocalPosition: {x: -0.1637815, y: 0.1499275, z: 0.7592562}
+  m_LocalPosition: {x: -0.88, y: 0, z: 0}
   m_LocalScale: {x: 0.99999976, y: 0.9999998, z: 0.9999999}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1924,7 +2031,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8154612126021201567}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.333413, y: -0.093434595, z: 0.15362549, w: 0.9254755}
+  m_LocalRotation: {x: 0.33341303, y: -0.0934346, z: 0.1536255, w: 0.92547554}
   m_LocalPosition: {x: 0.000000044703484, y: 0.022168808, z: -0.000000040978193}
   m_LocalScale: {x: 0.99999994, y: 0.99999994, z: 0.9999998}
   m_ConstrainProportionsScale: 0

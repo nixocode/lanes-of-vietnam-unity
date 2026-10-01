@@ -109,7 +109,51 @@ namespace LanesOfVietnam.View
         public static readonly Vector2 Battery = new Vector2(-640f, 40f);
 
         /// <summary>One man in five fires bursts: an automatic rifleman or a gunner, to the ear.</summary>
-        public static bool Automatic(Man m) => (m.Id * 7 + 3) % 5 == 0;
+        /// <summary>
+        /// Does he fire bursts? By his weapon (Arms): the machine guns and the
+        /// submachine guns. Without Arms every man is one rifleman, and one in
+        /// five is given a burst by his number, as before.
+        /// </summary>
+        public static bool Automatic(Man m) => m.Weapon == Weapon.Rifle
+            ? (m.Id * 7 + 3) % 5 == 0
+            : m.Weapon == Weapon.M60 || m.Weapon == Weapon.Rpd || m.Weapon == Weapon.Smg;
+
+        /// <summary>The model a man carries (tools/blender/weapons.py), by his weapon and his side.</summary>
+        public static string Model(Man m)
+        {
+            bool us = m.Side == Side.Us;
+            switch (m.Weapon)
+            {
+                case Weapon.Ak: return "ak";
+                case Weapon.Sks: return "sks";
+                case Weapon.M60: return "m60";
+                case Weapon.Rpd: return "rpd";
+                case Weapon.Smg: return us ? "m3" : "ppsh";
+                case Weapon.Sniper: return us ? "m40" : "mosin";
+                case Weapon.M79: return "m79";
+                case Weapon.Rpg: return "rpg";
+                case Weapon.Mortar: return "mortar";
+                default: return us ? "m16" : "ak";
+            }
+        }
+
+        /// <summary>The recordings a shot from his weapon is picked from.</summary>
+        private string Shot(Man m)
+        {
+            switch (m.Weapon)
+            {
+                case Weapon.M16: return Pick("m16");
+                case Weapon.Ak: return Pick("ak");
+                case Weapon.Sks: return Pick("sks");
+                case Weapon.M60: case Weapon.Rpd: return Pick("mg");
+                case Weapon.Smg: return Pick("smg");
+                case Weapon.Sniper: return Pick("bolt") ?? Pick("sks");
+                default:
+                    bool auto = Automatic(m);
+                    return (m.Side == Side.Us ? (auto ? Pick("mg") : Pick("m16")) : (auto ? Pick("smg") : Pick("ak", "ak", "sks")))
+                           ?? (m.Side == Side.Us ? Pick("m16") : Pick("ak", "sks"));
+            }
+        }
 
         /// <summary>Shots played and dropped since the match began, for the log and the tests.</summary>
         public int Played { get; private set; }
@@ -212,6 +256,14 @@ namespace LanesOfVietnam.View
                             Play(Pick(ricochet ? "crack" : "dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
                         }
                         break;
+                    case EventKind.Launch:
+                        // A launcher or a mortar firing: its thump, from the battery's recordings, pitched up to its size.
+                        if (e.Id < st.Men.Count)
+                        {
+                            var by = st.Men[e.Id];
+                            Play(Pick("howitzer"), by.X, by.Z, by.Weapon == Weapon.Mortar ? 0.7f : 0.5f, by.Weapon == Weapon.Mortar ? Range(1.5f, 1.7f) : Range(2.0f, 2.3f), false);
+                        }
+                        break;
                     case EventKind.Melee:
                         // Hand to hand: the blow, heard only close.
                         if (e.Id < st.Men.Count && Dist(st.Men[e.Id].X, st.Men[e.Id].Z, lx, lz) < 70)
@@ -296,9 +348,7 @@ namespace LanesOfVietnam.View
             {
                 if (i >= ShotsPerTick) { Rationed++; continue; }
                 var (m, d) = shots[i];
-                bool auto = Automatic(m);
-                string clip = m.Side == Side.Us ? (auto ? Pick("mg") : Pick("m16")) : (auto ? Pick("smg") : Pick("ak", "ak", "sks"));
-                clip ??= m.Side == Side.Us ? Pick("m16") : Pick("ak", "sks");
+                string clip = Shot(m);
                 if (clip == null) continue;
                 // Pitch varies per shot: identical impulses at 20 Hz comb against
                 // each other and read as a machine, not twenty men with rifles.

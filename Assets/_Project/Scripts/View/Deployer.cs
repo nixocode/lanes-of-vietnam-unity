@@ -25,7 +25,7 @@ namespace LanesOfVietnam.View
         public Material MarkerMaterial;
 
         public static readonly KeyCode[] CallKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T };
-        public static readonly KeyCode[] UnitKeys = { KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B };
+        public static readonly KeyCode[] UnitKeys = { KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N };
 
         /// <summary>The card in hand, or null.</summary>
         public Card Armed { get; private set; }

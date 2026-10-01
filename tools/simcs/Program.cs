@@ -38,6 +38,7 @@ namespace LanesOfVietnam.SimCs
                     "wander" => Wander(args),
                     "muddle" => Muddle(args),
                     "lever" => LeverTrace(args),
+                    "arms" => ArmsTable(args),
                     _ => Usage(),
                 };
             }
@@ -137,11 +138,11 @@ namespace LanesOfVietnam.SimCs
         /// </summary>
         private static int Events(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 3;
             var usPlan = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
             var st = m.State;
@@ -176,10 +177,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -209,10 +210,10 @@ namespace LanesOfVietnam.SimCs
         /// </summary>
         private static int Wander(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 3, ticks = a.Length > 2 ? int.Parse(a[2]) : 2400;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var st = m.State;
             var order = new Dictionary<int, Order>(); var changes = new Dictionary<int, int>();
             var at = new Dictionary<int, (double x, double z)>(); var first = new Dictionary<int, double>();
@@ -249,6 +250,64 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// What each weapon does in play, as the game plays it: men who carried
+        /// it, shots or rounds, the distance they were fired at, kills. `arms [seed] [seeds]`.
+        /// </summary>
+        private static int ArmsTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 1, seeds = nums.Length > 1 ? nums[1] : 12;
+            var carried = new Dictionary<Weapon, int>(); var shots = new Dictionary<Weapon, int>();
+            var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms" }));
+                var st = m.State;
+                int from = 0;
+                while (!st.Over && st.Tick < m.Cap)
+                {
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.Fire || e.Kind == EventKind.Launch)
+                        {
+                            var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                            double d = e.Kind == EventKind.Launch ? Combat.Dist(by.X, by.Z, e.X.Value, e.Z.Value) : Combat.Dist(by, at);
+                            shots[by.Weapon] = shots.GetValueOrDefault(by.Weapon) + 1;
+                            dist[by.Weapon] = dist.GetValueOrDefault(by.Weapon) + d;
+                            far[by.Weapon] = Math.Max(far.GetValueOrDefault(by.Weapon), d);
+                            if (e.Kind == EventKind.Fire && i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == at.Id)
+                                kills[by.Weapon] = kills.GetValueOrDefault(by.Weapon) + 1;
+                        }
+                        if (e.Kind == EventKind.GrenadeBlast)
+                        {
+                            // The kills a burst makes follow it in the log; whose it was is the round's own record.
+                            int k = 0;
+                            for (int j = i + 1; j < st.Events.Count && st.Events[j].Tick == e.Tick && st.Events[j].Kind != EventKind.GrenadeBlast; j++)
+                                if (st.Events[j].Kind == EventKind.Kill) k++;
+                            var w = blasts.TryGetValue((seed, e.Id), out var bw) ? bw : Weapon.Rifle;
+                            if (w != Weapon.Rifle) kills[w] = kills.GetValueOrDefault(w) + k;
+                        }
+                    }
+                    from = st.Events.Count;
+                    foreach (var g in st.Grenades) blasts[(seed, g.Id)] = g.By;
+                }
+                foreach (var man in st.Men) carried[man.Weapon] = carried.GetValueOrDefault(man.Weapon) + 1;
+            }
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}, a match:");
+            Console.WriteLine("  weapon    men   shots  at (mean m)  furthest  range  kills  kills a man");
+            foreach (Weapon w in Enum.GetValues(typeof(Weapon)))
+            {
+                if (!carried.ContainsKey(w)) continue;
+                int n = shots.GetValueOrDefault(w);
+                Console.WriteLine($"  {w,-8} {carried[w] / (double)seeds,5:F1} {n / (double)seeds,7:F1} {(n > 0 ? dist[w] / n : 0),10:F1} {far.GetValueOrDefault(w),9:F1} {Arms.Of(w).Range,6:F0} {kills.GetValueOrDefault(w) / (double)seeds,6:F1} {kills.GetValueOrDefault(w) / (double)Math.Max(1, carried[w]),8:F2}");
+            }
+            return 0;
+        }
+        private static readonly Dictionary<(int, int), Weapon> blasts = new Dictionary<(int, int), Weapon>();
+
         /// <summary>A squad called to a held trench and then sent out of it, tick by tick: `lever [seed]`.</summary>
         private static int LeverTrace(string[] a)
         {
@@ -277,7 +336,7 @@ namespace LanesOfVietnam.SimCs
         {
             Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
             Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
-            Fieldcraft = a.Contains("fieldcraft"),
+            Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"),
         };
 
         /// <summary>
@@ -410,8 +469,8 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -427,7 +486,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft });
+                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];
                 lostGround += r.MoraleLostToGround[0] + r.MoraleLostToGround[1];

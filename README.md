@@ -72,8 +72,8 @@ reference/TARGET.jpg             the specification for the look
 | Soldiers | skinned 3D men on a Humanoid avatar, stepped by match time, ~0.5 ms a frame in WebGL; interim clips (CMU mocap and poses) until Mixamo's |
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
-| Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), each behind a match option; parity baseline tagged and unchanged |
-| Build | 30.25 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
+| Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
+| Build | 29.85 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 
 The measured detail, step by step, is in PLAN §10a.
 

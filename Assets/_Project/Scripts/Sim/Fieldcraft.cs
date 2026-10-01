@@ -326,12 +326,20 @@ namespace LanesOfVietnam.Sim
                 if (sq.Sent > 0) sq.Sent--;
 
                 // The lever on the position it stands in.
-                bool sent = false;
+                bool sent = false, held = false;
                 if (free && arrived && IsPosition(tc))
                 {
                     var lever = LeverOf(tc, sq.Side);
-                    if (lever == Lever.Hold) sq.Order = Order.Hold;
+                    if (lever == Lever.Hold) { sq.Order = Order.Hold; held = true; }
                     else if (lever == Lever.Go) { sq.Held = Tune.CoverPause; sq.Sent = Tune.SentTicks; sent = true; }
+                }
+                // Arms: a squad that can see the enemy from beyond its own fighting distance
+                // closes to it, unless it is beaten down or has been told to stay: a fight
+                // happens where its weapons fight, not wherever the first round fell.
+                if (st.Arms && free && !held && plan.Advance && st.Phase == Phase.Fight && sq.Order == Order.Hold && !sq.Rallied)
+                {
+                    double gap = Gap(st, sq, dir);
+                    if (gap > sq.Reach + 2 && gap < 1e9 && MeanPin(live) < Tune.PinDrop) sq.Order = Order.Advance;
                 }
                 // Sent out of a position, it goes, until it is in its next cover: it does not stop a pace beyond the parapet.
                 if (arrived && !sent) sq.Sent = 0;
@@ -371,6 +379,28 @@ namespace LanesOfVietnam.Sim
             March(st, sq, live, tc, dir);
             Squads.Reanchor(sq, live);
             Slots(st, sq, live, tc, dir, slots);
+        }
+
+        /// <summary>Metres along the lane to the nearest enemy the squad can see ahead of it; huge if none.</summary>
+        private static double Gap(SimState st, Squad sq, double dir)
+        {
+            double near = double.PositiveInfinity;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var e = st.Men[i];
+                if (!e.Alive || e.Side == sq.Side || !e.Seen) continue;
+                if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
+                double ahead = (e.X - sq.AnchorX) * dir;
+                if (ahead >= 0 && ahead < near) near = ahead;
+            }
+            return near;
+        }
+
+        private static double MeanPin(IReadOnlyList<Man> live)
+        {
+            double pin = 0;
+            for (int i = 0; i < live.Count; i++) pin += live[i].Pin;
+            return live.Count == 0 ? 0 : pin / live.Count;
         }
 
         /// <summary>The nearest position ahead, or under it, that its side holds by lever and that has a place free for it.</summary>
@@ -432,17 +462,18 @@ namespace LanesOfVietnam.Sim
                     if (!e.Alive || e.Side == sq.Side || !e.Seen) continue;
                     if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
                     double ahead = (e.X - was) * dir;
-                    if (ahead < 0 || ahead > Tune.AssaultReach) continue;
+                    if (ahead < 0 || ahead > Math.Max(Tune.AssaultReach, sq.Reach + 6)) continue;
                     if (Combat.SmokeBlocks(st, was, sq.AnchorZ, e.X, e.Z)) continue;
                     enemies++; pin += e.Pin;
                     if (ahead < near) near = ahead;
                 }
                 if (enemies > 0)
                 {
-                    sq.Assault = pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies;
+                    // Arms: a squad fights from its own distance, and a support team does not go in.
+                    sq.Assault = sq.Assaults && (pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies);
                     if (!sq.Assault)
                     {
-                        double limit = was + dir * Math.Max(0, near - Tune.StandOff);
+                        double limit = was + dir * Math.Max(0, near - sq.Reach);
                         if ((sq.AnchorX - limit) * dir > 0) { sq.AnchorX = limit; sq.Halted = true; }
                     }
                 }

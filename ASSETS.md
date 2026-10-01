@@ -407,6 +407,38 @@ singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
 | deaths | `death_front_head`, `death_right`, `death_back_head`, `death_back`, `death_front`, `death_crouch_head` (Pack); `death_rifle` (Rifle Death), `death_fall_back` (Falling Back Death), `death_backwards` (Dying Backwards), `death_blast` (Flying Back Death), `death_run` (Rifle Run To Dying), `prone_death` |
 | fieldcraft (fetched 2026-10-01, owner's OK the same day) | `melee_stab` (Bayonet Stab), `melee_slash` (Slash Advance), `trench_in` (Jump Down: "Rifle Jump Down"), `trench_out` (Climbing Up Wall). sha256 starts: `melee_stab` 8658dde2e4dce16d, `melee_slash` d394a05e0836035a, `trench_in` de5a087ff1037816, `trench_out` f653a1d3d89b6ecd |
 
+### Weapons — `Assets/_Project/Art/Weapons/`
+
+**Built, not sourced** (`tools/blender/weapons.py`; nothing downloaded, so
+nothing to license). Every class had carried the earlier build's one rifle, a
+box with a rod on it. Twelve weapons now, each from its side profile at its
+published length, parts extruded and chamfered, barrels turned:
+
+| model | weapon | length m | who carries it |
+|---|---|---|---|
+| `m16` | M16A1 | 0.986 | US riflemen |
+| `m60` | M60 | 1.105 | the M60 team and the weapons squad |
+| `m79` | M79 | 0.731 | the weapons squad's grenadier |
+| `m3` | M3A1 "grease gun" | 0.757 | engineers |
+| `m40` | M40 with its scope | 1.117 | the US sniper |
+| `mortar` | M19 60 mm tube | 0.819 | the mortar team |
+| `ak` | AK-47 | 0.880 | NVA |
+| `sks` | SKS | 1.020 | guerrillas |
+| `rpd` | RPD | 1.037 | the NVA squad's gunner |
+| `ppsh` | PPSh-41 | 0.843 | sappers, a cell's point man |
+| `mosin` | Mosin-Nagant 91/30 PU | 1.232 | the VC sniper |
+| `rpg` | RPG-7 with a PG-7 round | 1.340 | the RPG team |
+
+One 8 x 1 palette (steel, black plastic, two woods, olive paint, glass, brass,
+canvas), read point-filtered; 172 to 476 triangles a weapon. Each mesh carries
+empties for its butt, muzzle, up and the two wrists, which is where Unity gets
+the grip from. `captures/weapons.png` shows them side on.
+
+| file | sha256 |
+|---|---|
+| `weapons.fbx` | `6c7e91484cda7be2d107509b5164d341b638ab0934354e6d3ba1de34477e0f91` |
+| `weapons_palette.png` | `8211ab0b7173fcc264b8f80a57b535d9eab0eeaecb60365d44508ad6102732c3` |
+
 ### Structures — `Assets/_Project/Art/Structures/`
 
 **Sandbag walls, built as geometry** by `tools/blender/sandbag_mesh.py`
@@ -553,6 +585,7 @@ to −1 dBFS.
 | `m16_*` | AR-15 (the M16's civilian twin) | 4 | the US rifles |
 | `ak_*` | AK-47 | 8 | the VC and NVA |
 | `sks_*` | SKS | 4 | the VC and NVA, mixed with the AK so a volley is not one rifle |
+| `bolt_*` | Mosin Nagant | 4 | the snipers of both sides (added 2026-10-01 with the sniper class) |
 
 These are CC0, so they are committed.
 
@@ -607,3 +640,4 @@ Still to source: the UH-1, voices and music.
 | `ak_0.m4a` … `ak_7.m4a` | `4e779a7d…`, `1511c2fe…`, `9a162434…`, `09a8da50…`, `52fe1a62…`, `fee98695…`, `93809c5c…`, `6aae7906…` |
 | `m16_0.m4a` … `m16_3.m4a` | `f948d7bf…`, `c0fd1868…`, `a08c0fb8…`, `47efe7e3…` |
 | `sks_0.m4a` … `sks_3.m4a` | `e26df6db…`, `343d3ad1…`, `e0574d50…`, `a3ef3dd8…` |
+| `bolt_0.m4a` … `bolt_3.m4a` | `85f95523…`, `c473188b…`, `82189ccd…`, `ddd49e7a…` |

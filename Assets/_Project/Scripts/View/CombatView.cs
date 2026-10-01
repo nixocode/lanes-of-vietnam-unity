@@ -151,6 +151,7 @@ namespace LanesOfVietnam.View
                     case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
                     case EventKind.GrenadeBlast: GrenadeBurst(e, (float)age); break;
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
+                    case EventKind.Launch: Launched(e, i, (float)age); break;
                     case EventKind.Through: Passed(e, i, (float)age); break;
                 }
             }
@@ -197,7 +198,8 @@ namespace LanesOfVietnam.View
             // One sim shot is one round from a rifle, a short burst from an
             // automatic weapon (the same men AudioView gives the burst sounds).
             bool auto = AudioView.Automatic(shooter);
-            int rounds = auto ? BurstRounds : 1;
+            // A belt-fed gun's burst is longer than a rifleman's on automatic.
+            int rounds = !auto ? 1 : shooter.Weapon == Weapon.M60 || shooter.Weapon == Weapon.Rpd ? BurstRounds + 2 : BurstRounds;
             for (int r = 0; r < rounds; r++)
             {
                 float ra = age - r * BurstGap;
@@ -337,6 +339,60 @@ namespace LanesOfVietnam.View
                 for (int k = 0; k < 2; k++)
                     AddPuff(feet + Vector3.up * (0.15f + 0.4f * ai + 0.2f * k), 0.35f + 0.8f * ai, new Color(0.20f, 0.17f, 0.13f, 0.5f * f * f), (float)Hash(i, 40 + k), 1f);
             }
+        }
+
+        /// <summary>
+        /// A bursting round on its way (the sim's Launch): the thump and smoke
+        /// where it was fired, and the round itself. An M79's grenade is a dark
+        /// speck on a low arc; a rocket goes flat and fast on its motor, its
+        /// smoke behind it and its backblast behind the man; a mortar bomb goes
+        /// up out of the frame and comes down. The burst is the GrenadeBlast
+        /// that follows it.
+        /// </summary>
+        private void Launched(SimEvent e, int i, float age)
+        {
+            var men = _root.Driver.State.Men;
+            if (e.X == null || e.Id >= men.Count) return;
+            var by = men[e.Id];
+            float flight = (float)((e.Amount ?? 10) * Tune.Dt);
+            var a = Chest(by);
+            double lx = e.X.Value, lz = e.Z.Value;
+            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.1f);
+            var from = _root.ArmyView != null && _root.ArmyView.TryMuzzle(by.Id, out var mz) ? mz : a + (to - a).normalized * 0.6f;
+            var dir = (to - from).normalized;
+            bool rocket = by.Weapon == Weapon.Rpg, mortar = by.Weapon == Weapon.Mortar;
+
+            if (age < 0.06f) AddGlow(from, rocket ? 0.9f : 0.5f, Flash * (10f * (1 - age / 0.06f)), 0, (float)Hash(i, 50));
+            if (age < 1.6f)
+            {
+                // The smoke of the shot: at the muzzle, and for a rocket a great deal more of it behind him.
+                float f = 1 - age / 1.6f;
+                AddPuff(from + Vector3.up * (0.3f * age), 0.3f + 0.9f * age, new Color(0.6f, 0.6f, 0.58f, 0.45f * f * f), (float)Hash(i, 51), 1f);
+                if (rocket)
+                    for (int k = 0; k < 4; k++)
+                        AddPuff(a - dir * (0.8f + (1.2f + 0.9f * k) * Mathf.Min(age * 3f, 1f)) + Vector3.up * (0.2f * k * age),
+                                0.5f + (1.2f + 0.3f * k) * age, new Color(0.55f, 0.54f, 0.5f, 0.6f * f * f), (float)Hash(i, 52 + k), 1f);
+            }
+            if (age >= flight) return;
+
+            float t = age / flight;
+            float span = Vector3.Distance(from, to);
+            float apex = rocket ? 0.15f : mortar ? 14f + 0.2f * span : 0.6f + 0.05f * span;
+            var p = Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
+            if (rocket)
+            {
+                AddGlow(p - dir * 0.3f, 0.45f, new Color(1f, 0.7f, 0.35f) * 6f, 0, (float)Hash(i, 60));
+                AddStreak(p - dir * 1.2f, p, 0.07f, new Color(1f, 0.6f, 0.25f) * 3f, (float)Hash(i, 61));
+                // The motor's smoke, hanging along the way it came.
+                for (int k = 1; k <= 6; k++)
+                {
+                    float tk = t - k * 0.12f;
+                    if (tk < 0) break;
+                    var pk = Vector3.Lerp(from, to, tk) + Vector3.up * (4f * apex * tk * (1 - tk) + 0.1f * k);
+                    AddPuff(pk, 0.25f + 0.12f * k, new Color(0.7f, 0.7f, 0.68f, 0.5f - 0.07f * k), (float)Hash(i, 62 + k), 1f);
+                }
+            }
+            else AddPuff(p, mortar ? 0.3f : 0.2f, new Color(0.035f, 0.035f, 0.03f, 1f), 0.5f, 1f);
         }
 
         /// <summary>

@@ -76,8 +76,11 @@ namespace LanesOfVietnam.Sim
         public static double HitChance(SimState st, Man a, Man b)
         {
             double d = Dist(a, b);
-            double t = Math.Min(1, d / Tune.Range);
-            double p = Tune.HitBase * (1 - t * (1 - Tune.HitAtRange));
+            // Arms: his weapon's range, its accuracy and what is left of it out there (the baseline's rifle otherwise).
+            var arm = Arms.Of(st, a);
+            double t = Math.Min(1, d / arm.Range);
+            double p = Tune.HitBase * (1 - t * (1 - arm.AtRange));
+            if (st.Arms) p *= arm.Hit;
 
             // A suppressed man shoots worse. Veterancy steadies the aim but
             // never raises the ceiling — steadier, not stronger.
@@ -90,7 +93,7 @@ namespace LanesOfVietnam.Sim
             // Fieldcraft: a parapet is no cover from a man standing on it.
             if (c != null && !(st.Fieldcraft && d < Tune.ChargeRange * 0.5))
             {
-                p *= 1 - CoverValue(st, c);
+                p *= 1 - CoverValue(st, c) * (1 - arm.Pierce);
                 if (c.RangedIn >= 1) p *= Tune.RangedInBonus;
             }
             if (st.Fieldcraft && d < Tune.CloseRange) p *= 1 + Tune.CloseBonus * (1 - d / Tune.CloseRange);
@@ -133,7 +136,8 @@ namespace LanesOfVietnam.Sim
         public static Man PickTarget(SimState st, Man a)
         {
             Man best = null;
-            double bestD2 = Tune.Range * Tune.Range;
+            double reach = Arms.Of(st, a).Range;
+            double bestD2 = reach * reach;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var b = st.Men[i];
@@ -165,6 +169,10 @@ namespace LanesOfVietnam.Sim
                 if (close != null) { Fieldcraft.Strike(st, a, close, rng); return true; }
             }
 
+            var arm = Arms.Of(st, a);
+            // Arms: a launcher or a mortar fires a bursting round, not a bullet (and not while he is pinned flat).
+            if (st.Arms && arm.Bursts) return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
+
             var target = PickTarget(st, a);
             if (target == null)
             {
@@ -178,7 +186,7 @@ namespace LanesOfVietnam.Sim
             double rate = 1 - (1 - Tune.PinnedFireRate) * pinFrac;
             if (rng.Next() > rate) { a.Cooldown = 2; return false; }
 
-            a.Cooldown = Tune.Cooldown;
+            a.Cooldown = arm.Cooldown;
             // Firing gives away concealment.
             a.Seen = true;
             st.Events.Add(new SimEvent
@@ -197,7 +205,8 @@ namespace LanesOfVietnam.Sim
 
             // The miss is the point: pin on the man it passed and everyone
             // near him, which is how fire suppresses a position.
-            ApplyPin(st, target, Tune.PinPerNearMiss);
+            double near = Tune.PinPerNearMiss * arm.Pin;
+            ApplyPin(st, target, near);
             double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)
             {
@@ -208,7 +217,7 @@ namespace LanesOfVietnam.Sim
                 if (d2 < r2)
                 {
                     double d = Math.Sqrt(d2);
-                    ApplyPin(st, n, Tune.PinPerNearMiss * (1 - d / Tune.PinSplash) * 0.6);
+                    ApplyPin(st, n, near * (1 - d / Tune.PinSplash) * 0.6);
                 }
             }
             return true;

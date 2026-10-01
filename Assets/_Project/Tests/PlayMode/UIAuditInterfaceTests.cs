@@ -73,14 +73,17 @@ namespace LanesOfVietnam.Tests
                 Root.Driver.FastForward(2);
                 yield return new WaitForSecondsRealtime(0.06f);   // past the 55 ms ration
                 var fresh = rec.Played.Skip(before).Where(p => p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")
-                                                               || p.name.StartsWith("mg_") || p.name.StartsWith("smg_")).ToList();
+                                                               || p.name.StartsWith("mg_") || p.name.StartsWith("smg_") || p.name.StartsWith("bolt")).ToList();
                 Assert.LessOrEqual(fresh.Count, AudioView.ShotsPerTick, $"frame {f}: {fresh.Count} new shots");
                 foreach (var shot in fresh)
                 {
-                    bool us = shot.name.StartsWith("m16") || shot.name.StartsWith("mg_");
-                    Assert.IsTrue(st.Men.Any(m => (m.Side == Side.Us) == us
+                    // Each recording is some weapons' own (Arms): the report comes from where a man carrying one of them stands.
+                    string set = shot.name.Substring(0, shot.name.LastIndexOf('_'));
+                    var carried = set == "m16" ? new[] { Weapon.M16 } : set == "ak" ? new[] { Weapon.Ak } : set == "sks" ? new[] { Weapon.Sks }
+                                : set == "mg" ? new[] { Weapon.M60, Weapon.Rpd } : set == "smg" ? new[] { Weapon.Smg } : new[] { Weapon.Sniper };
+                    Assert.IsTrue(st.Men.Any(m => carried.Contains(m.Weapon)
                                                   && System.Math.Abs(m.X - shot.x) < 0.01 && System.Math.Abs(m.Z - shot.z) < 0.01),
-                                  $"a {shot.name} shot from where no man of that side stands");
+                                  $"a {shot.name} shot from where no man carrying that weapon stands");
                     Assert.IsFalse(shot.immediate, "a rifle report skipped its travel time");
                 }
                 shotsHeard += fresh.Count;

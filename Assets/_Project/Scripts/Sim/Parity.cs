@@ -86,6 +86,12 @@ namespace LanesOfVietnam.Sim
                 foreach (var s in st.Squads) { h = MixI(h, s.File); h = MixI(h, s.Held); h = MixB(h, s.Halted); h = MixB(h, s.Assault); h = MixI(h, s.Sent); }
                 foreach (var c in st.Cover) { h = MixI(h, (int)c.LeverUs); h = MixI(h, (int)c.LeverVc); h = MixI(h, c.Owner.HasValue ? (int)c.Owner.Value : -1); }
             }
+            if (st.Arms)
+            {
+                foreach (var m in st.Men) h = MixI(h, (int)m.Weapon);
+                foreach (var s in st.Squads) { h = MixD(h, s.Reach); h = MixB(h, s.Assaults); }
+                foreach (var g in st.Grenades) { h = MixI(h, g.Id); h = MixI(h, (int)g.By); h = MixD(h, g.X); h = MixD(h, g.Z); h = MixI(h, g.Ticks); }
+            }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }

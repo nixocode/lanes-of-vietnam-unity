@@ -527,6 +527,7 @@ Nothing here starts before §0 is done.
 | 3a/6c (playtest 3) | soldiers rebuilt, sandbags as geometry, flicker | **Bodies:** six MPFB2 men (three a side) with skeletons fitted to them, hair under the helmets, the M1 raised 3 cm; necks and legs whole in every Mixamo pose (`captures/soldiers/*_close.png`). **Sandbags:** `tools/blender/sandbag_mesh.py` builds 2.4 m runs of real bags (7 courses 1.15 m, 4,608 triangles; 3 courses 0.49 m, 2,016), one 2048 atlas weathered from the wall's own occlusion, sky-facing and height bakes; the cards and their z-fighting are gone, and the firebase's east wall runs away from the lens. **Flicker, found:** it was TAA's jitter on a still lens. Firebase view, wind and men moving at 60 fps, mean \|dL\*\|: sandbag wall **2.07 -> 0.004**, foreground grass 0.53 -> 0.17, whole frame **0.79 -> 0.08**, by changing TAA (Very High, jitter 0.35) for SMAA High; no TAA setting came near (blend 0.95, jitter 0.15: 1.05 on the wall). The hessian weave was dropped for its 40-400 texel band: threads under two pixels beat against the pixel grid. EditMode 40/40, PlayMode 13/13. WebGL **29.99 MB** initial; real Chrome (ANGLE Metal, M4 Pro) **6.5-7.2 ms** a frame, median 7.0, with 56-67 men; army view 0.36-0.41 ms. |
 | 11 (fieldcraft) | Part 2 sim extension behind `MatchOptions.Fieldcraft`; parity baseline unchanged; balance block; audit; UIAudit row | **Men who fight as a squad** (`Sim/Fieldcraft.cs`, §12.15): files and ranks, places in cover (single file down a trench), a pause in cover, a stand-off from an enemy in sight, the assault when he is pinned or outnumbered, the charge inside 6 m and **melee** inside 2 m, fear when a man falls beside you, **a round that carries on through the man it killed**, climbing in and out of trenches, positions that change hands, and **Warfare 1944's lever** on every trench, wall and bunker (Hold / Go / Auto; a plate over each, keys H and G). As the game plays (map, grenades, smoke, drill), six seeds, per minute of fighting, baseline -> fieldcraft: men walking through a living enemy **4.2 -> 0.0**; man-seconds within 3 m of an enemy 16.2 -> 0.7; man-seconds within 0.6 m of a friend **177 -> 23**. Balance, 48 seeds on the map: US 62.5% (CI 48.4-74.8) without, **54.2% (CI 40.3-67.4)** with; match 144 s -> 160 s; per match 2.7 blows hand to hand, 115 climbs, 0.7 positions taken, 10.8 rounds through a man. View: a man faces the enemy and turns to his travel only when he is going somewhere (backward clips for the rest), a lunge for the blow, blood thrown out along the round and left on the ground. EditMode **45/45** (22 parity matches and earlier pins unchanged, two new pins), PlayMode **14/14**. WebGL 30.09 MB; real Chrome 7.1-7.2 ms a frame. Still to come: Mixamo clips for the climb and the blow, trenches rebuilt to climb into. |
 | 11 (fieldcraft, strongpoints) | the owner's correction; clips sourced; behaviour re-measured | **Every piece of cover is a strongpoint** with a lever and a plate, built or natural (17 on the map; the three bank-to-trench conversions tried first are dropped). Files moved off the cover line and new squads arrive closed up and on the map: per minute of fighting, six seeds, baseline -> now: men walking through a living enemy 4.2 -> **0.0**; man-seconds within 0.6 m of a friend 177 -> **3.0**; squadmates changing sides (clear by 0.3 m each way) 5.8 -> 6.3; a man's travel swinging over 120 degrees 18.5 -> 25.4 (falling back, and going round a pinned man: no rule against either). Balance, 48 seeds on the map: US **47.9%** (CI 34.5-61.7), 152 s; per match 3.9 blows, 95 climbs, 3.2 strongpoints taken, 9.2 rounds through a man. **Mixamo clips in** (owner's OK): Bayonet Stab and Slash Advance for the blow, Jump Down and Climbing Up Wall for the trench; a man in a trench is drawn on its line and carried over its lip while he climbs. EditMode **45/45**, PlayMode **14/14**. WebGL 30.25 MB; real Chrome 7.7-7.8 ms a frame, median 8.0. |
+| 11/12 (arms) | weapon classes behind `MatchOptions.Arms`; the sniper class; the models; balance; audit; UIAudit | **Every man carries a weapon, every card buys its squad, every fight is at its weapons' distance** (`Sim/Arms.cs`, §12.16). Eleven kits (the new US **SNIPER TEAM**; the VC marksman is a sniper), ten weapons with their own range, rate, accuracy, suppression; launchers and the mortar fire bursting rounds. Distances fit the frame (23 m of the near lane at its widest): rifles 20 m (the baseline: 28 for everyone), machine guns 28-30, SMGs 15, snipers 44; squads close to their kit's distance (sappers 6 m, rifles 13, MG teams 20, snipers 32). Measured over 24 matches: rifle shots at a mean 16.4 m, machine guns 20.6, snipers 27.2, SMGs 11.9; kills a man carried: rifles 0.28-0.34, M60 0.75, RPD 0.89, sniper 2.11, RPG 1.58, M79 0.66, SMG 0.07. Balance, **96 seeds** on the map: US **51.0%** (CI 41.2-60.8), 156 s (first numbers gave 89.6%). **Twelve weapon models built in Blender** (`tools/blender/weapons.py`, ASSETS.md) and put in each man's hands by his weapon; a Mosin-Nagant recording for the snipers; rockets, M79 grenades and mortar bombs drawn in flight. A man shot falls the way the round pushes him (each death clip's direction measured). EditMode **49/49**, PlayMode **14/14**. WebGL **29.85 MB**; real Chrome 8.4-8.5 ms a frame, median 8.0. Open: the launchers' and the mortar's own firing sounds are not sourced (the battery's recording, pitched up, stands in); the mortar is carried, not emplaced; SMG men rarely get to fire. |
 | 9 (started) | audio, sourced | **The three.js Web Audio graph ported to a `.jslib`**: 343 m/s travel delay, 20 kHz·e^(−d/120) absorption (cover darkens rather than quietens), 1/d spreading from 10 m, a reverb send that rises with distance into the valley impulse, a 24-voice cap and a limiter. It is fed by **recordings**: CC0 AR-15, AK-47 and SKS shots sliced by onset, and Sonniss GDC 2017 explosions, a flyby crack, a body thump and a Thai jungle bed that ducks under fire (licensed, git-ignored, rebuilt by script). `AudioView` ports the old game layer's measured rationing: 3 new shots a tick, nearest first, 55 ms apart. UIAudit **9/9** covers it, checking that shots are heard, rationed, and come from the firing man's position. Not heard in a browser yet: no browser was connected. Build 18.05 MB initial, 19.28 MB with the streamed audio. |
 | 6b (grade) | the §4 table and histogram | **Cloud shadows** (the sun's light cookie, §12.7 item 4; URP cookies turned on) and a **measured grade**. Search, in sum of band \|dL\*\|: start 52.4; cloud shadows 43.2; massif haze 2.5 km 34.5; tone curves alone could not separate lanes from treeline. Lower exposure for the ground (+0.4 EV) with the sky held up on its own (+0.6, a graduated filter), a gentle gamma/gain, saturation −20 and fog 0.0035 give **29.9**. Band L\* 62.1 / 38.8 / 42.8 / 42.1 against 69.7 / 40.2 / 32.8 / 31.2; saturation 11.8 / 12.6 / 15.7 / 21.2 against 11.1 / 16.7 / 21.8 / 33.8; p50 **43.3** against 39.8. What remains is content: the reference's near band is dense dark vegetation with larger men, ours still shows lawn. Flicker **0.42**. |
 | 11 (first mechanic) | Part 2 sim extensions behind options; parity baseline unchanged; balance block; audit | Tagged `sim-parity-baseline`. **Grenades** (`MatchOptions.Frag`, default off; the game turns it on). A man 7–20 m from a seen enemy in cover, not pinned and not prone, throws. It scatters with distance, burns a 2.5 s fuse, and is lethal to 5 m and suppressive to 11 m, whoever threw it. Cover barely helps against a grenade inside it; lying prone in the open helps more. Every draw comes from its own fork, and its state is hashed only when the rule is on. **All six TypeScript parity cases still pass.** 48 seeds, ceiling v ceiling: US wins **41.7% (29–56)** off, **52.1% (38–66)** on. About 20 grenades a match cause 4.8 kills (8% of casualties); length is unchanged. EditMode **34/34**: grenade hashes pinned, reachability, off-by-default, and `Frag.cs` added to the no-transcendentals check. `CombatView` draws the lob and the blast. **Squad smoke** (`MatchOptions.SquadSmoke`, default off; the game turns it on): a squad whose bound has stalled (mean pin at the stop threshold) pops one canister 40% of the way toward the nearest seen enemy. It makes no random draws. Tuned by dose: 7 m for 16 s on any advance halved matches (189→84 s), because ground became the main cause of breaking (0.08→0.79 morale). **3.5 m for 8 s on a stalled bound gives 148 s, casualties −5%, US 52% (38–66).** With both rules: 165 s, US 45.8% (33–60), and grenades cause 28% of kills, since smoke brings the lines close. EditMode **37/37**. |
@@ -1218,6 +1219,53 @@ a man's height) and the trench's depth supplies it.
 **Tried and dropped:** turning three banks into trenches so each lane had
 more to hold. The owner's point stands instead: a bank is already a
 strongpoint. (Two of them alone also took the Americans to 68.8%.)
+
+
+### 12.16 Arms: a weapon to every class (owner, 2026-10-01)
+
+"You need to add all the corresponding gun models in Blender to each class.
+Also add a sniper class. And fix distance for all gunfights, it needs to be
+properly set."
+
+Until now every card with men on it bought three to six of the same rifleman,
+who engaged at 28 m whatever his card said. `MatchOptions.Arms`
+(`Sim/Arms.cs`), under §12.8's policy (off is the parity baseline; hashed only
+when on; pinned matches; balance block; audit):
+
+| kit (card) | men, lead first | fights from | assaults |
+|---|---|---|---|
+| RIFLE SQUAD | 5 x M16 | 13 m | yes |
+| WEAPONS SQUAD | M16, M60, M79, M16 | 16 | yes |
+| M60 TEAM | M16, M60, M16 | 20 | no |
+| MORTAR TEAM | M16, mortar, M16 | 30 | no |
+| ENGINEERS | 2 x M3, 2 x M16 | 9 | yes |
+| **SNIPER TEAM** (new) | M40, M16 | 32 | no |
+| GUERRILLA CELL | PPSh, 3 x SKS | 12 | yes |
+| NVA SQUAD | 2 x AK, RPD, 2 x AK | 13 | yes |
+| RPG TEAM | AK, RPG-7 | 16 | no |
+| MARKSMAN (the VC's sniper) | Mosin | 32 | no |
+| SAPPER | 3 x PPSh | 6 | yes |
+
+| weapon | range m | a shot every | accuracy x | suppression x | notes |
+|---|---|---|---|---|---|
+| M16, AK-47 | 20 | 1.0 s | 1.0 | 1.0 / 1.05 | |
+| SKS | 21 | 1.3 s | 1.12 | 0.9 | |
+| M60 / RPD | 30 / 28 | 0.45 / 0.5 s | 0.42 / 0.45 | 1.5 / 1.4 | bursts |
+| M3, PPSh | 15 | 0.35 s | 0.9 | 1.2 | |
+| M40, Mosin | 44 | 4 s | 1.8 | 1.6 | keeps 80% at full range; cover is worth two thirds |
+| M79 | 7-24 | 5 s | burst 4.0 m | | |
+| RPG-7 | 7-24 | 5.5 s | burst 4.5 m | | cover is no help |
+| mortar | 16-50 | 5 s | burst 6.0 m | | fires over smoke |
+
+**Distances are the frame's.** The lens at its widest shows 23 m of the near
+lane; at the baseline's 28 m the two sides of a firefight were never in it
+together. A squad that can see the enemy from beyond its kit's distance closes
+to it unless it is beaten down, and stops there (the stand-off of §12.15).
+Hand grenades scale with it (12 m). A side raising squads by itself goes round
+a list that is mostly riflemen with a company's support.
+
+**Balance** was found, not assumed: first numbers 89.6% US; with the sniper,
+the M79 and the squad lists adjusted, 51.0% over 96 seeds (§10a).
 
 
 ### 12.13 Corrections to earlier sections

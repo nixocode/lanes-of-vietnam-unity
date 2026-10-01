@@ -73,6 +73,27 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
+        /// <summary>Every weapon, in the aim, in the game's view: captures/soldiers/&lt;side&gt;_arms.png.</summary>
+        public static void RenderArms()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            foreach (var (side, arms) in new[] { ("us_a", new[] { "m16", "m60", "m79", "m3", "m40", "mortar" }), ("vc_a", new[] { "ak", "sks", "rpd", "ppsh", "mosin", "rpg" }) })
+            {
+                // (The first column's weapon is drawn before its palette is on the GPU in batch mode,
+                // and comes out the colour of nothing: a spare column takes that.)
+                var shown = new[] { arms[0] }.Concat(arms).ToArray();
+                States = shown.Select(a => (a, 0f, 0, true, false, 0, 1f)).ToArray();
+                Carry = shown;
+                Sheet(side, 1.6f, "_arms", 1.15f);
+            }
+            Carry = null;
+            States = orig;
+        }
+
+        /// <summary>For RenderArms: the weapon each column's man is given.</summary>
+        private static string[] Carry;
+
         private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -113,6 +134,7 @@ namespace LanesOfVietnam.Tools
                 // Faces +x, as a US man does at rest in the game.
                 go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, 90, 0));
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
+                if (Carry != null && !f.Carry(Carry[c])) Debug.LogWarning($"[LOV] {side} cannot carry {Carry[c]}");
                 if (s.name == "bind") goto shoot;          // as rigged: no Animator at all
                 var how = s.dead && s.death == -1 ? SoldierFigure.Fall.Blast : s.dead && s.death == -2 ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                 int seed = System.Math.Max(0, s.death);

@@ -70,6 +70,8 @@ namespace LanesOfVietnam.Tools
                 foreach (var f in new[] { "albedo", "normal", "mask" })
                     AssetDatabase.ImportAsset($"{Dir}/{man}_{f}.png", ImportAssetOptions.ForceUpdate);
             }
+            AssetDatabase.ImportAsset($"{WeaponDir}/weapons.fbx", ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset($"{WeaponDir}/weapons_palette.png", ImportAssetOptions.ForceUpdate);
             var avatars = men.ToDictionary(m => m, BuildAvatar);
             var clips = ImportPoses(avatars[men[0]]);
             var speeds = ClipSpeeds();
@@ -645,6 +647,83 @@ namespace LanesOfVietnam.Tools
         /// support hand, upright, the grip at the right wrist. (Assuming it
         /// pointed along his facing learned the clip's import error with it.)
         /// </summary>
+        public const string WeaponDir = "Assets/_Project/Art/Weapons";
+
+        /// <summary>Every weapon in weapons.fbx: its mesh, and its marker empties' places in its own space.</summary>
+        private static SoldierFigure.Carried[] Weapons()
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{WeaponDir}/weapons.fbx");
+            if (model == null) { Debug.LogWarning("[LOV] no weapons.fbx — every man keeps the rifle he was built with (run tools/blender/weapons.py)"); return new SoldierFigure.Carried[0]; }
+            var list = new List<SoldierFigure.Carried>();
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var w = mf.transform;
+                Vector3 At(string key)
+                {
+                    var c = w.Find($"{w.name}.{key}");
+                    if (c == null) throw new System.Exception($"weapons.fbx: {w.name} has no {key}");
+                    return Vector3.Scale(c.localPosition, w.localScale);
+                }
+                var butt = At("butt");
+                list.Add(new SoldierFigure.Carried
+                {
+                    Name = w.name, Mesh = mf.sharedMesh,
+                    GripR = At("hold_r"), GripL = At("hold_l"), Muzzle = At("muzzle"), Up = (At("up") - butt).normalized,
+                    InHandRot = Quaternion.identity,
+                });
+            }
+            if (list.Count == 0)
+                Debug.LogWarning("[LOV] weapons.fbx holds no meshes: " + string.Join(", ", model.GetComponentsInChildren<Transform>(true).Select(x => x.name).Take(12)));
+            return list.OrderBy(x => x.Name).ToArray();
+        }
+
+        private static Material WeaponMaterial()
+        {
+            string path = $"{WeaponDir}/Weapons.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Weapons" };
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{WeaponDir}/weapons_palette.png"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetFloat("_Metallic", 0.25f);
+            m.SetFloat("_Smoothness", 0.32f);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        /// <summary>
+        /// Which way each standing death throws him: where his hips come to rest
+        /// along his facing, as the game's Animator plays it (metres; behind him is
+        /// negative). A man shot from the front is given a death that goes over
+        /// backwards, one shot from behind a death that pitches forward.
+        /// </summary>
+        private static void LearnFalls(SoldierFigure fig, GameObject body)
+        {
+            var anim = body.GetComponent<Animator>();
+            if (fig.Hips == null || fig.Deaths == 0) return;
+            var all = body.GetComponentsInChildren<Transform>(true);
+            var bind = all.Select(x => (x.localPosition, x.localRotation)).ToArray();
+            fig.Falls = new float[fig.Deaths];
+            for (int k = 0; k < fig.Deaths; k++)
+            {
+                anim.Rebind();
+                anim.Update(0f);
+                anim.Update(0.5f);
+                Vector3 stood = body.transform.InverseTransformPoint(fig.Hips.position);
+                anim.SetInteger("DeathIndex", k);
+                anim.SetBool("Dead", true);
+                for (int n = 0; n < 28; n++) anim.Update(0.25f);
+                fig.Falls[k] = (body.transform.InverseTransformPoint(fig.Hips.position) - stood).z * body.transform.lossyScale.z;
+                for (int i = 0; i < all.Length; i++) all[i].SetLocalPositionAndRotation(bind[i].localPosition, bind[i].localRotation);
+            }
+            anim.Rebind();
+            Debug.Log($"[LOV] {body.transform.parent.name}: his {fig.Deaths} standing deaths carry him " +
+                      string.Join(", ", fig.Falls.Select(z => $"{z:+0.00;-0.00} m")) + " along his facing");
+        }
+
         private static void LearnMixamoGrip(SoldierFigure fig, GameObject body, Dictionary<string, Transform> t)
         {
             if (!File.Exists($"{MixamoDir}/rifle_idle_aim.fbx")) return;
@@ -667,6 +746,17 @@ namespace LanesOfVietnam.Tools
             var pos = hand.position - rot * Vector3.Scale(fig.RifleGripR, rifle.lossyScale);
             fig.RifleInHandRot = Quaternion.Inverse(hand.rotation) * rot;
             fig.RifleInHandPos = hand.InverseTransformPoint(pos);
+            // The same for every weapon he can be given: each by its own two holds.
+            for (int i = 0; i < fig.Arms.Length; i++)
+            {
+                var a = fig.Arms[i];
+                Vector3 wa = (a.GripL - a.GripR).normalized, wu = Vector3.ProjectOnPlane(a.Up, wa);
+                var wrot = Quaternion.LookRotation(along, up) * Quaternion.Inverse(Quaternion.LookRotation(wa, wu));
+                a.InHandRot = Quaternion.Inverse(hand.rotation) * wrot;
+                a.InHandPos = hand.InverseTransformPoint(hand.position - wrot * Vector3.Scale(a.GripR, rifle.lossyScale));
+                fig.Arms[i] = a;
+                if (a.Name == fig.Carrying) { fig.RifleInHandRot = a.InHandRot; fig.RifleInHandPos = a.InHandPos; }
+            }
             float yaw = Mathf.Atan2(along.x, along.z) * Mathf.Rad2Deg;
             for (int i = 0; i < all.Length; i++) all[i].SetLocalPositionAndRotation(bind[i].localPosition, bind[i].localRotation);
             anim.Rebind();
@@ -779,7 +869,18 @@ namespace LanesOfVietnam.Tools
                 fig.ProneDeath = states.Contains("Dead prone_death");
 
                 Grip(t);
+                // The weapons (tools/blender/weapons.py), in place of the one rifle the body came with:
+                // its transform is kept (the right hand's child), brought to the weapons' own scale.
+                fig.Arms = Weapons();
+                if (fig.Arms.Length > 0)
+                {
+                    fig.ArmsMaterial = WeaponMaterial();
+                    var ps = rt.parent.lossyScale;
+                    rt.localScale = new Vector3(1f / ps.x, 1f / ps.y, 1f / ps.z);
+                    fig.Carry(name.Contains("_vc_") ? "ak" : "m16");
+                }
                 LearnMixamoGrip(fig, body, t);
+                LearnFalls(fig, body);
 
                 // The avatar reads him facing +z (its body rotation in the bind pose
                 // is the identity; measured), so the body is not turned: a check

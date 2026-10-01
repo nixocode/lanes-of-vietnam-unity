@@ -96,6 +96,31 @@
    ]
   },
   {
+   "name": "bolt",
+   "files": [
+    {
+     "file": "bolt_0.m4a",
+     "source": "Mosin Nagant/M_21P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "bolt_1.m4a",
+     "source": "Mosin Nagant/M_21P.wav shot 1",
+     "seconds": 1.6
+    },
+    {
+     "file": "bolt_2.m4a",
+     "source": "Mosin Nagant/M_21P.wav shot 3",
+     "seconds": 1.6
+    },
+    {
+     "file": "bolt_3.m4a",
+     "source": "Mosin Nagant/M_26P.wav shot 1",
+     "seconds": 1.6
+    }
+   ]
+  },
+  {
    "name": "shell",
    "files": [
     {
