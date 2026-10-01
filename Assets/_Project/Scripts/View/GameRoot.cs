@@ -105,6 +105,10 @@ namespace LanesOfVietnam.View
         /// dressing stay; only the simulation is new. With a command log it is a
         /// replay of a match already played, on the same seed.
         /// </summary>
+        /// <summary>Command points a second and at the start, and the men each side opens with (at least), in the game.</summary>
+        public const double CpRate = 1.6, StartCp = 20;
+        public const int OpeningStrength = 8;
+
         public void NewMatch(Side player, MatchLength length, int? seed = null,
                              System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null)
         {
@@ -126,6 +130,13 @@ namespace LanesOfVietnam.View
                 Fieldcraft = CaptureSettings.Active?.Fieldcraft ?? true,
                 // Arms (Part 2): every man his weapon, every card its squad, every fight at its weapons' distance. On in the game.
                 Arms = CaptureSettings.Active?.Arms ?? true,
+                // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
+                // the start"). Each side opens with a squad a lane, not eighteen men; points come in at
+                // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had
+                // been spending his points for him, a squad every time he reached 22. A capture and the
+                // frame-time probe have no player, so there both sides raise their own.
+                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
+                Player = CaptureSettings.Active != null || PerfProbe.Param("perf") != null ? (Side?)null : player,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

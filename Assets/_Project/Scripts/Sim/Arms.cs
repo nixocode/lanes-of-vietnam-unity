@@ -126,7 +126,7 @@ namespace LanesOfVietnam.Sim
         }
 
         private static readonly string[] UsRaised = { "us-rifle", "us-rifle", "us-mg", "us-rifle", "us-weapons", "us-rifle", "us-sniper" };
-        private static readonly string[] VcRaised = { "vc-squad", "vc-cell", "vc-cell", "vc-squad", "vc-rpg", "vc-cell", "vc-squad", "vc-marksman" };
+        private static readonly string[] VcRaised = { "vc-squad", "vc-cell", "vc-squad", "vc-squad", "vc-rpg", "vc-cell", "vc-squad", "vc-marksman" };
 
         /// <summary>
         /// The squad a side raises by itself (the opening, and a plan's

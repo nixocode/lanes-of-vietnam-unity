@@ -208,6 +208,14 @@ namespace LanesOfVietnam.Sim
         public const double ThroughReach = 12, ThroughWidth = 0.6, ThroughChance = 0.5, ThroughKill = 0.5, ThroughPin = 0.35;
         /// <summary>A man killed beside you: every friend within FearRadius takes this much suppression.</summary>
         public const double FearRadius = 6, FearPin = 0.18;
+        /// <summary>A man at rest sets off again when his place is this far from him, and is at rest again this near it.</summary>
+        public const double SetOff = 0.9, Arrive = 0.12;
+        /// <summary>A halted man further than this from his place gets up to go to it; nearer, he goes as he is.</summary>
+        public const double KneelWithin = 4;
+        /// <summary>How near the enemy has to be for a halted squad to go to ground: in contact, not on the march.</summary>
+        public const double Contact = 45;
+        /// <summary>Ticks a squad's decision to assault, or to close to its fighting distance, stands once made (3 s, 2 s).</summary>
+        public const int ChargeTicks = TickHz * 3, ClosingTicks = TickHz * 2;
         /// <summary>Ticks a squad stays in cover it has reached before it makes for the next (3 s).</summary>
         public const int CoverPause = TickHz * 3;
         /// <summary>A squad told to hold in the open makes for cover this near instead.</summary>

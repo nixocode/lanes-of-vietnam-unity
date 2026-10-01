@@ -131,6 +131,9 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>What he carries (MatchOptions.Arms; the baseline's one rifle otherwise).</summary>
         public Weapon Weapon;
+
+        /// <summary>At rest in his place: he sets off again only when it has moved a good pace from him (MatchOptions.Fieldcraft).</summary>
+        public bool Still;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -185,6 +188,10 @@ namespace LanesOfVietnam.Sim
         public bool Halted;
         /// <summary>Closing with the enemy this tick (MatchOptions.Fieldcraft).</summary>
         public bool Assault;
+        /// <summary>Ticks its decision to assault, and to close to its fighting distance, still stands: made once, not every tick (MatchOptions.Fieldcraft).</summary>
+        public int Charge, Closing;
+        /// <summary>Metres along the lane to the nearest enemy it can see ahead, this tick; huge if none (MatchOptions.Fieldcraft).</summary>
+        public double Gap = double.PositiveInfinity;
         /// <summary>Ticks left of being sent out of a position by its lever; it ends when the squad reaches its next cover (MatchOptions.Fieldcraft).</summary>
         public int Sent;
 
@@ -370,6 +377,10 @@ namespace LanesOfVietnam.Sim
         public bool Fieldcraft;
         /// <summary>Part 2 rule: every man carries a weapon, every card buys its squad, every fight is at its weapons' distance (<see cref="Sim.Arms"/>). Off is the baseline.</summary>
         public bool Arms;
+        /// <summary>Command points a second, each side (MatchOptions.CpRate).</summary>
+        public double CpRate = Tune.CpPerSecond;
+        /// <summary>The side whose reinforcements are its player's to buy: its plan raises none for it (MatchOptions.Player).</summary>
+        public Side? Player;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();

@@ -140,6 +140,8 @@ namespace LanesOfVietnam.View
         private float[] _height = new float[0];
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
         public const float FrontRange = 45f, ClimbRate = 3.2f;
+        /// <summary>Degrees his front has to move before he turns to it, and how fast he turns (degrees a second).</summary>
+        public const float FrontSlack = 22f, TurnRate = 240f;
         private int _speedTick = -1;
         /// <summary>Metres a second: above this a standing man jogs rather than walks.</summary>
         public const float RunAbove = 1.7f;
@@ -333,7 +335,9 @@ namespace LanesOfVietnam.View
                         best = d2;
                         front = Mathf.Atan2((float)dx, (float)-dz) * Mathf.Rad2Deg;
                     }
-                    _front[i] = front;
+                    // He does not swing his whole body for a few degrees: the nearest enemy changing
+                    // between two men side by side had him twitching from one to the other.
+                    if (Mathf.Abs(Mathf.DeltaAngle(_front[i], front)) > FrontSlack || _front[i] == 0f) _front[i] = front;
                 }
                 _speedTick = st.Tick;
             }
@@ -505,8 +509,8 @@ namespace LanesOfVietnam.View
                     f.transform.localScale = Vector3.one * (0.97f + 0.05f * Hash(m.Id, 2));
                     _yaw[i] = yaw;
                 }
-                // Turned at most 300 degrees a second of match time: a man pivots, he does not snap.
-                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, 300f * dt);
+                // Turned at most TurnRate degrees a second of match time: a man pivots, he does not snap.
+                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, TurnRate * dt);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
                 float ground = (float)g.HeightAt(x, z);
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])

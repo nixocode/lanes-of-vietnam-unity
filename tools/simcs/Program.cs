@@ -356,6 +356,10 @@ namespace LanesOfVietnam.SimCs
             int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 2400, seeds = nums.Length > 2 ? nums[2] : 1;
             double through = 0, onTop = 0, crossed = 0, about = 0, blank = 0, minutes = 0, men = 0;
             var where = new Dictionary<string, double>();
+            var flips = new Dictionary<string, double>();
+            var kinds = new Dictionary<string, double>();
+            double postures = 0, starts = 0, hops = 0, orders = 0, targets = 0, manSeconds = 0, squadSeconds = 0;
+            var stillFor = new Dictionary<(int, int), int>(); var movedFor = new Dictionary<(int, int), int>(); var hops0 = new Dictionary<(int, int), int>();
             var turned = new Dictionary<string, double>();
             int shown = 0;
             for (int seed = seed0; seed < seed0 + seeds; seed++)
@@ -369,8 +373,45 @@ namespace LanesOfVietnam.SimCs
                 {
                     var before = new Dictionary<int, (double x, double z)>();
                     foreach (var man in st.Men) if (man.Alive) before[man.Id] = (man.X, man.Z);
+                    var postureWas = st.Men.Select(x => x.Posture).ToArray();
+                    var orderWas = st.Squads.Select(x => (x.Order, x.Target)).ToArray();
                     m.Step();
                     var live = st.Men.Where(x => x.Alive).ToList();
+                    for (int i = 0; i < postureWas.Length; i++)
+                    {
+                        var man = st.Men[i];
+                        if (!man.Alive) continue;
+                        manSeconds += Tune.Dt;
+                        if (man.Posture != postureWas[i])
+                        {
+                            postures++;
+                            string k = $"{postureWas[i]} -> {man.Posture}" + (man.Pin >= Tune.PinDrop ? " (pinned)" : st.Squads[man.Squad].Halted ? " (halted)" : " (moving)");
+                            kinds[k] = kinds.GetValueOrDefault(k) + 1;
+                        }
+                        bool moving = before.TryGetValue(man.Id, out var b0) && Math.Abs(man.X - b0.x) + Math.Abs(man.Z - b0.z) > 0.01;
+                        if (moving && stillFor.GetValueOrDefault((seed, man.Id)) >= 6) starts++;       // off again after 0.3 s or more at rest
+                        if (moving) { if (movedFor.GetValueOrDefault((seed, man.Id)) == 0) hops0[(seed, man.Id)] = st.Tick; movedFor[(seed, man.Id)] = movedFor.GetValueOrDefault((seed, man.Id)) + 1; stillFor[(seed, man.Id)] = 0; }
+                        else
+                        {
+                            // A hop: he moved for under a second and stopped again.
+                            int run = movedFor.GetValueOrDefault((seed, man.Id));
+                            if (run > 0 && run < 20) hops++;
+                            movedFor[(seed, man.Id)] = 0;
+                            stillFor[(seed, man.Id)] = stillFor.GetValueOrDefault((seed, man.Id)) + 1;
+                        }
+                    }
+                    for (int i = 0; i < orderWas.Length; i++)
+                    {
+                        if (!st.Men.Any(x => x.Alive && x.Squad == i)) continue;
+                        squadSeconds += Tune.Dt;
+                        if (st.Squads[i].Order != orderWas[i].Order)
+                        {
+                            orders++;
+                            string k = $"{orderWas[i].Order} -> {st.Squads[i].Order}";
+                            flips[k] = flips.GetValueOrDefault(k) + 1;
+                        }
+                        if (st.Squads[i].Target != orderWas[i].Target) targets++;
+                    }
                     for (int i = 0; i < live.Count; i++)
                     {
                         var p = live[i];
@@ -388,7 +429,7 @@ namespace LanesOfVietnam.SimCs
                                     : p.Place >= 0 ? "taking a place in cover"
                                     : Math.Abs(vx) < Math.Abs(vz) ? "across the lane" : "along the lane";
                                 turned[why] = turned.GetValueOrDefault(why) + 1;
-                                if (a.Contains("why2") && why == "along the lane" && shown++ < 16)
+                                if (a.Contains("why2") && why == "falling back" && shown++ < 12)
                                 {
                                     var fr = live.Where(e => e.Side == p.Side && e != p).OrderBy(e => (e.X - p.X) * (e.X - p.X) + (e.Z - p.Z) * (e.Z - p.Z)).First();
                                     before.TryGetValue(fr.Id, out var f0);
@@ -451,6 +492,11 @@ namespace LanesOfVietnam.SimCs
             foreach (var kv in where.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-24} {kv.Value / minutes:F1}");
             Console.WriteLine($"  crossed a squadmate       {crossed / minutes:F1}");
             Console.WriteLine($"  turned about              {about / minutes:F1}");
+            Console.WriteLine($"  a man, a minute: changes posture {postures / manSeconds * 60:F1}, sets off {starts / manSeconds * 60:F1}, of which hops under a second {hops / manSeconds * 60:F1}");
+            Console.WriteLine($"  a squad, a minute: order changes {orders / squadSeconds * 60:F1}, changes of cover {targets / squadSeconds * 60:F1}");
+            foreach (var kv in flips.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-24} {kv.Value / squadSeconds * 60:F2}");
+            Console.WriteLine("  posture changes a man, a minute, by kind:");
+            foreach (var kv in kinds.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-36} {kv.Value / manSeconds * 60:F2}");
             foreach (var kv in turned.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-24} {kv.Value / minutes:F1}");
             return 0;
         }
