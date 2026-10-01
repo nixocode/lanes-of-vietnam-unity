@@ -171,6 +171,50 @@ namespace LanesOfVietnam.Sim
         /// <summary>Metres from his place inside which a man does not move.</summary>
         public const double DrillSlack = 0.35;
 
+        // --- fieldcraft (MatchOptions.Fieldcraft, Part 2) ------------------------------
+        /// <summary>Metres between the lane's three files.</summary>
+        public const double FileGap = 1.3;
+        /// <summary>Metres a man stands either side of his squad's file.</summary>
+        public const double FileStagger = 0.45;
+        /// <summary>A man whose place in the file is less than this behind him waits for the file to come up, rather than walk back to it.</summary>
+        public const double FileWait = 6;
+        /// <summary>A squad comes no nearer than this to an enemy it can see, unless it is assaulting.</summary>
+        public const double StandOff = 12;
+        /// <summary>How far ahead the enemy is counted when deciding to assault.</summary>
+        public const double AssaultReach = 18;
+        /// <summary>It assaults an enemy this far outnumbered (or one that is pinned: mean pin past PinDrop).</summary>
+        public const double AssaultOdds = 2;
+        /// <summary>A man this close to an enemy goes for him; half of it when he cannot see him (smoke, grass).</summary>
+        public const double ChargeRange = 6;
+        /// <summary>Hand to hand.</summary>
+        public const double MeleeRange = 2.0;
+        public const int MeleeCooldown = 18;
+        /// <summary>The chance a blow kills, before the striker's suppression and the other man's state.</summary>
+        public const double MeleeKill = 0.5;
+        /// <summary>What a blow that does not kill does to the man it was aimed at.</summary>
+        public const double MeleePin = 0.25;
+        /// <summary>Inside this a shot is the likelier to hit the nearer it is: by CloseBonus at the muzzle.</summary>
+        public const double CloseRange = 10, CloseBonus = 1.5;
+        /// <summary>
+        /// A rifle round goes through a man. One that kills carries on this far
+        /// along its line, and a man within ThroughWidth of that line may be hit:
+        /// ThroughChance that it reaches him, ThroughKill that it kills (it
+        /// pins him and everyone by him regardless).
+        /// </summary>
+        public const double ThroughReach = 12, ThroughWidth = 0.6, ThroughChance = 0.5, ThroughKill = 0.5, ThroughPin = 0.35;
+        /// <summary>A man killed beside you: every friend within FearRadius takes this much suppression.</summary>
+        public const double FearRadius = 6, FearPin = 0.18;
+        /// <summary>Ticks a squad stays in cover it has reached before it makes for the next (3 s).</summary>
+        public const int CoverPause = TickHz * 3;
+        /// <summary>A squad told to hold in the open makes for cover this near instead.</summary>
+        public const double DashToCover = 12;
+        /// <summary>Ticks a squad sent out of a position keeps going whatever its plan thinks (20 s), if it finds no cover sooner.</summary>
+        public const int SentTicks = TickHz * 20;
+        /// <summary>Ticks to climb into a trench, and out of one.</summary>
+        public const int VaultInTicks = 14, VaultOutTicks = 18;
+        /// <summary>Morale a side loses with a position (about two men's worth).</summary>
+        public const double PositionMorale = 0.05;
+
         // --- squad smoke (MatchOptions.SquadSmoke, Part 2) -----------------------------
         /// <summary>An M18 or two per squad.</summary>
         public const int SquadSmokeCarried = 1;

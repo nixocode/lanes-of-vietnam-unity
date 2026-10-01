@@ -59,7 +59,7 @@ namespace LanesOfVietnam.Tests
             // Editor's libm and the browser's; a different bit is a different
             // match. The match path uses JsMath's fdlibm port instead.
             var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
-            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs", "Drill.cs" })
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs", "Drill.cs", "Fieldcraft.cs" })
             {
                 foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
                 {
@@ -526,6 +526,193 @@ namespace LanesOfVietnam.Tests
             Assert.Less(drilled.orders, 40, "a drilled squad's orders still flicker");
             Assert.Less(drilled.turns, 12, "drilled men still turn round and round");
             Assert.Less(drilled.turns * 10, loose.turns, "drill made no real difference to turning round");
+        }
+
+        // --- Part 2: fieldcraft, behind MatchOptions.Fieldcraft ----------------------------
+
+        /// <summary>The match as the game plays it: on the map, grenades, squad smoke and drill on.</summary>
+        private static MatchOptions Game(int seed, bool fieldcraft, Plan vc = null) => new MatchOptions
+        {
+            Seed = seed, Us = Plan.Ceiling, Vc = vc ?? Plan.Ceiling, Cover = Map.Cover(),
+            Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = fieldcraft,
+        };
+
+        private static (List<uint> hashes, LiveMatch m) Played(MatchOptions o)
+        {
+            var m = new LiveMatch(o);
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            return (h, m);
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill fieldcraft [map]`.</summary>
+        [TestCase(1, true, 4037, 3326673888u, 217291906u, 638893086u, "us morale broke")]
+        [TestCase(7, false, 3373, 807552359u, 4218661143u, 3430317594u, "us morale broke")]
+        public void With_fieldcraft_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Fieldcraft, "fieldcraft must be off unless asked for");
+            MatchOptions O() => asTheGame ? Game(seed, true)
+                : new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Drill = true, Fieldcraft = true };
+            var (a, m) = Played(O());
+            var (b, _) = Played(O());
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// What the rule is for (the owner, playtest 3: "they run circles around
+        /// themselves, cross each other... not run around like headless
+        /// chickens"). Counted over three matches as the game plays them:
+        /// a man passing a living enemy within 5 m of him, and man-seconds
+        /// spent within 0.6 m of a friend.
+        /// </summary>
+        [Test]
+        public void With_fieldcraft_nobody_walks_through_the_enemy_or_stands_on_a_friend()
+        {
+            (int through, double onTop) Muddle(bool fieldcraft)
+            {
+                int through = 0;
+                double onTop = 0;
+                for (int seed = 6; seed <= 8; seed++)
+                {
+                    var m = new LiveMatch(Game(seed, fieldcraft));
+                    var st = m.State;
+                    var before = new Dictionary<int, double>();
+                    for (int t = 0; t < 2400 && !st.Over; t++)
+                    {
+                        before.Clear();
+                        foreach (var man in st.Men) if (man.Alive) before[man.Id] = man.X;
+                        m.Step();
+                        var live = st.Men.Where(x => x.Alive && before.ContainsKey(x.Id)).ToList();
+                        for (int i = 0; i < live.Count; i++)
+                        for (int j = i + 1; j < live.Count; j++)
+                        {
+                            var p = live[i]; var q = live[j];
+                            double dx = p.X - q.X, dz = p.Z - q.Z, d2 = dx * dx + dz * dz;
+                            if (p.Side == q.Side) { if (d2 < 0.36) onTop += Tune.Dt; continue; }
+                            int was = Math.Sign(before[p.Id] - before[q.Id]);
+                            if (Math.Abs(dz) < 5 && d2 < 36 && was != 0 && was != Math.Sign(dx)) through++;
+                        }
+                    }
+                }
+                return (through, onTop);
+            }
+            var loose = Muddle(false);
+            var drilled = Muddle(true);
+            Assert.Greater(loose.through, 6, "the baseline no longer walks through the enemy: this test's premise has changed");
+            Assert.Greater(loose.onTop, 300, "the baseline no longer stacks men: this test's premise has changed");
+            Assert.LessOrEqual(drilled.through, 1, "men still walk through the enemy");
+            Assert.Less(drilled.onTop * 5, loose.onTop, "men still stand on each other");
+        }
+
+        [Test]
+        public void A_lever_holds_a_squad_in_its_position_and_go_sends_it_on()
+        {
+            int trench = Map.Cover().First(c => c.Kind == CoverKind.Trench && c.X < 0 && c.Z > 0).Id;       // the forward trench
+            int berm = Map.Cover().First(c => c.Kind == CoverKind.Berm).Id;
+            // The VC sit tight, so the squad in the trench is left alone to obey.
+            var m = new LiveMatch(Game(2, true, Plan.Defend));
+            var st = m.State;
+            m.Issue(Command.SetLever(Side.Us, trench, Lever.Hold));
+            m.Issue(Command.SetLever(Side.Us, berm, Lever.Hold));
+            m.Issue(Command.SetLever(Side.Us, 999, Lever.Hold));
+            m.Step();
+            Assert.IsTrue(m.Log[0].Accepted, "the lever on the trench was refused");
+            Assert.IsFalse(m.Log[1].Accepted, "a berm took a lever: only trenches, walls and bunkers have one");
+            Assert.IsFalse(m.Log[2].Accepted, "a lever was set on cover that does not exist");
+            Assert.AreEqual(Lever.Hold, st.Cover[trench].LeverUs);
+            Assert.AreEqual(Lever.Auto, st.Cover[trench].LeverVc, "one side's lever moved the other's");
+
+            var c = st.Cover[trench];
+            Squad held = null;
+            for (int t = 0; t < 300 && held == null; t++)
+            {
+                m.Step();
+                held = st.Squads.FirstOrDefault(q => q.Side == Side.Us && q.Target == trench && q.Order == Order.Hold
+                                                     && Math.Abs(q.AnchorX - Fieldcraft.StopX(c, 1)) < 0.6);
+            }
+            Assert.IsNotNull(held, "no squad came to the held trench");
+            for (int t = 0; t < 200; t++)
+            {
+                m.Step();
+                if (held.Order == Order.Fallback) Assert.Inconclusive("the held squad broke; pick another seed");
+                Assert.AreEqual(Order.Hold, held.Order, $"tick {st.Tick}: the held squad was given another order");
+                Assert.AreEqual(trench, held.Target, $"tick {st.Tick}: the held squad left for other cover");
+            }
+            var men = Squads.Roster(st, held.Id);
+            Assert.IsTrue(men.Count > 0 && men.All(x => x.PlaceCover == trench && x.Place >= 0), "a man of the held squad has no place in the trench");
+            Assert.AreEqual(men.Count, men.Select(x => x.Place).Distinct().Count(), "two men hold one place");
+            Assert.IsTrue(men.All(x => Math.Abs(x.Z - c.Z) < 0.5 && x.Cover == trench), "the squad is not standing in the trench");
+
+            m.Issue(Command.SetLever(Side.Us, trench, Lever.Go));
+            bool left = false;
+            for (int t = 0; t < 400 && !left; t++)
+            {
+                m.Step();
+                left = held.Target != trench && Squads.Roster(st, held.Id).All(x => x.Cover != trench);
+            }
+            Assert.IsTrue(left, "Go did not send the squad out of the trench");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.VaultOut), "nobody climbed out");
+
+            // And the whole thing replays from its command log.
+            var again = LiveMatch.Replay(m.Options, m.Log);
+            while (!m.State.Over && m.State.Tick < m.Cap) m.Step();
+            Assert.AreEqual(Parity.Hash(m.State, 0), Parity.Hash(again.State, 0), "a match with levers did not replay");
+
+            // With the rule off there are no levers to pull.
+            var off = new LiveMatch(Game(2, false));
+            off.Issue(Command.SetLever(Side.Us, trench, Lever.Hold));
+            off.Step();
+            Assert.IsFalse(off.Log[0].Accepted);
+        }
+
+        [Test]
+        public void With_fieldcraft_men_climb_fight_hand_to_hand_and_a_round_goes_through_a_man()
+        {
+            var seen = new Dictionary<EventKind, int>();
+            for (int seed = 1; seed <= 24 && !(seed > 6 && seen.GetValueOrDefault(EventKind.PositionTaken) > 0); seed++)
+            {
+                var m = new LiveMatch(Game(seed, true));
+                var st = m.State;
+                var at = new Dictionary<int, (double x, double z)>();
+                int from = 0;
+                while (!st.Over && st.Tick < m.Cap)
+                {
+                    at.Clear();
+                    foreach (var man in st.Men) if (man.Alive && man.Vault > 1) at[man.Id] = (man.X, man.Z);
+                    m.Step();
+                    foreach (var kv in at)
+                    {
+                        var man = st.Men[kv.Key];
+                        if (man.Alive) Assert.AreEqual(kv.Value, (man.X, man.Z), $"seed {seed} tick {st.Tick}: man {man.Id} moved while climbing");
+                    }
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        seen[e.Kind] = seen.GetValueOrDefault(e.Kind) + 1;
+                        if (e.Kind == EventKind.Melee)
+                        {
+                            var a = st.Men[e.Id]; var b = st.Men[e.Target.Value];
+                            Assert.AreNotEqual(a.Side, b.Side, "a man struck his own side");
+                            Assert.LessOrEqual(Combat.Dist(a, b), Tune.MeleeRange + 2 * Tune.SpeedStand * Tune.Dt, "a blow landed from out of reach");
+                        }
+                        if (e.Kind == EventKind.Through)
+                        {
+                            Assert.IsFalse(st.Men[e.Id].Alive, "a round went through a man it had not killed");
+                            Assert.AreEqual(st.Men[e.Id].Side, st.Men[e.Target.Value].Side);
+                            Assert.AreEqual(e.Amount == 1, !st.Men[e.Target.Value].Alive && st.Men[e.Target.Value].DiedAt == e.Tick);
+                        }
+                    }
+                    from = st.Events.Count;
+                }
+            }
+            foreach (var kind in new[] { EventKind.VaultIn, EventKind.VaultOut, EventKind.Melee, EventKind.Through, EventKind.PositionTaken })
+                Assert.Greater(seen.GetValueOrDefault(kind), 0, $"{kind} never happened");
         }
 
         [Test]

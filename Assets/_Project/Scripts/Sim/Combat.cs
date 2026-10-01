@@ -87,11 +87,13 @@ namespace LanesOfVietnam.Sim
             p *= Tune.Exposure(b.Posture);
 
             var c = CoverOf(st, b);
-            if (c != null)
+            // Fieldcraft: a parapet is no cover from a man standing on it.
+            if (c != null && !(st.Fieldcraft && d < Tune.ChargeRange * 0.5))
             {
                 p *= 1 - CoverValue(st, c);
                 if (c.RangedIn >= 1) p *= Tune.RangedInBonus;
             }
+            if (st.Fieldcraft && d < Tune.CloseRange) p *= 1 + Tune.CloseBonus * (1 - d / Tune.CloseRange);
 
             // Crossing open ground under fire has to cost something, or there
             // is no value in waiting for someone to cover you. At 1.18 for any
@@ -155,6 +157,14 @@ namespace LanesOfVietnam.Sim
         {
             if (!a.Alive || a.Cooldown > 0) return false;
 
+            if (st.Fieldcraft)
+            {
+                // Climbing, he does nothing else; within reach of an enemy, he uses his hands.
+                if (a.Vault > 0) return false;
+                var close = Fieldcraft.InReach(st, a);
+                if (close != null) { Fieldcraft.Strike(st, a, close, rng); return true; }
+            }
+
             var target = PickTarget(st, a);
             if (target == null)
             {
@@ -181,6 +191,7 @@ namespace LanesOfVietnam.Sim
             if (rng.Next() < p)
             {
                 Kill(st, target);
+                if (st.Fieldcraft) Fieldcraft.Through(st, a, target, rng);
                 return true;
             }
 
@@ -209,6 +220,7 @@ namespace LanesOfVietnam.Sim
             m.Alive = false;
             m.Cover = -1;
             m.DiedAt = st.Tick;
+            if (st.Fieldcraft) Fieldcraft.Fell(st, m);
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Kill, Tick = st.Tick, Side = m.Side, Id = m.Id,
@@ -353,7 +365,7 @@ namespace LanesOfVietnam.Sim
         /// map: defend against defend closed to contact and averaged fifty
         /// casualties a match.
         /// </summary>
-        public static int BestCover(SimState st, double fromX, int lane, double dir, bool forwardOnly = true)
+        public static int BestCover(SimState st, double fromX, int lane, double dir, bool forwardOnly = true, Side? sentBy = null, int need = 1)
         {
             int best = -1;
             double bestScore = double.NegativeInfinity;
@@ -361,6 +373,8 @@ namespace LanesOfVietnam.Sim
             {
                 var c = st.Cover[ci];
                 if (Math.Abs(c.Z - Tune.Lanes[lane]) > 4.5) continue;
+                // Fieldcraft: a position its side's lever has on Go is passed through, not stopped in.
+                if (sentBy.HasValue && Fieldcraft.IsPosition(c) && Fieldcraft.LeverOf(c, sentBy.Value) == Lever.Go) continue;
                 double ahead = (c.X - fromX) * dir;
                 if (forwardOnly && ahead <= 0.5) continue;
                 double reach = Math.Abs(ahead);
@@ -373,6 +387,8 @@ namespace LanesOfVietnam.Sim
                 }
                 int room = Math.Max(0, c.Capacity - n);
                 if (room <= 0) continue;
+                // Fieldcraft: room for the squad, not for one man of it.
+                if (room < Math.Min(need, c.Capacity)) continue;
                 // Near, roomy, good and not already ranged in.
                 double score = c.Quality * 3 + room * 0.5 - reach * 0.05 - c.RangedIn * 2.5;
                 if (score > bestScore) { bestScore = score; best = c.Id; }

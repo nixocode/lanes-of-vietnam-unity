@@ -86,6 +86,8 @@ namespace LanesOfVietnam.Sim
         public bool SquadSmoke;
         /// <summary>Part 2: orders that stand, broken squads that hold, men who keep their places (Drill). False is the parity baseline.</summary>
         public bool Drill;
+        /// <summary>Part 2: files, places in cover, the stand-off, the assault, melee, levers (Fieldcraft). False is the parity baseline.</summary>
+        public bool Fieldcraft;
     }
 
     public sealed class MatchResult
@@ -147,6 +149,7 @@ namespace LanesOfVietnam.Sim
                 Held = 0, Target = -1, Bounding = false, PlayerOrder = null,
             };
             st.Squads.Add(sq);
+            if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             int n = size ?? rng.Int(Tune.SquadMin, Tune.SquadMax + 1);
             double dir = Combat.Advance(side);
             for (int i = 0; i < n; i++)
@@ -154,6 +157,7 @@ namespace LanesOfVietnam.Sim
                 // Draw order as the original's object literal: z, then cooldown.
                 double mx = x - dir * i * Tune.SlotGap;
                 double mz = Tune.Lanes[lane] + rng.Range(-1.2, 1.2);
+                if (st.Fieldcraft) mz = Fieldcraft.SpawnZ(sq, i);
                 int cd = rng.Int(0, Tune.Cooldown);
                 st.Men.Add(new Man
                 {
@@ -164,6 +168,7 @@ namespace LanesOfVietnam.Sim
                     // they fire or are found.
                     Seen = side == Side.Us,
                     Veterancy = 0, DiedAt = -1,
+                    Rank = i,
                 });
             }
             st.Events.Add(new SimEvent { Kind = EventKind.SquadSpawned, Tick = st.Tick, Side = side, Id = sq.Id });
@@ -180,6 +185,7 @@ namespace LanesOfVietnam.Sim
                 Frag = opts.Frag,
                 SquadSmoke = opts.SquadSmoke,
                 Drill = opts.Drill,
+                Fieldcraft = opts.Fieldcraft,
             };
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag) st.FragRng = rng.Fork("frag");
@@ -272,34 +278,68 @@ namespace LanesOfVietnam.Sim
             // Posture, with one dwell where every input funnels through
             // (§9 finding 3).
             m.Dwell++;
+            // Fieldcraft: climbing a parapet, and the enemy he is going for with his hands.
+            bool climbing = false;
+            Man quarry = null;
+            if (st.Fieldcraft)
+            {
+                if (m.Vault > 0) { m.Vault--; climbing = true; }
+                quarry = Fieldcraft.Quarry(st, m, sq);
+            }
+            // Always the slot. Cover is reached by moving the anchor.
+            double tx = slot.X, tz = slot.Z;
+            if (sq.Order == Order.Fallback) tx = m.X - dir * 12;
+            if (quarry != null)
+            {
+                // To within a rifle's length of him, and no further.
+                double qx = quarry.X - m.X, qz = quarry.Z - m.Z, qd = JsMath.Hypot(qx, qz);
+                double reach = Math.Max(0, qd - 1.2);
+                tx = qd > 0 ? m.X + qx / qd * reach : m.X;
+                tz = qd > 0 ? m.Z + qz / qd * reach : m.Z;
+            }
+            else if (st.Fieldcraft && sq.Order != Order.Fallback)
+            {
+                // His place is a few paces behind him: the file comes up to him.
+                double behind = (m.X - tx) * dir;
+                if (behind > 0 && behind < Tune.FileWait) tx = m.X;
+            }
+
             var want = Posture.Standing;
             if (m.Pin >= Tune.PinStop) want = Posture.Prone;
             else if (m.Pin >= Tune.PinDrop) want = Posture.Crouched;
             else if (sq.Order == Order.Hold && Combat.CoverOf(st, m) != null) want = Posture.Crouched;
+            // Fieldcraft: a man who has stopped takes a knee, in cover or out of it; he stands to move.
+            else if (st.Fieldcraft && quarry == null && sq.Order != Order.Fallback
+                     && (sq.Halted || JsMath.Hypot(tx - m.X, tz - m.Z) <= Tune.DrillSlack)) want = Posture.Crouched;
             if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
             {
                 m.Posture = want;
                 m.Dwell = 0;
             }
 
-            // Always the slot. Cover is reached by moving the anchor.
-            double tx = slot.X, tz = slot.Z;
-            if (sq.Order == Order.Fallback) tx = m.X - dir * 12;
-
             // Pinned men drop, shoot less and stop advancing. He still has to be
             // placed in whatever he is lying behind, so only movement is skipped.
             bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback;
-            if (!pinnedDown)
+            if (!pinnedDown && !climbing)
             {
                 double speed = Tune.Speed(m.Posture);
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
                 // With drill a man close enough to his place stays put (falling back, he always moves).
-                if (d > (st.Drill && sq.Order != Order.Fallback ? Tune.DrillSlack : 0.05))
+                if (d > ((st.Drill || st.Fieldcraft) && sq.Order != Order.Fallback && quarry == null ? Tune.DrillSlack : 0.05))
                 {
                     double stepLen = Math.Min(d, speed * Tune.Dt);
+                    if (st.Fieldcraft && sq.Order != Order.Fallback)
+                    {
+                        double nx = m.X + (dx / d) * stepLen, nz = m.Z + (dz / d) * stepLen;
+                        Fieldcraft.Clear(st, m, ref nx, ref nz, stepLen);
+                        m.X = nx; m.Z = nz;
+                    }
+                    else
+                    {
                     m.X += (dx / d) * stepLen;
                     m.Z += (dz / d) * stepLen;
+                    }
                 }
                 m.X = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, m.X));
             }
@@ -315,7 +355,23 @@ namespace LanesOfVietnam.Sim
             {
                 for (int i = 0; i < st.Cover.Count; i++)
                 {
-                    if (Combat.InCover(m.X, m.Z, st.Cover[i])) { m.Cover = st.Cover[i].Id; break; }
+                    bool inside = st.Fieldcraft ? Fieldcraft.In(m.X, m.Z, st.Cover[i]) : Combat.InCover(m.X, m.Z, st.Cover[i]);
+                    if (inside) { m.Cover = st.Cover[i].Id; break; }
+                }
+            }
+            if (st.Fieldcraft && m.Cover != was)
+            {
+                // Into a trench or out of one is a climb.
+                bool into = m.Cover >= 0 && Fieldcraft.Dug(st.Cover[m.Cover]);
+                bool outOf = was >= 0 && Fieldcraft.Dug(st.Cover[was]);
+                if (into || outOf)
+                {
+                    m.Vault = into ? Tune.VaultInTicks : Tune.VaultOutTicks;
+                    st.Events.Add(new SimEvent
+                    {
+                        Kind = into ? EventKind.VaultIn : EventKind.VaultOut,
+                        Tick = st.Tick, Side = m.Side, Id = m.Id, X = m.X, Z = m.Z,
+                    });
                 }
             }
             if (m.Cover != was)
@@ -394,6 +450,14 @@ namespace LanesOfVietnam.Sim
                     st.Events.Add(new SimEvent { Kind = EventKind.BoundStart, Tick = st.Tick, Side = sq.Side, Id = sq.Id });
                 }
 
+                if (st.Fieldcraft)
+                {
+                    // Part 2 (MatchOptions.Fieldcraft): the squad's cover, anchor and places, its own way.
+                    Fieldcraft.Move(st, sq, live, plan, prev, slots);
+                    for (int i = 0; i < live.Count; i++) MoveMan(st, live[i], sq, slots[i], plan);
+                    continue;
+                }
+
                 bool needCover = false;
                 if (plan.UseCover)
                 {
@@ -465,6 +529,7 @@ namespace LanesOfVietnam.Sim
             }
 
             Combat.UpdateRangedIn(st);
+            if (st.Fieldcraft) Fieldcraft.Positions(st);
 
             // --- morale, ground and command points -------------------------------
             foreach (var side in Sides)
