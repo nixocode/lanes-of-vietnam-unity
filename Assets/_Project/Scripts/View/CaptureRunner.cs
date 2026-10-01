@@ -51,9 +51,9 @@ namespace LanesOfVietnam.View
                 camData.antialiasing = cap.Aa switch
                 {
                     "none" => AntialiasingMode.None,
-                    "smaa" => AntialiasingMode.SubpixelMorphologicalAntiAliasing,
+                    "taa" => AntialiasingMode.TemporalAntiAliasing,
                     "fxaa" => AntialiasingMode.FastApproximateAntialiasing,
-                    _ => AntialiasingMode.TemporalAntiAliasing,
+                    _ => AntialiasingMode.SubpixelMorphologicalAntiAliasing,
                 };
                 if (cap.NoPost) camData.renderPostProcessing = false;
                 if (cap.Taa != null)

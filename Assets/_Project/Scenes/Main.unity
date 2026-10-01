@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 1242701187}
+  m_Sun: {fileID: 96436990}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &149386091
+--- !u!1 &43457204
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,222 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 149386092}
-  - component: {fileID: 149386093}
-  m_Layer: 0
-  m_Name: Ground
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &149386092
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 149386091}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 406600477}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &149386093
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 149386091}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c8b12044852064c9f97ca09f75330a78, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.GroundView
-  Material: {fileID: 2100000, guid: 3fb081e91372544fbb3bd99b8f3a1fc7, type: 2}
---- !u!1 &406600473
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 406600477}
-  - component: {fileID: 406600476}
-  - component: {fileID: 406600479}
-  - component: {fileID: 406600478}
-  - component: {fileID: 406600475}
-  - component: {fileID: 406600474}
-  m_Layer: 0
-  m_Name: Game
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &406600474
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a81e9e97c4cca48e1a809f23e11e353a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.Deployer
-  Root: {fileID: 406600476}
-  MarkerMaterial: {fileID: 2100000, guid: da1472fd3403040d1bf79574072594c5, type: 2}
---- !u!114 &406600475
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e456e3379c35408086324277a2b0b08, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.Commander
-  Root: {fileID: 406600476}
-  Deployer: {fileID: 406600474}
-  PickRadius: 34
---- !u!114 &406600476
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4a84ab54d12543b9b84fed5181ed804, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.GameRoot
-  CameraRig: {fileID: 2044548357}
-  GroundView: {fileID: 149386093}
-  CoverView: {fileID: 596056656}
-  ArmyView: {fileID: 801809385}
-  Dressing: {fileID: 1935438590}
-  Mountains: {fileID: 1819018686}
-  PlayerSide: 0
-  Speed: 1
-  Paused: 0
---- !u!4 &406600477
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 149386092}
-  - {fileID: 596056655}
-  - {fileID: 801809384}
-  - {fileID: 1935438589}
-  - {fileID: 1819018687}
-  - {fileID: 1782066788}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &406600478
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 629cae09f448441b48b7c486d5606283, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.AudioView
---- !u!114 &406600479
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 406600473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 948e6639f013a45d8b7ba03b75ec5840, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.CombatView
-  Glow: {fileID: 2100000, guid: d87791cb3c7d74ebe9351b12025467f6, type: 2}
-  Smoke: {fileID: 2100000, guid: ade8da9b049954153aee23e930889171, type: 2}
-  Marks: {fileID: 2100000, guid: bccc3ae59a86b44dbb8def332e4b528d, type: 2}
---- !u!1 &596056654
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 596056655}
-  - component: {fileID: 596056656}
-  m_Layer: 0
-  m_Name: Cover
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &596056655
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 596056654}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 406600477}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &596056656
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 596056654}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4cfd63a553544c77b772411a0f698a9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.CoverView
-  SandbagMaterial: {fileID: 2100000, guid: 25ad33939ab67489598d99591531bd7e, type: 2}
-  TimberMaterial: {fileID: 2100000, guid: 21f5fc6633a3b48c58961988cd54748a, type: 2}
-  Sandbags:
-    Name: sandbags
-    Layout: {fileID: 4900000, guid: 89be28f977632413abf21715874158ef, type: 3}
-    Material: {fileID: 2100000, guid: 186b3afd5f55c4b6ebe91d9e70391bf7, type: 2}
---- !u!1 &801809383
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 801809384}
-  - component: {fileID: 801809385}
+  - component: {fileID: 43457205}
+  - component: {fileID: 43457206}
   m_Layer: 0
   m_Name: Army
   m_TagString: Untagged
@@ -350,28 +136,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &801809384
+--- !u!4 &43457205
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 801809383}
+  m_GameObject: {fileID: 43457204}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 406600477}
+  m_Father: {fileID: 494307147}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &801809385
+--- !u!114 &43457206
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 801809383}
+  m_GameObject: {fileID: 43457204}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 711bd8d2be7a147db8cb8319eb2fb028, type: 3}
@@ -396,7 +182,7 @@ MonoBehaviour:
   - {fileID: 931913370655620121, guid: 44386a3eca4be403eb58a17d2269728b, type: 3}
   - {fileID: 3303687495550310357, guid: 05038ed0e98cd41b8b7dfa2c3e5a413b, type: 3}
   - {fileID: 7295551898409858651, guid: 6f7e43229e3a64bc696be1131a83c816, type: 3}
---- !u!1 &1242701183
+--- !u!1 &96436986
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -404,11 +190,11 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1242701188}
-  - component: {fileID: 1242701187}
-  - component: {fileID: 1242701186}
-  - component: {fileID: 1242701185}
-  - component: {fileID: 1242701184}
+  - component: {fileID: 96436991}
+  - component: {fileID: 96436990}
+  - component: {fileID: 96436989}
+  - component: {fileID: 96436988}
+  - component: {fileID: 96436987}
   m_Layer: 0
   m_Name: Sun
   m_TagString: Untagged
@@ -416,34 +202,34 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1242701184
+--- !u!114 &96436987
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242701183}
+  m_GameObject: {fileID: 96436986}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ecc1b2200cf3248458755b8ecb850512, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.SkyLighting
   SkyJson: {fileID: 4900000, guid: 71df476d37615433d9cbb9bf3b5e939a, type: 3}
-  Sun: {fileID: 1242701187}
+  Sun: {fileID: 96436990}
   SkyMaterial: {fileID: 2100000, guid: eb29c2048da9345c9afdfad92aca1836, type: 2}
   Scale: 2
   SkyStops: 0.6
   SunShare: 1
   AmbientShare: 1
   WhiteBalance: 0.6
-  Post: {fileID: 1645438563}
---- !u!114 &1242701185
+  Post: {fileID: 663649512}
+--- !u!114 &96436988
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242701183}
+  m_GameObject: {fileID: 96436986}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f2699ad2969f94aa290f275023a00bc5, type: 3}
@@ -454,13 +240,13 @@ MonoBehaviour:
   Density: 0.72
   Wind: {x: 2.2, y: 0.6}
   Offset: {x: 37, y: 112}
---- !u!114 &1242701186
+--- !u!114 &96436989
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242701183}
+  m_GameObject: {fileID: 96436986}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
@@ -483,13 +269,13 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!108 &1242701187
+--- !u!108 &96436990
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242701183}
+  m_GameObject: {fileID: 96436986}
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
@@ -548,13 +334,13 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &1242701188
+--- !u!4 &96436991
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242701183}
+  m_GameObject: {fileID: 96436986}
   serializedVersion: 2
   m_LocalRotation: {x: 0.42534965, y: 0.21743797, z: -0.10605158, w: 0.872096}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -563,7 +349,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1369550197
+--- !u!1 &228563456
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -571,240 +357,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1369550201}
-  - component: {fileID: 1369550200}
-  - component: {fileID: 1369550199}
-  - component: {fileID: 1369550198}
-  m_Layer: 0
-  m_Name: HUD
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1369550198
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1369550197}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c85096026e2d84f9a8953e66aa9e0b2c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.UI.Screens
-  Root: {fileID: 406600476}
-  Hud: {fileID: 1369550199}
-  Commander: {fileID: 406600475}
-  Deployer: {fileID: 406600474}
---- !u!114 &1369550199
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1369550197}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f17d3e6531b946c6a85f669ca3658d7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.UI.Hud
-  Root: {fileID: 406600476}
-  Commander: {fileID: 406600475}
-  Deployer: {fileID: 406600474}
-  Style: {fileID: 7433441132597879392, guid: 8cdf02b3dfb644a8b812e26f4494ced7, type: 3}
---- !u!114 &1369550200
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1369550197}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: b83aea338d1a34a639397e11128a5882, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 0}
-  m_SortingOrder: 0
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
---- !u!4 &1369550201
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1369550197}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1645438562
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1645438564}
-  - component: {fileID: 1645438563}
-  m_Layer: 0
-  m_Name: Post
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1645438563
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1645438562}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
-  m_IsGlobal: 1
-  priority: 0
-  blendDistance: 0
-  weight: 1
-  sharedProfile: {fileID: 11400000, guid: 3ad88786868ac4cb8b9841a81db0b2ac, type: 2}
---- !u!4 &1645438564
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1645438562}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1782066787
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1782066788}
-  - component: {fileID: 1782066789}
-  m_Layer: 0
-  m_Name: Selection
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1782066788
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1782066787}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 406600477}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1782066789
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1782066787}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b3d5faffed1414f0e874170215695913, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.SelectionRings
-  Commander: {fileID: 406600475}
-  RingMaterial: {fileID: 2100000, guid: da1472fd3403040d1bf79574072594c5, type: 2}
-  Diameter: 1.05
---- !u!1 &1819018685
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1819018687}
-  - component: {fileID: 1819018686}
-  m_Layer: 0
-  m_Name: Mountains
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1819018686
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1819018685}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8669ef45030a04537b396d896005dc0a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.MountainView
-  Heights: {fileID: 4900000, guid: d66e53ebcff754e4ea6ef668219d519c, type: 3}
-  Layout: {fileID: 4900000, guid: 4882274e7b7d84a6e8b4ddbfbd5b146a, type: 3}
-  Material: {fileID: 2100000, guid: 6e2ec8d1ccf2147c9a338c2fcfa48b4c, type: 2}
---- !u!4 &1819018687
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1819018685}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 406600477}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1935438588
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1935438589}
-  - component: {fileID: 1935438590}
+  - component: {fileID: 228563457}
+  - component: {fileID: 228563458}
   m_Layer: 0
   m_Name: Dressing
   m_TagString: Untagged
@@ -812,28 +366,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1935438589
+--- !u!4 &228563457
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1935438588}
+  m_GameObject: {fileID: 228563456}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 406600477}
+  m_Father: {fileID: 494307147}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1935438590
+--- !u!114 &228563458
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1935438588}
+  m_GameObject: {fileID: 228563456}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c355da44bbdf9417a8b830894056bc3a, type: 3}
@@ -888,7 +442,11 @@ MonoBehaviour:
     Layout: {fileID: 4900000, guid: d7540e70d8757420fa425a956af2f078, type: 3}
     Material: {fileID: 2100000, guid: 3d8863db57c544cc99f28f908b8872ae, type: 2}
   GreyBoxRidges: 1
---- !u!1 &2044548356
+  Bags:
+    Tall: []
+    Low: []
+    Material: {fileID: 0}
+--- !u!1 &494307143
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -896,11 +454,179 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2044548361}
-  - component: {fileID: 2044548360}
-  - component: {fileID: 2044548359}
-  - component: {fileID: 2044548357}
-  - component: {fileID: 2044548358}
+  - component: {fileID: 494307147}
+  - component: {fileID: 494307146}
+  - component: {fileID: 494307149}
+  - component: {fileID: 494307148}
+  - component: {fileID: 494307145}
+  - component: {fileID: 494307144}
+  m_Layer: 0
+  m_Name: Game
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &494307144
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a81e9e97c4cca48e1a809f23e11e353a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.Deployer
+  Root: {fileID: 494307146}
+  MarkerMaterial: {fileID: 2100000, guid: da1472fd3403040d1bf79574072594c5, type: 2}
+--- !u!114 &494307145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e456e3379c35408086324277a2b0b08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.Commander
+  Root: {fileID: 494307146}
+  Deployer: {fileID: 494307144}
+  PickRadius: 34
+--- !u!114 &494307146
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4a84ab54d12543b9b84fed5181ed804, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.GameRoot
+  CameraRig: {fileID: 723765814}
+  GroundView: {fileID: 1816682326}
+  CoverView: {fileID: 1748796322}
+  ArmyView: {fileID: 43457206}
+  Dressing: {fileID: 228563458}
+  Mountains: {fileID: 1736550431}
+  PlayerSide: 0
+  Speed: 1
+  Paused: 0
+--- !u!4 &494307147
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1816682325}
+  - {fileID: 1748796321}
+  - {fileID: 43457205}
+  - {fileID: 228563457}
+  - {fileID: 1736550432}
+  - {fileID: 1442459987}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &494307148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 629cae09f448441b48b7c486d5606283, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.AudioView
+--- !u!114 &494307149
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494307143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 948e6639f013a45d8b7ba03b75ec5840, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.CombatView
+  Glow: {fileID: 2100000, guid: d87791cb3c7d74ebe9351b12025467f6, type: 2}
+  Smoke: {fileID: 2100000, guid: ade8da9b049954153aee23e930889171, type: 2}
+  Marks: {fileID: 2100000, guid: bccc3ae59a86b44dbb8def332e4b528d, type: 2}
+--- !u!1 &663649511
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 663649513}
+  - component: {fileID: 663649512}
+  m_Layer: 0
+  m_Name: Post
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &663649512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663649511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
+  m_IsGlobal: 1
+  priority: 0
+  blendDistance: 0
+  weight: 1
+  sharedProfile: {fileID: 11400000, guid: 3ad88786868ac4cb8b9841a81db0b2ac, type: 2}
+--- !u!4 &663649513
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663649511}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &723765813
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 723765818}
+  - component: {fileID: 723765817}
+  - component: {fileID: 723765816}
+  - component: {fileID: 723765814}
+  - component: {fileID: 723765815}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -908,13 +634,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2044548357
+--- !u!114 &723765814
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2044548356}
+  m_GameObject: {fileID: 723765813}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d6c4350abb6645ad8a718ac5bc9da0f, type: 3}
@@ -925,21 +651,21 @@ MonoBehaviour:
   PanSpeed: 16
   EdgePan: 1
   FieldGlasses: 0
---- !u!81 &2044548358
+--- !u!81 &723765815
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2044548356}
+  m_GameObject: {fileID: 723765813}
   m_Enabled: 1
---- !u!114 &2044548359
+--- !u!114 &723765816
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2044548356}
+  m_GameObject: {fileID: 723765813}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
@@ -957,7 +683,7 @@ MonoBehaviour:
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
   m_RenderPostProcessing: 1
-  m_Antialiasing: 3
+  m_Antialiasing: 2
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
@@ -970,20 +696,20 @@ MonoBehaviour:
   m_RequiresDepthTexture: 0
   m_RequiresColorTexture: 0
   m_TaaSettings:
-    m_Quality: 4
+    m_Quality: 3
     m_FrameInfluence: 0.1
-    m_JitterScale: 0.35
+    m_JitterScale: 1
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!20 &2044548360
+--- !u!20 &723765817
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2044548356}
+  m_GameObject: {fileID: 723765813}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
@@ -1028,13 +754,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &2044548361
+--- !u!4 &723765818
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2044548356}
+  m_GameObject: {fileID: 723765813}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1043,12 +769,294 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &863477265
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 863477269}
+  - component: {fileID: 863477268}
+  - component: {fileID: 863477267}
+  - component: {fileID: 863477266}
+  m_Layer: 0
+  m_Name: HUD
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &863477266
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 863477265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c85096026e2d84f9a8953e66aa9e0b2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.UI.Screens
+  Root: {fileID: 494307146}
+  Hud: {fileID: 863477267}
+  Commander: {fileID: 494307145}
+  Deployer: {fileID: 494307144}
+--- !u!114 &863477267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 863477265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f17d3e6531b946c6a85f669ca3658d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.UI.Hud
+  Root: {fileID: 494307146}
+  Commander: {fileID: 494307145}
+  Deployer: {fileID: 494307144}
+  Style: {fileID: 7433441132597879392, guid: 8cdf02b3dfb644a8b812e26f4494ced7, type: 3}
+--- !u!114 &863477268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 863477265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: b83aea338d1a34a639397e11128a5882, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 0}
+  m_SortingOrder: 0
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &863477269
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 863477265}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1442459986
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1442459987}
+  - component: {fileID: 1442459988}
+  m_Layer: 0
+  m_Name: Selection
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1442459987
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1442459986}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 494307147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1442459988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1442459986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3d5faffed1414f0e874170215695913, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.SelectionRings
+  Commander: {fileID: 494307145}
+  RingMaterial: {fileID: 2100000, guid: da1472fd3403040d1bf79574072594c5, type: 2}
+  Diameter: 1.05
+--- !u!1 &1736550430
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1736550432}
+  - component: {fileID: 1736550431}
+  m_Layer: 0
+  m_Name: Mountains
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1736550431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736550430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8669ef45030a04537b396d896005dc0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.MountainView
+  Heights: {fileID: 4900000, guid: d66e53ebcff754e4ea6ef668219d519c, type: 3}
+  Layout: {fileID: 4900000, guid: 4882274e7b7d84a6e8b4ddbfbd5b146a, type: 3}
+  Material: {fileID: 2100000, guid: 6e2ec8d1ccf2147c9a338c2fcfa48b4c, type: 2}
+--- !u!4 &1736550432
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736550430}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 494307147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1748796320
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1748796321}
+  - component: {fileID: 1748796322}
+  m_Layer: 0
+  m_Name: Cover
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1748796321
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1748796320}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 494307147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1748796322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1748796320}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4cfd63a553544c77b772411a0f698a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.CoverView
+  SandbagMaterial: {fileID: 2100000, guid: 25ad33939ab67489598d99591531bd7e, type: 2}
+  TimberMaterial: {fileID: 2100000, guid: 21f5fc6633a3b48c58961988cd54748a, type: 2}
+  Bags:
+    Tall:
+    - {fileID: -6557715453016206794, guid: 22d470a7aeaa849dc9932069f627a926, type: 3}
+    - {fileID: -6889860977273866361, guid: 22d470a7aeaa849dc9932069f627a926, type: 3}
+    Low:
+    - {fileID: -3194057982430772369, guid: 22d470a7aeaa849dc9932069f627a926, type: 3}
+    - {fileID: 4370131211659591291, guid: 22d470a7aeaa849dc9932069f627a926, type: 3}
+    Material: {fileID: 2100000, guid: fceef52a3689c4fc88ecd53ef4dc4427, type: 2}
+--- !u!1 &1816682324
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1816682325}
+  - component: {fileID: 1816682326}
+  m_Layer: 0
+  m_Name: Ground
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1816682325
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1816682324}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 494307147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1816682326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1816682324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8b12044852064c9f97ca09f75330a78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LanesOfVietnam.View::LanesOfVietnam.View.GroundView
+  Material: {fileID: 2100000, guid: 3fb081e91372544fbb3bd99b8f3a1fc7, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1242701188}
-  - {fileID: 2044548361}
-  - {fileID: 1645438564}
-  - {fileID: 406600477}
-  - {fileID: 1369550201}
+  - {fileID: 96436991}
+  - {fileID: 723765818}
+  - {fileID: 663649513}
+  - {fileID: 494307147}
+  - {fileID: 863477269}

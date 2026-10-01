@@ -1,8 +1,8 @@
 {
  "side": "vc_a",
  "source": "soldiers/vc_a_v2.glb",
- "body_tris": 8999,
- "body_verts": 7780,
+ "body_tris": 9000,
+ "body_verts": 7835,
  "rifle_tris": 1868,
  "bones": 53,
  "height_m": 1.671,

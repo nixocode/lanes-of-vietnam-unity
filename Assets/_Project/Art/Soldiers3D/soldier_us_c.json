@@ -1,10 +1,10 @@
 {
  "side": "us_c",
  "source": "soldiers/us_c_v2.glb",
- "body_tris": 9000,
- "body_verts": 8020,
+ "body_tris": 8999,
+ "body_verts": 8038,
  "rifle_tris": 1868,
  "bones": 53,
- "height_m": 1.713,
+ "height_m": 1.744,
  "muzzle_from_grip_m": 0.878
 }

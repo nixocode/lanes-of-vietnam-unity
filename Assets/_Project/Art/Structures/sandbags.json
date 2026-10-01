@@ -1,0 +1,27 @@
+{
+ "run": 2.4,
+ "cols": 10,
+ "rows": 10,
+ "segments": {
+  "tall_a": {
+   "length": 2.4,
+   "height": 1.15,
+   "triangles": 4608
+  },
+  "tall_b": {
+   "length": 2.4,
+   "height": 1.138,
+   "triangles": 4608
+  },
+  "low_a": {
+   "length": 2.4,
+   "height": 0.492,
+   "triangles": 2016
+  },
+  "low_b": {
+   "length": 2.4,
+   "height": 0.48,
+   "triangles": 2016
+  }
+ }
+}

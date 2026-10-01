@@ -2,10 +2,10 @@
  "side": "us_a",
  "source": "soldiers/us_a_v2.glb",
  "body_tris": 9000,
- "body_verts": 7995,
+ "body_verts": 8040,
  "rifle_tris": 1868,
  "bones": 53,
- "height_m": 1.87,
+ "height_m": 1.903,
  "muzzle_from_grip_m": 0.878,
  "clips": [
   {

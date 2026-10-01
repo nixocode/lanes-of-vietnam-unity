@@ -495,15 +495,17 @@ namespace LanesOfVietnam.View
             }
         }
 
-        /// <summary>Baked sandbag segments for the revetments (set by GameRoot from CoverView's); null: boxes.</summary>
-        public PlantSpecies Sandbags;
+        /// <summary>The sandbag walls' meshes for the revetments (set by GameRoot from CoverView's); not set: boxes.</summary>
+        public BagSet Bags;
         private int _wallSeed;
 
         private void Wall(Ground g, double x, double z, double lenX, double h, double lenZ)
         {
-            if (Sandbags != null)
+            if (Bags.Ready)
             {
-                CoverView.BagRun(_plants, Sandbags, g, x, z, System.Math.Max(lenX, lenZ), (float)h, false, 1000 + _wallSeed++);
+                // Along whichever way it is longer: the east wall runs away from the lens.
+                double dx = lenX >= lenZ ? lenX / 2 : 0, dz = lenX >= lenZ ? 0 : lenZ / 2;
+                Bags.Wall(transform, _built, g, x - dx, z - dz, x + dx, z + dz, (float)h, false, 1000 + _wallSeed++);
                 return;
             }
             float y = (float)g.HeightAt(x, z);
