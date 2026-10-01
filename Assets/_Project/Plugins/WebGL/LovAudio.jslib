@@ -21,7 +21,7 @@ mergeInto(LibraryManager.library, {
     if (typeof window === 'undefined' || !(window.AudioContext || window.webkitAudioContext)) return 0;
     var A = window.LovAudio = {
       ctx: new (window.AudioContext || window.webkitAudioContext)(),
-      buffers: {}, voices: 0, maxVoices: 24,
+      buffers: {}, voices: 0, maxVoices: 32,
       listenerX: 0, listenerZ: 44, ambience: null, ambienceGain: null,
       SPEED: 343, REF: 10, ABSORB: 120, MAX: 900
     };

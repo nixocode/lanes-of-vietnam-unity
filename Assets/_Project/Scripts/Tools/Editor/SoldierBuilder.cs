@@ -36,7 +36,12 @@ namespace LanesOfVietnam.Tools
         public const string PosesPath = Dir + "/soldier_poses.fbx";
         public const string ControllerPath = Dir + "/soldier.controller";
 
-        /// <summary>The rig's bones (MPFB2's game-engine skeleton) as Humanoid's.</summary>
+        /// <summary>
+        /// The rig's bones (MPFB2's game-engine skeleton) as Humanoid's. Not the
+        /// fingers: Mixamo's finger curls, played on these, folded them back and
+        /// tore the hands (pale shards in the first prone captures); left out,
+        /// the hands keep the bind's own grip, which no camera here resolves.
+        /// </summary>
         private static readonly (HumanBodyBones bone, string name)[] Bones =
         {
             (HumanBodyBones.Hips, "pelvis"), (HumanBodyBones.Spine, "spine_01"), (HumanBodyBones.Chest, "spine_02"),
@@ -49,16 +54,6 @@ namespace LanesOfVietnam.Tools
             (HumanBodyBones.LeftFoot, "foot_l"), (HumanBodyBones.LeftToes, "ball_l"),
             (HumanBodyBones.RightUpperLeg, "thigh_r"), (HumanBodyBones.RightLowerLeg, "calf_r"),
             (HumanBodyBones.RightFoot, "foot_r"), (HumanBodyBones.RightToes, "ball_r"),
-            (HumanBodyBones.LeftThumbProximal, "thumb_01_l"), (HumanBodyBones.LeftThumbIntermediate, "thumb_02_l"), (HumanBodyBones.LeftThumbDistal, "thumb_03_l"),
-            (HumanBodyBones.LeftIndexProximal, "index_01_l"), (HumanBodyBones.LeftIndexIntermediate, "index_02_l"), (HumanBodyBones.LeftIndexDistal, "index_03_l"),
-            (HumanBodyBones.LeftMiddleProximal, "middle_01_l"), (HumanBodyBones.LeftMiddleIntermediate, "middle_02_l"), (HumanBodyBones.LeftMiddleDistal, "middle_03_l"),
-            (HumanBodyBones.LeftRingProximal, "ring_01_l"), (HumanBodyBones.LeftRingIntermediate, "ring_02_l"), (HumanBodyBones.LeftRingDistal, "ring_03_l"),
-            (HumanBodyBones.LeftLittleProximal, "pinky_01_l"), (HumanBodyBones.LeftLittleIntermediate, "pinky_02_l"), (HumanBodyBones.LeftLittleDistal, "pinky_03_l"),
-            (HumanBodyBones.RightThumbProximal, "thumb_01_r"), (HumanBodyBones.RightThumbIntermediate, "thumb_02_r"), (HumanBodyBones.RightThumbDistal, "thumb_03_r"),
-            (HumanBodyBones.RightIndexProximal, "index_01_r"), (HumanBodyBones.RightIndexIntermediate, "index_02_r"), (HumanBodyBones.RightIndexDistal, "index_03_r"),
-            (HumanBodyBones.RightMiddleProximal, "middle_01_r"), (HumanBodyBones.RightMiddleIntermediate, "middle_02_r"), (HumanBodyBones.RightMiddleDistal, "middle_03_r"),
-            (HumanBodyBones.RightRingProximal, "ring_01_r"), (HumanBodyBones.RightRingIntermediate, "ring_02_r"), (HumanBodyBones.RightRingDistal, "ring_03_r"),
-            (HumanBodyBones.RightLittleProximal, "pinky_01_r"), (HumanBodyBones.RightLittleIntermediate, "pinky_02_r"), (HumanBodyBones.RightLittleDistal, "pinky_03_r"),
         };
 
         [MenuItem("Lanes of Vietnam/Build Soldiers")]
@@ -75,6 +70,11 @@ namespace LanesOfVietnam.Tools
             var vc = BuildAvatar("soldier_vc");
             var clips = ImportPoses(us);
             var speeds = ClipSpeeds();
+            foreach (var (name, clip, speed) in ImportMixamo())
+            {
+                clips[name] = clip;
+                if (speed > 0) speeds[name] = speed;
+            }
             var ctrl = BuildController(clips, speeds);
             BuildPrefab("soldier_us", us, ctrl, speeds);
             BuildPrefab("soldier_vc", vc, ctrl, speeds);
@@ -215,6 +215,88 @@ namespace LanesOfVietnam.Tools
             return clips;
         }
 
+        /// <summary>
+        /// Mixamo's clips (PLAN §12.3), each file one clip, named by its role
+        /// here: (role, loops, travels). A travelling clip (a crawl, a walk)
+        /// keeps its ground motion as root motion, which the Animator never
+        /// applies (the sim moves the man) but which measures the clip's own
+        /// speed; everything else has its motion baked into the pose, so a man
+        /// thrown back by a round falls back, not straight down.
+        /// </summary>
+        public static readonly (string role, bool loop, bool travels)[] Mixamo =
+        {
+            ("prone_idle", true, false), ("crawl", true, true), ("prone_fire", true, false), ("prone_death", false, false),
+            ("prone_hit", false, false), ("prone_reload", false, false), ("crouch_to_prone", false, false),
+            ("prone_to_kneel", false, false), ("kneel_to_prone", false, false), ("stand_to_kneel", false, false),
+            ("kneel_to_stand", false, false), ("kneel_idle", true, false), ("kneel_aim", false, false), ("kneel_hit", false, false),
+            ("hit_back", false, false), ("flinch", false, false), ("fire", true, false), ("fire_b", true, false),
+            ("fire_walk", true, true), ("fire_crouch_walk", true, true), ("reload", false, false), ("grenade", false, false),
+            ("death_rifle", false, false), ("death_fall_back", false, false), ("death_blast", false, false),
+            ("death_backwards", false, false), ("death_run", false, false),
+        };
+
+        private static readonly List<string> ImportedMixamo = new List<string>();
+
+        /// <summary>The deaths standing or kneeling, in the order a man's death index picks them.</summary>
+        private static readonly string[] MixamoDeaths = { "death_rifle", "death_fall_back", "death_backwards", "death_run", "death_blast" };
+
+        private static float RootTravel(AnimationClip clip)
+        {
+            float End(string prop)
+            {
+                var b = AnimationUtility.GetCurveBindings(clip).FirstOrDefault(x => x.propertyName == prop);
+                if (b.propertyName == null) return 0f;
+                var c = AnimationUtility.GetEditorCurve(clip, b);
+                return c.Evaluate(clip.length) - c.Evaluate(0f);
+            }
+            return new Vector2(End("RootT.x"), End("RootT.z")).magnitude;
+        }
+
+        private static float _hips;
+        /// <summary>The US body's hip height in its bind pose: Humanoid's unit of root motion for him.</summary>
+        private static float HipHeight()
+        {
+            if (_hips > 0) return _hips;
+            var go = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/soldier_us.fbx"));
+            _hips = Find(go.transform)["pelvis"].position.y;
+            Object.DestroyImmediate(go);
+            return _hips;
+        }
+
+        private static IEnumerable<(string role, AnimationClip clip, float speed)> ImportMixamo()
+        {
+            var found = new List<string>();
+            ImportedMixamo.Clear();
+            foreach (var (role, loop, travels) in Mixamo)
+            {
+                string path = $"{MixamoDir}/{role}.fbx";
+                if (!(AssetImporter.GetAtPath(path) is ModelImporter mi)) continue;
+                if (mi.animationType != ModelImporterAnimationType.Human) { mi.animationType = ModelImporterAnimationType.Human; mi.SaveAndReimport(); }
+                var takes = mi.clipAnimations.Length > 0 ? mi.clipAnimations : mi.defaultClipAnimations;
+                if (takes.Length == 0) { Debug.LogWarning($"[LOV] {path}: no take"); continue; }
+                var c = takes[0];
+                c.name = role;
+                c.loopTime = loop;
+                c.lockRootRotation = true; c.keepOriginalOrientation = true;
+                c.lockRootHeightY = true; c.keepOriginalPositionY = true; c.heightFromFeet = false;
+                c.lockRootPositionXZ = !travels; c.keepOriginalPositionXZ = !travels;
+                mi.clipAnimations = new[] { c };
+                mi.SaveAndReimport();
+                var clip = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault(x => !x.name.StartsWith("__preview__"));
+                if (clip == null) continue;
+                // Humanoid root motion is in units of the avatar's hip height, so
+                // the clip's ground speed on our soldier is its root's travel
+                // over its length times his hips (Unity's averageSpeed reads
+                // the crawl at 0.09, a quarter of what the curves say).
+                float speed = travels ? RootTravel(clip) / clip.length * HipHeight() : 0f;
+                found.Add(travels ? $"{role} ({speed:F2} m/s)" : role);
+                ImportedMixamo.Add(role);
+                yield return (role, clip, speed);
+            }
+            Debug.Log(found.Count == 0 ? "[LOV] Mixamo: none downloaded yet (Assets/_Licensed/Mixamo); interim clips throughout"
+                                       : $"[LOV] Mixamo: {found.Count} of {Mixamo.Length}: {string.Join(", ", found)}");
+        }
+
         [System.Serializable] private class ClipMeta { public string name; public float stride_m; public float seconds; }
         [System.Serializable] private class RigMeta { public ClipMeta[] clips; }
 
@@ -253,8 +335,11 @@ namespace LanesOfVietnam.Tools
             ctrl.AddParameter("Posture", AnimatorControllerParameterType.Int);
             ctrl.AddParameter("Dead", AnimatorControllerParameterType.Bool);
             ctrl.AddParameter("DeathIndex", AnimatorControllerParameterType.Int);
+            ctrl.AddParameter("Hit", AnimatorControllerParameterType.Trigger);
 
             AnimationClip C(string n) => clips.TryGetValue(n, out var c) ? c : throw new System.Exception($"no clip {n}");
+            // A role is Mixamo's clip where it has been downloaded, else the interim one.
+            string R(string mixamo, string interim) => clips.ContainsKey(mixamo) ? mixamo : interim;
 
             // --- body: posture, and speed within it ---
             ctrl.AddLayer("Body");
@@ -272,7 +357,9 @@ namespace LanesOfVietnam.Tools
             }
             var stand = Tree("Stand", ("idle", 0f), ("walk", speed["walk"]), ("run", speed["run"]));
             var crouch = Tree("Crouch", ("kneel", 0f), ("crouch", speed["crouch"]));
-            var prone = Tree("Prone", ("prone", 0f));
+            var prone = clips.ContainsKey("crawl") && speed.ContainsKey("crawl")
+                ? Tree("Prone", (R("prone_idle", "prone"), 0f), ("crawl", speed["crawl"]))
+                : Tree("Prone", (R("prone_idle", "prone"), 0f));
             sm.defaultState = stand;
 
             // §5.4's timing: down in 0.20 s, up in 0.62 s.
@@ -287,16 +374,30 @@ namespace LanesOfVietnam.Tools
             Go(crouch, stand, 0, 0.62f); Go(crouch, prone, 2, 0.25f);
             Go(prone, stand, 0, 0.62f); Go(prone, crouch, 1, 0.50f);
 
-            var deaths = new[] { "dead0", "dead1" }.Where(clips.ContainsKey).ToArray();
+            var mixDeaths = MixamoDeaths.Where(clips.ContainsKey).ToArray();
+            var deaths = mixDeaths.Length > 0 ? mixDeaths : new[] { "dead0", "dead1" }.Where(clips.ContainsKey).ToArray();
+            bool proneDeath = clips.ContainsKey("prone_death");
             for (int k = 0; k < deaths.Length; k++)
             {
                 var st = sm.AddState("Dead " + k);
                 st.motion = C(deaths[k]);
                 var tr = sm.AddAnyStateTransition(st);
-                tr.hasExitTime = false; tr.hasFixedDuration = true; tr.duration = 0.35f;
+                tr.hasExitTime = false; tr.hasFixedDuration = true; tr.duration = 0.2f;
                 tr.canTransitionToSelf = false;
                 tr.AddCondition(AnimatorConditionMode.If, 0, "Dead");
                 tr.AddCondition(AnimatorConditionMode.Equals, k, "DeathIndex");
+                if (proneDeath) tr.AddCondition(AnimatorConditionMode.NotEqual, 2, "Posture");
+            }
+            if (proneDeath)
+            {
+                // A man shot lying down dies lying down.
+                var st = sm.AddState("Dead prone");
+                st.motion = C("prone_death");
+                var tr = sm.AddAnyStateTransition(st);
+                tr.hasExitTime = false; tr.hasFixedDuration = true; tr.duration = 0.2f;
+                tr.canTransitionToSelf = false;
+                tr.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+                tr.AddCondition(AnimatorConditionMode.Equals, 2, "Posture");
             }
 
             // --- aim: the upper body to the shoulder, over whatever the legs are doing ---
@@ -311,7 +412,7 @@ namespace LanesOfVietnam.Tools
             var aim = ctrl.layers[1].stateMachine;
             var sa = aim.AddState("Stand"); sa.motion = C("stand_aim");
             var ka = aim.AddState("Kneel"); ka.motion = C("kneel_aim");
-            var pa = aim.AddState("Prone"); pa.motion = C("prone_aim");
+            var pa = aim.AddState("Prone"); pa.motion = C(R("prone_fire", "prone_aim"));
             aim.defaultState = sa;
             foreach (var (a, b, p) in new[] { (sa, ka, 1), (sa, pa, 2), (ka, sa, 0), (ka, pa, 2), (pa, sa, 0), (pa, ka, 1) })
             {
@@ -319,9 +420,41 @@ namespace LanesOfVietnam.Tools
                 tr.hasExitTime = false; tr.hasFixedDuration = true; tr.duration = 0.2f;
                 tr.AddCondition(AnimatorConditionMode.Equals, p, "Posture");
             }
+            // --- react: rounds close by, a man flinches, ducks, is knocked (full body, over the rest) ---
+            var hits = new (string clip, int posture)[] { (R("flinch", "hit_back"), 0), ("kneel_hit", 1), ("prone_hit", 2) }
+                .Where(h => clips.ContainsKey(h.clip)).ToArray();
+            if (hits.Length > 0)
+            {
+                ctrl.AddLayer("React");
+                var rl = ctrl.layers;
+                rl[2].defaultWeight = 1f;
+                rl[2].blendingMode = AnimatorLayerBlendingMode.Override;
+                ctrl.layers = rl;
+                var react = ctrl.layers[2].stateMachine;
+                // An empty state lets the layers below show through.
+                var calm = react.AddState("Calm");
+                react.defaultState = calm;
+                foreach (var (clip, posture) in hits)
+                {
+                    var st = react.AddState("Hit " + posture);
+                    st.motion = C(clip);
+                    var into = calm.AddTransition(st);
+                    into.hasExitTime = false; into.hasFixedDuration = true; into.duration = 0.1f;
+                    into.AddCondition(AnimatorConditionMode.If, 0, "Hit");
+                    into.AddCondition(AnimatorConditionMode.Equals, posture, "Posture");
+                    into.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
+                    var back = st.AddTransition(calm);
+                    back.hasExitTime = true; back.exitTime = 0.8f; back.hasFixedDuration = true; back.duration = 0.3f;
+                    var dead = st.AddTransition(calm);
+                    dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
+                    dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+                }
+            }
+
             EditorUtility.SetDirty(ctrl);
             Debug.Log($"[LOV] controller: stand (idle, walk {speed["walk"]:F2} m/s, run {speed["run"]:F2}), " +
-                      $"crouch ({speed["crouch"]:F2}), prone, {deaths.Length} deaths, aim layer");
+                      $"crouch ({speed["crouch"]:F2}), prone ({(clips.ContainsKey("crawl") ? "crawl" : "still")}), " +
+                      $"{deaths.Length} deaths{(proneDeath ? " + prone" : "")}, aim layer, {hits.Length} reactions");
             return ctrl;
         }
 
@@ -354,6 +487,64 @@ namespace LanesOfVietnam.Tools
             return m;
         }
 
+        /// <summary>
+        /// Where two hands hold the rifle, in its own space, from its shape: its
+        /// long axis (the vertices' principal direction, toward the muzzle), its
+        /// up (the second, turned to the bind pose's up), and along the axis from
+        /// the butt, the right wrist under the pistol grip 0.25 m on and the
+        /// left under the handguard 0.58 m on (an M16 and an AK alike).
+        /// </summary>
+        private static (Vector3 gripR, Vector3 gripL, Vector3 up) Grips(Mesh mesh, Vector3 towardMuzzle, Vector3 bindUp)
+        {
+            var v = mesh.vertices;
+            var c = Vector3.zero;
+            foreach (var p in v) c += p;
+            c /= v.Length;
+            var cov = new float[3, 3];
+            foreach (var p0 in v)
+            {
+                var p = p0 - c;
+                for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) cov[i, j] += p[i] * p[j];
+            }
+            Vector3 Mul(Vector3 x) => new Vector3(cov[0, 0] * x.x + cov[0, 1] * x.y + cov[0, 2] * x.z,
+                                                  cov[1, 0] * x.x + cov[1, 1] * x.y + cov[1, 2] * x.z,
+                                                  cov[2, 0] * x.x + cov[2, 1] * x.y + cov[2, 2] * x.z);
+            var axis = towardMuzzle.normalized;
+            for (int k = 0; k < 60; k++) axis = Mul(axis).normalized;
+            if (Vector3.Dot(axis, towardMuzzle) < 0) axis = -axis;
+            var up = Vector3.ProjectOnPlane(bindUp, axis).normalized;
+            for (int k = 0; k < 60; k++) up = Vector3.ProjectOnPlane(Mul(up), axis).normalized;
+            if (Vector3.Dot(up, bindUp) < 0) up = -up;
+            float butt = v.Min(p => Vector3.Dot(p - c, axis));
+            var b0 = c + axis * butt;
+            return (b0 + axis * 0.25f - up * 0.08f, b0 + axis * 0.58f - up * 0.06f, up);
+        }
+
+        /// <summary>
+        /// Mixamo's men hold their rifle in one grip, fixed to the right hand, in
+        /// every clip. Learned once from its prone firing clip, where the rifle
+        /// lies level along his facing, upright, the grip at the right wrist; then
+        /// kept as the rifle's place in the hand for every Mixamo clip.
+        /// </summary>
+        private static void LearnMixamoGrip(SoldierFigure fig, GameObject body, Dictionary<string, Transform> t)
+        {
+            var clip = AssetDatabase.LoadAllAssetsAtPath($"{MixamoDir}/prone_fire.fbx").OfType<AnimationClip>().FirstOrDefault(c => !c.name.StartsWith("__"));
+            if (clip == null) return;
+            var all = body.GetComponentsInChildren<Transform>(true);
+            var bind = all.Select(x => (x.localPosition, x.localRotation)).ToArray();
+            clip.SampleAnimation(body, clip.length * 0.25f);
+            var hand = t["hand_r"];
+            var rifle = t["rifle"];
+            Vector3 fwd = body.transform.forward, up = Vector3.up;
+            Vector3 aL = (fig.RifleGripL - fig.RifleGripR).normalized, uL = Vector3.ProjectOnPlane(fig.RifleUp, aL);
+            var rot = Quaternion.LookRotation(fwd, up) * Quaternion.Inverse(Quaternion.LookRotation(aL, uL));
+            var pos = hand.position - rot * Vector3.Scale(fig.RifleGripR, rifle.lossyScale);
+            fig.RifleInHandRot = Quaternion.Inverse(hand.rotation) * rot;
+            fig.RifleInHandPos = hand.InverseTransformPoint(pos);
+            for (int i = 0; i < all.Length; i++) all[i].SetLocalPositionAndRotation(bind[i].localPosition, bind[i].localRotation);
+            Debug.Log($"[LOV] {body.transform.parent.name}: Mixamo's rifle grip learned from prone_fire");
+        }
+
         private static void BuildPrefab(string name, Avatar avatar, AnimatorController ctrl, Dictionary<string, float> speed)
         {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/{name}.fbx");
@@ -384,14 +575,23 @@ namespace LanesOfVietnam.Tools
                 fig.Rifle = rifle;
                 fig.GripL = t["grip_l"];
                 fig.Muzzle = t["muzzle"];
-                fig.UpperArmL = t["upperarm_l"]; fig.LowerArmL = t["lowerarm_l"]; fig.HandL = t["hand_l"];
+                fig.HandR = t["hand_r"]; fig.HandL = t["hand_l"]; fig.LowerArmR = t["lowerarm_r"];
                 fig.Chest = t["spine_03"];
-                // In the bind pose the left hand is on the handguard: remember where, from the grip.
-                fig.GripPos = fig.GripL.InverseTransformPoint(fig.HandL.position);
-                fig.GripRot = Quaternion.Inverse(fig.GripL.rotation) * fig.HandL.rotation;
+                // The bind pose does not hold the rifle (it floats at his chest, 38
+                // cm from either wrist; the earlier build posed the arms onto it),
+                // so where the hands go comes from the rifle's own shape.
+                var rt = rifle.transform;
+                var mesh = rifle.GetComponent<MeshFilter>().sharedMesh;
+                (fig.RifleGripR, fig.RifleGripL, fig.RifleUp) = Grips(mesh, fig.Muzzle.localPosition - mesh.bounds.center, rt.InverseTransformDirection(Vector3.up));
                 fig.WalkSpeed = speed["walk"]; fig.RunSpeed = speed["run"]; fig.CrouchSpeed = speed["crouch"];
                 fig.CrawlSpeed = speed.TryGetValue("crawl", out var c) ? c : 0.4f;
-                fig.Deaths = ctrl.layers[0].stateMachine.states.Count(s => s.state.name.StartsWith("Dead"));
+                var have = new HashSet<string>(ImportedMixamo);
+                fig.MixamoStand = have.Contains("fire") || have.Contains("idle");
+                fig.MixamoCrouch = have.Contains("kneel_idle");
+                fig.MixamoProne = have.Contains("prone_idle");
+                fig.Deaths = ctrl.layers[0].stateMachine.states.Count(s => s.state.name.StartsWith("Dead ") && s.state.name != "Dead prone");
+
+                LearnMixamoGrip(fig, body, t);
 
                 // Humanoid places the body by the avatar's own facing; measure where
                 // he ends up facing, then put the bones back in the bind pose.
@@ -406,7 +606,7 @@ namespace LanesOfVietnam.Tools
                 for (int i = 0; i < all.Length; i++) all[i].SetLocalPositionAndRotation(bind[i].localPosition, bind[i].localRotation);
                 body.transform.localRotation = Quaternion.Euler(0, yaw, 0);
                 Debug.Log($"[LOV] {name}: animated, faces {face.ToString("F2")}; body turned {yaw:F0} deg to face +Z. " +
-                          $"Grip at {fig.GripPos.magnitude * 100:F1} cm from grip_l");
+                          $"grips {Vector3.Distance(fig.RifleGripR, fig.RifleGripL) * 100:F0} cm apart, muzzle {Vector3.Distance(fig.RifleGripR, fig.Muzzle.localPosition) * 100:F0} cm ahead of the right");
                 PrefabUtility.SaveAsPrefabAsset(root, $"{Dir}/{name}.prefab");
             }
             finally { Object.DestroyImmediate(root); }

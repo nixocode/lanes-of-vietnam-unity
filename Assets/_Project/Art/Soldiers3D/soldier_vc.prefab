@@ -1061,16 +1061,22 @@ MonoBehaviour:
   Rifle: {fileID: 4916202314162233520}
   GripL: {fileID: 7151150223903101834}
   Muzzle: {fileID: 4823160976681970638}
-  UpperArmL: {fileID: 6811600515377390682}
-  LowerArmL: {fileID: 5862955921329718301}
+  HandR: {fileID: 6765692616110178481}
   HandL: {fileID: 7027310438512321757}
   Chest: {fileID: 208822113484255056}
-  GripPos: {x: -0.0035093431, y: 0.027677273, z: -0.03469538}
-  GripRot: {x: -0.7071063, y: -0.0000006852656, z: 0.000000038432475, w: 0.7071071}
+  LowerArmR: {fileID: 3933408828506280449}
+  RifleGripR: {x: 0.09411835, y: 0.3455394, z: 0.0332146}
+  RifleGripL: {x: -0.0022233878, y: 0.25422904, z: 0.33600277}
+  RifleUp: {x: -0.10121936, y: 0.94263417, z: 0.31811222}
+  RifleInHandPos: {x: 0.12486117, y: 0.19807737, z: 0.27300975}
+  RifleInHandRot: {x: -0.7748359, y: 0.4667352, z: -0.27447867, w: 0.32626608}
+  MixamoStand: 0
+  MixamoCrouch: 0
+  MixamoProne: 1
   WalkSpeed: 0.9533678
   RunSpeed: 2.2949998
   CrouchSpeed: 0.7734807
-  CrawlSpeed: 0.4
+  CrawlSpeed: 0.1953837
   Deaths: 2
 --- !u!1 &3708912114357813326
 GameObject:

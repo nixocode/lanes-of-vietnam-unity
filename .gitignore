@@ -61,7 +61,8 @@ Assets/StreamingAssets/Audio/licensed/*
 
 # Licensed source assets (Mixamo, Asset Store, Fab, Sonniss): out of git, .meta in
 # (the owner's decision for a public repo, 2026-09-30).
-Assets/_Licensed/*
+Assets/_Licensed/**
+!Assets/_Licensed/**/
 !Assets/_Licensed/**/*.meta
 
 # Python's bytecode cache (tools import each other's modules).

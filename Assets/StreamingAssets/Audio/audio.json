@@ -127,6 +127,86 @@
      "file": "licensed/crack_0.m4a",
      "source": "sonniss2017/bullet_flyby_fast_05.wav",
      "seconds": 0.422
+    },
+    {
+     "file": "licensed/crack_1.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 1.06-2.26 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_2.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 19.95-21.15 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_3.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 38.68-39.88 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_4.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 62.34-63.55 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_5.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 89.02-90.22 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_6.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 111.28-112.49 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_7.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 127.36-128.57 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_8.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 129.84-131.04 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_9.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 158.72-159.93 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_10.m4a",
+     "source": "sonniss2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav 172.54-173.14 s",
+     "seconds": 0.596
+    },
+    {
+     "file": "licensed/crack_11.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 11.52-12.73 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_12.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 26.70-27.90 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_13.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 51.16-52.36 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_14.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 74.95-75.38 s",
+     "seconds": 0.432
+    },
+    {
+     "file": "licensed/crack_15.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 100.04-101.25 s",
+     "seconds": 1.205
+    },
+    {
+     "file": "licensed/crack_16.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav 116.10-117.31 s",
+     "seconds": 1.205
     }
    ]
   },
@@ -137,6 +217,126 @@
      "file": "licensed/thump_0.m4a",
      "source": "sonniss2017/bullet_impact_body_thump_02.wav",
      "seconds": 0.455
+    },
+    {
+     "file": "licensed/thump_1.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Impact_Hit_Body_Flesh_25.wav",
+     "seconds": 0.795
+    }
+   ]
+  },
+  {
+   "name": "bodyfall",
+   "files": [
+    {
+     "file": "licensed/bodyfall_0.m4a",
+     "source": "sonniss2019/RL_bodyfall_Dirt_M4_Close_Stereo_Hard_Impact_10.wav",
+     "seconds": 1.132
+    }
+   ]
+  },
+  {
+   "name": "dirt",
+   "files": [
+    {
+     "file": "licensed/dirt_0.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Impact_Dirt_3.wav",
+     "seconds": 1.2
+    }
+   ]
+  },
+  {
+   "name": "howitzer",
+   "files": [
+    {
+     "file": "licensed/howitzer_0.m4a",
+     "source": "sonniss2019/Howitzer,M101,C1,105 mm,Distant,Right Side,Shot,Pound,Thick.wav",
+     "seconds": 4.0
+    },
+    {
+     "file": "licensed/howitzer_1.m4a",
+     "source": "sonniss2019/Howitzer,M101,C3,105 mm,Distant,Right Side,Shot,Explode,Crack,Sweetener.wav",
+     "seconds": 2.8
+    },
+    {
+     "file": "licensed/howitzer_2.m4a",
+     "source": "sonniss2019/Howitzer,M101,C3,105 mm,Medium Distant,Right Side,Shot,Firm,Heavy,EQ Version,Soft Attack.wav",
+     "seconds": 3.141
+    }
+   ]
+  },
+  {
+   "name": "mg",
+   "files": [
+    {
+     "file": "licensed/mg_0.m4a",
+     "source": "sonniss2016/M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav",
+     "seconds": 2.5
+    },
+    {
+     "file": "licensed/mg_1.m4a",
+     "source": "sonniss2016/M1919A4_Browning_Machine_Gun_.30cal_200m_left_behind_blanks_Triple_shots_x_1.wav",
+     "seconds": 2.5
+    },
+    {
+     "file": "licensed/mg_2.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 0.00-3.00 s",
+     "seconds": 3.003
+    },
+    {
+     "file": "licensed/mg_3.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 12.67-15.68 s",
+     "seconds": 3.005
+    },
+    {
+     "file": "licensed/mg_4.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 23.53-26.54 s",
+     "seconds": 3.005
+    },
+    {
+     "file": "licensed/mg_5.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 26.60-29.61 s",
+     "seconds": 3.005
+    }
+   ]
+  },
+  {
+   "name": "smg",
+   "files": [
+    {
+     "file": "licensed/smg_0.m4a",
+     "source": "sonniss2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav 0.16-2.16 s",
+     "seconds": 1.999
+    },
+    {
+     "file": "licensed/smg_1.m4a",
+     "source": "sonniss2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav 9.60-11.91 s",
+     "seconds": 2.303
+    }
+   ]
+  },
+  {
+   "name": "jet",
+   "files": [
+    {
+     "file": "licensed/jet_0.m4a",
+     "source": "sonniss2019/Jet,Fighter,CF-18,Hornet,By,Slow,Rip to Whistle.wav 2.59-10.59 s",
+     "seconds": 8.0
+    },
+    {
+     "file": "licensed/jet_1.m4a",
+     "source": "sonniss2019/Jet,Fighter,F-16,Fighting Falcon,Medium Distant,By,Whip,Buffet.wav 0.00-7.44 s",
+     "seconds": 7.439
+    }
+   ]
+  },
+  {
+   "name": "radio",
+   "files": [
+    {
+     "file": "licensed/radio_0.m4a",
+     "source": "sonniss2019/Military Radio Voice A (HHG) Troops In Contact Message.wav 0.00-15.85 s",
+     "seconds": 15.848
     }
    ]
   },

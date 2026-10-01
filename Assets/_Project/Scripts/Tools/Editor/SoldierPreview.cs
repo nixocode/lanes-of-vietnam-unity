@@ -17,12 +17,13 @@ namespace LanesOfVietnam.Tools
     /// </summary>
     public static class SoldierPreview
     {
-        private static readonly (string name, float speed, int posture, bool aim, bool dead, int death, float t)[] States =
+        private static (string name, float speed, int posture, bool aim, bool dead, int death, float t)[] States =
         {
             ("idle", 0, 0, false, false, 0, 1.3f), ("walk", 1.0f, 0, false, false, 0, 0.3f), ("walk", 1.0f, 0, false, false, 0, 0.9f),
             ("run", 2.3f, 0, false, false, 0, 0.3f), ("aim", 0, 0, true, false, 0, 1f), ("walk+aim", 1.0f, 0, true, false, 0, 0.5f),
             ("kneel", 0, 1, false, false, 0, 1f), ("kneel aim", 0, 1, true, false, 0, 1f), ("crouch", 0.8f, 1, false, false, 0, 0.5f),
-            ("prone", 0, 2, false, false, 0, 1f), ("prone aim", 0, 2, true, false, 0, 1f),
+            ("prone", 0, 2, false, false, 0, 1f), ("crawl", 0.4f, 2, false, false, 0, 0.6f), ("prone aim", 0, 2, true, false, 0, 1f),
+            ("prone hit", 0, 2, false, false, -1, 0.5f), ("prone dead", 0, 2, false, true, 0, 4f),
             ("dead 0", 0, 0, false, true, 0, 1.5f), ("dead 1", 0, 0, false, true, 1, 1.5f),
         };
 
@@ -32,7 +33,18 @@ namespace LanesOfVietnam.Tools
             foreach (var side in new[] { "us", "vc" }) Sheet(side);
         }
 
-        private static void Sheet(string side)
+        /// <summary>One state through time, larger: captures/soldiers/&lt;side&gt;_&lt;name&gt;.png. Default the crawl.</summary>
+        public static void RenderCycle()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            States = new[] { ("crawl 0", 0.45f, 2, false, false, 0, 0.1f), ("crawl 1", 0.45f, 2, false, false, 0, 0.45f),
+                             ("crawl 2", 0.45f, 2, false, false, 0, 0.8f), ("crawl 3", 0.45f, 2, false, false, 0, 1.15f) };
+            Sheet("us", 3f, "_crawl");
+            States = orig;
+        }
+
+        private static void Sheet(string side, float zoom = 1f, string suffix = "")
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{SoldierBuilder.Dir}/soldier_{side}.prefab");
@@ -50,14 +62,14 @@ namespace LanesOfVietnam.Tools
             var gm = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.25f, 0.27f, 0.2f) };
             ground.GetComponent<Renderer>().sharedMaterial = gm;
 
-            const int W = 300, H = 380;
+            int W = (int)(300 * zoom), H = (int)(380 * zoom * (zoom > 1 ? 0.5f : 1f));
             int cols = States.Length;
             var sheet = new Texture2D(W * cols, H * 2, TextureFormat.RGB24, false);
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
             var camGo = new GameObject("cam");
             var cam = camGo.AddComponent<Camera>();
             cam.orthographic = true;
-            cam.orthographicSize = 1.15f;
+            cam.orthographicSize = zoom > 1 ? 0.75f : 1.15f;
             cam.targetTexture = rt;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.62f, 0.68f, 0.72f);
@@ -72,13 +84,14 @@ namespace LanesOfVietnam.Tools
                 // Faces +x, as a US man does at rest in the game.
                 go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, 90, 0));
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
-                f.Settle(s.speed, s.posture, s.aim, s.dead, s.death);
-                for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, s.death);
+                f.Settle(s.speed, s.posture, s.aim, s.dead, System.Math.Max(0, s.death));
+                if (s.death < 0) f.React();                  // -1: a reaction, played from here
+                for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, System.Math.Max(0, s.death));
                 for (int row = 0; row < 2; row++)
                 {
                     // Row 0: the game's view, along +z from the -z side. Row 1: from his front.
                     var dir = row == 0 ? Vector3.forward : Vector3.left;
-                    var centre = new Vector3(0, s.posture == 2 || s.dead ? 0.5f : 0.95f, 0);
+                    var centre = new Vector3(0, s.posture == 2 || s.dead ? (zoom > 1 ? 0.3f : 0.5f) : 0.95f, 0);
                     cam.transform.SetPositionAndRotation(centre - dir * 6f, Quaternion.LookRotation(dir));
                     cam.Render();
                     RenderTexture.active = rt;
@@ -88,8 +101,8 @@ namespace LanesOfVietnam.Tools
                 Object.DestroyImmediate(go);
             }
             sheet.Apply();
-            File.WriteAllBytes($"captures/soldiers/{side}.png", sheet.EncodeToPNG());
-            Debug.Log($"[LOV] soldier preview: captures/soldiers/{side}.png ({string.Join(", ", System.Array.ConvertAll(States, x => x.name))})");
+            File.WriteAllBytes($"captures/soldiers/{side}{suffix}.png", sheet.EncodeToPNG());
+            Debug.Log($"[LOV] soldier preview: captures/soldiers/{side}{suffix}.png ({string.Join(", ", System.Array.ConvertAll(States, x => x.name))})");
             Object.DestroyImmediate(rt);
         }
     }

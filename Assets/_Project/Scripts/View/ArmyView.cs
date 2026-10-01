@@ -74,6 +74,7 @@ namespace LanesOfVietnam.View
             _matchTime = -1f;
             System.Array.Clear(_vz, 0, _vz.Length);
             System.Array.Clear(_shot, 0, _shot.Length);
+            System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
             for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
@@ -91,6 +92,8 @@ namespace LanesOfVietnam.View
         /// <summary>Whom each man last fired at (-1 no one), and whether he fired since the last frame.</summary>
         private int[] _target = new int[0];
         private bool[] _shot = new bool[0];
+        /// <summary>Whether the sim pinned each man since the last frame: rounds close enough to put him down.</summary>
+        private bool[] _pinnedAt = new bool[0];
         private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
         private float _matchTime = -1f;
         /// <summary>Match time each figure is owed, when it is stepped less than every frame.</summary>
@@ -191,6 +194,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _moving, n);
                 System.Array.Resize(ref _faceLeft, n);
                 System.Array.Resize(ref _shot, n);
+                System.Array.Resize(ref _pinnedAt, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -200,6 +204,7 @@ namespace LanesOfVietnam.View
             for (; _eventCursor < st.Events.Count; _eventCursor++)
             {
                 var e = st.Events[_eventCursor];
+                if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind != EventKind.Fire || e.Id >= _firedAt.Length) continue;
                 _firedAt[e.Id] = e.Tick;
                 _target[e.Id] = e.Target ?? -1;
@@ -357,6 +362,8 @@ namespace LanesOfVietnam.View
                 float speed = _moving[i] ? _speed[i] : 0f;
                 int death = (int)(Hash(m.Id, 1) * 16);
                 if (_shot[i]) { f.Fire(); _shot[i] = false; }
+                // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
+                if (_pinnedAt[i]) { if (!_moving[i] && !jump) f.React(); _pinnedAt[i] = false; }
                 Drawn++;
                 if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is

@@ -72,11 +72,12 @@ namespace LanesOfVietnam.Tests
                 int before = rec.Played.Count;
                 Root.Driver.FastForward(2);
                 yield return new WaitForSecondsRealtime(0.06f);   // past the 55 ms ration
-                var fresh = rec.Played.Skip(before).Where(p => p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")).ToList();
+                var fresh = rec.Played.Skip(before).Where(p => p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")
+                                                               || p.name.StartsWith("mg_") || p.name.StartsWith("smg_")).ToList();
                 Assert.LessOrEqual(fresh.Count, AudioView.ShotsPerTick, $"frame {f}: {fresh.Count} new shots");
                 foreach (var shot in fresh)
                 {
-                    bool us = shot.name.StartsWith("m16");
+                    bool us = shot.name.StartsWith("m16") || shot.name.StartsWith("mg_");
                     Assert.IsTrue(st.Men.Any(m => (m.Side == Side.Us) == us
                                                   && System.Math.Abs(m.X - shot.x) < 0.01 && System.Math.Abs(m.Z - shot.z) < 0.01),
                                   $"a {shot.name} shot from where no man of that side stands");
