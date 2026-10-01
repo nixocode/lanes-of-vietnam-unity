@@ -361,21 +361,19 @@ be redistributed, so they live in the ignored `Assets/_Licensed/` (their
 primary character (Remy: Mixamo's standard skeleton, retargeted by Humanoid
 onto our soldiers). Each file is named by its role in `SoldierBuilder.Mixamo`.
 
-| role | Mixamo clip (description) |
-|---|---|
-| `prone_idle` | Prone Idle ("Lying Down Prone With Rifle") |
-| `crawl` | Prone Forward ("Moving Forward While In Prone Position"): 0.20 m/s on our soldier |
-| `prone_fire` | Prone Firing Rifle ("Firing A Rifle While Prone") |
-| `prone_death` | Prone Death ("Dying From A Prone Position") |
-| `prone_hit` | Rifle Prone Hit Reaction |
-| `prone_reload` | Prone Reloading |
+All 44 clips the game uses are downloaded (2026-09-30 and 2026-10-01): 27
+singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
+(the pack's own export fails; its turns, jumps and strafes were left).
 
-Approved and still to download (the browser disconnected): the Pro Rifle Pack
-(49 clips) and 21 singles: Crouch To Prone, Rifle Prone To Kneel, Rifle Kneel
-To Prone, Rifle Stand To Kneel, Rifle Kneel To Stand, Rifle Kneel Idle, Rifle
-Kneel To Aim, Rifle Kneel Hit To Back, Rifle Hit To Back, Rifle Shielding
-Face, Firing Rifle x4, Reloading, Toss Grenade, Rifle Death, Falling Back
-Death, Flying Back Death, Dying Backwards, Rifle Run To Dying.
+| group | roles (Mixamo clip) |
+|---|---|
+| standing | `rifle_idle`, `rifle_idle_aim`, `rifle_walk` (1.60 m/s on our man), `rifle_run` (4.00), `rifle_sprint` (6.04), `rifle_walk_back`, `rifle_run_back` (Pro Rifle Pack: idle, idle aiming, walk/run/sprint forward, walk/run backward) |
+| crouched | `kneel_idle` (Rifle Kneel Idle), `rifle_crouch_idle`, `rifle_crouch_aim`, `rifle_crouch_walk` (1.73), `rifle_crouch_walk_back` (Pack), `kneel_aim` (Rifle Kneel To Aim) |
+| prone | `prone_idle`, `crawl` (Prone Forward, 0.20), `prone_fire`, `prone_reload` |
+| transitions | `stand_to_kneel`, `kneel_to_stand`, `kneel_to_prone`, `prone_to_kneel` (Rifle ...), `crouch_to_prone` |
+| fire | `fire`, `fire_b` (Firing Rifle, standing x2), `fire_walk`, `fire_crouch_walk` (Firing Rifle while walking / crouch walking) |
+| reactions | `flinch` (Rifle Shielding Face), `hit_back` (Rifle Hit To Back), `kneel_hit` (Rifle Kneel Hit To Back), `prone_hit` (Rifle Prone Hit Reaction), `reload` (Reloading), `grenade` (Toss Grenade) |
+| deaths | `death_front_head`, `death_right`, `death_back_head`, `death_back`, `death_front`, `death_crouch_head` (Pack); `death_rifle` (Rifle Death), `death_fall_back` (Falling Back Death), `death_backwards` (Dying Backwards), `death_blast` (Flying Back Death), `death_run` (Rifle Run To Dying), `prone_death` |
 
 ### Props — `Assets/_Project/Art/Props/`
 

@@ -43,11 +43,18 @@ namespace LanesOfVietnam.View
         public Quaternion RifleInHandRot = Quaternion.identity;
         /// <summary>Which postures play Mixamo's clips (the rest are interim, held on the two-hand line).</summary>
         public bool MixamoStand, MixamoCrouch, MixamoProne;
+        /// <summary>Degrees he turns into his aim, standing, kneeling, prone (measured by SoldierBuilder), so the rifle points where he faces.</summary>
+        public Vector3 AimTurn;
         private int _posture;
         private float _speed;
         /// <summary>Each gait clip's own speed, m/s: the Animator plays it faster or slower to match the man's.</summary>
         public float WalkSpeed = 1f, RunSpeed = 2.3f, CrouchSpeed = 0.8f, CrawlSpeed = 0.4f;
         public int Deaths = 2;
+        /// <summary>Deaths for circumstances, where Mixamo's clips exist for them.</summary>
+        public bool RunDeath, BlastDeath, CrouchDeath, ProneDeath;
+        /// <summary>How a man died, as the view can tell: shot, shot while running, or by a blast.</summary>
+        public enum Fall { Shot, Running, Blast }
+        public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103;
 
         private static readonly int SpeedId = Animator.StringToHash("Speed");
         private static readonly int ScaleId = Animator.StringToHash("SpeedScale");
@@ -56,6 +63,7 @@ namespace LanesOfVietnam.View
         private static readonly int DeathId = Animator.StringToHash("DeathIndex");
         private static readonly int HitId = Animator.StringToHash("Hit");
         private static readonly int ReloadId = Animator.StringToHash("Reload");
+        private static readonly int ThrowId = Animator.StringToHash("Throw");
         private int _reactLayer = -1;
 
         private float _recoil, _aim, _deadFor = -1f;
@@ -76,13 +84,13 @@ namespace LanesOfVietnam.View
         /// when paused); speed is his smoothed ground speed; aiming whether he
         /// holds his rifle to the shoulder.
         /// </summary>
-        public void Step(float dt, float speed, int posture, bool aiming, bool dead, int deathIndex)
+        public void Step(float dt, float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot)
         {
             if (_baked) return;
             if (dead && _deadFor < 0)
             {
                 _deadFor = 0;
-                Animator.SetInteger(DeathId, deathIndex % Mathf.Max(1, Deaths));
+                Animator.SetInteger(DeathId, DeathCode(deathIndex, posture, how));
                 Animator.SetBool(DeadId, true);
             }
             if (_deadFor >= 0)
@@ -108,16 +116,61 @@ namespace LanesOfVietnam.View
             _speed = speed;
             _aim = Mathf.MoveTowards(_aim, aiming && !dead ? 1f : 0f, dt / 0.2f);
             if (_aimLayer >= 0) Animator.SetLayerWeight(_aimLayer, _aim);
+            Animator.transform.localRotation = Quaternion.Euler(0, AimTurn[Mathf.Clamp(posture, 0, 2)] * _aim, 0);
             Animator.Update(dt);
 
             _recoil *= Mathf.Exp(-dt / 0.06f);
             if (_deadFor < 0) PostPose();
         }
 
-        /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
-        public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex)
+        /// <summary>
+        /// Which death: lying down, the prone death; thrown by a blast, the blast
+        /// death; on one knee, the crouched one; running, the run that ends in a
+        /// fall; else one of the standing deaths, by the man's own number.
+        /// </summary>
+        public int DeathCode(int seed, int posture, Fall how)
         {
-            for (int k = 0; k < (dead ? 16 : 4) && !_baked; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex);
+            if (posture == 2 && ProneDeath) return ProneCode;
+            if (how == Fall.Blast && BlastDeath) return BlastCode;
+            if (posture == 1 && CrouchDeath) return CrouchCode;
+            if (how == Fall.Running && RunDeath) return RunCode;
+            return seed % Mathf.Max(1, Deaths);
+        }
+
+        /// <summary>The body layer's state, by name, for tests and the log.</summary>
+        public string State
+        {
+            get
+            {
+                var info = Animator.GetCurrentAnimatorStateInfo(0);
+                foreach (var n in new[] { "Stand", "Crouch", "Prone", "Stand to kneel", "Kneel to stand", "Kneel to prone", "Prone to kneel", "Stand to prone" })
+                    if (info.IsName(n)) return n + (Animator.IsInTransition(0) ? " (in transition)" : "") + $" t {info.normalizedTime:F2}" + Upper();
+                return "other" + Upper();
+            }
+        }
+
+        private string Upper()
+        {
+            string r = $", aim {_aim:F2}";
+            if (_reactLayer >= 0)
+            {
+                var info = Animator.GetCurrentAnimatorStateInfo(_reactLayer);
+                foreach (var n in new[] { "Calm", "Hit 0", "Hit 1", "Hit 2", "Reload 0", "Reload 2", "Throw 0", "Throw 1" })
+                    if (info.IsName(n)) r += $", react {n} t {info.normalizedTime:F2}";
+            }
+            return r;
+        }
+
+        /// <summary>A grenade: the toss (the React layer).</summary>
+        public void Throw()
+        {
+            if (_deadFor < 0 && !_baked) Animator.SetTrigger(ThrowId);
+        }
+
+        /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
+        public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot)
+        {
+            for (int k = 0; k < (dead ? 16 : 4) && !_baked; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex, how);
         }
 
         /// <summary>Rounds close by: he flinches, ducks, is knocked (the React layer, where the clips exist).</summary>
@@ -147,6 +200,7 @@ namespace LanesOfVietnam.View
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
             if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
+            var r = Rifle.transform;
             if (_posture == 2 && _speed > 0.05f && LowerArmR != null)
             {
                 // Crawling: cradled along the right forearm, muzzle ahead of the hand.
@@ -154,15 +208,18 @@ namespace LanesOfVietnam.View
                 Lay(HandR.position - LowerArmR.position, HandR.position);
                 return;
             }
-            if (_posture == 2 ? MixamoProne : _posture == 1 ? MixamoCrouch : MixamoStand)
-            {
-                Rifle.transform.SetLocalPositionAndRotation(RifleInHandPos, RifleInHandRot);
-                return;
-            }
+            bool mixamo = _posture == 2 ? MixamoProne : _posture == 1 ? MixamoCrouch : MixamoStand;
+            if (mixamo) r.SetLocalPositionAndRotation(RifleInHandPos, RifleInHandRot);
             Vector3 wr = HandR.position, wl = HandL.position;
             float span = (wl - wr).magnitude / Mathf.Max(0.01f, transform.lossyScale.x);
             if (span < 0.12f || span > 0.8f) return;
+            // Aiming (and in the interim clips, always): along the line from the
+            // firing hand to the support hand, both of which are on it.
+            float w = mixamo ? _aim : 1f;
+            if (w < 0.01f) return;
+            var held = (r.position, r.rotation);
             Lay(wl - wr, wr);
+            if (w < 0.99f) r.SetPositionAndRotation(Vector3.Lerp(held.position, r.position, w), Quaternion.Slerp(held.rotation, r.rotation, w));
         }
 
         /// <summary>The rifle upright along a direction, its right-hand grip at a point.</summary>
