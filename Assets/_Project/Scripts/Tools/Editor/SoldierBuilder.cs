@@ -409,12 +409,14 @@ namespace LanesOfVietnam.Tools
                 foreach (var (clip, at) in m.Where(x => x.clip != null)) bt.AddChild(C(clip), at);
                 st.speedParameterActive = true;
                 st.speedParameter = "SpeedScale";
-                log.Add($"{name} ({string.Join(", ", m.Where(x => x.clip != null).Select(x => x.at > 0 ? $"{x.clip} {x.at:F2} m/s" : x.clip))})");
+                log.Add($"{name} ({string.Join(", ", m.Where(x => x.clip != null).Select(x => x.at != 0 ? $"{x.clip} {x.at:F2} m/s" : x.clip))})");
                 return st;
             }
             string walk = R("rifle_walk", "walk"), run = R("rifle_run", "run"), cwalk = R("rifle_crouch_walk", "crouch");
-            var stand = Tree("Stand", (R("rifle_idle", "idle"), 0f), (walk, S(walk)), (run, S(run)));
-            var crouch = Tree("Crouch", (R("kneel_idle", "kneel"), 0f), (cwalk, S(cwalk)));
+            // Backwards (a negative Speed): a man giving ground a few paces keeps his front to the enemy.
+            string walkBack = R("rifle_walk_back"), runBack = R("rifle_run_back"), cback = R("rifle_crouch_walk_back");
+            var stand = Tree("Stand", (runBack, -S(runBack)), (walkBack, -S(walkBack)), (R("rifle_idle", "idle"), 0f), (walk, S(walk)), (run, S(run)));
+            var crouch = Tree("Crouch", (cback, -S(cback)), (R("kneel_idle", "kneel"), 0f), (cwalk, S(cwalk)));
             var prone = Tree("Prone", (R("prone_idle", "prone"), 0f), (R("crawl"), S("crawl")));
             sm.defaultState = stand;
             var posture = new[] { stand, crouch, prone };

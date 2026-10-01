@@ -220,11 +220,12 @@ namespace LanesOfVietnam.Sim
             m.Alive = false;
             m.Cover = -1;
             m.DiedAt = st.Tick;
-            if (st.Fieldcraft) Fieldcraft.Fell(st, m);
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Kill, Tick = st.Tick, Side = m.Side, Id = m.Id,
             });
+            // After the kill is written: the view reads it as the event straight after the shot.
+            if (st.Fieldcraft) Fieldcraft.Fell(st, m);
         }
 
         /// <summary>Add suppression, resisted by veterancy, and emit the crossing event.</summary>

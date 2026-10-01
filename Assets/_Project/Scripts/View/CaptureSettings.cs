@@ -83,6 +83,8 @@ namespace LanesOfVietnam.View
         public bool? SquadSmoke;
         /// <summary>Part 2: drill (steady orders and places). Null: the game's default (on).</summary>
         public bool? Drill;
+        /// <summary>Part 2: fieldcraft (stand-off, places, melee, levers). Null: the game's default (on).</summary>
+        public bool? Fieldcraft;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -127,6 +129,7 @@ namespace LanesOfVietnam.View
                         break;
                     case "squadsmoke": c.SquadSmoke = v == "1" || v == "true"; break;
                     case "drill": c.Drill = v == "1" || v == "true"; break;
+                    case "fieldcraft": c.Fieldcraft = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

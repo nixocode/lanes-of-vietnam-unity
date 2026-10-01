@@ -69,6 +69,10 @@ namespace LanesOfVietnam.View
         private int _reactLayer = -1;
 
         private float _recoil, _aim, _deadFor = -1f;
+        /// <summary>A blow hand to hand: 1 as it starts, 0 when it is over.</summary>
+        private float _lunge;
+        /// <summary>Seconds a blow takes, and how far it carries him toward his man.</summary>
+        public const float LungeSeconds = 0.42f, LungeReach = 0.55f;
         private int _aimLayer = -1;
         private bool _baked;
         private Mesh _fallen;
@@ -83,8 +87,8 @@ namespace LanesOfVietnam.View
 
         /// <summary>
         /// Pose the man for this frame. dt is match time since the last call (0
-        /// when paused); speed is his smoothed ground speed; aiming whether he
-        /// holds his rifle to the shoulder.
+        /// when paused); speed is his smoothed ground speed, negative when he is
+        /// stepping backwards; aiming whether he holds his rifle to the shoulder.
         /// </summary>
         public void Step(float dt, float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot)
         {
@@ -105,13 +109,16 @@ namespace LanesOfVietnam.View
                 // Fallen and still: freeze him as a plain mesh.
                 if ((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) { Bake(); return; }
             }
+            // Backwards he has his own clips (standing and crouched); a crawl has none.
+            float signed = posture == 2 ? Mathf.Abs(speed) : speed;
+            speed = Mathf.Abs(speed);
             float native = posture == 2 ? CrawlSpeed : posture == 1 ? CrouchSpeed : speed > (WalkSpeed + RunSpeed) * 0.5f ? RunSpeed : WalkSpeed;
             // Between the walk and the run the blend tree's own speed follows his;
             // outside it, the clip is sped up or slowed so the feet do not skate.
             float lo = posture == 0 ? WalkSpeed : native, hi = posture == 0 ? RunSpeed : native;
             // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
             float scale = speed < 0.05f ? 1f : Mathf.Clamp(speed / Mathf.Clamp(speed, lo, hi), 0.5f, posture == 2 ? 2.4f : 1.8f);
-            Animator.SetFloat(SpeedId, speed);
+            Animator.SetFloat(SpeedId, signed);
             Animator.SetFloat(ScaleId, scale);
             Animator.SetInteger(PostureId, posture);
             _posture = posture;
@@ -119,6 +126,9 @@ namespace LanesOfVietnam.View
             _aim = Mathf.MoveTowards(_aim, aiming && !dead ? 1f : 0f, dt / 0.2f);
             if (_aimLayer >= 0) Animator.SetLayerWeight(_aimLayer, _aim);
             Animator.transform.localRotation = Quaternion.Euler(0, AimTurn[Mathf.Clamp(posture, 0, 2)] * _aim, 0);
+            // The blow: his whole body goes in behind the rifle and comes back.
+            _lunge = Mathf.MoveTowards(_lunge, 0f, dt / LungeSeconds);
+            Animator.transform.localPosition = dead ? Vector3.zero : Vector3.forward * (LungeReach * Mathf.Sin(Mathf.PI * (1f - _lunge)) * (_lunge > 0 ? 1f : 0f));
             Animator.Update(dt);
 
             if (Hips != null) Centre = Hips.position;
@@ -190,6 +200,19 @@ namespace LanesOfVietnam.View
                 Animator.CrossFadeInFixedTime("Calm", 0.12f, _reactLayer);
         }
 
+        /// <summary>
+        /// A blow hand to hand (the sim's Melee): he drives in behind the rifle.
+        /// Until a clip is sourced for it, the lunge is made here: the body
+        /// thrown forward and back, the trunk over the weapon.
+        /// </summary>
+        public void Strike()
+        {
+            if (_deadFor >= 0 || _baked) return;
+            _lunge = 1f;
+            if (_reactLayer >= 0 && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
+                Animator.CrossFadeInFixedTime("Calm", 0.08f, _reactLayer);
+        }
+
         /// <summary>A lull after shooting: a fresh magazine (where the posture has a reload clip).</summary>
         public void Reload()
         {
@@ -202,6 +225,8 @@ namespace LanesOfVietnam.View
         {
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
+            if (_lunge > 0f && Chest != null)
+                Chest.rotation = Quaternion.AngleAxis(24f * Mathf.Sin(Mathf.PI * (1f - _lunge)), transform.right) * Chest.rotation;
             if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
             var r = Rifle.transform;
             if (_posture == 2 && _speed > 0.05f && LowerArmR != null)
