@@ -15,13 +15,16 @@ namespace LanesOfVietnam.View
     /// After each step, two things the clips cannot know:
     ///   recoil     each shot kicks the chest (and with it the arms and the
     ///              rifle) back a few degrees, gone in a tenth of a second;
-    ///   left hand  on the handguard: two-bone IK to grip_l, which rides on
-    ///              the rifle in the right hand. Mixamo's rifle clips hold a
-    ///              rifle of their own size; ours is not quite it. Not in the
-    ///              aim: shouldered, the handguard grip is beyond this arm's
-    ///              reach (measured in the bake, 24 cm short), the IK threw
-    ///              the elbow up over the rifle, and the aim clip already puts
-    ///              the hand under the handguard where it can reach.
+    ///   the rifle  in Mixamo's clips, in the grip their men hold it with,
+    ///              fixed to the right hand (learned from one clip); in the
+    ///              interim clips, laid along the line from the right wrist to the left,
+    ///              upright, seated at the right hand, as a rifle held in two
+    ///              hands is. Rigid on the right hand it kept the old rig's
+    ///              grip, and Mixamo's men, who hold theirs naturally, aimed
+    ///              it at the ground; and IK pulling the left hand to the old
+    ///              grip twisted the wrist into torn skin. When the hands are
+    ///              apart (a man knocked off his feet) it rides on the right
+    ///              hand as it last lay.
     /// When he falls his rifle leaves his hand and lies beside him; once he is
     /// still, his pose is baked into a plain mesh, so a field of bodies costs
     /// no skinning.
@@ -32,10 +35,16 @@ namespace LanesOfVietnam.View
         public SkinnedMeshRenderer Body;
         public Renderer Rifle;
         public Transform GripL, Muzzle;
-        public Transform UpperArmL, LowerArmL, HandL, Chest;
-        /// <summary>The hand's pose relative to grip_l in the bind pose, where it holds the rifle.</summary>
-        public Vector3 GripPos;
-        public Quaternion GripRot = Quaternion.identity;
+        public Transform HandR, HandL, Chest, LowerArmR;
+        /// <summary>In the rifle's own space, from the bind pose: where each wrist holds it, and which way is up.</summary>
+        public Vector3 RifleGripR, RifleGripL, RifleUp = Vector3.up;
+        /// <summary>The rifle's place in the right hand in Mixamo's clips (learned by SoldierBuilder).</summary>
+        public Vector3 RifleInHandPos;
+        public Quaternion RifleInHandRot = Quaternion.identity;
+        /// <summary>Which postures play Mixamo's clips (the rest are interim, held on the two-hand line).</summary>
+        public bool MixamoStand, MixamoCrouch, MixamoProne;
+        private int _posture;
+        private float _speed;
         /// <summary>Each gait clip's own speed, m/s: the Animator plays it faster or slower to match the man's.</summary>
         public float WalkSpeed = 1f, RunSpeed = 2.3f, CrouchSpeed = 0.8f, CrawlSpeed = 0.4f;
         public int Deaths = 2;
@@ -45,6 +54,7 @@ namespace LanesOfVietnam.View
         private static readonly int PostureId = Animator.StringToHash("Posture");
         private static readonly int DeadId = Animator.StringToHash("Dead");
         private static readonly int DeathId = Animator.StringToHash("DeathIndex");
+        private static readonly int HitId = Animator.StringToHash("Hit");
 
         private float _recoil, _aim, _deadFor = -1f;
         private int _aimLayer = -1;
@@ -75,18 +85,24 @@ namespace LanesOfVietnam.View
             if (_deadFor >= 0)
             {
                 _deadFor += dt;
-                if (_deadFor > 0.45f && Rifle != null && Rifle.transform.parent != transform) DropRifle(deathIndex);
+                // Timed by his death clip, not a clock: Mixamo's falls run two to four seconds.
+                var fall = Animator.GetCurrentAnimatorStateInfo(0);
+                float through = Animator.IsInTransition(0) ? 0f : fall.normalizedTime;
+                if ((through > 0.6f || _deadFor > 3f) && Rifle != null && Rifle.transform.parent != transform) DropRifle(deathIndex);
                 // Fallen and still: freeze him as a plain mesh.
-                if (_deadFor > 2.5f) { Bake(); return; }
+                if ((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) { Bake(); return; }
             }
             float native = posture == 2 ? CrawlSpeed : posture == 1 ? CrouchSpeed : speed > (WalkSpeed + RunSpeed) * 0.5f ? RunSpeed : WalkSpeed;
             // Between the walk and the run the blend tree's own speed follows his;
             // outside it, the clip is sped up or slowed so the feet do not skate.
             float lo = posture == 0 ? WalkSpeed : native, hi = posture == 0 ? RunSpeed : native;
-            float scale = speed < 0.05f ? 1f : Mathf.Clamp(speed / Mathf.Clamp(speed, lo, hi), 0.5f, 1.8f);
+            // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
+            float scale = speed < 0.05f ? 1f : Mathf.Clamp(speed / Mathf.Clamp(speed, lo, hi), 0.5f, posture == 2 ? 2.4f : 1.8f);
             Animator.SetFloat(SpeedId, speed);
             Animator.SetFloat(ScaleId, scale);
             Animator.SetInteger(PostureId, posture);
+            _posture = posture;
+            _speed = speed;
             _aim = Mathf.MoveTowards(_aim, aiming && !dead ? 1f : 0f, dt / 0.2f);
             if (_aimLayer >= 0) Animator.SetLayerWeight(_aimLayer, _aim);
             Animator.Update(dt);
@@ -95,10 +111,16 @@ namespace LanesOfVietnam.View
             if (_deadFor < 0) PostPose();
         }
 
-        /// <summary>Settle the Animator at once (a new man, or a capture's first frame).</summary>
+        /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
         public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex)
         {
-            for (int k = 0; k < 4; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex);
+            for (int k = 0; k < (dead ? 16 : 4) && !_baked; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex);
+        }
+
+        /// <summary>Rounds close by: he flinches, ducks, is knocked (the React layer, where the clips exist).</summary>
+        public void React()
+        {
+            if (_deadFor < 0 && !_baked) Animator.SetTrigger(HitId);
         }
 
         /// <summary>A shot: the kick of the rifle into the shoulder.</summary>
@@ -110,29 +132,36 @@ namespace LanesOfVietnam.View
         {
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
-            float w = 1f - _aim;
-            if (GripL != null && HandL != null && w > 0.01f)
+            if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
+            if (_posture == 2 && _speed > 0.05f && LowerArmR != null)
             {
-                Vector3 target = Vector3.Lerp(HandL.position, GripL.TransformPoint(GripPos), w);
-                var rot = Quaternion.Slerp(HandL.rotation, GripL.rotation * GripRot, w);
-                TwoBone(UpperArmL, LowerArmL, HandL, target);
-                HandL.rotation = rot;
+                // Crawling: cradled along the right forearm, muzzle ahead of the hand.
+                // (Mixamo's grip stands it on end through the crawl's strokes.)
+                Lay(HandR.position - LowerArmR.position, HandR.position);
+                return;
             }
+            if (_posture == 2 ? MixamoProne : _posture == 1 ? MixamoCrouch : MixamoStand)
+            {
+                Rifle.transform.SetLocalPositionAndRotation(RifleInHandPos, RifleInHandRot);
+                return;
+            }
+            Vector3 wr = HandR.position, wl = HandL.position;
+            float span = (wl - wr).magnitude / Mathf.Max(0.01f, transform.lossyScale.x);
+            if (span < 0.12f || span > 0.8f) return;
+            Lay(wl - wr, wr);
         }
 
-        /// <summary>Analytic two-bone IK: bend the elbow in its present plane, then swing the arm.</summary>
-        private static void TwoBone(Transform a, Transform b, Transform c, Vector3 target)
+        /// <summary>The rifle upright along a direction, its right-hand grip at a point.</summary>
+        private void Lay(Vector3 along, Vector3 grip)
         {
-            Vector3 pa = a.position, pb = b.position, pc = c.position;
-            float la = (pb - pa).magnitude, lb = (pc - pb).magnitude;
-            float d = Mathf.Clamp((target - pa).magnitude, 0.02f, (la + lb) * 0.999f);
-            Vector3 u = pa - pb, v = pc - pb;
-            Vector3 n = Vector3.Cross(u, v);
-            if (n.sqrMagnitude < 1e-8f) n = Vector3.Cross(u, Vector3.up);
-            float want = Mathf.Acos(Mathf.Clamp((la * la + lb * lb - d * d) / (2 * la * lb), -1f, 1f));
-            float have = Mathf.Acos(Mathf.Clamp(Vector3.Dot(u.normalized, v.normalized), -1f, 1f));
-            b.rotation = Quaternion.AngleAxis((want - have) * Mathf.Rad2Deg, n.normalized) * b.rotation;
-            a.rotation = Quaternion.FromToRotation(c.position - pa, target - pa) * a.rotation;
+            var r = Rifle.transform;
+            along.Normalize();
+            Vector3 up = Vector3.ProjectOnPlane(Vector3.up, along);
+            if (up.sqrMagnitude < 1e-4f) up = Vector3.ProjectOnPlane(transform.forward, along);
+            Vector3 aL = (RifleGripL - RifleGripR).normalized;
+            Vector3 uL = Vector3.ProjectOnPlane(RifleUp, aL);
+            r.rotation = Quaternion.LookRotation(along, up) * Quaternion.Inverse(Quaternion.LookRotation(aL, uL));
+            r.position += grip - r.TransformPoint(RifleGripR);
         }
 
         /// <summary>The rifle out of his hand, flat on the ground beside where it fell.</summary>

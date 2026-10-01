@@ -350,6 +350,33 @@ inside the game, never on its own.
 | `soldier_vc_normal.png` | `0cbc0ad1ddf107e41aea135f1a8895c360fdfb82bb5e2b937ccedfa93ffe5add` |
 | `soldier_vc_mask.png` | `0549a989669c5312bd3394aeb95d6090e6a20985691cfe0cf135fbc73b00cfa9` |
 
+### Mixamo — `Assets/_Licensed/Mixamo/` (git-ignored)
+
+**Adobe Mixamo**, through the owner's Adobe account in their browser (owner's
+decision 2026-09-30; the files approved by name 2026-09-30). Mixamo's terms
+allow its animations in games, royalty-free; the files themselves are not to
+be redistributed, so they live in the ignored `Assets/_Licensed/` (their
+`.meta` files, which hold only import settings, are committed). Exported as
+*FBX for Unity*, 30 fps, without skin, no keyframe reduction, on the account's
+primary character (Remy: Mixamo's standard skeleton, retargeted by Humanoid
+onto our soldiers). Each file is named by its role in `SoldierBuilder.Mixamo`.
+
+| role | Mixamo clip (description) |
+|---|---|
+| `prone_idle` | Prone Idle ("Lying Down Prone With Rifle") |
+| `crawl` | Prone Forward ("Moving Forward While In Prone Position"): 0.20 m/s on our soldier |
+| `prone_fire` | Prone Firing Rifle ("Firing A Rifle While Prone") |
+| `prone_death` | Prone Death ("Dying From A Prone Position") |
+| `prone_hit` | Rifle Prone Hit Reaction |
+| `prone_reload` | Prone Reloading |
+
+Approved and still to download (the browser disconnected): the Pro Rifle Pack
+(49 clips) and 21 singles: Crouch To Prone, Rifle Prone To Kneel, Rifle Kneel
+To Prone, Rifle Stand To Kneel, Rifle Kneel To Stand, Rifle Kneel Idle, Rifle
+Kneel To Aim, Rifle Kneel Hit To Back, Rifle Hit To Back, Rifle Shielding
+Face, Firing Rifle x4, Reloading, Toss Grenade, Rifle Death, Falling Back
+Death, Flying Back Death, Dying Backwards, Rifle Run To Dying.
+
 ### Props — `Assets/_Project/Art/Props/`
 
 **Sandbag walls, built** (nothing scanned exists). The bag cloth is ambientCG
@@ -492,9 +519,32 @@ and are rebuilt from `SourceArt/`.
 | `thump_0` | `bullet_impact_body_thump_02.wav` (same) | `cb84da810687e966e7ed0ae3da269c65b42231bed22dd52696e4619c413e16ab` |
 | `ambience_0` | `Jungle quiet insects and birds wide _120407_11.wav` (Thailand sound library, Faunethic / Charlie Atanasyan): a Southeast Asian jungle bed; a 60 s seamless loop from 30 s in, −20 dBFS RMS | `df1da8303fb61f1f8bc371c05a60faf00ab75783f5c3d14126c48244baef8b6e` |
 
-Still to source: the M60 and the other weapons in §12.6's list, the 105 mm
-report (the mirror's 2019 bundle has an M101), the UH-1, radio, voice and
-music.
+**More of the fighting: Sonniss #GameAudioGDC 2016, 2017, 2019, 2020**, same
+licence (2016 and 2020 read 2026-09-30: identical terms), same mirror
+(`.../sonniss<year>/individual/`), same ignored folder; fetched and checked by
+`fetch_sonniss.sh`. Takes holding many events are cut where the sound falls
+quiet (`slice_shots.py` `events`).
+
+| set | source (year, pack) | sha256 of the source | used for |
+|---|---|---|---|
+| `mg_0`, `mg_1` | `M1919A4_..._5m_behind_ORTF_...Triple_shots_x_1.wav`, `..._200m_left_behind_...` (2016, Pole Position: M1919A4 Browning .30 cal) | `35e04fb9…`, `01ecc109…` | one US man in five fires bursts |
+| `mg_2` … `mg_5` | `warfare_t2_mg_firing_close_projectile_tail_large_field_...wav` (2017, Pole Position: The Warfare Library), 4 bursts | `b7cb77aa…` | the same |
+| `smg_0`, `smg_1` | `PPSh41, Firing, t1, Burst, Long, MKH416.wav` (2020, Pole Position: PPSh-41), 2 bursts | `238ad768…` | one VC man in five |
+| `crack_1` … `crack_10` | `warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav` (2017, Warfare Library), 10 events | `806acf0c…` | rounds passing a pinned man |
+| `crack_11` … `crack_16` | `PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav` (2020, PMSFX: Bullet Bys & Impacts), 6 events | `9c697f86…` | the same |
+| `thump_1` | `PM_BBI_Bullet_Impact_Hit_Body_Flesh_25.wav` (2020, PMSFX) | `0a7c2e4b…` | a man hit |
+| `dirt_0` | `PM_BBI_Bullet_Impact_Dirt_3.wav` (2020, PMSFX) | `ecaa3525…` | misses striking near the listener |
+| `bodyfall_0` | `RL_bodyfall_Dirt_M4_Close_Stereo_Hard_Impact_10.wav` (2019, Red Libraries: Bodyfall) | `90d5ae7e…` | a man hitting the ground, a beat after the round |
+| `howitzer_0` … `_2` | `Howitzer,M101,C1/C3,105 mm,...` (2019, Airborne Sound: Battlefield Howitzers), 3 reports | `21d5791d…`, `3b5a39a6…`, `86270f9b…` | the battery, far behind the line, once a salvo of a barrage |
+| `jet_0`, `jet_1` | `Jet,Fighter,CF-18,Hornet,By,...`, `Jet,Fighter,F-16,...,By,...` (2019, Airborne Sound: Jet Fighter Maneuvers) | `588f6a27…`, `6bce891e…` | the air strike's pass (modern jets standing in for the F-100 and A-4) |
+| `radio_0` | `Military Radio Voice A (HHG) Troops In Contact Message.wav` (2019, Apple Hill Studios: Military Radio Voices), whole | `daac19ce…` | first contact, for a US player |
+
+Fetched but not used yet: `warfare_t1b_cannon_firing_forest_distant_...wav`
+(2017), `Military Radio Voice D (HI-3) Forty Mike Mike Request.wav` (2019) and
+`Asia_Echoes_Tam Coc_Forest_Day.wav` (2020, Spectravelers: Asia Echoes, Laos -
+Vietnam; a Vietnamese forest for the bed, to be listened to before use).
+
+Still to source: the UH-1, voices and music.
 
 | committed file | sha256 |
 |---|---|

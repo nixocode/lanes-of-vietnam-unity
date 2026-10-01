@@ -76,6 +76,15 @@ namespace LanesOfVietnam.View
     /// 55 ms apart in real time — because the three.js build measured what the
     /// alternative is: 911 sounds in twenty seconds, a wall of noise pumping a
     /// limiter, every report buried in the one before it. Fewer and louder.
+    ///
+    /// All of it recorded (the owner: "use assets not a synth"). The sim's men
+    /// all carry rifles; the ear is told otherwise, one man in five firing
+    /// bursts, the US gunner's Browning .30 cal and the VC's PPSh. A man going
+    /// down is the round striking him and, a beat later, him hitting the
+    /// ground. Near the listener the misses strike the earth. A barrage is
+    /// also the battery that fired it, 105 mm howitzers far behind the line,
+    /// one report a salvo; an air strike is a jet going over. And the first
+    /// contact of a US player's match comes over the radio.
     /// </summary>
     public sealed class AudioView : MonoBehaviour
     {
@@ -91,6 +100,16 @@ namespace LanesOfVietnam.View
         private float _intensity;
         private System.Random _rng = new System.Random(7);
         private GameRoot _root;
+        /// <summary>Sounds owed a moment from now: a body falls after the round that dropped him.</summary>
+        private readonly List<(float at, string clip, float x, float z, float gain)> _later = new List<(float, string, float, float, float)>();
+        private float _lastDirtAt = -1;
+        private int _salvoTick = -1, _salvoArea = -1;
+        private bool _radioed;
+        /// <summary>Where the US battery stands, behind the firebase: far enough to be a report, not a blast.</summary>
+        public static readonly Vector2 Battery = new Vector2(-640f, 40f);
+
+        /// <summary>One man in five fires bursts: an automatic rifleman or a gunner, to the ear.</summary>
+        public static bool Automatic(Man m) => (m.Id * 7 + 3) % 5 == 0;
 
         /// <summary>Shots played and dropped since the match began, for the log and the tests.</summary>
         public int Played { get; private set; }
@@ -135,7 +154,11 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>Forget the backlog, on a new match, so it does not replay the last one.</summary>
-        public void ResetView() { _cursor = 0; _lastTick = -1; _intensity = 0; Played = Rationed = 0; }
+        public void ResetView()
+        {
+            _cursor = 0; _lastTick = -1; _intensity = 0; Played = Rationed = 0;
+            _later.Clear(); _salvoTick = _salvoArea = -1; _radioed = false;
+        }
 
         private string Pick(params string[] sets)
         {
@@ -177,13 +200,24 @@ namespace LanesOfVietnam.View
                         fired++;
                         var m = st.Men[e.Id];
                         shots.Add((m, Dist(m.X, m.Z, lx, lz)));
+                        // A miss near the listener: the round into the earth by its target.
+                        if (e.Target is int tg && tg < st.Men.Count && Time.unscaledTime - _lastDirtAt > 0.12f
+                            && !(i + 1 < ev.Count && ev[i + 1].Kind == EventKind.Kill && ev[i + 1].Id == tg)
+                            && Dist(st.Men[tg].X, st.Men[tg].Z, lx, lz) < 45 && _rng.NextDouble() < 0.35)
+                        {
+                            _lastDirtAt = Time.unscaledTime;
+                            var t = st.Men[tg];
+                            Play(Pick("dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), 0.5f, Range(0.85f, 1.15f), false);
+                        }
                         break;
                     case EventKind.Kill:
                         // A man going down: the round striking him, near enough to hear.
                         if (e.Id < st.Men.Count)
                         {
                             var k = st.Men[e.Id];
-                            if (Dist(k.X, k.Z, lx, lz) < 160) Play(Pick("thump"), k.X, k.Z, 0.8f, Range(0.92f, 1.08f), false);
+                            float kd = Dist(k.X, k.Z, lx, lz);
+                            if (kd < 160) Play(Pick("thump"), k.X, k.Z, 0.8f, Range(0.92f, 1.08f), false);
+                            if (kd < 110) _later.Add((Time.unscaledTime + Range(0.45f, 0.7f), Pick("bodyfall"), (float)k.X, (float)k.Z, 0.7f));
                         }
                         break;
                     case EventKind.Pinned:
@@ -205,10 +239,42 @@ namespace LanesOfVietnam.View
                         break;
                     case EventKind.Shell:
                         Boom(e, "shell", 1f, lx, lz);
+                        // The guns that fired it, once a salvo: far off, heard at once
+                        // (the rounds were in the air long before the sim lands them).
+                        if (e.Tick != _salvoTick || e.Id != _salvoArea)
+                        {
+                            _salvoTick = e.Tick; _salvoArea = e.Id;
+                            var area = st.Areas.Find(a => a.Id == e.Id);
+                            if (area == null || area.Radius > 14)
+                            {
+                                float bx = e.Side == Side.Us ? Battery.x : -Battery.x;
+                                Play(Pick("howitzer"), bx + Range(-30, 30), Battery.y + Range(-30, 30), 0.9f, Range(0.95f, 1.05f), true);
+                            }
+                        }
+                        break;
+                    case EventKind.AreaStart:
+                        // The air strike (the tight barrage): a jet low over the target.
+                        var strike = st.Areas.Find(a => a.Id == e.Id);
+                        if (strike != null && strike.Kind == AreaKind.Barrage && strike.Radius <= 14 && e.X != null)
+                            Play(Pick("jet"), e.X.Value, e.Z.Value, 1f, Range(0.97f, 1.03f), false);
+                        break;
+                    case EventKind.FirstContact:
+                        if (!_radioed && _root.PlayerSide == Side.Us)
+                        {
+                            _radioed = true;
+                            Play(Pick("radio"), lx, lz + 2, 0.45f, 1f, true);
+                        }
                         break;
                 }
             }
             _cursor = ev.Count;
+            for (int i = _later.Count - 1; i >= 0; i--)
+            {
+                if (Time.unscaledTime < _later[i].at) continue;
+                var l = _later[i];
+                _later.RemoveAt(i);
+                Play(l.clip, l.x, l.z, l.gain, Range(0.93f, 1.07f), false);
+            }
 
             // The bed gets out of the way while the shooting is heavy.
             _intensity += (Mathf.Min(1, fired / 8f) - _intensity) * 0.25f;
@@ -223,7 +289,9 @@ namespace LanesOfVietnam.View
             {
                 if (i >= ShotsPerTick) { Rationed++; continue; }
                 var (m, d) = shots[i];
-                string clip = m.Side == Side.Us ? Pick("m16") : Pick("ak", "ak", "sks");
+                bool auto = Automatic(m);
+                string clip = m.Side == Side.Us ? (auto ? Pick("mg") : Pick("m16")) : (auto ? Pick("smg") : Pick("ak", "ak", "sks"));
+                clip ??= m.Side == Side.Us ? Pick("m16") : Pick("ak", "sks");
                 if (clip == null) continue;
                 // Pitch varies per shot: identical impulses at 20 Hz comb against
                 // each other and read as a machine, not twenty men with rifles.
