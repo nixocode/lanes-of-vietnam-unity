@@ -5,13 +5,18 @@
 // Unity's audio in a browser has no filters and no mixer effects, so the
 // distance model cannot be built from AudioSources. Four things change with
 // distance, and only one of them is loudness:
-//   travel      343 m/s: a shot at 300 m arrives 0.87 s after its flash
+//   travel      343 m/s beyond the first 60 m: the battery at 640 m is heard
+//               1.7 s after its flash, but a rifle in front of the lens is
+//               heard with it. (At true distance every shot on screen came
+//               a tenth of a second late, which reads as a soft, loose gun:
+//               the owner, playtests 2 and 4, "lacks punch".)
 //   absorption  a one-pole low-pass, 20 kHz x exp(-d / 120 m): a near rifle
 //               cracks, a far one thumps; cover shortens the scale (darker,
 //               not quieter)
-//   spreading   1/d from a 24 m reference: the camera stands 40-50 m from the
-//               lanes, and from 10 m every shot there arrived at a fifth of its
-//               level (the owner's second playtest: no punch)
+//   spreading   1/d from a 40 m reference: the camera stands 37-50 m from the
+//               lanes, so the near lane is heard at full level and the far
+//               one at four fifths. (From 10 m every shot there arrived at a
+//               fifth of its level; from 24 m, at half to two thirds.)
 //   scattering  a reverb send that rises with distance while the dry path
 //               falls, into the valley's impulse response
 // Master -> limiter, so a volley ducks under itself instead of clipping.
@@ -25,7 +30,7 @@ mergeInto(LibraryManager.library, {
       ctx: new (window.AudioContext || window.webkitAudioContext)(),
       buffers: {}, voices: 0, maxVoices: 32,
       listenerX: 0, listenerZ: 44, ambience: null, ambienceGain: null,
-      SPEED: 343, REF: 24, ABSORB: 120, MAX: 900
+      SPEED: 343, REF: 40, NEAR: 60, ABSORB: 120, MAX: 900
     };
     var ctx = A.ctx;
     var comp = ctx.createDynamicsCompressor();
@@ -117,7 +122,7 @@ mergeInto(LibraryManager.library, {
     var cutoff = Math.max(180, Math.min(20000, 20000 * Math.exp(-d / scale)));
     var g1 = Math.min(1, A.REF / Math.max(A.REF, d));
     var wetAmt = Math.min(0.85, 0.06 + d / 420);
-    var at = ctx.currentTime + (immediate ? 0 : d / A.SPEED);
+    var at = ctx.currentTime + (immediate ? 0 : Math.max(0, d - A.NEAR) / A.SPEED);
 
     var src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
     var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 0.4;

@@ -546,8 +546,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill fieldcraft [map]`.</summary>
-        [TestCase(1, true, 1503, 2150481767u, 2294307627u, 2266930116u, "us wiped out")]
-        [TestCase(7, false, 1796, 4101092549u, 568090037u, 2402751642u, "us morale broke")]
+        [TestCase(1, true, 2426, 2150481767u, 3948002490u, 1730117463u, "us morale broke")]
+        [TestCase(7, false, 1663, 4101092549u, 568090037u, 1333380308u, "us morale broke")]
         public void With_fieldcraft_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -725,8 +725,8 @@ namespace LanesOfVietnam.Tests
         };
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms [map]`.</summary>
-        [TestCase(1, true, 4228, 1346899756u, 3704137874u, 1035897130u, "vc morale broke")]
-        [TestCase(7, false, 2430, 3835937325u, 1035592548u, 202531620u, "vc morale broke")]
+        [TestCase(1, true, 3636, 1346899756u, 2245466774u, 416579678u, "vc morale broke")]
+        [TestCase(7, false, 4243, 3835937325u, 2989996820u, 2710323361u, "us morale broke")]
         public void With_arms_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -843,6 +843,7 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(Tune.CpPerSecond, baseline.CpRate);
             Assert.AreEqual(Tune.OpeningStrength, baseline.OpeningStrength);
             Assert.AreEqual(0, baseline.StartCp);
+            Assert.AreEqual(Tune.CpPerSquad, baseline.MusterCost);
             Assert.IsNull(baseline.Player);
 
             MatchOptions Tempo(Side? player)

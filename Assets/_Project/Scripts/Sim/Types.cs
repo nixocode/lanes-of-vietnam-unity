@@ -377,8 +377,8 @@ namespace LanesOfVietnam.Sim
         public bool Fieldcraft;
         /// <summary>Part 2 rule: every man carries a weapon, every card buys its squad, every fight is at its weapons' distance (<see cref="Sim.Arms"/>). Off is the baseline.</summary>
         public bool Arms;
-        /// <summary>Command points a second, each side (MatchOptions.CpRate).</summary>
-        public double CpRate = Tune.CpPerSecond;
+        /// <summary>Command points a second, each side (MatchOptions.CpRate), and what a squad costs a plan that raises its own (MatchOptions.MusterCost).</summary>
+        public double CpRate = Tune.CpPerSecond, MusterCost = Tune.CpPerSquad;
         /// <summary>The side whose reinforcements are its player's to buy: its plan raises none for it (MatchOptions.Player).</summary>
         public Side? Player;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>

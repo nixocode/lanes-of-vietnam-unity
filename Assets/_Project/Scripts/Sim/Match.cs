@@ -93,6 +93,8 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
+        /// <summary>What a squad costs a side whose plan raises its own. The baseline's: 22.</summary>
+        public double MusterCost = Tune.CpPerSquad;
         /// <summary>Men a side has on the map at the start, at least. The baseline's: 16.</summary>
         public int OpeningStrength = Tune.OpeningStrength;
         /// <summary>
@@ -207,7 +209,7 @@ namespace LanesOfVietnam.Sim
                 Drill = opts.Drill,
                 Fieldcraft = opts.Fieldcraft,
                 Arms = opts.Arms,
-                CpRate = opts.CpRate, Player = opts.Player,
+                CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
             // A fork reads the parent's state without drawing from it.
@@ -331,6 +333,9 @@ namespace LanesOfVietnam.Sim
             if (m.Pin >= Tune.PinStop) want = Posture.Prone;
             else if (m.Pin >= Tune.PinDrop) want = Posture.Crouched;
             else if (sq.Order == Order.Hold && Combat.CoverOf(st, m) != null) want = Posture.Crouched;
+            // Arms: sappers come up bent double while they are unseen, which is how they get inside a
+            // rifle's reach (a crouching man is found at 16 m, a walking one at 26).
+            else if (st.Arms && sq.Reach <= Tune.Stalks && !m.Seen && quarry == null && sq.Order != Order.Fallback) want = Posture.Crouched;
             // Fieldcraft: a squad that has halted in contact goes to ground: a knee for a rifleman, flat
             // behind his gun for a machine-gunner or a sniper. On the march, or out of contact, they stand:
             // kneeling at every pause, a man changed posture twenty times a minute.
@@ -624,9 +629,9 @@ namespace LanesOfVietnam.Sim
                 foreach (var side in Sides)
                 {
                     var plan = side == Side.Us ? us : vc;
-                    if (!plan.Reinforce || st.Player == side || st.Cp[(int)side] < Tune.CpPerSquad) continue;
+                    if (!plan.Reinforce || st.Player == side || st.Cp[(int)side] < st.MusterCost) continue;
                     if (AliveCount(st, side) >= Tune.ForceCap) continue;
-                    st.Cp[(int)side] -= Tune.CpPerSquad;
+                    st.Cp[(int)side] -= st.MusterCost;
                     int lane = rng.Int(0, Tune.Lanes.Length);
                     double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
                     SpawnSquad(st, side, lane, x, rng);

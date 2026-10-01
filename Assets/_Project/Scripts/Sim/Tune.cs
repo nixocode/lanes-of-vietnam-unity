@@ -216,8 +216,10 @@ namespace LanesOfVietnam.Sim
         public const double Contact = 45;
         /// <summary>Ticks a squad's decision to assault, or to close to its fighting distance, stands once made (3 s, 2 s).</summary>
         public const int ChargeTicks = TickHz * 3, ClosingTicks = TickHz * 2;
-        /// <summary>Ticks a squad stays in cover it has reached before it makes for the next (3 s).</summary>
-        public const int CoverPause = TickHz * 3;
+        /// <summary>Ticks a squad stays in cover it has reached before it makes for the next (3 s), and in a trench, which it had to climb into (8 s).</summary>
+        public const int CoverPause = TickHz * 3, DugPause = TickHz * 8;
+        /// <summary>A squad that fights from this near or nearer (sappers) comes up bent double while nobody has seen it.</summary>
+        public const double Stalks = 8;
         /// <summary>A squad told to hold in the open makes for cover this near instead.</summary>
         public const double DashToCover = 12;
         /// <summary>Ticks a squad sent out of a position keeps going whatever its plan thinks (20 s), if it finds no cover sooner.</summary>
