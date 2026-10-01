@@ -107,6 +107,13 @@ namespace LanesOfVietnam.View
         /// </summary>
         /// <summary>Command points a second and at the start, and the men each side opens with (at least), in the game.</summary>
         public const double CpRate = 1.6, StartCp = 20;
+        /// <summary>
+        /// What a squad costs the computer's side (the baseline's 22 is at the baseline's income). Chosen with
+        /// `tools/simcs/run.sh player 24 N`, against a player who only ever buys line squads when he can: at 22
+        /// that player wins half his matches, at 28 three in four, at 40 all of them. One who buys nothing loses
+        /// in about a minute at any of them.
+        /// </summary>
+        public const double MusterCost = 28;
         public const int OpeningStrength = 8;
 
         public void NewMatch(Side player, MatchLength length, int? seed = null,
@@ -135,7 +142,7 @@ namespace LanesOfVietnam.View
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had
                 // been spending his points for him, a squad every time he reached 22. A capture and the
                 // frame-time probe have no player, so there both sides raise their own.
-                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
+                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength, MusterCost = MusterCost,
                 Player = CaptureSettings.Active != null || PerfProbe.Param("perf") != null ? (Side?)null : player,
             };
             Driver = new MatchDriver(Options, replay);

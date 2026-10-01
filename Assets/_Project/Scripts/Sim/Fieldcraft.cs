@@ -332,7 +332,7 @@ namespace LanesOfVietnam.Sim
                 {
                     var lever = LeverOf(tc, sq.Side);
                     if (lever == Lever.Hold) { sq.Order = Order.Hold; held = true; }
-                    else if (lever == Lever.Go) { sq.Held = Tune.CoverPause; sq.Sent = Tune.SentTicks; sent = true; }
+                    else if (lever == Lever.Go) { sq.Held = Tune.DugPause; sq.Sent = Tune.SentTicks; sent = true; }      // no pause to wait out
                 }
                 // Arms: a squad that can see the enemy from beyond its own fighting distance
                 // closes to it, unless it is beaten down or has been told to stay: a fight
@@ -365,7 +365,7 @@ namespace LanesOfVietnam.Sim
                 {
                     // No cover yet, or it has had its pause in this one and is to go on.
                     bool moving = sq.Order == Order.Advance || sq.Order == Order.Bound;
-                    if (tc == null || (arrived && moving && sq.Held >= Tune.CoverPause))
+                    if (tc == null || (arrived && moving && sq.Held >= (Dug(tc) ? Tune.DugPause : Tune.CoverPause)))
                     {
                         int next = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, plan.Advance, sq.Side, live.Count);
                         // Nothing further on: only a side that is taking ground leaves its cover for none.

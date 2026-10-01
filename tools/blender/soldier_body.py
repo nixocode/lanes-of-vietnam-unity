@@ -54,11 +54,12 @@ SIDES = {
                  macro=dict(gender=0.92, age=0.34, muscle=0.64, weight=0.47, proportions=0.62, height=0.70,
                             race={"asian": 0.10, "caucasian": 0.62, "african": 0.28}),
                  kit=("helmet_steel", "helmet_cover", "webbing", "flakvest", "gun_steel", "gun_furniture")),
-    # No flak vest (many went without in the heat), a bigger man.
-    "us_b": dict(US, skin="young_african_male", hair=(0.012, 0.011, 0.011),
+    # No flak vest (many went without in the heat), a bigger man, and the boonie hat in
+    # place of the steel pot (the owner, playtests 2 to 4: "more variety").
+    "us_b": dict(US, skin="young_african_male", hair=(0.012, 0.011, 0.011), hat="boonie",
                  macro=dict(gender=0.95, age=0.30, muscle=0.74, weight=0.52, proportions=0.60, height=0.74,
                             race={"asian": 0.02, "caucasian": 0.08, "african": 0.90}),
-                 kit=("helmet_steel", "helmet_cover", "webbing", "gun_steel", "gun_furniture")),
+                 kit=("webbing", "gun_steel", "gun_furniture")),
     # Slighter and younger, his fatigues newer and greener.
     "us_c": dict(US, skin="young_caucasian_male2", cloth=(0.072, 0.082, 0.050),
                  macro=dict(gender=0.88, age=0.26, muscle=0.50, weight=0.40, proportions=0.58, height=0.66,
@@ -214,6 +215,67 @@ def conical_hat(arm, head_top, colour=(0.27, 0.22, 0.12)):       # weathered pal
     # Its rim at the brow: the cone's middle a little below the crown.
     hat.location = (head.head_local.x, head.head_local.y + 0.01, head_top - arm.location.z - 0.022)
     hat.rotation_euler = (math.radians(-6), 0, 0)             # tipped back a little
+    hat.vertex_groups.new(name="head").add(range(len(me.vertices)), 1.0, "REPLACE")
+    hat.modifiers.new("Armature", "ARMATURE").object = arm
+    activate(hat)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return hat
+
+
+def boonie_hat(arm, head_top, colour=(0.072, 0.080, 0.050)):       # OG-107 poplin, sun-faded like his fatigues
+    """
+    The jungle hat: a low round crown and a soft brim a hand wide, never
+    quite flat. Built round the head bone like the conical hat.
+    """
+    import bmesh
+    bm = bmesh.new()
+    seg = 24
+    rings = []
+    # From the brim's edge in to the crown's foot, up its side and over the top: (radius, height).
+    profile = [(0.185, -0.012), (0.150, 0.000), (0.112, 0.006), (0.104, 0.030), (0.100, 0.062), (0.086, 0.082), (0.050, 0.092), (0.0, 0.095)]
+    for k, (r, z) in enumerate(profile):
+        ring = []
+        for i in range(seg):
+            a = 2 * math.pi * i / seg
+            # The brim's edge waves a little and droops at the sides.
+            wave = (0.010 * math.sin(3 * a + 0.7) - 0.008 * abs(math.sin(a))) if k == 0 else 0.0
+            ring.append(bm.verts.new((r * math.cos(a) * 0.94, r * math.sin(a) * 1.04, z + wave)) if r > 0 else None)
+        rings.append(ring)
+    top = bm.verts.new((0, 0, profile[-1][1]))
+    for a, b in zip(rings, rings[1:]):
+        for i in range(seg):
+            j = (i + 1) % seg
+            if b[i] is None:
+                bm.faces.new((a[i], a[j], top))
+            else:
+                bm.faces.new((a[i], a[j], b[j], b[i]))
+    # The underside of the brim, so it is not paper from below.
+    under = [bm.verts.new((v.co.x * 0.985, v.co.y * 0.985, v.co.z - 0.006)) for v in rings[0]]
+    inner = [bm.verts.new((v.co.x * 0.96, v.co.y * 0.96, v.co.z - 0.008)) for v in rings[2]]
+    for i in range(seg):
+        j = (i + 1) % seg
+        bm.faces.new((rings[0][j], rings[0][i], under[i], under[j]))
+        bm.faces.new((under[j], under[i], inner[i], inner[j]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("hat")
+    bm.to_mesh(me)
+    bm.free()
+    for p_ in me.polygons:
+        p_.use_smooth = True
+    me.uv_layers.new(name="UVMap")
+    mat = bpy.data.materials.new("hat_cloth")
+    mat.use_nodes = True
+    bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Base Color"].default_value = (*colour, 1)
+    bsdf.inputs["Roughness"].default_value = 0.9
+    me.materials.append(mat)
+    hat = bpy.data.objects.new("hat", me)
+    bpy.context.scene.collection.objects.link(hat)
+    hat.parent = arm
+    head = arm.data.bones["head"]
+    # Its crown over the skull: the brim at the brow.
+    hat.location = (head.head_local.x, head.head_local.y + 0.012, head_top - arm.location.z - 0.086)
+    hat.rotation_euler = (math.radians(-5), 0, 0)
     hat.vertex_groups.new(name="head").add(range(len(me.vertices)), 1.0, "REPLACE")
     hat.modifiers.new("Armature", "ARMATURE").object = arm
     activate(hat)
@@ -387,6 +449,9 @@ def build(side, preview):
     if spec.get("hat") == "conical":
         top = max((body.matrix_world @ v.co).z for v in body.data.vertices)
         hat = conical_hat(arm, top)
+    elif spec.get("hat") == "boonie":
+        top = max((body.matrix_world @ v.co).z for v in body.data.vertices)
+        hat = boonie_hat(arm, top)
 
     # --- one mesh, one UV map ---
     meshes = [body] + parts + [kit] + ([hat] if hat else [])

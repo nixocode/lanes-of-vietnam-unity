@@ -39,6 +39,7 @@ namespace LanesOfVietnam.SimCs
                     "muddle" => Muddle(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
+                    "player" => PlayerTable(args),
                     _ => Usage(),
                 };
             }
@@ -307,6 +308,42 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
         private static readonly Dictionary<(int, int), Weapon> blasts = new Dictionary<(int, int), Weapon>();
+
+        /// <summary>
+        /// The game's tempo against a player who is not the computer: one who
+        /// buys nothing, and one who buys a rifle squad (or a cell) whenever he
+        /// can afford one. `player [seeds] [us|vc]`: wins, and how long it took.
+        /// </summary>
+        private static int PlayerTable(string[] a)
+        {
+            int seeds = a.Length > 1 && int.TryParse(a[1], out int n) ? n : 24;
+            double muster = a.Length > 2 && double.TryParse(a[2], out double mc) ? mc : 22;
+            Console.WriteLine($"  the computer's squad costs it {muster}:");
+            foreach (var side in new[] { Side.Us, Side.Vc })
+            foreach (var style in new[] { "buys nothing", "buys line squads", "left to the plan" })
+            {
+                int wins = 0; double secs = 0, men = 0;
+                for (int seed = 1; seed <= seeds; seed++)
+                {
+                    var o = Game(seed, new[] { "fieldcraft", "arms" });
+                    o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 8; o.MusterCost = muster;
+                    o.Player = style == "left to the plan" ? (Side?)null : side;
+                    var m = new LiveMatch(o);
+                    var card = Deck.For(side).First(c => c.Group == CardGroup.Line);
+                    while (!m.State.Over && m.State.Tick < m.Cap)
+                    {
+                        if (style == "buys line squads" && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
+                            m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
+                        m.Step();
+                    }
+                    if (m.State.Winner == side) wins++;
+                    secs += m.State.Tick * Tune.Dt;
+                    men += m.State.Men.Count(x => x.Side == side);
+                }
+                Console.WriteLine($"  {side} player who {style,-18} wins {wins,2}/{seeds}  mean {secs / seeds,5:F0} s  fielded {men / seeds:F0} men");
+            }
+            return 0;
+        }
 
         /// <summary>A squad called to a held trench and then sent out of it, tick by tick: `lever [seed]`.</summary>
         private static int LeverTrace(string[] a)
