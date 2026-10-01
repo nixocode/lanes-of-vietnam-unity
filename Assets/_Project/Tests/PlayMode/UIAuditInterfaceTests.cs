@@ -205,9 +205,9 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
-        /// Warfare 1944's lever, on every position: a plate over each trench,
-        /// wall and bunker, and pressing its lever is a simulation command that
-        /// the simulation obeys. Pressed here as the player presses it.
+        /// Warfare 1944's lever, on every strongpoint: a plate over each piece
+        /// of cover, built or natural, and pressing its lever is a simulation
+        /// command that the simulation obeys. Pressed here as the player presses it.
         /// </summary>
         [UnityTest, Category("UIAudit")]
         public IEnumerator Every_position_has_a_lever_and_pulling_it_commands_the_simulation()

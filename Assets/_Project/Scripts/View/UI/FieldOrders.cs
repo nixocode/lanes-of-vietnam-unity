@@ -38,7 +38,7 @@ namespace LanesOfVietnam.View.UI
         private static readonly Step[] Us =
         {
             new Step { Text = "DEPLOY A RIFLE SQUAD INTO A LANE [Z]", Mark = "deployed" },
-            new Step { Text = "HOLD THE FORWARD TRENCH — PULL ITS LEVER [H]", Mark = "lever:hold" },
+            new Step { Text = "HOLD A STRONGPOINT — PULL ITS LEVER [H]", Mark = "lever:hold" },
             new Step { Text = "PUT FIRE ON THEIR LEAD ELEMENT", Done = st => Any(st, m => m.Side == Side.Vc && m.Pin >= Tune.PinDrop) },
             new Step { Text = "CALL A FIRE MISSION ON THEIR ADVANCE [Q]", Mark = "call:us-arty" },
             new Step { Text = "SEND THEM OVER THE TOP [G]", Mark = "lever:go" },

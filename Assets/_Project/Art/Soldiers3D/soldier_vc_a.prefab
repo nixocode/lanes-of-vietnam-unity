@@ -264,6 +264,9 @@ MonoBehaviour:
   BlastDeath: 1
   CrouchDeath: 1
   ProneDeath: 1
+  Blows: 2
+  BlowFirst: 0
+  Climbs: 1
 --- !u!1 &696580235859697130
 GameObject:
   m_ObjectHideFlags: 0

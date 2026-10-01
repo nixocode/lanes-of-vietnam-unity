@@ -248,6 +248,9 @@ namespace LanesOfVietnam.Tools
             ("rifle_crouch_aim", true, false), ("death_front_head", false, false), ("death_right", false, false),
             ("death_crouch_head", false, false), ("death_back_head", false, false), ("death_back", false, false),
             ("death_front", false, false),
+            // Fieldcraft (PLAN §12.15): the blow hand to hand, and into and out of a trench. Their
+            // travel stays in the root, where the game leaves it: the simulation says where a man is.
+            ("melee_stab", false, true), ("melee_slash", false, true), ("trench_in", false, true), ("trench_out", false, true),
         };
 
         private static readonly List<string> ImportedMixamo = new List<string>();
@@ -333,6 +336,9 @@ namespace LanesOfVietnam.Tools
                 var blade = AuthoredYaw(path);
                 if (blade.HasValue) { c.keepOriginalOrientation = false; c.rotationOffset = blade.Value * OrientationSign; }
                 c.lockRootHeightY = true; c.keepOriginalPositionY = true; c.heightFromFeet = false;
+                // "Climbing Up Wall" goes up a wall twice a man's height. Its rise is left in the
+                // root with its travel: a trench's own depth is the climb, and ArmyView gives it.
+                if (role == "trench_out") { c.lockRootHeightY = false; c.heightFromFeet = true; }
                 c.lockRootPositionXZ = !travels; c.keepOriginalPositionXZ = !travels;
                 mi.clipAnimations = new[] { c };
                 mi.SaveAndReimport();
@@ -542,6 +548,27 @@ namespace LanesOfVietnam.Tools
                     dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
                 }
                 log.Add($"react ({string.Join(", ", acts.Select(x => x.trigger + " " + x.posture + ": " + x.clip))})");
+
+                // Fieldcraft's acts, started by name from SoldierFigure (Strike, Climb): the blow
+                // sped up to the simulation's (a Mixamo stab winds up for a second), the climb
+                // out to the 0.9 s the simulation gives it.
+                foreach (var (state, clip, rate, leave) in new[]
+                {
+                    ("Melee 0", R("melee_stab"), 1.9f, 0.82f), ("Melee 1", R("melee_slash"), 1.7f, 0.82f),
+                    ("Climb in", R("trench_in"), 1f, 0.9f), ("Climb out", R("trench_out"), 2.1f, 0.92f),
+                })
+                {
+                    if (clip == null) continue;
+                    var st = react.AddState(state);
+                    st.motion = C(clip);
+                    st.speed = rate;
+                    var back = st.AddTransition(calm);
+                    back.hasExitTime = true; back.exitTime = leave; back.hasFixedDuration = true; back.duration = 0.2f;
+                    var dead = st.AddTransition(calm);
+                    dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
+                    dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+                    log.Add($"{state}: {clip} x{rate:F1}");
+                }
             }
 
             EditorUtility.SetDirty(ctrl);
@@ -739,6 +766,9 @@ namespace LanesOfVietnam.Tools
                 fig.CrouchSpeed = Sp("rifle_crouch_walk", "crouch", 0.8f); fig.CrawlSpeed = Sp("crawl", "crawl", 0.4f);
                 var have = new HashSet<string>(ImportedMixamo);
                 fig.MixamoStand = have.Contains("rifle_idle");
+                fig.Blows = (have.Contains("melee_stab") ? 1 : 0) + (have.Contains("melee_slash") ? 1 : 0);
+                fig.BlowFirst = have.Contains("melee_stab") ? 0 : 1;
+                fig.Climbs = have.Contains("trench_in") && have.Contains("trench_out");
                 fig.MixamoCrouch = have.Contains("kneel_idle");
                 fig.MixamoProne = have.Contains("prone_idle");
                 var states = ctrl.layers[0].stateMachine.states.Select(x => x.state.name).ToArray();

@@ -546,8 +546,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill fieldcraft [map]`.</summary>
-        [TestCase(1, true, 4037, 3326673888u, 4237922354u, 106791830u, "us morale broke")]
-        [TestCase(7, false, 3373, 807552359u, 2343319815u, 799490706u, "us morale broke")]
+        [TestCase(1, true, 3093, 3117538307u, 1920691780u, 1172114004u, "vc morale broke")]
+        [TestCase(7, false, 3861, 1971271368u, 2333251864u, 3470146844u, "vc morale broke")]
         public void With_fieldcraft_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -623,7 +623,8 @@ namespace LanesOfVietnam.Tests
             m.Issue(Command.SetLever(Side.Us, 999, Lever.Hold));
             m.Step();
             Assert.IsTrue(m.Log[0].Accepted, "the lever on the trench was refused");
-            Assert.IsFalse(m.Log[1].Accepted, "a berm took a lever: only trenches, walls and bunkers have one");
+            Assert.IsTrue(m.Log[1].Accepted, "the lever on a bank was refused: every piece of cover is a strongpoint, built or natural");
+            Assert.AreEqual(Lever.Hold, st.Cover[berm].LeverUs);
             Assert.IsFalse(m.Log[2].Accepted, "a lever was set on cover that does not exist");
             Assert.AreEqual(Lever.Hold, st.Cover[trench].LeverUs);
             Assert.AreEqual(Lever.Auto, st.Cover[trench].LeverVc, "one side's lever moved the other's");
