@@ -124,6 +124,8 @@ namespace LanesOfVietnam.View
                 Drill = CaptureSettings.Active?.Drill ?? true,
                 // Fieldcraft (Part 2): squads that stop short of the enemy, places in cover, melee, levers. On in the game.
                 Fieldcraft = CaptureSettings.Active?.Fieldcraft ?? true,
+                // Arms (Part 2): every man his weapon, every card its squad, every fight at its weapons' distance. On in the game.
+                Arms = CaptureSettings.Active?.Arms ?? true,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

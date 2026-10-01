@@ -43,6 +43,45 @@ namespace LanesOfVietnam.View
         /// <summary>The rifle's place in the right hand in Mixamo's clips (learned by SoldierBuilder).</summary>
         public Vector3 RifleInHandPos;
         public Quaternion RifleInHandRot = Quaternion.identity;
+        /// <summary>
+        /// A weapon he can carry (tools/blender/weapons.py): its mesh, and in its
+        /// own space where the two wrists hold it, which way is up and where the
+        /// muzzle is; and its place in the right hand in Mixamo's clips.
+        /// </summary>
+        [System.Serializable]
+        public struct Carried
+        {
+            public string Name;
+            public Mesh Mesh;
+            public Vector3 GripR, GripL, Up, Muzzle, InHandPos;
+            public Quaternion InHandRot;
+        }
+
+        /// <summary>Every weapon there is (SoldierBuilder fills it), and the material they share.</summary>
+        public Carried[] Arms = new Carried[0];
+        public Material ArmsMaterial;
+        /// <summary>What he has in his hands now.</summary>
+        public string Carrying { get; private set; } = "";
+
+        /// <summary>Put a weapon in his hands, by name ("m16", "ak", "m60", ...). False if there is no such weapon.</summary>
+        public bool Carry(string weapon)
+        {
+            if (weapon == Carrying) return true;
+            for (int i = 0; i < Arms.Length; i++)
+            {
+                if (Arms[i].Name != weapon || Rifle == null) continue;
+                var a = Arms[i];
+                Rifle.GetComponent<MeshFilter>().sharedMesh = a.Mesh;
+                if (ArmsMaterial != null) Rifle.sharedMaterial = ArmsMaterial;
+                RifleGripR = a.GripR; RifleGripL = a.GripL; RifleUp = a.Up;
+                RifleInHandPos = a.InHandPos; RifleInHandRot = a.InHandRot;
+                if (Muzzle != null) Muzzle.localPosition = a.Muzzle;
+                Carrying = weapon;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>Which postures play Mixamo's clips (the rest are interim, held on the two-hand line).</summary>
         public bool MixamoStand, MixamoCrouch, MixamoProne;
         /// <summary>Degrees he turns into his aim, standing, kneeling, prone (measured by SoldierBuilder), so the rifle points where he faces.</summary>
@@ -54,6 +93,8 @@ namespace LanesOfVietnam.View
         public int Deaths = 2;
         /// <summary>Deaths for circumstances, where Mixamo's clips exist for them.</summary>
         public bool RunDeath, BlastDeath, CrouchDeath, ProneDeath;
+        /// <summary>Where each standing death leaves his hips along his facing, metres (SoldierBuilder.LearnFalls): which way it throws him.</summary>
+        public float[] Falls = new float[0];
         /// <summary>How many clips the Animator has for a blow hand to hand (states "Melee n" from BlowFirst), and whether it has the climb into and out of a trench.</summary>
         public int Blows, BlowFirst;
         public bool Climbs;
@@ -96,13 +137,13 @@ namespace LanesOfVietnam.View
         /// when paused); speed is his smoothed ground speed, negative when he is
         /// stepping backwards; aiming whether he holds his rifle to the shoulder.
         /// </summary>
-        public void Step(float dt, float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot)
+        public void Step(float dt, float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot, float push = 0f)
         {
             if (_baked) return;
             if (dead && _deadFor < 0)
             {
                 _deadFor = 0;
-                Animator.SetInteger(DeathId, DeathCode(deathIndex, posture, how));
+                Animator.SetInteger(DeathId, DeathCode(deathIndex, posture, how, push));
                 Animator.SetBool(DeadId, true);
             }
             if (_deadFor >= 0)
@@ -145,15 +186,31 @@ namespace LanesOfVietnam.View
         /// <summary>
         /// Which death: lying down, the prone death; thrown by a blast, the blast
         /// death; on one knee, the crouched one; running, the run that ends in a
-        /// fall; else one of the standing deaths, by the man's own number.
+        /// fall; else one of the standing deaths, by the man's own number, among
+        /// those that throw him the way the round did: <paramref name="push"/> is
+        /// how far along his facing it was travelling (1 from behind him, -1 into
+        /// his front, 0 unknown).
         /// </summary>
-        public int DeathCode(int seed, int posture, Fall how)
+        public int DeathCode(int seed, int posture, Fall how, float push = 0f)
         {
             if (posture == 2 && ProneDeath) return ProneCode;
             if (how == Fall.Blast && BlastDeath) return BlastCode;
             if (posture == 1 && CrouchDeath) return CrouchCode;
             if (how == Fall.Running && RunDeath) return RunCode;
-            return seed % Mathf.Max(1, Deaths);
+            int n = Mathf.Max(1, Deaths);
+            if (Mathf.Abs(push) > 0.35f && Falls != null && Falls.Length >= n)
+            {
+                // The seed-th death that goes his way (at least 15 cm of it), if any does.
+                int fit = 0;
+                for (int k = 0; k < n; k++) if (Falls[k] * push > 0.15f) fit++;
+                if (fit > 0)
+                {
+                    int want = seed % fit;
+                    for (int k = 0; k < n; k++)
+                        if (Falls[k] * push > 0.15f && want-- == 0) return k;
+                }
+            }
+            return seed % n;
         }
 
         /// <summary>The body layer's state, by name, for tests and the log.</summary>
@@ -187,9 +244,9 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
-        public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot)
+        public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot, float push = 0f)
         {
-            for (int k = 0; k < (dead ? 16 : 4) && !_baked; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex, how);
+            for (int k = 0; k < (dead ? 16 : 4) && !_baked; k++) Step(k == 0 ? 0f : 0.5f, speed, posture, aiming, dead, deathIndex, how, push);
         }
 
         /// <summary>Rounds close by: he flinches, ducks, is knocked (the React layer, where the clips exist).</summary>

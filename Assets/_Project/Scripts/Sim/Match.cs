@@ -88,6 +88,8 @@ namespace LanesOfVietnam.Sim
         public bool Drill;
         /// <summary>Part 2: files, places in cover, the stand-off, the assault, melee, levers (Fieldcraft). False is the parity baseline.</summary>
         public bool Fieldcraft;
+        /// <summary>Part 2: a weapon to every man, a squad to every card, a distance to every fight (Arms). False is the parity baseline.</summary>
+        public bool Arms;
     }
 
     public sealed class MatchResult
@@ -140,8 +142,11 @@ namespace LanesOfVietnam.Sim
         // --- setup -------------------------------------------------------------
 
         internal static Squad SpawnSquad(SimState st, Side side, int lane, double x, Rng rng,
-                                         int? size = null)
+                                         int? size = null, string card = null)
         {
+            // Arms: the squad its card names, or the one the side raises next by itself.
+            Kit kit = st.Arms ? ((card != null ? Arms.For(card) : null) ?? Arms.Raised(st, side)) : null;
+            if (kit != null) size = kit.Men.Length;
             var sq = new Squad
             {
                 Id = st.NextSquadId++, Side = side, Order = Order.Advance,
@@ -149,6 +154,7 @@ namespace LanesOfVietnam.Sim
                 Held = 0, Target = -1, Bounding = false, PlayerOrder = null,
             };
             st.Squads.Add(sq);
+            if (kit != null) { sq.Reach = kit.Reach; sq.Assaults = kit.Assaults; }
             if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             int n = size ?? rng.Int(Tune.SquadMin, Tune.SquadMax + 1);
             double dir = Combat.Advance(side);
@@ -169,6 +175,7 @@ namespace LanesOfVietnam.Sim
                     Seen = side == Side.Us,
                     Veterancy = 0, DiedAt = -1,
                     Rank = i,
+                    Weapon = kit != null ? kit.Men[i] : Weapon.Rifle,
                 });
             }
             st.Events.Add(new SimEvent { Kind = EventKind.SquadSpawned, Tick = st.Tick, Side = side, Id = sq.Id });
@@ -186,9 +193,10 @@ namespace LanesOfVietnam.Sim
                 SquadSmoke = opts.SquadSmoke,
                 Drill = opts.Drill,
                 Fieldcraft = opts.Fieldcraft,
+                Arms = opts.Arms,
             };
             // A fork reads the parent's state without drawing from it.
-            if (opts.Frag) st.FragRng = rng.Fork("frag");
+            if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
@@ -483,7 +491,7 @@ namespace LanesOfVietnam.Sim
             }
 
             // --- grenades (Part 2, MatchOptions.Frag) -------------------------------
-            if (st.Frag && !opening) Frag.Tick(st);
+            if ((st.Frag || st.Arms) && !opening) Frag.Tick(st);
             if (st.SquadSmoke && !opening) SquadSmoke.Tick(st);
 
             // --- fire ------------------------------------------------------------

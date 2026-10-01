@@ -150,6 +150,8 @@ namespace LanesOfVietnam.Sim
         public const int GrenadesCarried = 2;
         /// <summary>A throw from cover, or from a knee: 20 m, and never at his own feet.</summary>
         public const double FragRange = 20, FragMin = 7;
+        /// <summary>With Arms, where every distance is the frame's: a throw is 12 m, and not inside 5.</summary>
+        public const double ArmsFragRange = 12, ArmsFragMin = 5;
         /// <summary>Chance a tick, while he has a target, that he throws: about one second's hesitation.</summary>
         public const double FragThrowChance = 0.05;
         /// <summary>Ticks between one man's throws.</summary>

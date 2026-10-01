@@ -81,6 +81,8 @@ SETS = {
     "m16": ("AR-15", None, 8),
     "ak": ("AK-47", None, 8),
     "sks": ("SKS", None, 4),
+    # The snipers' rifle on both sides: a Mosin-Nagant, the bolt action of this war's marksmen.
+    "bolt": ("Mosin Nagant", None, 4),
 }
 
 

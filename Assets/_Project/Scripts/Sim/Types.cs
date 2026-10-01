@@ -128,6 +128,9 @@ namespace LanesOfVietnam.Sim
         public int PlaceCover = -1;
         /// <summary>Ticks left climbing into or out of a trench: he neither moves nor fires.</summary>
         public int Vault;
+
+        /// <summary>What he carries (MatchOptions.Arms; the baseline's one rifle otherwise).</summary>
+        public Weapon Weapon;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -140,6 +143,9 @@ namespace LanesOfVietnam.Sim
         public double X, Z;
         /// <summary>Ticks until it detonates.</summary>
         public int Ticks;
+        /// <summary>Its burst: a hand grenade's unless a launcher or a mortar fired it (MatchOptions.Arms).</summary>
+        public double Radius = Tune.FragRadius, Kill = Tune.FragKill, CoverFactor = Tune.FragCoverFactor;
+        public Weapon By;
     }
 
     public sealed class Squad
@@ -168,6 +174,10 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks since the squad last changed cover.</summary>
         public int Held;
+
+        /// <summary>How far from an enemy in sight it fights, and whether it closes with him when he is beaten down (MatchOptions.Arms; its card's kit).</summary>
+        public double Reach = Tune.StandOff;
+        public bool Assaults = true;
 
         /// <summary>Which of the lane's three files the squad walks in, so two squads are never one column (MatchOptions.Fieldcraft).</summary>
         public int File;
@@ -293,10 +303,13 @@ namespace LanesOfVietnam.Sim
         // Vault: a man (Id) climbing into or out of a trench (X, Z: where).
         // PositionTaken: cover Id is now Side's.
         Melee, VaultIn, VaultOut, PositionTaken,
+        // Launch (MatchOptions.Arms): man Id fired a bursting round (an M79, a
+        // rocket, a mortar bomb) that comes down at X, Z in Amount ticks. Its
+        // burst is a GrenadeBlast, as a thrown grenade's is.
         // Through: the round that killed man Id went on into man Target
         // (Amount 1 if it killed him too). The view throws the first man's
         // blood out along it.
-        Through,
+        Through, Launch,
     }
 
     public struct SimEvent
@@ -355,6 +368,8 @@ namespace LanesOfVietnam.Sim
         public bool Drill;
         /// <summary>Part 2 rule: men who fight as a squad — files, places in cover, a stand-off, the assault, melee, levers (<see cref="Sim.Fieldcraft"/>). Off is the baseline.</summary>
         public bool Fieldcraft;
+        /// <summary>Part 2 rule: every man carries a weapon, every card buys its squad, every fight is at its weapons' distance (<see cref="Sim.Arms"/>). Off is the baseline.</summary>
+        public bool Arms;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();

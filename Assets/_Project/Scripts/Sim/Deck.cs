@@ -43,6 +43,8 @@ namespace LanesOfVietnam.Sim
             new Card { Id = "us-smoke", Group = CardGroup.Call, Name = "SMOKE", Cost = 10, Pips = 0, Cooldown = S * 14 },
             new Card { Id = "us-medevac", Group = CardGroup.Call, Name = "MEDEVAC", Cost = 16, Pips = 0, Cooldown = S * 24 },
             new Card { Id = "us-airstrike", Group = CardGroup.Call, Name = "AIR STRIKE", Cost = 40, Pips = 0, Cooldown = S * 45 },
+            // Appended (2026-10-01, the owner: "add a sniper class"), so every earlier card keeps its index.
+            new Card { Id = "us-sniper", Group = CardGroup.Support, Name = "SNIPER TEAM", Cost = 20, Pips = 2, Cooldown = S * 18 },
         });
 
         public static readonly Card[] Vc = Index(new[]
@@ -120,7 +122,7 @@ namespace LanesOfVietnam.Sim
             if (card.Pips > 0)
             {
                 double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                Match.SpawnSquad(st, side, lane, x, rng);
+                Match.SpawnSquad(st, side, lane, x, rng, card: card.Id);
                 return true;
             }
 

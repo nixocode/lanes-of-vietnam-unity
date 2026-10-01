@@ -118,6 +118,19 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
+            else if (p.StartsWith("Assets/_Project/Art/Weapons/") && p.EndsWith(".png"))
+            {
+                // The weapons' palette (tools/blender/weapons.py): a texel a material, read exactly.
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = TextureImporterType.Default;
+                ti.sRGBTexture = true;
+                ti.alphaSource = TextureImporterAlphaSource.None;
+                ti.npotScale = TextureImporterNPOTScale.None;
+                ti.mipmapEnabled = false;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Point;
+                ti.textureCompression = TextureImporterCompression.Uncompressed;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
             {
                 // One albedo (+ height in alpha) and one normal per layer
@@ -168,6 +181,17 @@ namespace LanesOfVietnam.Tools
                 mi.importNormals = ModelImporterNormals.Import;
                 mi.importTangents = ModelImporterTangents.CalculateMikk;
                 mi.skinWeights = ModelImporterSkinWeights.Standard;
+            }
+            else if (p.StartsWith("Assets/_Project/Art/Weapons/"))
+            {
+                // The weapons: plain meshes with their marker empties; SoldierBuilder makes the material.
+                mi.animationType = ModelImporterAnimationType.None;
+                mi.importAnimation = false;
+                mi.materialImportMode = ModelImporterMaterialImportMode.None;
+                mi.importCameras = false;
+                mi.importLights = false;
+                mi.meshCompression = ModelImporterMeshCompression.Off;
+                mi.importNormals = ModelImporterNormals.Import;
             }
             else if (p.StartsWith("Assets/_Project/Art/Structures/"))
             {

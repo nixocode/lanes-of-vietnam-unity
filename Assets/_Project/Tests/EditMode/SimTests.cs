@@ -59,7 +59,7 @@ namespace LanesOfVietnam.Tests
             // Editor's libm and the browser's; a different bit is a different
             // match. The match path uses JsMath's fdlibm port instead.
             var banned = new Regex(@"\bMath\.(Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Exp|Log|Log10|Pow|Cbrt|Sinh|Cosh|Tanh)\(");
-            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs", "Drill.cs", "Fieldcraft.cs" })
+            foreach (var name in new[] { "Match.cs", "Combat.cs", "Squads.cs", "Deck.cs", "LiveMatch.cs", "Frag.cs", "SquadSmoke.cs", "Drill.cs", "Fieldcraft.cs", "Arms.cs" })
             {
                 foreach (var (line, i) in File.ReadAllLines(Path.Combine(SimDir, name)).Select((l, i) => (l, i + 1)))
                 {
@@ -714,6 +714,120 @@ namespace LanesOfVietnam.Tests
             }
             foreach (var kind in new[] { EventKind.VaultIn, EventKind.VaultOut, EventKind.Melee, EventKind.Through, EventKind.PositionTaken })
                 Assert.Greater(seen.GetValueOrDefault(kind), 0, $"{kind} never happened");
+        }
+
+        // --- Part 2: arms, behind MatchOptions.Arms ------------------------------------------
+
+        private static MatchOptions Armed(int seed, bool onMap = true) => new MatchOptions
+        {
+            Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null,
+            Frag = onMap, SquadSmoke = onMap, Drill = true, Fieldcraft = true, Arms = true,
+        };
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms [map]`.</summary>
+        [TestCase(1, true, 3529, 579181621u, 4076764455u, 747731303u, "vc morale broke")]
+        [TestCase(7, false, 2233, 3546342329u, 1948655222u, 3300758969u, "vc morale broke")]
+        public void With_arms_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Arms, "arms must be off unless asked for");
+            var (a, m) = Played(Armed(seed, asTheGame));
+            var (b, _) = Played(Armed(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner: "add all the corresponding gun models to each class. Also
+        /// add a sniper class." Every card with men on it buys exactly the squad
+        /// its kit names, weapon by weapon, and its pips say how many; without
+        /// the rule every man is the baseline's one rifleman.
+        /// </summary>
+        [Test]
+        public void Every_card_with_men_on_it_buys_the_squad_its_kit_names()
+        {
+            Assert.IsNotNull(Deck.Find(Side.Us, "us-sniper"), "there is no US sniper card");
+            foreach (var side in Match.Sides)
+            foreach (var card in Deck.For(side).Where(c => c.Pips > 0))
+            {
+                var kit = Arms.For(card.Id);
+                Assert.IsNotNull(kit, $"{card.Id} has no kit");
+                Assert.AreEqual(card.Pips, kit.Men.Length, $"{card.Id}: its pips and its kit disagree");
+
+                var m = new LiveMatch(Armed(3));
+                m.State.Cp[(int)side] = 99;
+                int men = m.State.Men.Count;
+                m.Issue(Command.Buy(side, card.Id, 0, 0));
+                m.Step();
+                Assert.IsTrue(m.Log[0].Accepted, $"{card.Id} was not bought");
+                var bought = m.State.Men.Skip(men).ToList();
+                CollectionAssert.AreEqual(kit.Men, bought.Select(x => x.Weapon).ToArray(), $"{card.Id} bought the wrong men");
+                var sq = m.State.Squads[bought[0].Squad];
+                Assert.AreEqual(kit.Reach, sq.Reach, $"{card.Id}: the squad does not fight from its kit's distance");
+                Assert.AreEqual(kit.Assaults, sq.Assaults);
+            }
+            var sniper = Arms.For("us-sniper");
+            Assert.AreEqual(Weapon.Sniper, sniper.Men[0]);
+            Assert.AreEqual(Weapon.Sniper, Arms.For("vc-marksman").Men[0], "the VC's marksman is not a sniper");
+
+            var plain = new LiveMatch(Game(3, true));
+            Assert.IsTrue(plain.State.Men.All(x => x.Weapon == Weapon.Rifle), "without the rule a man carries something other than the one rifle");
+        }
+
+        /// <summary>
+        /// "Fix distance for all gunfights, it needs to be properly set": nobody
+        /// fires from beyond his weapon's range, a sniper engages from further
+        /// than a rifleman can and a submachine gun from nearer, a bursting round
+        /// bursts, and every weapon the map's squads carry is used.
+        /// </summary>
+        [Test]
+        public void With_arms_every_weapon_fights_at_its_own_distance()
+        {
+            var furthest = new Dictionary<Weapon, double>();
+            var shots = new Dictionary<Weapon, int>();
+            int launched = 0, burst = 0;
+            for (int seed = 1; seed <= 10; seed++)
+            {
+                var m = new LiveMatch(Armed(seed));
+                var st = m.State;
+                // One of every squad a card can buy, so the mortar and the engineers take the field too.
+                st.Cp[0] = st.Cp[1] = 400;
+                foreach (var side in Match.Sides)
+                    foreach (var card in Deck.For(side).Where(c => c.Pips > 0)) m.Issue(Command.Buy(side, card.Id, seed % 2, 0));
+                int from = 0;
+                while (!st.Over && st.Tick < m.Cap)
+                {
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.GrenadeBlast) burst++;
+                        if (e.Kind != EventKind.Fire && e.Kind != EventKind.Launch) continue;
+                        var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                        var arm = Arms.Of(by.Weapon);
+                        if (e.Kind == EventKind.Launch) { launched++; Assert.IsTrue(arm.Bursts, $"{by.Weapon} launched a round"); }
+                        else Assert.IsFalse(arm.Bursts, $"{by.Weapon} fired a bullet");
+                        // Both men may have moved a step since the range was taken.
+                        double d = Combat.Dist(by, at);
+                        Assert.LessOrEqual(d, arm.Range + 0.5, $"seed {seed} tick {e.Tick}: a {by.Weapon} fired at {d:F1} m");
+                        if (arm.MinRange > 0) Assert.GreaterOrEqual(d, arm.MinRange - 0.5, $"a {by.Weapon} fired at {d:F1} m, inside its minimum");
+                        furthest[by.Weapon] = Math.Max(furthest.GetValueOrDefault(by.Weapon), d);
+                        shots[by.Weapon] = shots.GetValueOrDefault(by.Weapon) + 1;
+                    }
+                    from = st.Events.Count;
+                }
+            }
+            foreach (Weapon w in Enum.GetValues(typeof(Weapon)))
+                if (w != Weapon.Rifle) Assert.Greater(shots.GetValueOrDefault(w), 0, $"no {w} was ever fired");
+            Assert.Greater(launched, 0);
+            Assert.GreaterOrEqual(burst, launched - 10, "rounds were launched that never burst");
+            Assert.Greater(furthest[Weapon.Sniper], Arms.Of(Weapon.M16).Range + 5, "the sniper never fired from beyond a rifle's range");
+            Assert.Less(furthest[Weapon.Smg], Arms.Of(Weapon.M16).Range, "a submachine gun reached as far as a rifle");
+            Assert.Greater(Arms.Of(Weapon.M60).Range, Arms.Of(Weapon.M16).Range);
         }
 
         [Test]

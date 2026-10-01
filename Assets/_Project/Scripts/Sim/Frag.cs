@@ -33,6 +33,8 @@ namespace LanesOfVietnam.Sim
                 Detonate(st, g, rng);
             }
 
+            // Launched rounds (Arms) burst here too; only the throwing is the grenade rule's own.
+            if (!st.Frag) return;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var a = st.Men[i];
@@ -50,7 +52,8 @@ namespace LanesOfVietnam.Sim
         public static Man PickTarget(SimState st, Man a)
         {
             Man best = null;
-            double bestD2 = Tune.FragRange * Tune.FragRange, min2 = Tune.FragMin * Tune.FragMin;
+            double far = st.Arms ? Tune.ArmsFragRange : Tune.FragRange, near = st.Arms ? Tune.ArmsFragMin : Tune.FragMin;
+            double bestD2 = far * far, min2 = near * near;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var b = st.Men[i];
@@ -100,11 +103,11 @@ namespace LanesOfVietnam.Sim
                 if (!m.Alive) continue;
                 double d = JsMath.Hypot(m.X - g.X, m.Z - g.Z);
                 if (d > Tune.FragPinRadius) continue;
-                if (d < Tune.FragRadius)
+                if (d < g.Radius)
                 {
-                    double t = 1 - d / Tune.FragRadius;
-                    double p = Tune.FragKill * t * Math.Sqrt(t);          // sqrt is exact everywhere; pow is not
-                    if (m.Cover >= 0) p *= Tune.FragCoverFactor;
+                    double t = 1 - d / g.Radius;
+                    double p = g.Kill * t * Math.Sqrt(t);                 // sqrt is exact everywhere; pow is not
+                    if (m.Cover >= 0) p *= g.CoverFactor;
                     else if (m.Posture == Posture.Prone) p *= Tune.FragProneFactor;
                     if (rng.Next() < p) { Combat.Kill(st, m); continue; }
                 }

@@ -110,6 +110,8 @@ namespace LanesOfVietnam.View
         /// <summary>Whether each man threw a grenade since the last frame, and how each man fell.</summary>
         private bool[] _threw = new bool[0];
         private SoldierFigure.Fall[] _fall = new SoldierFigure.Fall[0];
+        /// <summary>For a man shot or struck: how far along his facing the blow was travelling (1 from behind, -1 into his front).</summary>
+        private float[] _push = new float[0];
         /// <summary>A man reloads after this many shots, once he has not fired for LullTicks.</summary>
         public const int ReloadAfter = 6, LullTicks = 50;
         private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
@@ -232,6 +234,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _rounds, n);
                 System.Array.Resize(ref _threw, n);
                 System.Array.Resize(ref _fall, n);
+                System.Array.Resize(ref _push, n);
                 System.Array.Resize(ref _front, n);
                 System.Array.Resize(ref _turned, n);
                 System.Array.Resize(ref _struck, n);
@@ -276,6 +279,16 @@ namespace LanesOfVietnam.View
                     var prev = _eventCursor > 0 ? st.Events[_eventCursor - 1] : default;
                     bool shot = (prev.Kind == EventKind.Fire || prev.Kind == EventKind.Melee || prev.Kind == EventKind.Through)
                                 && prev.Target == e.Id && prev.Tick == e.Tick;
+                    // Which way it threw him: from the man who fired (or, for a round that
+                    // had already gone through someone, from that man) across his own facing.
+                    _push[e.Id] = 0f;
+                    if (shot && prev.Id >= 0 && prev.Id < st.Men.Count && e.Id < _yaw.Length)
+                    {
+                        var by = st.Men[prev.Id]; var him = st.Men[e.Id];
+                        var way = new Vector2((float)(him.X - by.X), (float)-(him.Z - by.Z));
+                        float yaw = _yaw[e.Id] * Mathf.Deg2Rad;
+                        if (way.sqrMagnitude > 0.01f) _push[e.Id] = Vector2.Dot(way.normalized, new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)));
+                    }
                     _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
                                 : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                     continue;
@@ -488,6 +501,7 @@ namespace LanesOfVietnam.View
                     var bodies = m.Side == Side.Us ? UsFigures : VcFigures;
                     f = _figures[i] = Instantiate(bodies[(int)(Hash(m.Id, 5) * bodies.Length) % bodies.Length], transform);
                     f.name = $"man {i}";
+                    f.Carry(AudioView.Model(m));
                     f.transform.localScale = Vector3.one * (0.97f + 0.05f * Hash(m.Id, 2));
                     _yaw[i] = yaw;
                 }
@@ -530,7 +544,7 @@ namespace LanesOfVietnam.View
                 Drawn++;
                 if (_threw[i]) { if (!jump) f.Throw(); _threw[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
-                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i]); _pending[i] = 0; Stepped++; continue; }
+                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
                 // stepped every other frame and skinned with two bones a vertex;
                 // one off it, every fourth. Staggered by id, so the work is even.
@@ -545,7 +559,7 @@ namespace LanesOfVietnam.View
                 }
                 _pending[i] += dt;
                 if ((frame + i) % every != 0) continue;
-                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death, _fall[i]);
+                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]);
                 _pending[i] = 0;
                 Stepped++;
             }
