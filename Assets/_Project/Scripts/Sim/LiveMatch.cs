@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace LanesOfVietnam.Sim
 {
-    public enum CommandKind { Order, Buy }
+    public enum CommandKind { Order, Buy, Lever }
 
     /// <summary>
     /// Something a player asked for. Commands are queued and applied at the
@@ -26,8 +26,15 @@ namespace LanesOfVietnam.Sim
         public static Command OrderSquad(Side side, int squad, Order? order)
             => new Command { Kind = CommandKind.Order, Side = side, Squad = squad, Order = order };
 
+        /// <summary>Lever: the position (a cover id), and where the side's lever on it goes (MatchOptions.Fieldcraft).</summary>
+        public int Cover;
+        public Lever Lever;
+
         public static Command Buy(Side side, string card, int lane, double aimX)
             => new Command { Kind = CommandKind.Buy, Side = side, Card = card, Lane = lane, AimX = aimX };
+
+        public static Command SetLever(Side side, int cover, Lever lever)
+            => new Command { Kind = CommandKind.Lever, Side = side, Cover = cover, Lever = lever };
     }
 
     /// <summary>
@@ -88,6 +95,9 @@ namespace LanesOfVietnam.Sim
         {
             switch (c.Kind)
             {
+                case CommandKind.Lever:
+                    return Fieldcraft.SetLever(State, c.Side, c.Cover, c.Lever);
+
                 case CommandKind.Order:
                     if (c.Squad < 0 || c.Squad >= State.Squads.Count) return false;
                     // A player commands his own side only.

@@ -42,6 +42,15 @@ namespace LanesOfVietnam.Sim
     /// </summary>
     public enum CoverKind { Trench, Sandbag, Bunker, Crater, Berm }
 
+    /// <summary>
+    /// The standing order on a position, per side (MatchOptions.Fieldcraft):
+    /// the lever over each trench in Warfare 1944. Auto leaves it to the plan,
+    /// which is where every position starts and where a plan-driven side
+    /// leaves it; Hold keeps the men who reach it in it; Go sends them out of
+    /// it and lets the next squad pass through.
+    /// </summary>
+    public enum Lever { Auto, Hold, Go }
+
     /// <summary>A called-in effect: a circle on the map with a clock on it.</summary>
     public enum AreaKind { Barrage, Smoke, Trap }
 
@@ -110,6 +119,15 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks until he may throw again (MatchOptions.Frag).</summary>
         public int FragCooldown;
+
+        // --- MatchOptions.Fieldcraft ---------------------------------------------
+        /// <summary>His place in the squad's file, 0 the lead man. Closes up when a man ahead falls.</summary>
+        public int Rank;
+        /// <summary>The place he has taken in a piece of cover (<see cref="Fieldcraft.PlaceOf"/>), and which; -1 for none.</summary>
+        public int Place = -1;
+        public int PlaceCover = -1;
+        /// <summary>Ticks left climbing into or out of a trench: he neither moves nor fires.</summary>
+        public int Vault;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -150,6 +168,15 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks since the squad last changed cover.</summary>
         public int Held;
+
+        /// <summary>Which of the lane's three files the squad walks in, so two squads are never one column (MatchOptions.Fieldcraft).</summary>
+        public int File;
+        /// <summary>Stopped short of the enemy this tick, or in its cover: its men kneel and fight (MatchOptions.Fieldcraft).</summary>
+        public bool Halted;
+        /// <summary>Closing with the enemy this tick (MatchOptions.Fieldcraft).</summary>
+        public bool Assault;
+        /// <summary>Ticks left of being sent out of a position by its lever; it ends when the squad reaches its next cover (MatchOptions.Fieldcraft).</summary>
+        public int Sent;
 
         /// <summary>The cover the squad is making for, or -1.</summary>
         public int Target = -1;
@@ -216,6 +243,11 @@ namespace LanesOfVietnam.Sim
 
         public Side? HeldBy;
 
+        /// <summary>Each side's standing order on it (MatchOptions.Fieldcraft; positions only).</summary>
+        public Lever LeverUs, LeverVc;
+        /// <summary>Whose position it is: the last side to have it to itself (MatchOptions.Fieldcraft).</summary>
+        public Side? Owner;
+
         public Cover Clone() => (Cover)MemberwiseClone();
     }
 
@@ -257,6 +289,14 @@ namespace LanesOfVietnam.Sim
         // Part 2, behind MatchOptions.Frag (PLAN §12.8). Appended, so every
         // earlier kind keeps its number.
         GrenadeThrown, GrenadeBlast,
+        // MatchOptions.Fieldcraft. Melee: Id struck at Target, hand to hand.
+        // Vault: a man (Id) climbing into or out of a trench (X, Z: where).
+        // PositionTaken: cover Id is now Side's.
+        Melee, VaultIn, VaultOut, PositionTaken,
+        // Through: the round that killed man Id went on into man Target
+        // (Amount 1 if it killed him too). The view throws the first man's
+        // blood out along it.
+        Through,
     }
 
     public struct SimEvent
@@ -313,6 +353,8 @@ namespace LanesOfVietnam.Sim
         public bool SquadSmoke;
         /// <summary>Part 2 rule: orders that stand, broken squads that hold, men who keep their places (<see cref="Sim.Drill"/>). Off is the baseline.</summary>
         public bool Drill;
+        /// <summary>Part 2 rule: men who fight as a squad — files, places in cover, a stand-off, the assault, melee, levers (<see cref="Sim.Fieldcraft"/>). Off is the baseline.</summary>
+        public bool Fieldcraft;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();
