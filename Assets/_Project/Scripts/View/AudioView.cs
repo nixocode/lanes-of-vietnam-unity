@@ -212,6 +212,11 @@ namespace LanesOfVietnam.View
                             Play(Pick(ricochet ? "crack" : "dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
                         }
                         break;
+                    case EventKind.Melee:
+                        // Hand to hand: the blow, heard only close.
+                        if (e.Id < st.Men.Count && Dist(st.Men[e.Id].X, st.Men[e.Id].Z, lx, lz) < 70)
+                            Play(Pick("thump"), st.Men[e.Id].X, st.Men[e.Id].Z, 0.9f, Range(0.75f, 0.9f), false);
+                        break;
                     case EventKind.Kill:
                         // A man going down: the round striking him, near enough to hear.
                         if (e.Id < st.Men.Count)

@@ -27,6 +27,7 @@ namespace LanesOfVietnam.View.UI
             ["bound"] = "BOUNDING: ONE SQUAD MOVES WHILE ANOTHER KEEPS THEIR HEADS DOWN",
             ["trap"] = "A TRAP HAS SPRUNG. EVERYONE NEAR IT GOES FLAT",
             ["glasses"] = "HOLD F FOR FIELD GLASSES",
+            ["lever"] = "HOLD KEEPS MEN IN A POSITION · GO SENDS THEM OVER THE TOP · RIGHT CLICK: THEIR OWN JUDGEMENT",
             ["armed"] = "CLICK THE GROUND TO PLACE IT · RIGHT CLICK OR ESC TO CANCEL",
         };
 

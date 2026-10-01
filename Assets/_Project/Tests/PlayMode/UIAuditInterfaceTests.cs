@@ -204,6 +204,66 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(FlowState.Playing, screens.State);
         }
 
+        /// <summary>
+        /// Warfare 1944's lever, on every position: a plate over each trench,
+        /// wall and bunker, and pressing its lever is a simulation command that
+        /// the simulation obeys. Pressed here as the player presses it.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator Every_position_has_a_lever_and_pulling_it_commands_the_simulation()
+        {
+            yield return LoadAndDeploy();
+            var hud = HudOf;
+            var st = Root.Driver.State;
+            Assert.IsTrue(st.Fieldcraft, "the game is not playing with fieldcraft");
+            var positions = st.Cover.Where(Fieldcraft.IsPosition).ToList();
+            Assert.Greater(positions.Count, 3);
+            Assert.AreEqual(positions.Count, hud.Positions.Plates.Count, "a position has no plate, or cover that is not one has");
+
+            void Press(UnityEngine.UIElements.Button b)
+            {
+                using (var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled()) { e.target = b; b.SendEvent(e); }
+            }
+            IEnumerator Ticks(int n)
+            {
+                int until = Root.Driver.State.Tick + n;
+                while (Root.Driver.State.Tick < until) yield return null;
+            }
+
+            foreach (var c in positions)
+            {
+                var plate = hud.Positions.Of(c.Id);
+                Assert.IsNotNull(plate, $"cover {c.Id} ({c.Kind}) has no plate");
+                Assert.AreEqual(Lever.Auto, c.LeverUs);
+                Press(plate.LeverButton);
+                yield return Ticks(2);
+                Assert.AreEqual(Lever.Hold, c.LeverUs, $"pressing the lever on cover {c.Id} did not hold it");
+                Assert.AreEqual("HOLD", plate.LeverButton.text);
+                Assert.IsTrue(plate.LeverButton.ClassListContains("hold"));
+                Press(plate.LeverButton);
+                yield return Ticks(2);
+                Assert.AreEqual(Lever.Go, c.LeverUs, $"pressing the lever on cover {c.Id} again did not send it");
+                Assert.IsTrue(plate.LeverButton.ClassListContains("go"));
+                hud.Positions.Pull(c.Id, Lever.Auto);
+                yield return Ticks(2);
+                Assert.AreEqual(Lever.Auto, c.LeverUs);
+                Assert.AreEqual(Lever.Auto, c.LeverVc, "the US player's lever moved the VC's");
+            }
+            Assert.AreEqual(positions.Count * 3, Root.Driver.Match.Log.Count(l => l.Command.Kind == CommandKind.Lever && l.Accepted),
+                            "a lever pulled is not in the match's command log");
+
+            // Held, the forward trench fills with men and they stay; the plate counts them.
+            var trench = positions.First(c => c.Kind == CoverKind.Trench && c.Z > 0);
+            hud.Positions.Pull(trench.Id, Lever.Hold);
+            yield return null;
+            Root.Driver.FastForward(240);
+            yield return null; yield return null;
+            int inside = st.Men.Count(m => m.Alive && m.Side == Side.Us && m.Cover == trench.Id);
+            Assert.Greater(inside, 2, "the held trench did not fill");
+            StringAssert.StartsWith($"{inside}/", hud.Positions.Of(trench.Id).Count.text, "the plate does not count the men in it");
+            StringAssert.Contains("lever", string.Join(" ", hud.Positions.Log));
+        }
+
         [UnityTest, Category("UIAudit")]
         public IEnumerator Every_card_of_both_decks_arms_places_and_changes_the_simulation()
         {

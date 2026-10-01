@@ -264,3 +264,37 @@
     font-size: 26px; letter-spacing: 6px; color: rgb(197, 95, 73);
     display: none;
 }
+
+/* --- the lever over each position (PositionPlates) --------------------------- */
+.plate {
+    position: absolute;
+    width: 92px; height: 46px;
+    flex-direction: row;
+    background-color: rgba(30, 32, 26, 0.82);
+    border-width: 1px; border-color: rgb(84, 82, 66);
+    border-radius: 2px;
+}
+.plate-flag {
+    width: 9px; height: 44px;
+    background-color: rgb(70, 68, 60);
+}
+.plate-flag.us { background-color: rgb(154, 167, 113); }
+.plate-flag.vc { background-color: rgb(197, 95, 73); }
+.plate-body { flex-grow: 1; flex-direction: column; align-items: center; }
+.plate-count {
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    height: 16px; margin: 1px 0 0 0; padding: 0;
+    font-size: 13px; letter-spacing: 1px; color: rgb(222, 212, 185);
+    -unity-text-align: middle-center;
+}
+.plate-lever {
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    width: 74px; height: 23px; margin: 1px 0 0 0; padding: 0;
+    font-size: 14px; letter-spacing: 2px;
+    background-color: rgb(52, 55, 41); color: rgb(190, 184, 160);
+    border-width: 1px; border-color: rgb(96, 98, 76); border-radius: 2px;
+    -unity-text-align: middle-center;
+}
+.plate-lever:hover { border-color: rgb(205, 179, 122); }
+.plate-lever.hold { background-color: rgb(78, 56, 40); border-color: rgb(205, 179, 122); color: rgb(240, 214, 150); }
+.plate-lever.go { background-color: rgb(96, 110, 58); border-color: rgb(190, 205, 130); color: rgb(244, 248, 220); }

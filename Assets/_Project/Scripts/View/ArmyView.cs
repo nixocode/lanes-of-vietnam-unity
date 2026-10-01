@@ -82,6 +82,9 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_rounds, 0, _rounds.Length);
             System.Array.Clear(_threw, 0, _threw.Length);
             System.Array.Clear(_fall, 0, _fall.Length);
+            System.Array.Clear(_struck, 0, _struck.Length);
+            System.Array.Clear(_climbUntil, 0, _climbUntil.Length);
+            System.Array.Clear(_turned, 0, _turned.Length);
             for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
@@ -118,6 +121,19 @@ namespace LanesOfVietnam.View
         /// <summary>How many figures were stepped in the last Draw.</summary>
         public int Stepped { get; private set; }
         private bool[] _moving = new bool[0], _faceLeft = new bool[0];
+        /// <summary>
+        /// Where each man's front is (a yaw): toward the nearest enemy he can see,
+        /// else up the lane. And whether he has turned to the way he is walking.
+        /// </summary>
+        private float[] _front = new float[0];
+        private bool[] _turned = new bool[0];
+        /// <summary>Whether each man struck a blow since the last frame, and the tick his climb into or out of a trench ends.</summary>
+        private bool[] _struck = new bool[0];
+        private int[] _climbUntil = new int[0];
+        /// <summary>Each man's height as drawn: it follows the ground, but over a parapet it takes a moment.</summary>
+        private float[] _height = new float[0];
+        /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
+        public const float FrontRange = 45f, ClimbRate = 3.2f;
         private int _speedTick = -1;
         /// <summary>Metres a second: above this a standing man jogs rather than walks.</summary>
         public const float RunAbove = 1.7f;
@@ -212,6 +228,11 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _rounds, n);
                 System.Array.Resize(ref _threw, n);
                 System.Array.Resize(ref _fall, n);
+                System.Array.Resize(ref _front, n);
+                System.Array.Resize(ref _turned, n);
+                System.Array.Resize(ref _struck, n);
+                System.Array.Resize(ref _climbUntil, n);
+                System.Array.Resize(ref _height, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -223,12 +244,27 @@ namespace LanesOfVietnam.View
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
+                if ((e.Kind == EventKind.VaultIn || e.Kind == EventKind.VaultOut) && e.Id < _climbUntil.Length)
+                {
+                    _climbUntil[e.Id] = e.Tick + (e.Kind == EventKind.VaultIn ? Tune.VaultInTicks : Tune.VaultOutTicks);
+                    continue;
+                }
+                if (e.Kind == EventKind.Melee && e.Id < _struck.Length)
+                {
+                    // A blow: he turns on his man as he would to shoot him.
+                    _struck[e.Id] = true;
+                    _firedAt[e.Id] = e.Tick;
+                    _target[e.Id] = e.Target ?? -1;
+                    continue;
+                }
                 if (e.Kind == EventKind.Kill && e.Id < _fall.Length)
                 {
-                    // The sim writes a kill straight after the shot that made it; a kill
-                    // with no shot before it was a shell or a grenade.
+                    // The sim writes a kill straight after the shot, the blow or the
+                    // round through another man that made it; a kill with none of
+                    // those before it was a shell or a grenade.
                     var prev = _eventCursor > 0 ? st.Events[_eventCursor - 1] : default;
-                    bool shot = prev.Kind == EventKind.Fire && prev.Target == e.Id && prev.Tick == e.Tick;
+                    bool shot = (prev.Kind == EventKind.Fire || prev.Kind == EventKind.Melee || prev.Kind == EventKind.Through)
+                                && prev.Target == e.Id && prev.Tick == e.Tick;
                     _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
                                 : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                     continue;
@@ -256,6 +292,24 @@ namespace LanesOfVietnam.View
                     // mostly along the lane's depth keeps the facing he had.
                     if (_moving[i]) { if (Mathf.Abs(_vx[i]) > 0.25f) _faceLeft[i] = _vx[i] < 0; }
                     else _faceLeft[i] = st.Men[i].Side == Side.Vc;
+                }
+                // Each man's front: the nearest enemy he can see, else up the lane.
+                for (int i = 0; i < st.Men.Count; i++)
+                {
+                    var m = st.Men[i];
+                    if (!m.Alive) continue;
+                    double best = FrontRange * FrontRange;
+                    float front = m.Side == Side.Us ? 90f : -90f;
+                    for (int j = 0; j < st.Men.Count; j++)
+                    {
+                        var o = st.Men[j];
+                        if (!o.Alive || o.Side == m.Side || !o.Seen) continue;
+                        double dx = o.X - m.X, dz = o.Z - m.Z, d2 = dx * dx + dz * dz;
+                        if (d2 >= best || d2 < 0.01) continue;
+                        best = d2;
+                        front = Mathf.Atan2((float)dx, (float)-dz) * Mathf.Rad2Deg;
+                    }
+                    _front[i] = front;
                 }
                 _speedTick = st.Tick;
             }
@@ -379,8 +433,24 @@ namespace LanesOfVietnam.View
                         var (tx, tz) = d.Position(tg);
                         yaw = Mathf.Atan2((float)(tx - x), (float)-(tz - z)) * Mathf.Rad2Deg;
                     }
-                    else if (_moving[i]) yaw = Mathf.Atan2(_vx[i], -_vz[i]) * Mathf.Rad2Deg;
-                    else yaw = m.Side == Side.Us ? 90f : -90f;
+                    else
+                    {
+                        // His front is the enemy. He turns to the way he is going when he
+                        // is going somewhere: running from the fight, or travelling within
+                        // a quarter turn of his front. A few paces sideways or back he
+                        // takes as he stands, facing the enemy: the baseline's men spun on
+                        // the spot for every one of them.
+                        yaw = _front[i];
+                        if (_moving[i])
+                        {
+                            float travel = Mathf.Atan2(_vx[i], -_vz[i]) * Mathf.Rad2Deg;
+                            float off = Mathf.Abs(Mathf.DeltaAngle(_front[i], travel));
+                            bool fleeing = m.Squad < st.Squads.Count && st.Squads[m.Squad].Order == Order.Fallback;
+                            _turned[i] = fleeing || off < (_turned[i] ? 100f : 70f);
+                            if (_turned[i]) yaw = travel;
+                        }
+                        else _turned[i] = false;
+                    }
                 }
                 var f = _figures[i];
                 bool fresh = f == null;
@@ -394,10 +464,25 @@ namespace LanesOfVietnam.View
                 }
                 // Turned at most 300 degrees a second of match time: a man pivots, he does not snap.
                 _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, 300f * dt);
-                var at = Coords.World(x, z, (float)g.HeightAt(x, z));
+                // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
+                float ground = (float)g.HeightAt(x, z);
+                _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
+                                                       : Mathf.MoveTowards(_height[i], ground, ClimbRate * dt);
+                var at = Coords.World(x, z, _height[i]);
                 f.transform.SetPositionAndRotation(at, Quaternion.Euler(0, _yaw[i], 0));
                 int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
+                // Climbing into a trench or out of it he is down on the parapet (until the clips for it are in).
+                bool climbing = m.Alive && st.Tick < _climbUntil[i];
+                if (climbing && posture == 0) posture = 1;
                 float speed = _moving[i] ? _speed[i] : 0f;
+                // Stepping back or across while he faces the enemy: the backward clips, not a moonwalk.
+                if (_moving[i] && m.Alive)
+                {
+                    float travel = Mathf.Atan2(_vx[i], -_vz[i]) * Mathf.Rad2Deg;
+                    float along = Mathf.Cos(Mathf.DeltaAngle(_yaw[i], travel) * Mathf.Deg2Rad);
+                    if (along < -0.3f) speed = -speed;
+                    else if (along < 0.3f) speed *= 0.6f;
+                }
                 int death = (int)(Hash(m.Id, 1) * 16);
                 if (_shot[i]) { f.Fire(); _shot[i] = false; }
                 // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
@@ -410,6 +495,7 @@ namespace LanesOfVietnam.View
                 }
                 Drawn++;
                 if (_threw[i]) { if (!jump) f.Throw(); _threw[i] = false; }
+                if (_struck[i]) { if (!jump) f.Strike(); _struck[i] = false; }
                 if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i]); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
                 // stepped every other frame and skinned with two bones a vertex;

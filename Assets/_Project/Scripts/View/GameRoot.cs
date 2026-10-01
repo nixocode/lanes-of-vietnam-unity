@@ -122,6 +122,8 @@ namespace LanesOfVietnam.View
                 SquadSmoke = CaptureSettings.Active?.SquadSmoke ?? true,
                 // Drill (Part 2): orders that stand and men who keep their places. On in the game.
                 Drill = CaptureSettings.Active?.Drill ?? true,
+                // Fieldcraft (Part 2): squads that stop short of the enemy, places in cover, melee, levers. On in the game.
+                Fieldcraft = CaptureSettings.Active?.Fieldcraft ?? true,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

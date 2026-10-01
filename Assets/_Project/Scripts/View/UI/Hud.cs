@@ -35,6 +35,9 @@ namespace LanesOfVietnam.View.UI
         public readonly List<CardView> Cards = new List<CardView>();
         public readonly Dictionary<string, Button> Buttons = new Dictionary<string, Button>();
 
+        /// <summary>The lever over each position (PositionPlates): Warfare 1944's hold and go.</summary>
+        public PositionPlates Positions { get; private set; }
+
         public FieldOrders Orders { get; private set; }
         public Tutor Tutor { get; private set; }
 
@@ -106,6 +109,10 @@ namespace LanesOfVietnam.View.UI
             var ui = new VisualElement { name = "lov-root", pickingMode = PickingMode.Ignore };
             ui.AddToClassList("lov-root");
             root.Add(ui);
+
+            // The levers float over the battlefield, under the bars.
+            Positions = new PositionPlates(Root, ui);
+            Positions.Pulled += lever => { Orders.Mark(lever == Lever.Go ? "lever:go" : lever == Lever.Hold ? "lever:hold" : "lever:auto"); Tutor.Teach("lever"); };
 
             // --- the command strip ---------------------------------------------
             var top = new VisualElement { name = "topbar" };
@@ -263,6 +270,17 @@ namespace LanesOfVietnam.View.UI
 
             Orders.Update(st);
             OrdersLine.text = Orders.Line;
+
+            Positions.Update();
+            // H holds and G sends: the position under the pointer, else the selected squad's.
+            if (CaptureSettings.Active == null && (Input.GetKeyDown(KeyCode.H) || Input.GetKeyDown(KeyCode.G)))
+            {
+                var mouse = Input.mousePosition;
+                var plate = Positions.Near(RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(mouse.x, Screen.height - mouse.y)));
+                if (plate == null && Commander.Selected >= 0 && Commander.Selected < st.Squads.Count)
+                    plate = Positions.Of(st.Squads[Commander.Selected].Target);
+                if (plate != null) Positions.Pull(plate.Cover, Input.GetKeyDown(KeyCode.H) ? Lever.Hold : Lever.Go);
+            }
 
             Strip.State = st;
             Strip.CameraX = Root.CameraRig.X;

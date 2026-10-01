@@ -546,8 +546,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill fieldcraft [map]`.</summary>
-        [TestCase(1, true, 4037, 3326673888u, 217291906u, 638893086u, "us morale broke")]
-        [TestCase(7, false, 3373, 807552359u, 4218661143u, 3430317594u, "us morale broke")]
+        [TestCase(1, true, 4037, 3326673888u, 4237922354u, 106791830u, "us morale broke")]
+        [TestCase(7, false, 3373, 807552359u, 2343319815u, 799490706u, "us morale broke")]
         public void With_fieldcraft_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
