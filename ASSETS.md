@@ -405,6 +405,7 @@ singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
 | fire | `fire`, `fire_b` (Firing Rifle, standing x2), `fire_walk`, `fire_crouch_walk` (Firing Rifle while walking / crouch walking) |
 | reactions | `flinch` (Rifle Shielding Face), `hit_back` (Rifle Hit To Back), `kneel_hit` (Rifle Kneel Hit To Back), `prone_hit` (Rifle Prone Hit Reaction), `reload` (Reloading), `grenade` (Toss Grenade) |
 | deaths | `death_front_head`, `death_right`, `death_back_head`, `death_back`, `death_front`, `death_crouch_head` (Pack); `death_rifle` (Rifle Death), `death_fall_back` (Falling Back Death), `death_backwards` (Dying Backwards), `death_blast` (Flying Back Death), `death_run` (Rifle Run To Dying), `prone_death` |
+| fieldcraft (fetched 2026-10-01, owner's OK the same day) | `melee_stab` (Bayonet Stab), `melee_slash` (Slash Advance), `trench_in` (Jump Down: "Rifle Jump Down"), `trench_out` (Climbing Up Wall). sha256 starts: `melee_stab` 8658dde2e4dce16d, `melee_slash` d394a05e0836035a, `trench_in` de5a087ff1037816, `trench_out` f653a1d3d89b6ecd |
 
 ### Structures — `Assets/_Project/Art/Structures/`
 

@@ -172,8 +172,10 @@ namespace LanesOfVietnam.Sim
         public const double DrillSlack = 0.35;
 
         // --- fieldcraft (MatchOptions.Fieldcraft, Part 2) ------------------------------
-        /// <summary>Metres between the lane's three files.</summary>
-        public const double FileGap = 1.3;
+        /// <summary>Metres from the middle of the lane to the file either side of it.</summary>
+        public const double FileGap = 1.45;
+        /// <summary>Metres between the men of a squad as it arrives.</summary>
+        public const double SpawnGap = 1.3;
         /// <summary>Metres a man stands either side of his squad's file.</summary>
         public const double FileStagger = 0.45;
         /// <summary>A man whose place in the file is less than this behind him waits for the file to come up, rather than walk back to it.</summary>
@@ -212,8 +214,8 @@ namespace LanesOfVietnam.Sim
         public const int SentTicks = TickHz * 20;
         /// <summary>Ticks to climb into a trench, and out of one.</summary>
         public const int VaultInTicks = 14, VaultOutTicks = 18;
-        /// <summary>Morale a side loses with a position (about two men's worth).</summary>
-        public const double PositionMorale = 0.05;
+        /// <summary>Morale a side loses with a built position (about two men's worth), and with a crater or a bank.</summary>
+        public const double PositionMorale = 0.05, GroundMorale = 0.02;
 
         // --- squad smoke (MatchOptions.SquadSmoke, Part 2) -----------------------------
         /// <summary>An M18 or two per squad.</summary>

@@ -84,6 +84,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_fall, 0, _fall.Length);
             System.Array.Clear(_struck, 0, _struck.Length);
             System.Array.Clear(_climbUntil, 0, _climbUntil.Length);
+            System.Array.Clear(_climbStart, 0, _climbStart.Length);
             System.Array.Clear(_turned, 0, _turned.Length);
             for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
@@ -130,6 +131,9 @@ namespace LanesOfVietnam.View
         /// <summary>Whether each man struck a blow since the last frame, and the tick his climb into or out of a trench ends.</summary>
         private bool[] _struck = new bool[0];
         private int[] _climbUntil = new int[0];
+        /// <summary>A climb: how long it is (ticks), which way (1 in, -1 out; 0 none to start), and where he was drawn when it began.</summary>
+        private int[] _climbTicks = new int[0], _climbStart = new int[0];
+        private Vector2[] _climbFrom = new Vector2[0], _drawn = new Vector2[0];
         /// <summary>Each man's height as drawn: it follows the ground, but over a parapet it takes a moment.</summary>
         private float[] _height = new float[0];
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
@@ -232,6 +236,10 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _turned, n);
                 System.Array.Resize(ref _struck, n);
                 System.Array.Resize(ref _climbUntil, n);
+                System.Array.Resize(ref _climbTicks, n);
+                System.Array.Resize(ref _climbStart, n);
+                System.Array.Resize(ref _climbFrom, n);
+                System.Array.Resize(ref _drawn, n);
                 System.Array.Resize(ref _height, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
@@ -246,7 +254,10 @@ namespace LanesOfVietnam.View
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
                 if ((e.Kind == EventKind.VaultIn || e.Kind == EventKind.VaultOut) && e.Id < _climbUntil.Length)
                 {
-                    _climbUntil[e.Id] = e.Tick + (e.Kind == EventKind.VaultIn ? Tune.VaultInTicks : Tune.VaultOutTicks);
+                    _climbTicks[e.Id] = e.Kind == EventKind.VaultIn ? Tune.VaultInTicks : Tune.VaultOutTicks;
+                    _climbUntil[e.Id] = e.Tick + _climbTicks[e.Id];
+                    _climbStart[e.Id] = e.Kind == EventKind.VaultIn ? 1 : -1;
+                    _climbFrom[e.Id] = _drawn[e.Id];
                     continue;
                 }
                 if (e.Kind == EventKind.Melee && e.Id < _struck.Length)
@@ -422,6 +433,24 @@ namespace LanesOfVietnam.View
             {
                 var m = st.Men[i];
                 var (x, z) = d.Position(i);
+                if (m.Alive)
+                {
+                    // A trench is one man wide: in it he is drawn on its line, and while he
+                    // climbs he is carried over its lip (the simulation holds him at the lip
+                    // for the climb, then walks him in).
+                    if (m.Cover >= 0 && m.Cover < st.Cover.Count && Fieldcraft.Dug(st.Cover[m.Cover])) z = st.Cover[m.Cover].Z;
+                    float left = _climbUntil[i] - (st.Tick + (float)d.Alpha);
+                    if (left > 0 && _climbTicks[i] > 0 && !jump)
+                    {
+                        float w = Mathf.SmoothStep(0f, 1f, 1f - left / _climbTicks[i]);
+                        x = Mathf.Lerp(_climbFrom[i].x, (float)x, w);
+                        z = Mathf.Lerp(_climbFrom[i].y, (float)z, w);
+                    }
+                    _drawn[i] = new Vector2((float)x, (float)z);
+                }
+                // He lies where he was drawn when he fell (unless this frame is a jump in time).
+                else if (jump || _figures[i] == null || _drawn[i] == default) _drawn[i] = new Vector2((float)x, (float)z);
+                else { x = _drawn[i].x; z = _drawn[i].y; }
                 bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (!_moving[i] || _speed[i] < RunAbove);
                 // Where he faces, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
                 float yaw = _yaw[i];
@@ -471,9 +500,14 @@ namespace LanesOfVietnam.View
                 var at = Coords.World(x, z, _height[i]);
                 f.transform.SetPositionAndRotation(at, Quaternion.Euler(0, _yaw[i], 0));
                 int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
-                // Climbing into a trench or out of it he is down on the parapet (until the clips for it are in).
+                // Climbing into a trench or out of it: the clip, or without one, down on the parapet.
                 bool climbing = m.Alive && st.Tick < _climbUntil[i];
-                if (climbing && posture == 0) posture = 1;
+                if (_climbStart[i] != 0)
+                {
+                    if (!jump && !fresh && m.Alive && !f.Climb(_climbStart[i] > 0)) _climbTicks[i] = -_climbTicks[i];
+                    _climbStart[i] = 0;
+                }
+                if (climbing && _climbTicks[i] < 0 && posture == 0) posture = 1;
                 float speed = _moving[i] ? _speed[i] : 0f;
                 // Stepping back or across while he faces the enemy: the backward clips, not a moonwalk.
                 if (_moving[i] && m.Alive)
@@ -495,7 +529,7 @@ namespace LanesOfVietnam.View
                 }
                 Drawn++;
                 if (_threw[i]) { if (!jump) f.Throw(); _threw[i] = false; }
-                if (_struck[i]) { if (!jump) f.Strike(); _struck[i] = false; }
+                if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
                 if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i]); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
                 // stepped every other frame and skinned with two bones a vertex;

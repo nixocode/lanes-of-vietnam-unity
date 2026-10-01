@@ -54,9 +54,11 @@ namespace LanesOfVietnam.View.UI
     }
 
     /// <summary>
-    /// Warfare 1944's lever, on every trench, wall and bunker
-    /// (<see cref="Fieldcraft"/>): a plate floating over each position, placed
-    /// from the world every frame, with the player's standing order on it.
+    /// Warfare 1944's lever, on every strongpoint: any piece of cover, built
+    /// (a wall, the bunker, a trench) or natural (a crater, a bank). A plate
+    /// floats over each (<see cref="Fieldcraft"/>), placed from the world every
+    /// frame, with the men the player has in it against the room it has (not
+    /// everyone fits: the rest wait behind it) and his standing order on it.
     ///
     ///   HOLD   squads that reach it stay in it, and the next squad up the lane
     ///          makes for it

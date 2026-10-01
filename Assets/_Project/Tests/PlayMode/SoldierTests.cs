@@ -37,6 +37,8 @@ namespace LanesOfVietnam.Tests
                 var f = army.FigureOf(i);
                 Assert.IsNotNull(f, $"man {i} has no figure");
                 var (x, z) = Root.Driver.Position(i);
+                // A trench is one man wide: a living man in one is drawn on its line.
+                if (m.Alive && m.Cover >= 0 && Fieldcraft.Dug(st.Cover[m.Cover])) z = st.Cover[m.Cover].Z;
                 var at = Coords.World(x, z, (float)Root.Ground.HeightAt(x, z));
                 Assert.Less(Vector3.Distance(f.transform.position, at), 0.01f, $"man {i} is not where the sim has him");
                 if (!m.Alive) { dead++; continue; }

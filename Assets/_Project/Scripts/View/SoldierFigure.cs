@@ -54,6 +54,11 @@ namespace LanesOfVietnam.View
         public int Deaths = 2;
         /// <summary>Deaths for circumstances, where Mixamo's clips exist for them.</summary>
         public bool RunDeath, BlastDeath, CrouchDeath, ProneDeath;
+        /// <summary>How many clips the Animator has for a blow hand to hand (states "Melee n" from BlowFirst), and whether it has the climb into and out of a trench.</summary>
+        public int Blows, BlowFirst;
+        public bool Climbs;
+        /// <summary>Where in its clip a blow starts (past the wind-up), and how far he is carried in behind it.</summary>
+        public const float BlowFrom = 0.18f;
         /// <summary>How a man died, as the view can tell: shot, shot while running, or by a blast.</summary>
         public enum Fall { Shot, Running, Blast }
         public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103;
@@ -71,6 +76,7 @@ namespace LanesOfVietnam.View
         private float _recoil, _aim, _deadFor = -1f;
         /// <summary>A blow hand to hand: 1 as it starts, 0 when it is over.</summary>
         private float _lunge;
+        private bool _lean;
         /// <summary>Seconds a blow takes, and how far it carries him toward his man.</summary>
         public const float LungeSeconds = 0.42f, LungeReach = 0.55f;
         private int _aimLayer = -1;
@@ -201,16 +207,29 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
-        /// A blow hand to hand (the sim's Melee): he drives in behind the rifle.
-        /// Until a clip is sourced for it, the lunge is made here: the body
-        /// thrown forward and back, the trunk over the weapon.
+        /// A blow hand to hand (the sim's Melee): Mixamo's bayonet stab or
+        /// slash, by <paramref name="which"/>, and the body carried in behind
+        /// it (the clips advance; their travel is left in the root, so the
+        /// lunge is given here). Without the clips, the lunge alone with the
+        /// trunk over the weapon.
         /// </summary>
-        public void Strike()
+        public void Strike(int which = 0)
         {
             if (_deadFor >= 0 || _baked) return;
             _lunge = 1f;
-            if (_reactLayer >= 0 && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
+            _lean = Blows == 0;
+            if (_reactLayer < 0) return;
+            if (Blows > 0) Animator.CrossFadeInFixedTime("Melee " + (BlowFirst + which % Blows), 0.08f, _reactLayer, 0f, BlowFrom);
+            else if (Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
                 Animator.CrossFadeInFixedTime("Calm", 0.08f, _reactLayer);
+        }
+
+        /// <summary>Into a trench or out of it (the sim's VaultIn and VaultOut). False if there is no clip for it.</summary>
+        public bool Climb(bool into)
+        {
+            if (_deadFor >= 0 || _baked || !Climbs || _reactLayer < 0) return false;
+            Animator.CrossFadeInFixedTime(into ? "Climb in" : "Climb out", 0.08f, _reactLayer);
+            return true;
         }
 
         /// <summary>A lull after shooting: a fresh magazine (where the posture has a reload clip).</summary>
@@ -225,7 +244,7 @@ namespace LanesOfVietnam.View
         {
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
-            if (_lunge > 0f && Chest != null)
+            if (_lunge > 0f && _lean && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(24f * Mathf.Sin(Mathf.PI * (1f - _lunge)), transform.right) * Chest.rotation;
             if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
             var r = Rifle.transform;

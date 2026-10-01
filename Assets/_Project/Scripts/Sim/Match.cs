@@ -157,7 +157,7 @@ namespace LanesOfVietnam.Sim
                 // Draw order as the original's object literal: z, then cooldown.
                 double mx = x - dir * i * Tune.SlotGap;
                 double mz = Tune.Lanes[lane] + rng.Range(-1.2, 1.2);
-                if (st.Fieldcraft) mz = Fieldcraft.SpawnZ(sq, i);
+                if (st.Fieldcraft) { mx = Fieldcraft.SpawnX(x, dir, i, n); mz = Fieldcraft.SpawnZ(sq, i); }
                 int cd = rng.Int(0, Tune.Cooldown);
                 st.Men.Add(new Man
                 {

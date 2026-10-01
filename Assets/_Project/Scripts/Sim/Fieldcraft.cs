@@ -42,7 +42,8 @@ namespace LanesOfVietnam.Sim
     ///              metres a man goes for his enemy, and at two they fight hand
     ///              to hand. Smoke hides an enemy from the stand-off, so two
     ///              squads in smoke find each other at arm's length
-    ///   levers     a side's standing order on a position (Warfare 1944's):
+    ///   levers     a side's standing order on a strongpoint, which is any
+    ///              piece of cover, built or natural (Warfare 1944's lever):
     ///              Hold keeps a squad that reaches it and calls the next one
     ///              to it; Go sends it on and lets the next pass through
     ///   vault      climbing into a trench or out of it takes a moment in which
@@ -57,11 +58,21 @@ namespace LanesOfVietnam.Sim
     /// </summary>
     public static class Fieldcraft
     {
-        public static bool IsPosition(Cover c)
+        /// <summary>
+        /// Every piece of cover is a strongpoint a squad can be told to hold:
+        /// built (a wall, the bunker, a trench) or natural (a crater, a bank).
+        /// The owner, 2026-10-01: "don't think of trenches, it's more like a
+        /// stronghold for squads to take cover. Not all can fit at once, could
+        /// be man made or natural."
+        /// </summary>
+        public static bool IsPosition(Cover c) => true;
+
+        /// <summary>Built by somebody, and worth more to lose than a hole in the ground.</summary>
+        public static bool Built(Cover c)
             => c.Kind == CoverKind.Trench || c.Kind == CoverKind.Sandbag || c.Kind == CoverKind.Bunker;
 
-        /// <summary>Dug into the ground: a man climbs into it and out of it.</summary>
-        public static bool Dug(Cover c) => c.Kind == CoverKind.Trench || c.Kind == CoverKind.Bunker;
+        /// <summary>Dug into the ground: one man wide, and a man climbs into it and out of it.</summary>
+        public static bool Dug(Cover c) => c.Kind == CoverKind.Trench;
 
         public static Lever LeverOf(Cover c, Side side) => side == Side.Us ? c.LeverUs : c.LeverVc;
 
@@ -86,7 +97,12 @@ namespace LanesOfVietnam.Sim
             sq.File = n % 3;
         }
 
-        private static double FileZ(Squad sq) => (sq.File - 1) * Tune.FileGap;
+        /// <summary>
+        /// A file's line across the lane: the first two squads either side of the
+        /// middle, the third down it. The middle is where cover's places are, so
+        /// a squad passing a held position walks by the men in it, not through them.
+        /// </summary>
+        private static double FileZ(Squad sq) => sq.File == 0 ? -Tune.FileGap : sq.File == 1 ? Tune.FileGap : 0;
 
         /// <summary>
         /// Which side of the file a man walks on: his number in the squad as it
@@ -97,6 +113,19 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Where the <paramref name="number"/>th man of a new squad stands across the lane: in its file.</summary>
         public static double SpawnZ(Squad sq, int number) => Tune.Lanes[sq.Lane] + FileZ(sq) + SideOf(number);
+
+        /// <summary>
+        /// Where he stands along it: closed up behind the lead man, and all of
+        /// them on the map. (The baseline strings a new squad out at marching
+        /// distance from the map's edge backwards, and the edge clamps every man
+        /// past the second onto one spot.)
+        /// </summary>
+        public static double SpawnX(double x, double dir, int number, int size)
+        {
+            double edge = Tune.HalfLength - 0.5, depth = (size - 1) * Tune.SpawnGap;
+            double lead = dir > 0 ? Math.Max(x, -edge + depth) : Math.Min(x, edge - depth);
+            return lead - dir * number * Tune.SpawnGap;
+        }
 
         /// <summary>
         /// A step, kept clear of friends: a man does not walk onto another. In
@@ -547,7 +576,7 @@ namespace LanesOfVietnam.Sim
                 if (c.Owner.HasValue)
                 {
                     var lost = c.Owner.Value;
-                    double hit = Tune.PositionMorale * st.MoraleScale;
+                    double hit = (Built(c) ? Tune.PositionMorale : Tune.GroundMorale) * st.MoraleScale;
                     st.Morale[(int)lost] = Math.Max(0, st.Morale[(int)lost] - hit);
                     st.MoraleLostToGround[(int)lost] += hit;
                     st.Events.Add(new SimEvent { Kind = EventKind.PositionTaken, Tick = st.Tick, Side = now, Id = c.Id, X = c.X, Z = c.Z });

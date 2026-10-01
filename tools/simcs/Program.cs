@@ -286,8 +286,9 @@ namespace LanesOfVietnam.SimCs
         /// themselves, cross each other"). `muddle [seed] [ticks] [flags]`.
         ///   through   a living man walks past a living enemy within 5 m of him
         ///   on top    man-seconds spent within 0.6 m of a friend
-        ///   crossed   two men of a squad, within 2 m along the lane, swap sides
-        ///   about     a man's direction of travel swings by over 90 degrees
+        ///   crossed   two men of a squad, within 2 m along the lane, change sides
+        ///             (clear of each other by 0.3 m one way, then the other)
+        ///   about     a man's direction of travel swings by over 120 degrees
         ///   point blank  enemy pairs within 3 m, in man-seconds
         /// </summary>
         private static int Muddle(string[] a)
@@ -303,6 +304,7 @@ namespace LanesOfVietnam.SimCs
                 var m = new LiveMatch(Game(seed, a));
                 var st = m.State;
                 var prev = new Dictionary<int, (double x, double z)>();
+                var sides = new Dictionary<long, int>();
                 var head = new Dictionary<int, (double x, double z)>();
                 for (int t = 0; t < ticks && !st.Over; t++)
                 {
@@ -317,7 +319,7 @@ namespace LanesOfVietnam.SimCs
                         double vx = p.X - p0.x, vz = p.Z - p0.z;
                         if (vx * vx + vz * vz > 0.02 * 0.02)
                         {
-                            if (head.TryGetValue(p.Id, out var h) && h.x * vx + h.z * vz < 0)
+                            if (head.TryGetValue(p.Id, out var h) && h.x * vx + h.z * vz < -0.5 * Math.Sqrt((h.x * h.x + h.z * h.z) * (vx * vx + vz * vz)))
                             {
                                 about++;
                                 var psq = st.Squads[p.Squad];
@@ -327,8 +329,12 @@ namespace LanesOfVietnam.SimCs
                                     : p.Place >= 0 ? "taking a place in cover"
                                     : Math.Abs(vx) < Math.Abs(vz) ? "across the lane" : "along the lane";
                                 turned[why] = turned.GetValueOrDefault(why) + 1;
-                                if (a.Contains("why2") && (why == "across the lane" || why == "getting round a friend") && shown++ < 14)
-                                    Console.WriteLine($"    t{st.Tick} {why}: sq{p.Squad} {psq.Order} target {psq.Target} anchor ({psq.AnchorX:F2},{psq.AnchorZ:F2}) halted {psq.Halted} | man {p.Id} rank {p.Rank} place {p.Place}@{p.PlaceCover} pin {p.Pin:F2} ({p0.x:F2},{p0.z:F2})->({p.X:F2},{p.Z:F2}) was heading ({h.x:F2},{h.z:F2})");
+                                if (a.Contains("why2") && why == "along the lane" && shown++ < 16)
+                                {
+                                    var fr = live.Where(e => e.Side == p.Side && e != p).OrderBy(e => (e.X - p.X) * (e.X - p.X) + (e.Z - p.Z) * (e.Z - p.Z)).First();
+                                    before.TryGetValue(fr.Id, out var f0);
+                                    Console.WriteLine($"    t{st.Tick} sq{p.Squad} {psq.Order} tgt {psq.Target} | man {p.Id} r{p.Rank} p{p.Place} cover {p.Cover} pin {p.Pin:F2} ({p0.x:F2},{p0.z:F2})->({p.X:F2},{p.Z:F2}) was ({h.x:F2},{h.z:F2}) | friend {fr.Id} sq{fr.Squad} r{fr.Rank} p{fr.Place} pin {fr.Pin:F2} ({f0.x:F2},{f0.z:F2})->({fr.X:F2},{fr.Z:F2})");
+                                }
                             }
                             head[p.Id] = (vx, vz);
                         }
@@ -356,13 +362,25 @@ namespace LanesOfVietnam.SimCs
                                     if (a.Contains("why") && why.StartsWith("in cover, one") && shown++ < 12)
                                         Console.WriteLine($"    t{st.Tick} sq{p.Squad} {st.Squads[p.Squad].Order} target {st.Squads[p.Squad].Target} anchor {st.Squads[p.Squad].AnchorX:F1} | man {p.Id} rank {p.Rank} place {p.Place}@{p.PlaceCover} cover {p.Cover} pin {p.Pin:F2} ({p.X:F2},{p.Z:F2}) | man {q.Id} rank {q.Rank} place {q.Place}@{q.PlaceCover} cover {q.Cover} pin {q.Pin:F2} ({q.X:F2},{q.Z:F2})");
                                 }
-                                if (p.Squad == q.Squad && Math.Abs(dx) < 2 && Math.Sign(p0.z - q0.z) != Math.Sign(dz) && Math.Sign(p0.z - q0.z) != 0) crossed++;
+                                // A change of sides: clear of each other across the lane (0.3 m) one way, then the other.
+                                if (p.Squad == q.Squad && Math.Abs(dx) < 2 && Math.Abs(dz) > 0.3)
+                                {
+                                    long pair = ((long)p.Id << 20) | (uint)q.Id;
+                                    int now = Math.Sign(dz);
+                                    if (sides.TryGetValue(pair, out int was) && was != now)
+                                    {
+                                        crossed++;
+                                        if (a.Contains("why3") && shown++ < 14)
+                                            Console.WriteLine($"    t{st.Tick} sq{p.Squad} {st.Squads[p.Squad].Order} tgt {st.Squads[p.Squad].Target} | man {p.Id} r{p.Rank} p{p.Place} cover {p.Cover} pin {p.Pin:F2} ({p.X:F2},{p.Z:F2}) | man {q.Id} r{q.Rank} p{q.Place} cover {q.Cover} pin {q.Pin:F2} ({q.X:F2},{q.Z:F2})");
+                                    }
+                                    sides[pair] = now;
+                                }
                             }
                         }
                     }
                 }
                 if (a.Contains("when"))
-                    foreach (var e in st.Events.Where(e => e.Kind == EventKind.Melee || e.Kind == EventKind.Through || e.Kind == EventKind.PositionTaken).Take(14))
+                    foreach (var e in st.Events.Where(e => e.Kind == EventKind.Melee || e.Kind == EventKind.VaultOut || e.Kind == EventKind.PositionTaken).Take(24))
                         Console.WriteLine($"    seed {seed} t{e.Tick} {e.Kind} at x {(e.X ?? st.Men[e.Id].X):F1} z {(e.Z ?? st.Men[e.Id].Z):F1}");
                 minutes += st.Tick * Tune.Dt / 60;
                 men += st.Men.Count;

@@ -60,6 +60,19 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
+        /// <summary>Fieldcraft's acts through time: the two blows, into a trench and out of it: captures/soldiers/&lt;side&gt;_acts.png.</summary>
+        public static void RenderActs()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            States = new[] { ("stab 0.15", 0f, 0, true, false, -4, 0.15f), ("stab 0.35", 0f, 0, true, false, -4, 0.35f), ("stab 0.6", 0f, 0, true, false, -4, 0.6f),
+                             ("slash 0.2", 0f, 0, true, false, -5, 0.2f), ("slash 0.45", 0f, 0, true, false, -5, 0.45f),
+                             ("in 0.2", 0f, 0, false, false, -6, 0.2f), ("in 0.5", 0f, 0, false, false, -6, 0.5f),
+                             ("out 0.2", 0f, 0, false, false, -7, 0.2f), ("out 0.5", 0f, 0, false, false, -7, 0.5f), ("out 0.8", 0f, 0, false, false, -7, 0.8f) };
+            foreach (var side in new[] { "us_a", "vc_a" }) Sheet(side, 1.6f, "_acts", 1.35f);
+            States = orig;
+        }
+
         private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -109,6 +122,10 @@ namespace LanesOfVietnam.Tools
                 if (!s.dead && s.death == -1) f.React();
                 if (!s.dead && s.death == -2) f.Reload();
                 if (!s.dead && s.death == -3) f.Throw();
+                if (!s.dead && s.death == -4) f.Strike(0);
+                if (!s.dead && s.death == -5) f.Strike(1);
+                if (!s.dead && s.death == -6) f.Climb(true);
+                if (!s.dead && s.death == -7) f.Climb(false);
                 for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, seed, how);
                 shoot:
                 for (int row = 0; row < 3; row++)
