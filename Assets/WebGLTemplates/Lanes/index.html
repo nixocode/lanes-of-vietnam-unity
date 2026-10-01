@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      /* The game fills the window, and the page under it cannot scroll, bounce
+         or be swiped back: a trackpad's two fingers belong to the camera. */
+      html, body { margin: 0; height: 100%; background: #0c0e0a; overflow: hidden; overscroll-behavior: none; }
+      #unity-canvas { display: block; width: 100vw; height: 100vh; outline: none; touch-action: none; background: #0c0e0a; }
+      #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 font: 600 15px/1 Georgia, serif; letter-spacing: 0.32em; color: #b9a56a; pointer-events: none; }
+      #bar { width: min(340px, 60vw); height: 3px; margin-top: 18px; background: #2a2c22; }
+      #fill { width: 0; height: 100%; background: #b9a56a; transition: width 0.15s linear; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading"><div>LANES OF VIETNAM &rsquo;65</div><div id="bar"><div id="fill"></div></div></div>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      var config = {
+        arguments: [],
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        // A retina window at its full 2x is four times the pixels to shade;
+        // 1.5x is sharp enough for the type and half the work.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+      };
+      createUnityInstance(canvas, config, function (progress) {
+        document.querySelector("#fill").style.width = Math.round(progress * 100) + "%";
+      }).then(function (instance) {
+        window.unityInstance = instance;
+        document.querySelector("#loading").style.display = "none";
+        canvas.focus();
+      }).catch(function (message) {
+        document.querySelector("#loading").firstElementChild.textContent = "COULD NOT START: " + message;
+        console.error(message);
+      });
+    </script>
+  </body>
+</html>

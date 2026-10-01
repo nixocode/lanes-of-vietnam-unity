@@ -35,7 +35,9 @@ namespace LanesOfVietnam.View
         public SkinnedMeshRenderer Body;
         public Renderer Rifle;
         public Transform GripL, Muzzle;
-        public Transform HandR, HandL, Chest, LowerArmR;
+        public Transform HandR, HandL, Chest, LowerArmR, Hips;
+        /// <summary>Where his body is (his hips), which a fall can carry a metre or two from where the sim has him.</summary>
+        public Vector3 Centre { get; private set; }
         /// <summary>In the rifle's own space, from the bind pose: where each wrist holds it, and which way is up.</summary>
         public Vector3 RifleGripR, RifleGripL, RifleUp = Vector3.up;
         /// <summary>The rifle's place in the right hand in Mixamo's clips (learned by SoldierBuilder).</summary>
@@ -119,6 +121,7 @@ namespace LanesOfVietnam.View
             Animator.transform.localRotation = Quaternion.Euler(0, AimTurn[Mathf.Clamp(posture, 0, 2)] * _aim, 0);
             Animator.Update(dt);
 
+            if (Hips != null) Centre = Hips.position;
             _recoil *= Mathf.Exp(-dt / 0.06f);
             if (_deadFor < 0) PostPose();
         }

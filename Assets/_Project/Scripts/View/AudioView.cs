@@ -203,11 +203,13 @@ namespace LanesOfVietnam.View
                         // A miss near the listener: the round into the earth by its target.
                         if (e.Target is int tg && tg < st.Men.Count && Time.unscaledTime - _lastDirtAt > 0.12f
                             && !(i + 1 < ev.Count && ev[i + 1].Kind == EventKind.Kill && ev[i + 1].Id == tg)
-                            && Dist(st.Men[tg].X, st.Men[tg].Z, lx, lz) < 45 && _rng.NextDouble() < 0.35)
+                            && Dist(st.Men[tg].X, st.Men[tg].Z, lx, lz) < 70 && _rng.NextDouble() < 0.4)
                         {
                             _lastDirtAt = Time.unscaledTime;
                             var t = st.Men[tg];
-                            Play(Pick("dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), 0.5f, Range(0.85f, 1.15f), false);
+                            // Mostly into the dirt; now and then off something hard, whining away.
+                            bool ricochet = _rng.NextDouble() < 0.3;
+                            Play(Pick(ricochet ? "crack" : "dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
                         }
                         break;
                     case EventKind.Kill:

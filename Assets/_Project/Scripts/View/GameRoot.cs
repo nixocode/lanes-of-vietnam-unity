@@ -120,6 +120,8 @@ namespace LanesOfVietnam.View
                 // stays the parity baseline; a capture can turn it off (frag=0).
                 Frag = CaptureSettings.Active?.Frag ?? true,
                 SquadSmoke = CaptureSettings.Active?.SquadSmoke ?? true,
+                // Drill (Part 2): orders that stand and men who keep their places. On in the game.
+                Drill = CaptureSettings.Active?.Drill ?? true,
             };
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

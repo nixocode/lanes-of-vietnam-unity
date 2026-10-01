@@ -133,6 +133,10 @@ namespace LanesOfVietnam.Sim
         /// <summary>Smoke grenades the squad still has (MatchOptions.SquadSmoke).</summary>
         public int Smoke = Tune.SquadSmokeCarried;
 
+        /// <summary>The tick its order last changed, and whether it broke and has steadied (MatchOptions.Drill).</summary>
+        public int OrderSince;
+        public bool Rallied;
+
         /// <summary>
         /// The point the formation hangs off. Persistent state that orders
         /// move (<see cref="Squads.March"/>), leashed to the living men every
@@ -307,6 +311,8 @@ namespace LanesOfVietnam.Sim
         public bool Frag;
         /// <summary>Part 2 rule: a squad pinned down on the move pops smoke (PLAN §12.8). Off is the baseline.</summary>
         public bool SquadSmoke;
+        /// <summary>Part 2 rule: orders that stand, broken squads that hold, men who keep their places (<see cref="Sim.Drill"/>). Off is the baseline.</summary>
+        public bool Drill;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();

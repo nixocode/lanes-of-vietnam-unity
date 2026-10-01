@@ -35,14 +35,24 @@ namespace LanesOfVietnam.View
 
         /// <summary>How fast a tracer is drawn travelling (m/s): a 5.56 or 7.62 round at combat range, slowed a little so the eye can follow it.</summary>
         public const float TracerSpeed = 620f;
-        /// <summary>The share of rounds drawn as tracers. Belts were loaded one in four or five; a third reads better at this distance.</summary>
-        public const double TracerShare = 0.34;
+        /// <summary>
+        /// The share of an automatic weapon's rounds drawn as tracers: belts were
+        /// loaded one in five. Riflemen fire none (a rifleman's magazine held
+        /// none), so a firefight is sparks and dust, not beams: the owner's
+        /// second playtest, "more of a spark not a laser".
+        /// </summary>
+        public const double TracerShare = 0.2;
+        /// <summary>Rounds in a burst from an automatic weapon, and the time between them.</summary>
+        public const int BurstRounds = 3;
+        public const float BurstGap = 0.085f;
+        /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
+        public const double RicochetShare = 0.18;
         private const double MaxAge = 11.0;
 
         // Hot enough to bloom, not so hot that the tonemapper bleaches the
         // colour out: at 26x the red came out a white line.
-        private static readonly Color UsTracer = new Color(1.0f, 0.09f, 0.025f) * 5.5f;
-        private static readonly Color VcTracer = new Color(0.14f, 1.0f, 0.16f) * 4.2f;
+        private static readonly Color UsTracer = new Color(1.0f, 0.09f, 0.025f) * 3.2f;
+        private static readonly Color VcTracer = new Color(0.14f, 1.0f, 0.16f) * 2.6f;
         private static readonly Color Flash = new Color(1.0f, 0.70f, 0.34f);
 
         private GameRoot _root;
@@ -65,6 +75,7 @@ namespace LanesOfVietnam.View
         private readonly List<int> _mi = new List<int>();
         private readonly List<(Vector3 pos, float intensity)> _flashes = new List<(Vector3, float)>();
         private Vector3 _right, _up, _camPos;
+        private int _shaken;
 
         /// <summary>What was drawn last frame, for the tests and the log.</summary>
         public int Tracers { get; private set; }
@@ -138,8 +149,18 @@ namespace LanesOfVietnam.View
                     case EventKind.Shell: Explosion(e, (float)age, 1f); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
                     case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
-                    case EventKind.GrenadeBlast: Explosion(e, (float)age, 0.32f); break;
+                    case EventKind.GrenadeBlast: GrenadeBurst(e, (float)age); break;
                 }
+            }
+            // A blast is felt: the camera shakes with every new shell and grenade, by how near it is.
+            if (_shaken > ev.Count) _shaken = 0;
+            for (; _shaken < ev.Count; _shaken++)
+            {
+                var e = ev[_shaken];
+                if (e.X == null || (e.Kind != EventKind.Shell && e.Kind != EventKind.GrenadeBlast && e.Kind != EventKind.TrapSprung)) continue;
+                if (st.Tick - e.Tick > 3) continue;                 // a fast-forward's backlog is not felt
+                float away = Mathf.Abs((float)e.X.Value - _root.CameraRig.X);
+                _root.CameraRig.Shake((e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / 60f));
             }
             SmokeScreens(st, now);
             if (_markMesh != null) GroundMarks(st, now);
@@ -171,49 +192,101 @@ namespace LanesOfVietnam.View
             var aim = (b - a).normalized;
             // The rifle's own muzzle where there is a 3D man holding one.
             var muzzle = _root.ArmyView != null && _root.ArmyView.TryMuzzle(shooter.Id, out var mz) ? mz : a + aim * 0.6f;
+            // One sim shot is one round from a rifle, a short burst from an
+            // automatic weapon (the same men AudioView gives the burst sounds).
+            bool auto = AudioView.Automatic(shooter);
+            int rounds = auto ? BurstRounds : 1;
+            for (int r = 0; r < rounds; r++)
+            {
+                float ra = age - r * BurstGap;
+                if (ra < 0) break;
+                Round(i * 8 + r, ra, muzzle, b, aim, hit && r == rounds - 1, auto, shooter.Side);
+            }
+        }
+
+        /// <summary>One round: the spark at the muzzle, now and then a tracer, and what it does where it lands.</summary>
+        private void Round(int s, float age, Vector3 muzzle, Vector3 b, Vector3 aim, bool hit, bool auto, Side side)
+        {
             Vector3 end;
             if (hit) end = b;
             else
             {
                 // A miss goes into the ground by him: beside, short or long.
                 var flat = new Vector3(aim.x, 0, aim.z).normalized;
-                var side = new Vector3(-flat.z, 0, flat.x);
-                var p = b + side * (float)(Hash(i, 1) * 3.0 - 1.5) + flat * (float)(Hash(i, 2) * 5.0 - 1.0);
+                var across = new Vector3(-flat.z, 0, flat.x);
+                var p = b + across * (float)(Hash(s, 1) * 3.6 - 1.8) + flat * (float)(Hash(s, 2) * 6.0 - 1.5);
                 var (sx, sz) = (p.x, -p.z);
                 end = Coords.World(sx, sz, (float)_root.Ground.HeightAt(sx, sz) + 0.05f);
             }
             float dist = Vector3.Distance(muzzle, end);
             var dir = (end - muzzle) / Mathf.Max(dist, 0.01f);
 
-            if (age < 0.05f)
+            // The muzzle: a spark for two frames, a breath of smoke after it.
+            if (age < 0.04f)
             {
-                float k = 1 - age / 0.05f;
-                // Small and brief: at 0.4-0.7 m and 22x they read as white stars
-                // bigger than a man's head.
-                AddGlow(muzzle, 0.26f + 0.14f * (float)Hash(i, 3), Flash * (9f * k), 0, (float)Hash(i, 4));
+                float k = 1 - age / 0.04f;
+                AddGlow(muzzle + dir * 0.12f, 0.17f + 0.1f * (float)Hash(s, 3), Flash * (8f * k), 0, (float)Hash(s, 4));
                 Flashes++;
             }
-            if (Hash(i, 5) < TracerShare)
+            if (age < 0.7f)
+            {
+                float f = 1 - age / 0.7f;
+                AddPuff(muzzle + dir * (0.25f + 0.5f * age) + Vector3.up * (0.25f * age), 0.16f + 0.5f * age,
+                        new Color(0.62f, 0.62f, 0.6f, 0.2f * f * f), (float)Hash(s, 9), 1f);
+            }
+            // Tracers: automatic weapons only, one round in five, thin and brief.
+            if (auto && Hash(s, 5) < TracerShare)
             {
                 float head = TracerSpeed * age;
-                float tail = Mathf.Max(0, head - 7f);
+                float tail = Mathf.Max(0, head - 3.5f);
                 float h = Mathf.Min(head, dist);
                 if (h > tail)
                 {
-                    AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.075f, shooter.Side == Side.Us ? UsTracer : VcTracer, (float)Hash(i, 6));
+                    AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, side == Side.Us ? UsTracer : VcTracer, (float)Hash(s, 6));
                     Tracers++;
                 }
             }
             float ai = age - dist / TracerSpeed;
-            if (ai >= 0 && ai < 1.3f)
+            if (ai < 0) return;
+            if (hit)
             {
-                float f = 1 - ai / 1.3f;
-                if (hit)
-                    AddPuff(b + Vector3.up * (0.2f * ai), 0.35f + 0.6f * ai, new Color(0.18f, 0.16f, 0.14f, 0.5f * f), (float)Hash(i, 7), 1f);
-                else
-                    for (int k = 0; k < 2; k++)
-                        AddPuff(end + Vector3.up * (0.1f + 0.5f * ai + 0.15f * k), 0.3f + (0.9f + 0.3f * k) * ai,
-                                new Color(0.20f, 0.17f, 0.13f, 0.75f * f * f), (float)Hash(i, 8 + k), 1f);
+                // The round into a man: a dark red mist out of him along its path, gone in half a second.
+                if (ai < 0.55f)
+                {
+                    float f = 1 - ai / 0.55f;
+                    for (int k = 0; k < 3; k++)
+                        AddPuff(b + dir * (0.15f + (0.5f + 0.5f * k) * ai) + Vector3.up * (0.05f * k - 0.3f * ai * ai),
+                                0.16f + (0.5f + 0.2f * k) * ai, new Color(0.22f, 0.025f, 0.02f, 0.7f * f), (float)Hash(s, 7 + k), 1f);
+                }
+                return;
+            }
+            // Into the earth: a hard little kick of dirt at once, then the dust it leaves.
+            if (ai < 0.22f)
+            {
+                float f = 1 - ai / 0.22f;
+                for (int k = 0; k < 3; k++)
+                {
+                    float az = (float)(Hash(s, 20 + k) * Math.PI * 2);
+                    var v = new Vector3(Mathf.Cos(az) * 1.2f, 4.5f + 2.5f * (float)Hash(s, 23 + k), Mathf.Sin(az) * 1.2f) - dir * 1.5f;
+                    AddPuff(end + v * ai + Vector3.down * (9.8f * ai * ai), 0.12f + 0.25f * ai, new Color(0.13f, 0.1f, 0.07f, 0.95f * f), (float)Hash(s, 26 + k), 1f);
+                }
+            }
+            if (ai < 1.5f)
+            {
+                float f = 1 - ai / 1.5f;
+                for (int k = 0; k < 2; k++)
+                    AddPuff(end + Vector3.up * (0.1f + 0.5f * ai + 0.15f * k), 0.3f + (0.9f + 0.3f * k) * ai,
+                            new Color(0.20f, 0.17f, 0.13f, 0.75f * f * f), (float)Hash(s, 8 + k), 1f);
+            }
+            // Now and then it glances off and goes on, lit: a ricochet.
+            if (Hash(s, 30) < RicochetShare && ai < 0.16f)
+            {
+                var flat = new Vector3(dir.x, 0, dir.z).normalized;
+                var off = (flat * 0.8f + Vector3.up * (0.35f + 0.5f * (float)Hash(s, 31))
+                           + new Vector3(-flat.z, 0, flat.x) * (float)(Hash(s, 32) - 0.5)).normalized;
+                float head = 190f * ai, tail = Mathf.Max(0, head - 2.2f);
+                AddStreak(end + off * tail, end + off * head, 0.03f, new Color(1f, 0.62f, 0.25f) * (3.5f * (1 - ai / 0.16f)), (float)Hash(s, 33));
+                if (ai < 0.05f) AddGlow(end + Vector3.up * 0.05f, 0.22f, Flash * (6f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
             }
         }
 
@@ -243,6 +316,85 @@ namespace LanesOfVietnam.View
             }
             else p = to;
             AddPuff(p, 0.22f, new Color(0.035f, 0.035f, 0.03f, 1f), 0.5f, 1f);
+        }
+
+        /// <summary>
+        /// A fragmentation grenade going off: a white-hot flash a frame long,
+        /// fragments out in every direction, the earth it lifted thrown three
+        /// or four metres up and falling back, a ring of dust along the ground,
+        /// and grey-black smoke that hangs for seconds. The owner's second
+        /// playtest: "thrown grenades don't explode". They did, at a third of a
+        /// shell's scale: two stars the size of a muzzle flash.
+        /// </summary>
+        private void GrenadeBurst(SimEvent e, float age)
+        {
+            if (e.X == null || e.Z == null) return;
+            double x = e.X.Value, z = e.Z.Value;
+            var p0 = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z));
+            int seed = e.Id * 6151 + e.Tick;
+            Explosions++;
+
+            if (age < 0.09f)
+            {
+                float k = 1 - age / 0.09f;
+                // A soft ball of light with a small hard star in it (the star alone, large, read as a paper cut-out).
+                AddGlow(p0 + Vector3.up * 0.5f, 2.6f + 16f * age, Flash * (16f * k), 2, (float)Hash(seed, 0));
+                AddGlow(p0 + Vector3.up * 0.5f, 1.1f + 5f * age, Flash * (20f * k), 0, (float)Hash(seed, 2));
+            }
+            if (age < 0.32f)
+            {
+                float t = age / 0.32f;
+                var col = Color.Lerp(new Color(1f, 0.6f, 0.25f) * 8f, new Color(0.7f, 0.2f, 0.06f) * 1.5f, t) * (1 - t);
+                AddGlow(p0 + Vector3.up * (0.6f + 1.6f * age), 1.3f + 3.2f * age, col, 2, (float)Hash(seed, 1));
+            }
+            if (age < 0.25f) _flashes.Add((p0 + Vector3.up * 1.2f, 55f * Mathf.Exp(-age * 20f)));
+            // Fragments: hot for a tenth of a second, out along the ground and up.
+            if (age < 0.12f)
+                for (int k = 0; k < 10; k++)
+                {
+                    float az = (float)(Hash(seed, 100 + k) * Math.PI * 2), el = 0.1f + 0.9f * (float)Hash(seed, 110 + k);
+                    var d = new Vector3(Mathf.Cos(az) * Mathf.Cos(el), Mathf.Sin(el), Mathf.Sin(az) * Mathf.Cos(el));
+                    float head = 70f * age, tail = Mathf.Max(0, head - 1.6f);
+                    AddStreak(p0 + Vector3.up * 0.2f + d * tail, p0 + Vector3.up * 0.2f + d * head, 0.03f,
+                              new Color(1f, 0.7f, 0.3f) * (4f * (1 - age / 0.12f)), (float)Hash(seed, 120 + k));
+                }
+            // The earth it lifted.
+            for (int k = 0; k < 14; k++)
+            {
+                const float life = 1.5f;
+                if (age > life) break;
+                float az = (float)(Hash(seed, 10 + k) * Math.PI * 2);
+                float vh = 1.2f + 3.2f * (float)Hash(seed, 20 + k);
+                float vv = 5.5f + 4.5f * (float)Hash(seed, 30 + k);
+                var pos = p0 + new Vector3(Mathf.Cos(az) * vh * age, vv * age - 4.9f * age * age, Mathf.Sin(az) * vh * age);
+                if (pos.y < p0.y - 0.15f) continue;
+                float f = 1 - age / life;
+                AddPuff(pos, 0.45f + 0.9f * age, new Color(0.08f, 0.06f, 0.045f, 0.95f * f), (float)Hash(seed, 40 + k), 1f);
+            }
+            // Dust along the ground, in a ring.
+            if (age < 2.2f)
+                for (int k = 0; k < 8; k++)
+                {
+                    float az = k * 0.785f + (float)Hash(seed, 130 + k);
+                    float rr = 4.2f * (1 - Mathf.Exp(-age * 3.5f));
+                    float f = 1 - age / 2.2f;
+                    AddPuff(p0 + new Vector3(Mathf.Cos(az) * rr, 0.25f + 0.3f * age, Mathf.Sin(az) * rr), 1.0f + 1.3f * age,
+                            new Color(0.24f, 0.2f, 0.15f, 0.5f * f * f), (float)Hash(seed, 140 + k), 1f);
+                }
+            // The smoke it leaves: grey-black, rising and leaning downwind.
+            for (int k = 0; k < 8; k++)
+            {
+                float a = age - (0.06f + 0.05f * k);
+                const float life = 5.5f;
+                if (a < 0 || a > life) continue;
+                float rise = 0.8f * a + 1.6f * (1 - Mathf.Exp(-a * 1.8f));
+                var off = new Vector3((float)(Hash(seed, 50 + k) - 0.5) * 1.6f + 0.6f * a, rise * (0.5f + 0.6f * (float)Hash(seed, 60 + k)),
+                                      (float)(Hash(seed, 70 + k) - 0.5) * 1.6f);
+                float op = Mathf.SmoothStep(0, 1, a / 0.25f) * Mathf.Pow(1 - a / life, 1.5f) * 0.6f;
+                var col = Color.Lerp(new Color(0.2f, 0.19f, 0.18f), new Color(0.07f, 0.06f, 0.05f), Mathf.Exp(-a * 0.9f));
+                col.a = op;
+                AddPuff(p0 + Vector3.up * 0.6f + off, 1.5f + 0.8f * a, col, (float)Hash(seed, 80 + k), 1f);
+            }
         }
 
         // --- shells and traps -------------------------------------------------------------
@@ -353,11 +505,25 @@ namespace LanesOfVietnam.View
             for (int i = 0; i < ev.Count; i++)
             {
                 var e = ev[i];
+                if (e.Kind == EventKind.Kill && e.Id < st.Men.Count)
+                {
+                    // Blood: where he lies (the body, not the sim's point: a fall
+                    // carries him), soaking out over a few seconds, and it stays.
+                    float since = (float)(now - e.Tick * Tune.Dt);
+                    if (since < 0.6f) continue;
+                    var (bx, bz) = d.Position(e.Id);
+                    if (_root.ArmyView != null && _root.ArmyView.TryBody(e.Id, out var body)) { bx = body.x; bz = Coords.SimZ(body.z); }
+                    float soak = Mathf.SmoothStep(0, 1, (since - 0.6f) / 5f);
+                    float pool = 0.45f + 0.75f * soak + 0.3f * (float)Hash(e.Id, 95);
+                    Flat(bx + (Hash(e.Id, 96) - 0.5) * 0.3, bz + (Hash(e.Id, 97) - 0.5) * 0.3, pool, pool * 0.8f,
+                         new Color(0.34f, 0.045f, 0.035f, 0.9f * Mathf.Clamp01((since - 0.6f) / 1.2f)), (float)Hash(e.Id, 98), 1f);
+                    continue;
+                }
                 if ((e.Kind != EventKind.Shell && e.Kind != EventKind.GrenadeBlast) || e.X == null) continue;
                 float age = (float)(now - e.Tick * Tune.Dt);
                 if (age < 0) continue;
                 float grow = Mathf.Clamp01(age / 1.5f);
-                float size = e.Kind == EventKind.Shell ? 5.5f : 2.2f;
+                float size = e.Kind == EventKind.Shell ? 5.5f : 3.0f;
                 Flat(e.X.Value, e.Z.Value, size, size, new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(i, 90), 1f);
             }
             _markMesh.Clear();

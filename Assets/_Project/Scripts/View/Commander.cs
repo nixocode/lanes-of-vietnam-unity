@@ -63,12 +63,17 @@ namespace LanesOfVietnam.View
             }
             if (_pressed && Input.GetMouseButton(0))
             {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                // In a browser the rig reads the drag itself (LovInput.jslib); here it only stops being a click.
+                if (Root.CameraRig.BrowserDragging) _panning = true;
+#else
                 if (!_panning && ((Vector2)Input.mousePosition - _press).magnitude > DragPixels)
                 {
                     _panning = true;
                     Root.CameraRig.BeginDrag(_press);
                 }
                 if (_panning) Root.CameraRig.DragTo(Input.mousePosition);
+#endif
             }
             if (_pressed && Input.GetMouseButtonUp(0))
             {

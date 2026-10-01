@@ -35,6 +35,7 @@ namespace LanesOfVietnam.SimCs
                     "bench" => Bench(),
                     "events" => Events(args),
                     "hash" => HashRun(args),
+                    "wander" => Wander(args),
                     _ => Usage(),
                 };
             }
@@ -134,11 +135,11 @@ namespace LanesOfVietnam.SimCs
         /// </summary>
         private static int Events(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
-            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 3;
             var usPlan = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
             var st = m.State;
@@ -173,10 +174,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
-            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag, SquadSmoke = smoke });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Frag = frag, SquadSmoke = smoke, Drill = drill });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -199,6 +200,53 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// How much a match dithers: order changes a squad, and how far a man
+        /// walks along the lane for the ground he gains (the owner's "they walk
+        /// up and down randomly"). `wander [seed] [ticks] [frag] [smoke] [drill]`.
+        /// </summary>
+        private static int Wander(string[] a)
+        {
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill").ToArray();
+            int seed = a.Length > 1 ? int.Parse(a[1]) : 3, ticks = a.Length > 2 ? int.Parse(a[2]) : 2400;
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill });
+            var st = m.State;
+            var order = new Dictionary<int, Order>(); var changes = new Dictionary<int, int>();
+            var at = new Dictionary<int, (double x, double z)>(); var first = new Dictionary<int, double>();
+            var along = new Dictionary<int, double>(); var across = new Dictionary<int, double>();
+            var turns = new Dictionary<int, int>(); var heading = new Dictionary<int, int>();
+            for (int t = 0; t < ticks && !st.Over; t++)
+            {
+                m.Step();
+                foreach (var sq in st.Squads)
+                {
+                    if (order.TryGetValue(sq.Id, out var o) && o != sq.Order) changes[sq.Id] = changes.GetValueOrDefault(sq.Id) + 1;
+                    order[sq.Id] = sq.Order;
+                }
+                foreach (var man in st.Men)
+                {
+                    if (!man.Alive) continue;
+                    if (at.TryGetValue(man.Id, out var p))
+                    {
+                        double dx = man.X - p.x;
+                        along[man.Id] = along.GetValueOrDefault(man.Id) + Math.Abs(dx);
+                        across[man.Id] = across.GetValueOrDefault(man.Id) + Math.Abs(man.Z - p.z);
+                        int dir = Math.Abs(dx) < 0.01 ? 0 : Math.Sign(dx);
+                        if (dir != 0) { if (heading.TryGetValue(man.Id, out var h) && h != dir) turns[man.Id] = turns.GetValueOrDefault(man.Id) + 1; heading[man.Id] = dir; }
+                    }
+                    else first[man.Id] = man.X;
+                    at[man.Id] = (man.X, man.Z);
+                }
+            }
+            double net = along.Keys.Average(id => Math.Abs(at[id].x - first[id]));
+            Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}{(drill ? " drill" : "")}, {st.Tick} ticks: {st.Men.Count} men, {st.Squads.Count} squads");
+            Console.WriteLine($"  order changes a squad  {changes.Values.DefaultIfEmpty(0).Average():F1} (most {changes.Values.DefaultIfEmpty(0).Max()})");
+            Console.WriteLine($"  a man walks            {along.Values.Average():F1} m along the lane for {net:F1} m gained, {across.Values.Average():F1} m across it");
+            Console.WriteLine($"  a man turns round      {turns.Values.DefaultIfEmpty(0).Average():F1} times (most {turns.Values.DefaultIfEmpty(0).Max()})");
+            return 0;
+        }
+
         /// <summary>Wilson score interval, 95%: what a win rate over N matches can and cannot claim.</summary>
         private static (double lo, double hi) Wilson(int wins, int n, double z = 1.96)
         {
@@ -213,8 +261,8 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke");
-            a = a.Where(x => x != "frag" && x != "smoke").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -229,7 +277,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Frag = frag, SquadSmoke = smoke });
+                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Frag = frag, SquadSmoke = smoke, Drill = drill });
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];
                 lostGround += r.MoraleLostToGround[0] + r.MoraleLostToGround[1];

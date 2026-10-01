@@ -36,6 +36,18 @@ namespace LanesOfVietnam.Tools
             foreach (var side in new[] { "us", "vc" }) Sheet(side);
         }
 
+        /// <summary>The upright states, large, to look at legs and kit: captures/soldiers/&lt;side&gt;_close.png.</summary>
+        public static void RenderClose()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            States = new[] { ("bind", 0f, 0, false, false, 0, 0f), ("idle", 0f, 0, false, false, 0, 1.0f), ("walk a", 1.35f, 0, false, false, 0, 0.25f), ("walk b", 1.35f, 0, false, false, 0, 0.6f),
+                             ("run", 2.0f, 0, false, false, 0, 0.3f), ("aim", 0f, 0, true, false, 0, 1f), ("kneel", 0f, 1, false, false, 0, 1f),
+                             ("crouch walk", 1.1f, 1, false, false, 0, 0.4f) };
+            foreach (var side in new[] { "us", "vc" }) Sheet(side, 1.6f, "_close", 1.15f);
+            States = orig;
+        }
+
         /// <summary>One state through time, larger: captures/soldiers/&lt;side&gt;_&lt;name&gt;.png. Default the crawl.</summary>
         public static void RenderCycle()
         {
@@ -47,7 +59,7 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
-        private static void Sheet(string side, float zoom = 1f, string suffix = "")
+        private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{SoldierBuilder.Dir}/soldier_{side}.prefab");
@@ -65,14 +77,14 @@ namespace LanesOfVietnam.Tools
             var gm = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.25f, 0.27f, 0.2f) };
             ground.GetComponent<Renderer>().sharedMaterial = gm;
 
-            int W = (int)(300 * zoom), H = (int)(380 * zoom * (zoom > 1 ? 0.5f : 1f));
+            int W = (int)(300 * zoom), H = (int)(380 * zoom * (zoom > 1 && size <= 0 ? 0.5f : 1f));
             int cols = States.Length;
             var sheet = new Texture2D(W * cols, H * 3, TextureFormat.RGB24, false);
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
             var camGo = new GameObject("cam");
             var cam = camGo.AddComponent<Camera>();
             cam.orthographic = true;
-            cam.orthographicSize = zoom > 1 ? 0.75f : 1.15f;
+            cam.orthographicSize = size > 0 ? size : zoom > 1 ? 0.75f : 1.15f;
             cam.targetTexture = rt;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.62f, 0.68f, 0.72f);
@@ -87,6 +99,7 @@ namespace LanesOfVietnam.Tools
                 // Faces +x, as a US man does at rest in the game.
                 go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, 90, 0));
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
+                if (s.name == "bind") goto shoot;          // as rigged: no Animator at all
                 var how = s.dead && s.death == -1 ? SoldierFigure.Fall.Blast : s.dead && s.death == -2 ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                 int seed = System.Math.Max(0, s.death);
                 if (s.dead)
@@ -96,12 +109,14 @@ namespace LanesOfVietnam.Tools
                 if (!s.dead && s.death == -2) f.Reload();
                 if (!s.dead && s.death == -3) f.Throw();
                 for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, seed, how);
+                shoot:
                 for (int row = 0; row < 3; row++)
                 {
                     // Row 0: the game's view, along +z from the -z side. Row 1: from his front.
                     // Row 2: from above, his facing (+x) to the right, +z up the picture.
                     var dir = row == 0 ? Vector3.forward : row == 1 ? Vector3.left : Vector3.down;
                     var centre = new Vector3(0, s.posture == 2 || s.dead ? (zoom > 1 ? 0.3f : 0.5f) : 0.95f, 0);
+                    if (size > 0) centre.y = 0.95f;
                     cam.transform.SetPositionAndRotation(centre - dir * 6f, row == 2 ? Quaternion.LookRotation(dir, Vector3.forward) : Quaternion.LookRotation(dir));
                     cam.Render();
                     RenderTexture.active = rt;

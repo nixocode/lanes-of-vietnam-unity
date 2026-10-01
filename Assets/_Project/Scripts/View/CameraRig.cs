@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using LanesOfVietnam.Sim;
 using UnityEngine;
 
@@ -31,6 +32,34 @@ namespace LanesOfVietnam.View
         public static float PanLimit => (float)Tune.HalfLength + 8f;
 
         public float PanSpeed = 16f;
+
+        /// <summary>
+        /// The pointer at the left or right edge of the view pans the camera:
+        /// one finger on a trackpad, no button. Only over the scene itself (the
+        /// bars and the deck keep their corners), and never while dragging.
+        /// </summary>
+        public bool EdgePan = true;
+        /// <summary>The share of the view's width at each side that pans, and the band of its height that counts.</summary>
+        public const float EdgeZone = 0.045f, EdgeBottom = 0.17f, EdgeTop = 0.84f;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // The browser's wheel and pointer, read by LovInput.jslib (why: there).
+        [DllImport("__Internal")] private static extern void LovInput_Init();
+        [DllImport("__Internal")] private static extern float LovInput_Zoom();
+        [DllImport("__Internal")] private static extern float LovInput_Pan();
+        [DllImport("__Internal")] private static extern float LovInput_Drag();
+        [DllImport("__Internal")] private static extern float LovInput_PointerX();
+        [DllImport("__Internal")] private static extern float LovInput_PointerY();
+        [DllImport("__Internal")] private static extern int LovInput_Dragging();
+        [DllImport("__Internal")] private static extern float LovInput_CanvasWidth();
+        private bool _browser;
+#endif
+        private float _trauma;
+        /// <summary>A blast nearby: shake the camera, 0..1. It adds up and dies away in half a second.</summary>
+        public void Shake(float amount) { if (CaptureSettings.Active == null) _trauma = Mathf.Clamp01(_trauma + amount); }
+
+        /// <summary>In a browser: the pointer is dragging the camera (so the release is not a click).</summary>
+        public bool BrowserDragging { get; private set; }
 
         /// <summary>
         /// Field glasses (PLAN §12.7): held, the lens narrows from 19 degrees to
@@ -100,10 +129,32 @@ namespace LanesOfVietnam.View
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) axis += 1;
             if (axis != 0) _targetX = Mathf.Clamp(_targetX + axis * PanSpeed * dt, -PanLimit, PanLimit);
 
-            // The wheel zooms; a trackpad's sideways swipe pans.
+            // Two fingers (or the wheel) up and down zoom, sideways pan; one finger
+            // with the button down drags the line, and at the view's edge pans.
+            float zoom, sideways, drag = 0, px = -1, py = -1, cssToScreen = 1;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!_browser) { LovInput_Init(); _browser = true; }
+            zoom = LovInput_Zoom(); sideways = LovInput_Pan(); drag = LovInput_Drag();
+            px = LovInput_PointerX(); py = LovInput_PointerY();
+            BrowserDragging = LovInput_Dragging() != 0;
+            cssToScreen = Screen.width / Mathf.Max(1f, LovInput_CanvasWidth());
+#else
             var wheel = Input.mouseScrollDelta;
-            if (wheel.y != 0) ZoomBy(wheel.y * 0.12f);
-            if (wheel.x != 0) PanBy(-wheel.x * 1.5f);
+            zoom = wheel.y * 0.12f;
+            sideways = -wheel.x * 30f;
+            var mouse = Input.mousePosition;
+            if (Application.isFocused && mouse.x >= 0 && mouse.x <= Screen.width && mouse.y >= 0 && mouse.y <= Screen.height)
+            { px = mouse.x / Screen.width; py = mouse.y / Screen.height; }
+#endif
+            if (zoom != 0) ZoomBy(Mathf.Clamp(zoom, -0.6f, 0.6f));
+            float mpp = MetresPerPixel() * cssToScreen;
+            if (sideways != 0) PanBy(sideways * mpp);
+            if (drag != 0) PanBy(-drag * mpp);                 // the ground follows the finger
+            if (EdgePan && px >= 0 && py > EdgeBottom && py < EdgeTop && !_dragging && !BrowserDragging && !Input.GetMouseButton(0))
+            {
+                float push = px < EdgeZone ? -(1f - px / EdgeZone) : px > 1f - EdgeZone ? (px - (1f - EdgeZone)) / EdgeZone : 0f;
+                if (push != 0) _targetX = Mathf.Clamp(_targetX + push * PanSpeed * 1.4f * dt, -PanLimit, PanLimit);
+            }
 
             // Drag with the right or middle button (the left is Commander's: it
             // starts a drag only when the press was not a click on a man).
@@ -129,11 +180,15 @@ namespace LanesOfVietnam.View
         public void DragTo(Vector2 screen)
         {
             if (!_dragging) return;
-            // Metres per pixel at the near lane's distance, through the lens as it is now.
+            _targetX = Mathf.Clamp(_dragX - (screen.x - _dragFrom.x) * MetresPerPixel(), -PanLimit, PanLimit);
+        }
+
+        /// <summary>Metres a screen pixel spans at the near lane's distance, through the lens as it is now.</summary>
+        public float MetresPerPixel()
+        {
             float dist = Coords.Camera.SimZ - Dolly * DollyRange - (float)Tune.Lanes[0];
             float fov = Camera != null ? Camera.fieldOfView : Coords.Camera.Fov;
-            float mpp = 2f * dist * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) / Screen.height;
-            _targetX = Mathf.Clamp(_dragX - (screen.x - _dragFrom.x) * mpp, -PanLimit, PanLimit);
+            return 2f * dist * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) / Mathf.Max(1, Screen.height);
         }
 
         public void EndDrag() => _dragging = false;
@@ -181,7 +236,16 @@ namespace LanesOfVietnam.View
             float yaw = _glassesAim.x * 2f * hHalf * e, pitch = -_glassesAim.y * 2f * vHalf * e;
             pitch += ZoomPitch(simZ, lens);
             var rot = Coords.Camera.Rotation * Quaternion.Euler(pitch, yaw, 0);
-            transform.SetPositionAndRotation(Coords.World(X, simZ, Coords.Camera.Height), rot);
+            var pos = Coords.World(X, simZ, Coords.Camera.Height);
+            if (_trauma > 0.001f)
+            {
+                // Squared, so a small blast barely moves it; a few centimetres and a fraction of a degree at most.
+                float k = _trauma * _trauma, t = Time.unscaledTime * 38f;
+                pos += new Vector3(Mathf.PerlinNoise(t, 0.3f) - 0.5f, Mathf.PerlinNoise(0.7f, t) - 0.5f, 0) * (0.22f * k);
+                rot *= Quaternion.Euler((Mathf.PerlinNoise(t, 5.1f) - 0.5f) * 0.5f * k, (Mathf.PerlinNoise(9.2f, t) - 0.5f) * 0.5f * k, 0);
+                _trauma = Mathf.Max(0, _trauma - Time.unscaledDeltaTime * 2.2f);
+            }
+            transform.SetPositionAndRotation(pos, rot);
         }
     }
 }
