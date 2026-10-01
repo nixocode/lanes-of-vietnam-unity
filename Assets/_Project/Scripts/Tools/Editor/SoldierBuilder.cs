@@ -336,6 +336,7 @@ namespace LanesOfVietnam.Tools
             ctrl.AddParameter("Dead", AnimatorControllerParameterType.Bool);
             ctrl.AddParameter("DeathIndex", AnimatorControllerParameterType.Int);
             ctrl.AddParameter("Hit", AnimatorControllerParameterType.Trigger);
+            ctrl.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
 
             AnimationClip C(string n) => clips.TryGetValue(n, out var c) ? c : throw new System.Exception($"no clip {n}");
             // A role is Mixamo's clip where it has been downloaded, else the interim one.
@@ -423,7 +424,10 @@ namespace LanesOfVietnam.Tools
             // --- react: rounds close by, a man flinches, ducks, is knocked (full body, over the rest) ---
             var hits = new (string clip, int posture)[] { (R("flinch", "hit_back"), 0), ("kneel_hit", 1), ("prone_hit", 2) }
                 .Where(h => clips.ContainsKey(h.clip)).ToArray();
-            if (hits.Length > 0)
+            // Reloads: cosmetic, in a lull (ArmyView decides when), cut if he fires.
+            var reloads = new (string clip, int posture)[] { ("reload", 0), ("prone_reload", 2) }
+                .Where(h => clips.ContainsKey(h.clip)).ToArray();
+            if (hits.Length + reloads.Length > 0)
             {
                 ctrl.AddLayer("React");
                 var rl = ctrl.layers;
@@ -434,17 +438,18 @@ namespace LanesOfVietnam.Tools
                 // An empty state lets the layers below show through.
                 var calm = react.AddState("Calm");
                 react.defaultState = calm;
-                foreach (var (clip, posture) in hits)
+                foreach (var (clip, posture, trigger) in hits.Select(h => (h.clip, h.posture, "Hit"))
+                                                          .Concat(reloads.Select(h => (h.clip, h.posture, "Reload"))))
                 {
-                    var st = react.AddState("Hit " + posture);
+                    var st = react.AddState(trigger + " " + posture);
                     st.motion = C(clip);
                     var into = calm.AddTransition(st);
                     into.hasExitTime = false; into.hasFixedDuration = true; into.duration = 0.1f;
-                    into.AddCondition(AnimatorConditionMode.If, 0, "Hit");
+                    into.AddCondition(AnimatorConditionMode.If, 0, trigger);
                     into.AddCondition(AnimatorConditionMode.Equals, posture, "Posture");
                     into.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
                     var back = st.AddTransition(calm);
-                    back.hasExitTime = true; back.exitTime = 0.8f; back.hasFixedDuration = true; back.duration = 0.3f;
+                    back.hasExitTime = true; back.exitTime = trigger == "Reload" ? 0.9f : 0.8f; back.hasFixedDuration = true; back.duration = 0.3f;
                     var dead = st.AddTransition(calm);
                     dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
                     dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
@@ -454,7 +459,7 @@ namespace LanesOfVietnam.Tools
             EditorUtility.SetDirty(ctrl);
             Debug.Log($"[LOV] controller: stand (idle, walk {speed["walk"]:F2} m/s, run {speed["run"]:F2}), " +
                       $"crouch ({speed["crouch"]:F2}), prone ({(clips.ContainsKey("crawl") ? "crawl" : "still")}), " +
-                      $"{deaths.Length} deaths{(proneDeath ? " + prone" : "")}, aim layer, {hits.Length} reactions");
+                      $"{deaths.Length} deaths{(proneDeath ? " + prone" : "")}, aim layer, {hits.Length} reactions, {reloads.Length} reloads");
             return ctrl;
         }
 

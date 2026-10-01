@@ -75,6 +75,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_vz, 0, _vz.Length);
             System.Array.Clear(_shot, 0, _shot.Length);
             System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
+            System.Array.Clear(_rounds, 0, _rounds.Length);
             for (int k = 0; k < _target.Length; k++) _target[k] = -1;
             System.Array.Clear(_walked, 0, _walked.Length);
             System.Array.Clear(_last, 0, _last.Length);
@@ -94,6 +95,10 @@ namespace LanesOfVietnam.View
         private bool[] _shot = new bool[0];
         /// <summary>Whether the sim pinned each man since the last frame: rounds close enough to put him down.</summary>
         private bool[] _pinnedAt = new bool[0];
+        /// <summary>Shots each man has fired since he last reloaded.</summary>
+        private int[] _rounds = new int[0];
+        /// <summary>A man reloads after this many shots, once he has not fired for LullTicks.</summary>
+        public const int ReloadAfter = 6, LullTicks = 50;
         private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
         private float _matchTime = -1f;
         /// <summary>Match time each figure is owed, when it is stepped less than every frame.</summary>
@@ -195,6 +200,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _faceLeft, n);
                 System.Array.Resize(ref _shot, n);
                 System.Array.Resize(ref _pinnedAt, n);
+                System.Array.Resize(ref _rounds, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -208,6 +214,7 @@ namespace LanesOfVietnam.View
                 if (e.Kind != EventKind.Fire || e.Id >= _firedAt.Length) continue;
                 _firedAt[e.Id] = e.Tick;
                 _target[e.Id] = e.Target ?? -1;
+                if (e.Id < _rounds.Length) _rounds[e.Id]++;
                 _shot[e.Id] = true;
             }
             if (st.Tick != _speedTick)
@@ -364,6 +371,12 @@ namespace LanesOfVietnam.View
                 if (_shot[i]) { f.Fire(); _shot[i] = false; }
                 // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
                 if (_pinnedAt[i]) { if (!_moving[i] && !jump) f.React(); _pinnedAt[i] = false; }
+                // A lull after shooting: he changes magazines (cosmetic; cut if the sim has him fire).
+                if (m.Alive && !_moving[i] && _rounds[i] >= ReloadAfter && st.Tick - _firedAt[i] >= LullTicks)
+                {
+                    f.Reload();
+                    _rounds[i] = 0;
+                }
                 Drawn++;
                 if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death); _pending[i] = 0; Stepped++; continue; }
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
