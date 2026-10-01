@@ -90,6 +90,19 @@ namespace LanesOfVietnam.Sim
         public bool Fieldcraft;
         /// <summary>Part 2: a weapon to every man, a squad to every card, a distance to every fight (Arms). False is the parity baseline.</summary>
         public bool Arms;
+
+        /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
+        public double CpRate = Tune.CpPerSecond, StartCp = 0;
+        /// <summary>Men a side has on the map at the start, at least. The baseline's: 16.</summary>
+        public int OpeningStrength = Tune.OpeningStrength;
+        /// <summary>
+        /// The side a person is playing, if one is: its plan raises no squads
+        /// for it, because its points are his to spend. (Left to the plan, a
+        /// player's side bought a squad for him every time he reached 22: he
+        /// could never save for a card that cost more, and men he had not
+        /// asked for kept arriving.) Null: both sides raise their own.
+        /// </summary>
+        public Side? Player;
     }
 
     public sealed class MatchResult
@@ -194,7 +207,9 @@ namespace LanesOfVietnam.Sim
                 Drill = opts.Drill,
                 Fieldcraft = opts.Fieldcraft,
                 Arms = opts.Arms,
+                CpRate = opts.CpRate, Player = opts.Player,
             };
+            st.Cp[0] = st.Cp[1] = opts.StartCp;
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
@@ -212,7 +227,7 @@ namespace LanesOfVietnam.Sim
             foreach (var side in Sides)
             {
                 int placed = 0, lane = 0;
-                while (placed < Tune.OpeningStrength)
+                while (placed < opts.OpeningStrength)
                 {
                     double x = st.Front[(int)side] + Combat.Advance(side) * rng.Range(-6, 6);
                     var sq = SpawnSquad(st, side, lane % Tune.Lanes.Length, x, rng);
@@ -316,9 +331,15 @@ namespace LanesOfVietnam.Sim
             if (m.Pin >= Tune.PinStop) want = Posture.Prone;
             else if (m.Pin >= Tune.PinDrop) want = Posture.Crouched;
             else if (sq.Order == Order.Hold && Combat.CoverOf(st, m) != null) want = Posture.Crouched;
-            // Fieldcraft: a man who has stopped takes a knee, in cover or out of it; he stands to move.
-            else if (st.Fieldcraft && quarry == null && sq.Order != Order.Fallback
-                     && (sq.Halted || JsMath.Hypot(tx - m.X, tz - m.Z) <= Tune.DrillSlack)) want = Posture.Crouched;
+            // Fieldcraft: a squad that has halted in contact goes to ground: a knee for a rifleman, flat
+            // behind his gun for a machine-gunner or a sniper. On the march, or out of contact, they stand:
+            // kneeling at every pause, a man changed posture twenty times a minute.
+            else if (st.Fieldcraft && quarry == null && sq.Order != Order.Fallback && sq.Halted && sq.Gap < Tune.Contact)
+            {
+                double away = JsMath.Hypot(tx - m.X, tz - m.Z);
+                bool gun = st.Arms && (m.Weapon == Weapon.M60 || m.Weapon == Weapon.Rpd || m.Weapon == Weapon.Sniper);
+                want = away > Tune.KneelWithin ? Posture.Standing : gun && away <= Tune.SetOff ? Posture.Prone : Posture.Crouched;
+            }
             if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
             {
                 m.Posture = want;
@@ -334,7 +355,16 @@ namespace LanesOfVietnam.Sim
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
                 // With drill a man close enough to his place stays put (falling back, he always moves).
-                if (d > ((st.Drill || st.Fieldcraft) && sq.Order != Order.Fallback && quarry == null ? Tune.DrillSlack : 0.05))
+                // Fieldcraft: and once at rest he stays at rest until his place has moved a good pace off,
+                // then goes all the way to it: no shuffling a step at a time after a slot that drifts.
+                double slack = (st.Drill || st.Fieldcraft) && sq.Order != Order.Fallback && quarry == null ? Tune.DrillSlack : 0.05;
+                if (st.Fieldcraft && sq.Order != Order.Fallback && quarry == null)
+                {
+                    slack = m.Still ? Tune.SetOff : Tune.Arrive;
+                    m.Still = d <= slack;
+                }
+                else m.Still = false;
+                if (d > slack)
                 {
                     double stepLen = Math.Min(d, speed * Tune.Dt);
                     if (st.Fieldcraft && sq.Order != Order.Fallback)
@@ -550,7 +580,7 @@ namespace LanesOfVietnam.Sim
                     if (m.Alive && m.Side == side) lead = Math.Max(lead, m.X * dir);
                 }
                 if (lead > double.NegativeInfinity) st.Front[(int)side] = lead * dir;
-                st.Cp[(int)side] += Tune.CpPerSecond * Tune.Dt;
+                st.Cp[(int)side] += st.CpRate * Tune.Dt;
             }
             // Ground conceded costs morale: how far the enemy's lead man has come
             // past the midline into my half. Comparing the two fronts directly
@@ -594,7 +624,7 @@ namespace LanesOfVietnam.Sim
                 foreach (var side in Sides)
                 {
                     var plan = side == Side.Us ? us : vc;
-                    if (!plan.Reinforce || st.Cp[(int)side] < Tune.CpPerSquad) continue;
+                    if (!plan.Reinforce || st.Player == side || st.Cp[(int)side] < Tune.CpPerSquad) continue;
                     if (AliveCount(st, side) >= Tune.ForceCap) continue;
                     st.Cp[(int)side] -= Tune.CpPerSquad;
                     int lane = rng.Int(0, Tune.Lanes.Length);

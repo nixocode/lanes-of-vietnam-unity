@@ -308,6 +308,7 @@ namespace LanesOfVietnam.Sim
         {
             double dir = Combat.Advance(sq.Side);
             if (prev == Order.Fallback && sq.Order != Order.Fallback) Rerank(live, dir);
+            sq.Gap = Gap(st, sq, dir);
 
             var tc = plan.UseCover && sq.Target >= 0 && sq.Target < st.Cover.Count ? st.Cover[sq.Target] : null;
             if (!plan.UseCover) sq.Target = -1;
@@ -336,10 +337,13 @@ namespace LanesOfVietnam.Sim
                 // Arms: a squad that can see the enemy from beyond its own fighting distance
                 // closes to it, unless it is beaten down or has been told to stay: a fight
                 // happens where its weapons fight, not wherever the first round fell.
+                // The decision is made once and stands for a couple of seconds: taken afresh every
+                // tick, on a squad's pin as it crossed the line, it was a man hopping forward and stopping.
+                if (sq.Closing > 0) sq.Closing--;
                 if (st.Arms && free && !held && plan.Advance && st.Phase == Phase.Fight && sq.Order == Order.Hold && !sq.Rallied)
                 {
-                    double gap = Gap(st, sq, dir);
-                    if (gap > sq.Reach + 2 && gap < 1e9 && MeanPin(live) < Tune.PinDrop) sq.Order = Order.Advance;
+                    if (sq.Gap > sq.Reach + 2 && sq.Gap < 1e9 && MeanPin(live) < Tune.PinDrop) sq.Closing = Tune.ClosingTicks;
+                    if (sq.Closing > 0 && MeanPin(live) < Tune.PinStop) sq.Order = Order.Advance;
                 }
                 // Sent out of a position, it goes, until it is in its next cover: it does not stop a pace beyond the parapet.
                 if (arrived && !sent) sq.Sent = 0;
@@ -424,6 +428,7 @@ namespace LanesOfVietnam.Sim
         private static void March(SimState st, Squad sq, IReadOnlyList<Man> live, Cover tc, double dir)
         {
             sq.Halted = false; sq.Assault = false;
+            if (sq.Charge > 0) sq.Charge--;
             double was = sq.AnchorX;
             if (sq.Order == Order.Fallback)
             {
@@ -470,7 +475,9 @@ namespace LanesOfVietnam.Sim
                 if (enemies > 0)
                 {
                     // Arms: a squad fights from its own distance, and a support team does not go in.
-                    sq.Assault = sq.Assaults && (pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies);
+                    if (sq.Assaults && (pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies)) sq.Charge = Tune.ChargeTicks;
+                    // Once it goes in it goes in: the enemy's pin crossing the line the other way does not stop it mid-stride.
+                    sq.Assault = sq.Charge > 0;
                     if (!sq.Assault)
                     {
                         double limit = was + dir * Math.Max(0, near - sq.Reach);

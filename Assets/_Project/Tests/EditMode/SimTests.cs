@@ -546,8 +546,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag] [smoke] drill fieldcraft [map]`.</summary>
-        [TestCase(1, true, 3093, 3117538307u, 1920691780u, 1172114004u, "vc morale broke")]
-        [TestCase(7, false, 3861, 1971271368u, 2333251864u, 3470146844u, "vc morale broke")]
+        [TestCase(1, true, 1503, 2150481767u, 2294307627u, 2266930116u, "us wiped out")]
+        [TestCase(7, false, 1796, 4101092549u, 568090037u, 2402751642u, "us morale broke")]
         public void With_fieldcraft_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -725,8 +725,8 @@ namespace LanesOfVietnam.Tests
         };
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms [map]`.</summary>
-        [TestCase(1, true, 3529, 579181621u, 4076764455u, 747731303u, "vc morale broke")]
-        [TestCase(7, false, 2233, 3546342329u, 1948655222u, 3300758969u, "vc morale broke")]
+        [TestCase(1, true, 4228, 1346899756u, 3704137874u, 1035897130u, "vc morale broke")]
+        [TestCase(7, false, 2430, 3835937325u, 1035592548u, 202531620u, "vc morale broke")]
         public void With_arms_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -828,6 +828,61 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(furthest[Weapon.Sniper], Arms.Of(Weapon.M16).Range + 5, "the sniper never fired from beyond a rifle's range");
             Assert.Less(furthest[Weapon.Smg], Arms.Of(Weapon.M16).Range, "a submachine gun reached as far as a rifle");
             Assert.Greater(Arms.Of(Weapon.M60).Range, Arms.Of(Weapon.M16).Range);
+        }
+
+        /// <summary>
+        /// The owner, playtest 4: "Points are gained too slow. Too many soldiers
+        /// at the start." A match's tempo is its options': how fast points come
+        /// in, what a side starts with, how many men it opens with, and whose
+        /// reinforcements are a player's to buy. Their defaults are the baseline.
+        /// </summary>
+        [Test]
+        public void A_players_side_raises_nothing_by_itself_and_the_tempo_is_the_options()
+        {
+            var baseline = new MatchOptions { Seed = 4 };
+            Assert.AreEqual(Tune.CpPerSecond, baseline.CpRate);
+            Assert.AreEqual(Tune.OpeningStrength, baseline.OpeningStrength);
+            Assert.AreEqual(0, baseline.StartCp);
+            Assert.IsNull(baseline.Player);
+
+            MatchOptions Tempo(Side? player)
+            {
+                var o = Armed(4);
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 8; o.Player = player;
+                return o;
+            }
+            var st = Match.Create(Tempo(Side.Us));
+            foreach (var side in Match.Sides)
+            {
+                int men = st.Men.Count(m => m.Side == side);
+                Assert.GreaterOrEqual(men, 8, $"{side} opens with {men} men");
+                Assert.LessOrEqual(men, 12, $"{side} opens with {men} men: more than two squads");
+                Assert.AreEqual(20, st.Cp[(int)side]);
+            }
+            Assert.Less(st.Men.Count, Match.Create(Armed(4)).Men.Count, "a smaller opening put as many men on the map");
+
+            // Ten seconds on: the points are 20 + 1.6 a second, nobody having spent any yet (the first muster is at six seconds, 22 points).
+            var m = new LiveMatch(Tempo(Side.Us));
+            for (int t = 0; t < 100; t++) m.Step();
+            Assert.AreEqual(20 + 1.6 * 5, m.State.Cp[(int)Side.Us], 1e-9, "the player's points are not his income");
+
+            // Played out: the player's side raises no squad he did not buy, and his points only grow; the other side raises its own.
+            int usSquads = m.State.Squads.Count(q => q.Side == Side.Us), vcSquads = m.State.Squads.Count(q => q.Side == Side.Vc);
+            double cp = m.State.Cp[(int)Side.Us];
+            for (int t = 0; t < 1200 && !m.State.Over; t++)
+            {
+                m.Step();
+                Assert.GreaterOrEqual(m.State.Cp[(int)Side.Us], cp, $"tick {m.State.Tick}: the player's points were spent for him");
+                cp = m.State.Cp[(int)Side.Us];
+            }
+            Assert.AreEqual(usSquads, m.State.Squads.Count(q => q.Side == Side.Us), "the player's side raised a squad by itself");
+            Assert.Greater(m.State.Squads.Count(q => q.Side == Side.Vc), vcSquads, "the computer's side raised nothing");
+
+            // With no player, both sides raise their own, as before.
+            var auto = new LiveMatch(Tempo(null));
+            int before = auto.State.Squads.Count(q => q.Side == Side.Us);
+            for (int t = 0; t < 600 && !auto.State.Over; t++) auto.Step();
+            Assert.Greater(auto.State.Squads.Count(q => q.Side == Side.Us), before);
         }
 
         [Test]
