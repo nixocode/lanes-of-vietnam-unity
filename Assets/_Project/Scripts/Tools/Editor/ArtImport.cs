@@ -95,6 +95,29 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
+            else if (p.StartsWith("Assets/_Project/Art/Structures/") && p.EndsWith(".png"))
+            {
+                // The sandbag walls (tools/blender/sandbag_mesh.py): an atlas of
+                // albedo, tangent-space normal and a linear mask (-, occlusion,
+                // -, smoothness), a cell a bag; and the cloth's unevenness,
+                // tiled over each bag as a detail map: its light and dark about
+                // 0.5, read linear, because URP doubles what it reads.
+                bool normal = p.EndsWith("_normal.png");
+                bool weave = p.Contains("_weave");
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+                ti.sRGBTexture = p.EndsWith("_albedo.png");
+                ti.alphaSource = p.EndsWith("_mask.png") ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
+                ti.alphaIsTransparency = false;
+                ti.maxTextureSize = p.EndsWith("_albedo.png") ? 2048 : 1024;
+                ti.mipmapEnabled = true;
+                ti.wrapMode = weave ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Trilinear;
+                ti.anisoLevel = 4;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
             {
                 // One albedo (+ height in alpha) and one normal per layer
@@ -145,6 +168,21 @@ namespace LanesOfVietnam.Tools
                 mi.importNormals = ModelImporterNormals.Import;
                 mi.importTangents = ModelImporterTangents.CalculateMikk;
                 mi.skinWeights = ModelImporterSkinWeights.Standard;
+            }
+            else if (p.StartsWith("Assets/_Project/Art/Structures/"))
+            {
+                // Built structures: plain meshes, their material made by
+                // SceneBuilder. Readable, so the dressing can combine them.
+                mi.animationType = ModelImporterAnimationType.None;
+                mi.importAnimation = false;
+                mi.materialImportMode = ModelImporterMaterialImportMode.None;
+                mi.importBlendShapes = false;
+                mi.importCameras = false;
+                mi.importLights = false;
+                mi.isReadable = true;
+                mi.meshCompression = ModelImporterMeshCompression.Off;
+                mi.importNormals = ModelImporterNormals.Import;
+                mi.importTangents = ModelImporterTangents.CalculateMikk;
             }
             else if (p.StartsWith("Assets/_Licensed/Mixamo/"))
             {

@@ -406,26 +406,52 @@ singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
 | reactions | `flinch` (Rifle Shielding Face), `hit_back` (Rifle Hit To Back), `kneel_hit` (Rifle Kneel Hit To Back), `prone_hit` (Rifle Prone Hit Reaction), `reload` (Reloading), `grenade` (Toss Grenade) |
 | deaths | `death_front_head`, `death_right`, `death_back_head`, `death_back`, `death_front`, `death_crouch_head` (Pack); `death_rifle` (Rifle Death), `death_fall_back` (Falling Back Death), `death_backwards` (Dying Backwards), `death_blast` (Flying Back Death), `death_run` (Rifle Run To Dying), `prone_death` |
 
-### Props — `Assets/_Project/Art/Props/`
+### Structures — `Assets/_Project/Art/Structures/`
 
-**Sandbag walls, built** (nothing scanned exists). The bag cloth is ambientCG
-**CC0**, fetched 2026-09-30 as 2K PNG:
-- **Fabric066**, weathered olive, on 62% of bags;
-- **Fabric044**, rough tan, darkened by earth from albedo 0.47 to about 0.17.
+**Sandbag walls, built as geometry** by `tools/blender/sandbag_mesh.py`
+(nothing scanned exists). Three playtests reported them as "too clean",
+"too new" and flickering. As baked cards, two overlapping at one depth fought
+for the pixel; as bags they cannot.
 
-`plant_bake.py` presses each bag from a sphere: flat top and bottom, bulging
-sides, sagging in the middle, with its own lumps. They are laid in running
-bond, two deep, each with its own tilt, and the courses settle into each
-other. The result bakes to five 3.2 m segments: three wall height (1.03 m),
-two parapet (0.52 m). The game repeats them along every sandbag wall, the
-bunker, the trench parapets and the firebase revetments.
+- **Bags:** each its own size, lumps and droop, tied at one end, laid in
+  running bond and settled into the course below. Four 2.4 m runs: `tall_a`,
+  `tall_b` (7 courses, 1.15 m, 4,608 triangles) and `low_a`, `low_b`
+  (3 courses, 0.49 m, 2,016 triangles).
+- **Cloth:** Poly Haven **hessian_230** (burlap), **CC0**, fetched 2026-10-01
+  as 2K JPG from `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/hessian_230/`
+  (`_diff`, `_nor_gl`). Only its unevenness is used, as a tiling detail map:
+  the threads themselves are under two pixels at the closest zoom and beat
+  against the pixel grid, so the 40-400 texel band of the scan is kept and
+  the weave is not.
+- **Colour:** per bag, jute gone khaki (62%) or olive drab gone grey-green,
+  each lighter or darker by its own amount.
+- **Weather, baked from the wall itself:** earth in every crease (occlusion),
+  tops sun-bleached and dusty, the foot damp and greening, stains, and each
+  bag's own folds and side seams as a normal map.
+
+One 2048 atlas, a cell a bag (10 x 10), with the unwrap favouring the sides a
+wall shows. The game lays the runs end to end along every sandbag wall, the
+bunker, the trench parapets and the firebase revetments, tilted to the ground
+under them; the firebase's east wall now runs away from the lens instead of
+being drawn face-on.
 
 | file | sha256 |
 |---|---|
-| `Fabric066_2K-PNG.zip` (source) | `40782dab549e9d67a7681a65eaebbc1fb4a8e82972a490722da23daec86eb08f` |
-| `Fabric044_2K-PNG.zip` (source) | `8fb94e4cdc44794970cc36a96e89b024f16773f8ddacf3876c80d976f64ce9e1` |
-| `sandbags_albedo.png` | `8abbf8f5f55387bac05eee3832cad329cbae1db50e21adc49b6f65dc47a0e0a3` |
-| `sandbags_normal.png` | `65f3e1f2150003df53aed071a831fdb8a4613a19a927bcdae6cc543d49eef385` |
+| `hessian_230_diff_2k.jpg` (source) | `1c1d66e3764dded1cfafa5147ea56a28ef7648e3c5cae6892b8dada92d408685` |
+| `hessian_230_nor_gl_2k.jpg` (source, unused since the weave was dropped) | `a285b3716eed4e7c8eddbe9412d35049c2e05e85d9dc78d6052ab74db5041204` |
+| `sandbags.fbx` | `88d5e7d8cbf954ded3f0b00cd425122f52f08d8446428eadd72681ad6f3f526e` |
+| `sandbags_albedo.png` | `b8038223966d34c2597513d195feef0a33f381bc9cd26ff22d7f1b0082e58a6f` |
+| `sandbags_normal.png` | `4b42a737cc1e88798a4592e0545af53cd5f4fe057d98809c716962f18e9cc08c` |
+| `sandbags_mask.png` | `4702d50d41d1cbdee27886312823245998785c41658b48762be227d1b2f5bd23` |
+| `sandbags_weave.png` | `97bcefae516f9f9d05abe10043024aca156b90ad248a0261c56634cda2c23c93` |
+
+### Props — `Assets/_Project/Art/Props/`
+
+**Sandbag walls** moved out of this folder on 2026-10-01: they are meshes now,
+under *Structures* below. The cards baked here from ambientCG Fabric066 and
+Fabric044 are gone; the firebase's tower and trucks still use Fabric066
+(ambientCG, **CC0**, fetched 2026-09-30 as 2K PNG; `Fabric066_2K-PNG.zip`
+sha256 `40782dab549e9d67a7681a65eaebbc1fb4a8e82972a490722da23daec86eb08f`).
 
 **The firebase's structures, built.** They are baked as one atlas,
 `firebase_*.png`, with four props. Each texture is laid in metres, so it sits

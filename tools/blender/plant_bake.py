@@ -223,12 +223,7 @@ RECIPES["soldier_us"] = dict(build="soldier", src="soldiers/us_rifleman.glb", pp
 RECIPES["soldier_vc"] = dict(build="soldier", src="soldiers/vc_guerrilla.glb", ppm=280, ground="min", out=SOLDIER_OUT)
 
 
-# Sandbag walls, built: no scanned sandbags exist, and the camera sees every
-# wall face-on, so a baked segment repeated along a wall is the whole wall.
-# Bags are cloth from ambientCG's CC0 fabric scans (Fabric066 weathered olive,
-# Fabric044 rough tan), dusted with earth.
-RECIPES["sandbags"] = dict(build="sandbags", ppm=256, ground="min", out=os.path.join(ROOT, "Assets", "_Project", "Art", "Props"),
-                           fabrics=["Fabric066", "Fabric044"], segments=[("a", 7), ("b", 7), ("c", 7), ("d", 3), ("e", 3)])
+# (Sandbag walls are meshes now: tools/blender/sandbag_mesh.py.)
 
 
 # The firebase's structures, built: the watchtower and the vehicle park.
@@ -243,8 +238,6 @@ RECIPES["firebase"] = dict(build="firebase", ppm=72, ground="min", out=os.path.j
 def import_sources(recipe):
     if recipe.get("build") == "firebase":
         return build_firebase(recipe)
-    if recipe.get("build") == "sandbags":
-        return build_sandbags(recipe)
     if recipe.get("build") == "soldier":
         return build_soldier(recipe)
     if recipe.get("build") == "grass":
@@ -804,39 +797,6 @@ def fabric_material(atlas, dust):
     nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
     bsdf.inputs["Roughness"].default_value = 0.9
     return mat
-
-
-def build_sandbags(recipe):
-    """Wall segments 2.4 m wide: courses of bags in running bond, two deep,
-    each bag with its own size, sag and tilt; a mix of olive and tan cloth,
-    as bags came to a firebase from wherever they could be had."""
-    rng = np.random.default_rng(1966)
-    mats = [fabric_material(recipe["fabrics"][0], (0.72, 0.68, 0.58)),
-            fabric_material(recipe["fabrics"][1], (0.40, 0.35, 0.28))]      # Fabric044 is albedo 0.47: sun-bleached, but not white
-    groups = {}
-    for si, (key, courses) in enumerate(recipe["segments"]):
-        ox = si * 6.0
-        objs = []
-        z = 0.0
-        for c in range(courses):
-            x = -1.2 + (0.27 if c % 2 else 0.0) - 0.27
-            course_h = 0.0
-            while x < 1.2:
-                for row, y in enumerate((0.0, 0.3)):
-                    me, L, W, H = bag_mesh(f"bag {key}{c}", rng)
-                    me.materials.append(mats[0] if rng.uniform() < 0.62 else mats[1])
-                    o = bpy.data.objects.new(me.name, me)
-                    bpy.context.scene.collection.objects.link(o)
-                    o.location = (ox + x + L / 2 + rng.uniform(-0.02, 0.02), y + rng.uniform(-0.03, 0.03), z + H / 2)
-                    o.rotation_euler = (rng.uniform(-0.05, 0.05), rng.uniform(-0.06, 0.06), rng.uniform(-0.08, 0.08))
-                    objs.append(o)
-                    course_h = max(course_h, H)
-                x += 0.55
-            z += course_h * 0.86                                    # each course settles into the one below
-        bpy.context.view_layer.update()
-        groups[key] = objs
-    print(f"[plants] sandbags: {len(groups)} segments", flush=True)
-    return groups
 
 
 def box(name, lo, hi, mat, tile=1.0, rot=None, pivot=None):

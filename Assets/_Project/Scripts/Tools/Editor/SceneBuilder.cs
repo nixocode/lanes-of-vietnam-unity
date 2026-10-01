@@ -83,18 +83,17 @@ namespace LanesOfVietnam.Tools
             cam.allowMSAA = false;
             var camData = camGo.AddComponent<UniversalAdditionalCameraData>();
             camData.renderPostProcessing = true;
-            camData.antialiasing = AntialiasingMode.TemporalAntiAliasing;
+            // SMAA, not TAA. Three playtests reported flicker, "specially the
+            // sandbags", and it was TAA's own jitter: the lens mostly holds
+            // still here, and on a still lens every fine, contrasty edge moved
+            // from frame to frame. Measured with the wind blowing and the men
+            // moving (Flicker, 60 fps, firebase view), mean |dL*|: the sandbag
+            // wall 2.07 under TAA (Very High, jitter 0.35) and 0.004 under
+            // SMAA; the foreground grass 0.53 and 0.17; the whole frame 0.79
+            // and 0.08. No TAA setting came near (jitter 0.15: 1.05 on the
+            // wall, and no anti-aliasing left). SMAA is also the sharper frame.
+            camData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             camData.antialiasingQuality = AntialiasingQuality.High;
-            // TAA tuned against Flicker (PLAN §7) once the grass went in: dense
-            // alpha-tested blades made the default TAA boil, 1.93 mean |dL*| on
-            // a still frame against the 1.30 gate. Very High quality (bicubic
-            // history) with the jitter at 0.35 holds it at 0.65; edges on men
-            // and poles show no stair-steps at 2x zoom. SMAA reads 0 still but
-            // would crawl on grass whenever the camera pans.
-            var taa = camData.taaSettings;
-            taa.quality = TemporalAAQuality.VeryHigh;
-            taa.jitterScale = 0.35f;
-            camData.taaSettings = taa;
             camData.renderShadows = true;
             camData.requiresDepthOption = CameraOverrideOption.On;
             var rig = camGo.AddComponent<CameraRig>();
@@ -132,7 +131,7 @@ namespace LanesOfVietnam.Tools
             army.UsMaterial = Lit("US", new Color(0.24f, 0.26f, 0.17f), 0.15f);
             army.VcMaterial = Lit("VC", new Color(0.07f, 0.07f, 0.07f), 0.2f);
             army.DeadMaterial = Lit("Dead", new Color(0.16f, 0.14f, 0.12f), 0.1f);
-            cover.Sandbags = PropSet("sandbags");
+            cover.Bags = Bags();
             army.UsSoldiers = SoldierSet("soldier_us");
             army.VcSoldiers = SoldierSet("soldier_vc");
             // The 3D men (SoldierBuilder.Build makes them), over the sprites when present.
@@ -348,6 +347,54 @@ namespace LanesOfVietnam.Tools
 
         /// <summary>Metres of air for 63% haze on the massif (Mountain.shader).</summary>
         public static float MountainHaze = 2500f;
+
+        [System.Serializable]
+        private class BagAtlas { public int cols = 1, rows = 1; }
+
+        /// <summary>
+        /// The sandbag walls (Art/Structures, from sandbag_mesh.py): the meshes
+        /// by name, and their material: the atlas, a cell a bag, with the
+        /// cloth's unevenness tiled once over each cell as URP's detail map.
+        /// </summary>
+        private static BagSet Bags()
+        {
+            const string dir = "Assets/_Project/Art/Structures";
+            var json = AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/sandbags.json");
+            if (json == null) { Debug.LogWarning("[LOV] no sandbag meshes — boxes stand in (run tools/blender/sandbag_mesh.py)"); return default; }
+            AssetDatabase.ImportAsset($"{dir}/sandbags.fbx", ImportAssetOptions.ForceUpdate);
+            foreach (var f in new[] { "albedo", "normal", "mask", "weave" })
+                AssetDatabase.ImportAsset($"{dir}/sandbags_{f}.png", ImportAssetOptions.ForceUpdate);
+            Texture2D Tex(string f) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/sandbags_{f}.png");
+
+            var atlas = JsonUtility.FromJson<BagAtlas>(json.text);
+            var m = Mat("Sandbags", Shader.Find("Universal Render Pipeline/Lit"), null);
+            m.SetTexture("_BaseMap", Tex("albedo"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BumpMap", Tex("normal"));
+            m.SetFloat("_BumpScale", 1f);
+            // One mask, two readers, as the soldiers' (SoldierBuilder.Material).
+            m.SetTexture("_MetallicGlossMap", Tex("mask"));
+            m.SetTexture("_OcclusionMap", Tex("mask"));
+            m.SetFloat("_Smoothness", 1f);
+            m.SetFloat("_OcclusionStrength", 0.9f);
+            m.SetFloat("_SmoothnessTextureChannel", 0f);
+            m.SetTexture("_DetailAlbedoMap", Tex("weave"));
+            m.SetTextureScale("_DetailAlbedoMap", new Vector2(atlas.cols, atlas.rows));
+            m.SetFloat("_DetailAlbedoMapScale", 1f);
+            m.EnableKeyword("_NORMALMAP");
+            m.EnableKeyword("_METALLICSPECGLOSSMAP");
+            m.EnableKeyword("_OCCLUSIONMAP");
+            m.EnableKeyword("_DETAIL_MULX2");
+            EditorUtility.SetDirty(m);
+
+            var meshes = AssetDatabase.LoadAllAssetsAtPath($"{dir}/sandbags.fbx").OfType<Mesh>().OrderBy(x => x.name).ToArray();
+            return new BagSet
+            {
+                Tall = meshes.Where(x => x.name.StartsWith("tall")).ToArray(),
+                Low = meshes.Where(x => x.name.StartsWith("low")).ToArray(),
+                Material = m,
+            };
+        }
 
         /// <summary>A baked prop set (Art/Props): lit like the plants, without wind, leaf glow or field shade.</summary>
         private static PlantSet PropSet(string name)

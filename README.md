@@ -73,7 +73,7 @@ reference/TARGET.jpg             the specification for the look
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades and squad smoke, behind match options; parity baseline tagged and unchanged |
-| Build | 25.70 MB initial (≤ 45); flicker 0.41 (≤ 1.30) |
+| Build | 29.99 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 
 The measured detail, step by step, is in PLAN §10a.
 

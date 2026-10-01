@@ -45,15 +45,17 @@ OUT = os.path.join(SRC, "soldiers")
 # first of each side is the earlier build's calibrated body; the others move
 # its macros, so their skeletons differ and the kit is refitted to them
 # (refit_kit). kit: which of the earlier model's materials are carried over.
-US = dict(old="soldiers/us_rifleman.glb", eyes="brown", shoes="shoes03", cloth=(0.083, 0.086, 0.055))   # OG-107 at 0.085
-VC = dict(old="soldiers/vc_guerrilla.glb", eyes="brown", shoes="shoes04", cloth=(0.034, 0.033, 0.035))  # black cotton, sun-faded
+US = dict(old="soldiers/us_rifleman.glb", eyes="brown", shoes="shoes03", cloth=(0.083, 0.086, 0.055),   # OG-107 at 0.085
+          hair=(0.045, 0.032, 0.022), helmet_up=0.032)
+VC = dict(old="soldiers/vc_guerrilla.glb", eyes="brown", shoes="shoes04", cloth=(0.034, 0.033, 0.035),  # black cotton, sun-faded
+          hair=(0.014, 0.013, 0.013), helmet_up=0.0)
 SIDES = {
     "us_a": dict(US, skin="young_caucasian_male",
                  macro=dict(gender=0.92, age=0.34, muscle=0.64, weight=0.47, proportions=0.62, height=0.70,
                             race={"asian": 0.10, "caucasian": 0.62, "african": 0.28}),
                  kit=("helmet_steel", "helmet_cover", "webbing", "flakvest", "gun_steel", "gun_furniture")),
     # No flak vest (many went without in the heat), a bigger man.
-    "us_b": dict(US, skin="young_african_male",
+    "us_b": dict(US, skin="young_african_male", hair=(0.012, 0.011, 0.011),
                  macro=dict(gender=0.95, age=0.30, muscle=0.74, weight=0.52, proportions=0.60, height=0.74,
                             race={"asian": 0.02, "caucasian": 0.08, "african": 0.90}),
                  kit=("helmet_steel", "helmet_cover", "webbing", "gun_steel", "gun_furniture")),
@@ -219,6 +221,44 @@ def conical_hat(arm, head_top, colour=(0.27, 0.22, 0.12)):       # weathered pal
     return hat
 
 
+def cut_hair(body, arm, colour):
+    """
+    Hair, cropped short: the scalp's faces given a dark material of their own.
+    The skins are bald (their hair is a separate mesh of alpha cards, which an
+    opaque atlas cannot hold), and a soldier seen from behind was a bare skull
+    under his helmet. The scalp is the head above the brow and behind the
+    temples, down to the nape; the line is as coarse as the mesh there (about
+    a centimetre), which is what a field haircut looks like from ten metres.
+    """
+    mw = body.matrix_world
+    h0 = arm.matrix_world @ arm.data.bones["head"].head_local
+    top = max((mw @ v.co).z for v in body.data.vertices)
+    span = top - h0.z
+    mat = bpy.data.materials.new("hair")
+    mat.use_nodes = True
+    bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Base Color"].default_value = (*colour, 1)
+    bsdf.inputs["Roughness"].default_value = 0.6
+    body.data.materials.append(mat)
+    slot = len(body.data.materials) - 1
+    n = 0
+    for p in body.data.polygons:
+        c = mw @ p.center
+        t = (c.z - h0.z) / span                      # 0 at the base of the skull, 1 at the crown
+        front = -(c.y - h0.y)                        # metres toward the face
+        side = abs(c.x - h0.x)
+        if t < 0.18 or side > 0.2:
+            continue
+        crown = t > 0.80 and front < 0.085
+        back = t > 0.22 and front < -0.005 - 0.05 * max(0.0, 0.6 - t)
+        temple = t > 0.62 and front < 0.05
+        ear = 0.40 < t < 0.62 and -0.03 < front < 0.03 and side > 0.062     # the ears stay skin
+        if (crown or back or temple) and not ear:
+            p.material_index = slot
+            n += 1
+    return n
+
+
 def human(HumanService, macro):
     """
     A body and its skeleton, the skeleton fitted to the body.
@@ -285,6 +325,7 @@ def build(side, preview):
     remove_helpers(body)
     for o in [body] + parts:
         apply_masks(o)
+    scalp = cut_hair(body, arm, spec["hair"])
     recolour(suit.data.materials[0], spec["cloth"], os.path.join(OUT, f"cloth_{side}.png"))
     if spec["shoes"] == "shoes04":
         # These come with white socks: everything about the shoe goes to worn black.
@@ -321,6 +362,11 @@ def build(side, preview):
         f"{worst * 1000:.0f} mm off); kit refitted by up to {moved * 1000:.0f} mm")
     # The vest and the webbing were fitted to a skin-tight shell; over real
     # cloth they sit a centimetre and a half further out, or the shirt shows through.
+    # The M1 helmet was set on a head hinged 10 cm low; on this one it sat over the eyes.
+    if spec.get("helmet_up"):
+        steel = {i for i, m in enumerate(kit.data.materials) if m and m.name in ("helmet_steel", "helmet_cover")}
+        for vi in {v for p_ in kit.data.polygons if p_.material_index in steel for v in p_.vertices}:
+            kit.data.vertices[vi].co.z += spec["helmet_up"]
     soft = {i for i, m in enumerate(kit.data.materials) if m and m.name in ("flakvest", "webbing")}
     push = {v for p_ in kit.data.polygons if p_.material_index in soft for v in p_.vertices}
     for vi in push:
@@ -364,7 +410,7 @@ def build(side, preview):
             body.data.materials.pop(index=i)
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     height = max((body.matrix_world @ v.co).z for v in body.data.vertices)
-    log(f"{side}: {tris} triangles, {len(body.data.vertices)} vertices, {height:.2f} m tall, "
+    log(f"{side}: {tris} triangles, {len(body.data.vertices)} vertices, {height:.2f} m tall, {scalp} scalp faces, "
         f"materials {[m.name for m in body.data.materials]}")
 
     if preview:
@@ -381,7 +427,8 @@ def build(side, preview):
         sc.camera = co
         sc.world = bpy.data.worlds.new("w")
         for name, loc, rot in (("side", (-6, 0, 0.95), (math.radians(90), 0, math.radians(-90))),
-                               ("front", (0, -6, 0.95), (math.radians(90), 0, 0))):
+                               ("front", (0, -6, 0.95), (math.radians(90), 0, 0)),
+                               ("back", (0, 6, 0.95), (math.radians(90), 0, math.radians(180)))):
             co.location, co.rotation_euler = loc, rot
             sc.render.filepath = os.path.join(ROOT, "captures", "soldiers", f"body_{side}_{name}.png")
             bpy.ops.render.render(write_still=True)

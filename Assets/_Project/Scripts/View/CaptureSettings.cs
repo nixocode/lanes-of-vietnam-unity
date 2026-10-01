@@ -35,11 +35,11 @@ namespace LanesOfVietnam.View
         /// <summary>Hide the interface.</summary>
         public bool NoUi = true;
         /// <summary>
-        /// Antialiasing for the capture: taa (the game's), smaa, fxaa, none.
+        /// Antialiasing for the capture: smaa (the game's), taa, fxaa, none.
         /// "none" is the flicker instrument's zero: two renders of a frozen
         /// scene with nothing temporal on must be identical.
         /// </summary>
-        public string Aa = "taa";
+        public string Aa = "smaa";
         /// <summary>Select this squad (id) before rendering, to see its rings; -1 for none, -2 for Tab's first pick.</summary>
         public int Select = -1;
         /// <summary>Raise the field glasses toward this viewport point (x,y in 0..1); null for none.</summary>
