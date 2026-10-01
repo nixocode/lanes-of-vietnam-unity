@@ -4,7 +4,7 @@ sprites: the earlier build's rigged MPFB2 soldiers (our own work on a CC0 base;
 SourceArt/soldiers), made into FBX that Unity's Humanoid avatar can play
 Mixamo's clips on.
 
-    Blender -b --factory-startup --python tools/blender/soldier_rig.py -- [us] [vc] [--clips]
+    Blender -b --factory-startup --python tools/blender/soldier_rig.py -- [us_a us_b us_c vc_a vc_b vc_c] [--clips]
 
 For each side:
 
@@ -54,17 +54,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = os.path.join(ROOT, "SourceArt")
 OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Soldiers3D")
 
+# The rebuilt bodies (tools/blender/soldier_body.py): MPFB2 dressed in real
+# cloth with the earlier build's kit, three men a side.
+#   fatigue_to  the sprite bake's OG-107 (0.085), for the helmet cover's scan
+#   tan         the photographed skins are studio-lit and pale for men who live
+#               outdoors: a gain on the skin alone
+#   lift        plain gains for materials that bake too dark to read (polished
+#               black shoes at 0.005)
+US_TAN, VC_TAN = (0.55, 0.50, 0.46), (0.58, 0.53, 0.49)
 SIDES = {
-    # fatigue_to: the sprite bake's re-colour of the US uniform to OG-107 olive
-    # (plant_bake.py lift_fatigue: its texture bakes the green at ~0.02).
-    "us": dict(src="soldiers/us_rifleman.glb", fatigue_to=0.085, skin=(0.30, 0.18, 0.12)),
-    "vc": dict(src="soldiers/vc_guerrilla.glb", skin=(0.26, 0.155, 0.10)),
+    "us_a": dict(src="soldiers/us_a_v2.glb", fatigue_to=0.085, tan=US_TAN, lift={"boots": 4.5}),
+    "us_b": dict(src="soldiers/us_b_v2.glb", fatigue_to=0.085, tan=(1.75, 1.70, 1.65), lift={"boots": 4.5}),   # his skin photograph is dark already: 0.05 as shot, 0.085 here
+    "us_c": dict(src="soldiers/us_c_v2.glb", fatigue_to=0.085, tan=US_TAN, lift={"boots": 4.5}),
+    "vc_a": dict(src="soldiers/vc_a_v2.glb", tan=VC_TAN),
+    "vc_b": dict(src="soldiers/vc_b_v2.glb", tan=VC_TAN),
+    "vc_c": dict(src="soldiers/vc_c_v2.glb", tan=VC_TAN, lift={"boots": 4.5}),
 }
-# skin: linear albedo. The MPFB default (0.42, 0.27, 0.19; luminance 0.30)
-# rendered the men's faces chalk-white in the game's light and grade (the
-# first zoomed capture); sun-darkened skin is nearer 0.2, and warmer.
 ATLAS = 2048
-BODY_TRIS = 7000
+BODY_TRIS = 9000
 GUN_MATERIALS = ("gun_steel", "gun_furniture")
 FPS = 30
 
@@ -236,7 +243,7 @@ def write_png(path, px):
     out.close()
 
 
-def albedo_gains(mats, fatigue_to):
+def albedo_gains(mats, fatigue_to, tan=None, lift=None):
     """Per material, the colour gain that makes its base colour's median its
     palette albedo. The earlier build wrote each material as palette colour
     (its glTF factor: OG-107 at 0.118, black leather 0.022, gun steel 0.04,
@@ -253,6 +260,16 @@ def albedo_gains(mats, fatigue_to):
         if not link:
             continue
         node = link[0].from_node
+        if mat.name == "skin" and tan:
+            gains[mat.name] = tuple(tan)
+            continue
+        if lift and mat.name in lift:
+            gains[mat.name] = (lift[mat.name],) * 3
+            continue
+        # Only the earlier build's palette-times-scan materials (a Mix node):
+        # the rebuilt body's own textures are already what they should be.
+        if node.type not in ("MIX", "MIX_RGB"):
+            continue
         tex = [n for n in ([node] + [l.from_node for i in node.inputs for l in i.links]) if n.type == "TEX_IMAGE" and n.image]
         if not tex:
             continue
@@ -270,7 +287,7 @@ def albedo_gains(mats, fatigue_to):
     return gains
 
 
-def bake_atlas(side, body, rifle, fatigue_to, skin=None):
+def bake_atlas(side, body, rifle, fatigue_to, skin=None, tan=None, lift=None):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     try:
@@ -290,7 +307,7 @@ def bake_atlas(side, body, rifle, fatigue_to, skin=None):
     img = bpy.data.images.new("bake", ATLAS, ATLAS, alpha=True, float_buffer=True)
     img.colorspace_settings.name = "Non-Color"
     out = {}
-    gains = albedo_gains(mats, fatigue_to)
+    gains = albedo_gains(mats, fatigue_to, tan, lift)
     for name, socket in (("albedo", "Base Color"), ("metal", "Metallic"), ("rough", "Roughness")):
         restore = route(mats, socket, gains if socket == "Base Color" else None)
         bake(both, "EMIT", img)
@@ -707,7 +724,7 @@ def build(side, spec, clips):
     log(f"{side}: body {tris(body)} triangles, rifle {tris(rifle)} ({src_tris} together)")
 
     atlas_uv([body, rifle])
-    bake_atlas(side, body, rifle, spec.get("fatigue_to"), spec.get("skin"))
+    bake_atlas(side, body, rifle, spec.get("fatigue_to"), spec.get("skin"), spec.get("tan"), spec.get("lift"))
 
     poser = Poser(arm, body, rifle)
     # The support hand's grip and the muzzle, under the rifle.
@@ -785,7 +802,7 @@ def main():
     sides = [a for a in argv if not a.startswith("--")] or list(SIDES)
     os.makedirs(OUT, exist_ok=True)
     for side in sides:
-        build(side, SIDES[side], clips and side == "us")
+        build(side, SIDES[side], clips and side == "us_a")
 
 
 if __name__ == "__main__":

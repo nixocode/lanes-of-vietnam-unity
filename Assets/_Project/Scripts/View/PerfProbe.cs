@@ -38,14 +38,14 @@ namespace LanesOfVietnam.View
         {
             string mode = Param("perf");
             var root = GameRoot.Instance;
-            if (mode == "sprites") { root.ArmyView.UsFigure = null; root.ArmyView.VcFigure = null; }
+            if (mode == "sprites") { root.ArmyView.UsFigures = new SoldierFigure[0]; root.ArmyView.VcFigures = new SoldierFigure[0]; }
             yield return null;
             var screens = FindAnyObjectByType<Screens>();
             if (screens != null) { screens.ChooseSide(Side.Us); screens.Deploy(); screens.Skip(); }
             int ff = int.TryParse(Param("ff"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 600;
             root.Driver.FastForward(ff);
             yield return null;
-            string what = root.ArmyView.UsFigure != null ? "3D men" : "sprites";
+            string what = root.ArmyView.UsFigures.Length > 0 ? "3D men" : "sprites";
             Debug.Log($"[LOV] perf: {what}, fast-forwarded {ff} ticks; {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceVersion}), " +
                       $"{Screen.width}x{Screen.height}");
             var frames = new List<float>();

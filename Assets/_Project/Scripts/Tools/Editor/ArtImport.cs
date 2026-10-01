@@ -84,7 +84,9 @@ namespace LanesOfVietnam.Tools
                 ti.sRGBTexture = p.EndsWith("_albedo.png");
                 ti.alphaSource = p.EndsWith("_mask.png") ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
                 ti.alphaIsTransparency = false;
-                ti.maxTextureSize = 1024;
+                // Six men now: the colour at 1024, the normal and the mask at 512
+                // (they carry cloth grain and soft occlusion, not edges).
+                ti.maxTextureSize = p.EndsWith("_albedo.png") ? 1024 : 512;
                 ti.mipmapEnabled = true;
                 ti.wrapMode = TextureWrapMode.Clamp;
                 ti.filterMode = FilterMode.Trilinear;

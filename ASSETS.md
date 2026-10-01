@@ -313,42 +313,73 @@ Mixamo-driven Humanoid motion) exist. It costs one quad per man.
 
 ### Soldiers (3D) — `Assets/_Project/Art/Soldiers3D/`
 
-**Our own work**, from the same sources as the sprites above: the rigged
-MPFB2 soldiers (CC0 body, our kit, ambientCG CC0 fabric and metal scans),
-made into skinned FBX by `tools/blender/soldier_rig.py` for Unity's Humanoid
-avatar (PLAN §12.3). Per side:
+**Our own work on CC0 parts.** Three men a side, built by
+`tools/blender/soldier_body.py` and made into skinned FBX for Unity's Humanoid
+avatar by `tools/blender/soldier_rig.py` (PLAN §12.3).
 
-- **Atlas:** the nine materials baked by Cycles into one 2048 atlas (shipped
-  at 1024): albedo, tangent-space normal, and a mask (metallic, occlusion
-  within 8 cm, smoothness). Each material is baked at **its palette albedo**:
-  the earlier build's scans were meant to carry only pattern under a palette
-  colour but were never normalised (fatigue scan median 0.053, leather 0.012),
-  so each is divided by its own median. Baked: boots 0.021, US fatigue 0.083
-  (OG-107, the sprite bake's measured 0.085), VC black cotton 0.030, gun steel
-  0.040, webbing 0.141. Skin set to sun-darkened (0.20 US, 0.17 VC; MPFB's
-  default 0.30 rendered chalk-white).
-- **Rifle:** split off the body, rigid on the right hand, with the support
-  hand's grip and the muzzle marked on it.
-- **Body:** decimated after the bake to 7,000 triangles (US 6,306 vertices);
-  53 bones; 1.89 m (US), 1.69 m (VC).
+- **Body:** MPFB2 (MakeHuman, CC0) base mesh and `game_engine` skeleton, the
+  skeleton **fitted to the body** (the body's shape baked before the rig goes
+  on, and the detailed helpers on: without both, every body got the default
+  human's skeleton, the head joint 10 cm low).
+- **Clothes, footwear, eyes, skin:** the **MakeHuman system assets**, CC0,
+  `https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip`
+  (fetched 2026-10-01, 281 MB, sha256
+  `b542127a8e25547c7c29c19f2d1d2adb9a664c80396ecd694095dbc8028a0107`; kept in
+  the git-ignored `SourceArt/makehuman/`). Used: `male_casualsuit01` (shirt
+  and trousers), `shoes03`, `shoes04`, eyes `low-poly`, skins
+  `young_caucasian_male`, `young_caucasian_male2`, `young_african_male`,
+  `young_asian_male`, `middleage_asian_male`.
+- **Colour:** the cloth keeps its own weave and folds (its luminance) under
+  the palette's colour: OG-107 at 0.083 (US), black cotton 0.033 (VC), khaki
+  green 0.10 (the NVA regular). Skins are gained down to men who live
+  outdoors (0.17-0.20; the Black soldier's 0.085).
+- **Kit:** helmet, webbing, flak vest and rifle carried over from the earlier
+  build's models (`us_rifleman.glb`, `vc_guerrilla.glb`: our own work),
+  refitted to each body bone by bone; the conical hat is modelled here.
+- **Baked** by Cycles into one 2048 atlas a man (shipped 1024 colour, 512
+  normal and mask); **9,000 triangles**; the rifle rigid on the right hand.
 
-**Interim clips** (`soldier_poses.fbx`), until Mixamo's: the sprite bake's
-poses (hold, three aims, kneel, prone, two dead) and its four CMU takes (the
-table above) as keyed actions at 30 fps: walk 35 frames, run 24, crouch 38,
-idle 178 (forward and back). Same CMU terms as above: the converted data ships
-inside the game, never on its own.
+| man | what he is |
+|---|---|
+| `us_a` | rifleman in a flak vest (the calibrated body, 1.87 m with his helmet) |
+| `us_b` | a bigger Black soldier, no flak vest |
+| `us_c` | slighter and younger, in a vest, his fatigues newer |
+| `vc_a` | guerrilla in black cotton and a conical hat |
+| `vc_b` | older and stockier, black cotton, sun helmet |
+| `vc_c` | NVA regular: khaki green, sun helmet, boots |
+
+**Interim clips** (`soldier_poses.fbx`): the sprite bake's poses and its four
+CMU takes (the table above) as keyed actions at 30 fps; kept as the fallback
+for any role Mixamo's clips do not fill. Same CMU terms: the converted data
+ships inside the game, never on its own.
 
 | file | sha256 |
 |---|---|
-| `soldier_us.fbx` | `21d4aa9f82546c456c9b5752e777ce741a393423a76cb80d2b3cde0780d78d8a` |
-| `soldier_vc.fbx` | `c8fb5cedfffc5f745b545d339cea6a3f6a3d04c39ccd70339b7ff4db6817457b` |
-| `soldier_poses.fbx` | `63719207f01d22d2bca110bef40e9bae2a65464aef441d34aae8ae58bb7c67af` |
-| `soldier_us_albedo.png` | `c8848c63ae3a7394100f5a8643d8c082f10a402dfca0b90c4d33c37e0efd46c5` |
-| `soldier_us_normal.png` | `504bd3f995cc6a30274336a7319ee83a083e6bb8c88b52aac143940646705c54` |
-| `soldier_us_mask.png` | `87f1d24455757db100c253efbbee7639e7e0dce99d72728830371b661dcc0a8a` |
-| `soldier_vc_albedo.png` | `dee3ef69effe588ed99db63fb75e552645eb78df9f647e74254e6ff20e6860a3` |
-| `soldier_vc_normal.png` | `0cbc0ad1ddf107e41aea135f1a8895c360fdfb82bb5e2b937ccedfa93ffe5add` |
-| `soldier_vc_mask.png` | `0549a989669c5312bd3394aeb95d6090e6a20985691cfe0cf135fbc73b00cfa9` |
+| `soldier_poses.fbx` | `59ca1195738177895d3cbf7b5dd59b58851b68e8267de8b6b3b7985b9357b5fd` |
+| `soldier_us_a.fbx` | `c1e7c4b95078cf4cdcab176523d6224d5bd6131ccd11be0016b8c6d5f571124c` |
+| `soldier_us_b.fbx` | `29cd080b19d4d5f6ec4b2957ce16db0ed7efc534bb03ff8325fe3806955865ba` |
+| `soldier_us_c.fbx` | `be45c0c0f8d9ad71aacccd220584cfcc097bb35295fe8b774301ebc6dee477f6` |
+| `soldier_vc_a.fbx` | `4a45c0ad52da2bdecfaa70d09faa0cb528df112cc3ca1505e4aacd1a15d2db70` |
+| `soldier_vc_b.fbx` | `01df73b2e6b9e5b9f083a392c882acaa248acc8d849365031273e305b37df911` |
+| `soldier_vc_c.fbx` | `a59d9340325d5ec0c8230a66a1d18ababdec37f43030c0c62199066bd067ea35` |
+| `soldier_us_a_albedo.png` | `fa95f402b3ce2af8f7190f2192c578620d2007fb94e29c1d82cc800b16779136` |
+| `soldier_us_b_albedo.png` | `110744e722298cf0a0c19bab57eae53c54df3aacdb880ff47d0c5a320ac7cb73` |
+| `soldier_us_c_albedo.png` | `87abbf6410c85940fdd985eef30a63b4ba019acca8aa47fdcb02bc6ff7f6a146` |
+| `soldier_vc_a_albedo.png` | `ffebc588c564fd93c8274e211186c2518e6f39e5264069deb4d9a4444dd48e3a` |
+| `soldier_vc_b_albedo.png` | `fd71fbd9c1df872148240fe726a8bc48d349c4564f989c898c04f4d3e6b41618` |
+| `soldier_vc_c_albedo.png` | `fce32e7f25c953d9b013f101ece68794da2322bedf3ad380b4cb2438267699b3` |
+| `soldier_us_a_normal.png` | `cf3d43ae104eafadbae026630093751022f9580454c4940c16f94b9eafe0d3cb` |
+| `soldier_us_b_normal.png` | `b1f80bae0bc01e8bc815fb922b1897835c174387f3cc9326d8c70db0e2ca8e8b` |
+| `soldier_us_c_normal.png` | `b91739856a50003f48b324e50960d7e6c3301fa12bdf877abb2dd6072f5d10fb` |
+| `soldier_vc_a_normal.png` | `a8a93d3d7c4797c285ba38b95867735e22d6050cb0626e0da0e89e864684fe50` |
+| `soldier_vc_b_normal.png` | `45f9c0a41565cbf5f2285c4161bdda934ff4ed405ca363315b18ce6ed767e369` |
+| `soldier_vc_c_normal.png` | `e7e7d7558321a5fab46daab15118dbbbcd5d0afb74e580a0f78ca103e092adea` |
+| `soldier_us_a_mask.png` | `c81dcb5b6f9d333edcedc2e8b61c39f2e1d26b8597bcd41413e3933a13bde78f` |
+| `soldier_us_b_mask.png` | `04f432c793e77629a0d0caf9ce070d58a4ea1875a2c7e457f5b4d80e613f034c` |
+| `soldier_us_c_mask.png` | `21dc2079d40484a0b9cb22c88ac417e337f6018b86fc567753622fc63d429e07` |
+| `soldier_vc_a_mask.png` | `843d8de04d1b1561f2e1e4bc8d51f3be34229316f575edf97dadb31d4bbb61e7` |
+| `soldier_vc_b_mask.png` | `058c45c504e073a113408f777833c7d2aa9e2b8d97a3675d103ef39c61d4a6e6` |
+| `soldier_vc_c_mask.png` | `565c41b43cf4353e0c41a600496aa47faadeeb52aba5835e21b09565d2079365` |
 
 ### Mixamo — `Assets/_Licensed/Mixamo/` (git-ignored)
 
