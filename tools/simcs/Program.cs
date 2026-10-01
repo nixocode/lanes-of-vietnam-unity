@@ -361,6 +361,9 @@ namespace LanesOfVietnam.SimCs
                         }
                     }
                 }
+                if (a.Contains("when"))
+                    foreach (var e in st.Events.Where(e => e.Kind == EventKind.Melee || e.Kind == EventKind.Through || e.Kind == EventKind.PositionTaken).Take(14))
+                        Console.WriteLine($"    seed {seed} t{e.Tick} {e.Kind} at x {(e.X ?? st.Men[e.Id].X):F1} z {(e.Z ?? st.Men[e.Id].Z):F1}");
                 minutes += st.Tick * Tune.Dt / 60;
                 men += st.Men.Count;
             }
