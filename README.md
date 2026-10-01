@@ -63,19 +63,19 @@ reference/TARGET.jpg             the specification for the look
 |---|---|
 | Toolchain | Unity 6000.6.3f1 + Web Build Support, verified headless |
 | Step 0 — empty WebGL build | **7.34 MB** initial with physics removed (was 8.00), the floor |
-| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 30/30 tests |
+| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 50/50 tests |
 | Step 2 — harnesses | capture, LookMeter, Flicker, Budget: running, zeros proven |
 | Step 2a — technology decisions | editor, physics, modules, streaming: decided and measured — PLAN §12.9a |
 | Step 3 — grey-box map | lanes readable; the map's layout rules kept under the art |
-| Step 5/5a — command and interface | selection, orders, field glasses, the HUD to TARGET.jpg; UIAudit 9/9 |
+| Step 5/5a — command and interface | selection, orders, field glasses, the HUD to TARGET.jpg, a hold/go lever over every strongpoint; UIAudit 11/11 |
 | Step 6a/6b — art | photographed sky that lights the scene; scanned ground; 13 baked plant species; palms, bamboo, grass; the real Chu Pong massif (SRTM); sandbags, tower, trucks; cloud shadows; a measured grade |
-| Soldiers | skinned 3D men on a Humanoid avatar, stepped by match time, ~0.5 ms a frame in WebGL; interim clips (CMU mocap and poses) until Mixamo's |
+| Soldiers | six rebuilt bodies (three a side) on a Humanoid avatar, 48 Mixamo clips, stepped by match time (~0.35 ms a frame in WebGL); twelve built weapon models, one for every class |
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
 | Build | 29.85 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 
-The measured detail, step by step, is in PLAN §10a.
+The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17.
 
 ## Direction
 

@@ -1270,6 +1270,59 @@ a list that is mostly riflemen with a company's support.
 the M79 and the squad lists adjusted, 51.0% over 96 seeds (§10a).
 
 
+### 12.17 Where it stands, and what is next (2026-10-01, after playtest 4)
+
+**In the build** (commit `90a256f`, local; WebGL 29.85 MB; EditMode 50/50,
+PlayMode 14/14; real Chrome about 6.5 ms a frame):
+
+| asked for | state |
+|---|---|
+| soldiers that are not stick figures (playtests 2, 3) | six rebuilt bodies, hair, whole necks and legs; one US man in a boonie hat |
+| sandbags too new, flickering (playtests 1 to 3) | built of bags, weathered; the flicker was TAA, now SMAA (frame 0.79 -> 0.08) |
+| "headless chickens", crossing, circling (playtests 3, 4) | Fieldcraft (§12.15) and the playtest-4 pass: nobody walks through the enemy, men off each other, posture changes 21 -> 12 a minute, hops 15 -> 3 |
+| melee at arm's length; shots through men; blood; impacts felt | in: bayonet clips, rounds that carry on, blood thrown and left, deaths that fall the way they were hit, fear when a man drops |
+| Warfare 1944's hold and go | a lever and a plate on every strongpoint (any cover, built or natural); H and G |
+| a weapon model for every class; a sniper class; fight distances | Arms (§12.16): eleven kits, twelve built models, ranges that fit the frame |
+| points too slow; too many soldiers at the start (playtest 4) | the player's side no longer spends his points; 1.6 a second, 20 in hand; a squad a lane to open; the computer's squad costs it 28 |
+
+**Next, in this order.** Each lands with its measurement, a local commit and a
+build the owner can play. Anything that downloads asks first.
+
+1. **Playtest 5.** The owner plays the build above. Three things only he can
+   judge: whether the men still read as clunky or random at full speed (if so,
+   what they were doing), whether the tempo is right (the dials are
+   `GameRoot.CpRate`, `StartCp`, `OpeningStrength`, `MusterCost`; check with
+   `tools/simcs/run.sh player 24 <cost>`), and whether the guns now have punch.
+2. **Owed:** items 3 and 4 of the playtest-3 list, which were images that never
+   arrived. Slot them in at the top when re-sent.
+3. **Sound.** Firing sounds for the M79, the RPG-7 and the mortar (a pitched-up
+   howitzer stands in): source them, with the owner's OK for the download. A
+   launcher's burst the size of its round.
+4. **Loose ends of Arms.** The mortar set up on the ground when its team halts,
+   not carried like a rifle. Sappers and SMG men measured in play (0.08 to 0.13
+   kills a man when last counted); the computer's side given sappers if they
+   now work. A difficulty setting made of the tempo dials (the 2D game's
+   Recruit / Veteran / Elite).
+5. **Soldiers.** More headgear and kit variety (bare heads, the NVA sun helmet
+   checked at zoom, ammunition belts on the gunners, dirt and sweat); card
+   portraits redrawn from the rebuilt bodies with their weapons.
+6. **Strongpoints.** Trench walls revetted and duckboarded; the plates' look;
+   a strip in the HUD for strongpoints off screen, if the owner wants it.
+7. **Frame time.** 3.6-4.1 ms before the new bodies and sandbags, about 6.5
+   now: a far LOD and a shadow proxy for the sandbag walls (0.2 M triangles),
+   a 3 k-triangle soldier under 110 px. Target 5 ms with 60 men.
+8. **Gore** beyond what is in (the owner: not the priority).
+9. **§12.12's remaining steps:** 9a the immersion layer (the Huey and the
+   aircraft on screen, flares); 10 a build a stranger can load (push and host
+   **when asked**: ten commits are local only); Part 2's elevation, sniper
+   glint and duels, napalm against concealment, armour and flares; the ARVN,
+   LRRP and RPD-team cards and the M113; the other four operations, each
+   needing its own reference frame; modes, campaign, perks; the stranger test.
+
+**How to run it.** `python3 tools/serve.py` from the project folder, then
+http://127.0.0.1:8065. Nothing is left running between sessions.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.
