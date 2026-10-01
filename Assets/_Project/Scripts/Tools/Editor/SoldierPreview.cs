@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using LanesOfVietnam.View;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -33,7 +34,7 @@ namespace LanesOfVietnam.Tools
         public static void Render()
         {
             Directory.CreateDirectory("captures/soldiers");
-            foreach (var side in new[] { "us", "vc" }) Sheet(side);
+            foreach (var side in SoldierBuilder.Us.Concat(SoldierBuilder.Vc)) Sheet(side);
         }
 
         /// <summary>The upright states, large, to look at legs and kit: captures/soldiers/&lt;side&gt;_close.png.</summary>
@@ -44,7 +45,7 @@ namespace LanesOfVietnam.Tools
             States = new[] { ("bind", 0f, 0, false, false, 0, 0f), ("idle", 0f, 0, false, false, 0, 1.0f), ("walk a", 1.35f, 0, false, false, 0, 0.25f), ("walk b", 1.35f, 0, false, false, 0, 0.6f),
                              ("run", 2.0f, 0, false, false, 0, 0.3f), ("aim", 0f, 0, true, false, 0, 1f), ("kneel", 0f, 1, false, false, 0, 1f),
                              ("crouch walk", 1.1f, 1, false, false, 0, 0.4f) };
-            foreach (var side in new[] { "us", "vc" }) Sheet(side, 1.6f, "_close", 1.15f);
+            foreach (var side in SoldierBuilder.Us.Concat(SoldierBuilder.Vc)) Sheet(side, 1.6f, "_close", 1.15f);
             States = orig;
         }
 
@@ -55,7 +56,7 @@ namespace LanesOfVietnam.Tools
             var orig = States;
             States = new[] { ("crawl 0", 0.45f, 2, false, false, 0, 0.1f), ("crawl 1", 0.45f, 2, false, false, 0, 0.45f),
                              ("crawl 2", 0.45f, 2, false, false, 0, 0.8f), ("crawl 3", 0.45f, 2, false, false, 0, 1.15f) };
-            Sheet("us", 3f, "_crawl");
+            Sheet("us_a", 3f, "_crawl");
             States = orig;
         }
 

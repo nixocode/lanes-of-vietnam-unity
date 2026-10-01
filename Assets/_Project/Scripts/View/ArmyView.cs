@@ -40,9 +40,13 @@ namespace LanesOfVietnam.View
         /// <summary>Baked soldiers, one set per side. Empty: capsules.</summary>
         public PlantSet UsSoldiers;
         public PlantSet VcSoldiers;
-        /// <summary>3D soldiers, one prefab per side. When both are set, they are drawn.</summary>
-        public SoldierFigure UsFigure;
-        public SoldierFigure VcFigure;
+        /// <summary>
+        /// 3D soldiers: each side's men (three bodies a side, SoldierBuilder). When
+        /// both sides have any, they are drawn; a man is one of his side's, by his id.
+        /// </summary>
+        public SoldierFigure[] UsFigures = new SoldierFigure[0];
+        public SoldierFigure[] VcFigures = new SoldierFigure[0];
+        private bool HasFigures => UsFigures != null && VcFigures != null && UsFigures.Length > 0 && VcFigures.Length > 0;
 
 
         private readonly List<Transform> _men = new List<Transform>();
@@ -382,9 +386,10 @@ namespace LanesOfVietnam.View
                 bool fresh = f == null;
                 if (fresh)
                 {
-                    f = _figures[i] = Instantiate(m.Side == Side.Us ? UsFigure : VcFigure, transform);
+                    var bodies = m.Side == Side.Us ? UsFigures : VcFigures;
+                    f = _figures[i] = Instantiate(bodies[(int)(Hash(m.Id, 5) * bodies.Length) % bodies.Length], transform);
                     f.name = $"man {i}";
-                    f.transform.localScale = Vector3.one * (0.95f + 0.08f * Hash(m.Id, 2));
+                    f.transform.localScale = Vector3.one * (0.97f + 0.05f * Hash(m.Id, 2));
                     _yaw[i] = yaw;
                 }
                 // Turned at most 300 degrees a second of match time: a man pivots, he does not snap.
@@ -428,7 +433,7 @@ namespace LanesOfVietnam.View
 
         public void Draw(MatchDriver d, Ground g)
         {
-            if (UsFigure != null && VcFigure != null)
+            if (HasFigures)
             {
                 _clock.Restart();
                 DrawFigures(d, g);

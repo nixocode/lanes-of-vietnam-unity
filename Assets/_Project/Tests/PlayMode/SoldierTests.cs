@@ -23,7 +23,8 @@ namespace LanesOfVietnam.Tests
         {
             yield return UIAuditInterfaceTests.LoadAndDeploy();
             var army = Root.ArmyView;
-            Assert.IsNotNull(army.UsFigure, "no US figure prefab: run SoldierBuilder.Build, then the scene builder");
+            Assert.Greater(army.UsFigures.Length, 1, "no US figure prefabs: run SoldierBuilder.Build, then the scene builder");
+            Assert.Greater(army.VcFigures.Length, 1, "no VC figure prefabs");
             Root.Paused = true;
             Root.Driver.FastForward(700);                  // into the fight: men standing, kneeling, down, dead
             yield return null;

@@ -56,19 +56,22 @@ namespace LanesOfVietnam.Tools
             (HumanBodyBones.RightFoot, "foot_r"), (HumanBodyBones.RightToes, "ball_r"),
         };
 
+        /// <summary>The men, three a side (tools/blender/soldier_body.py): prefab soldier_&lt;name&gt;.</summary>
+        public static readonly string[] Us = { "us_a", "us_b", "us_c" }, Vc = { "vc_a", "vc_b", "vc_c" };
+
         [MenuItem("Lanes of Vietnam/Build Soldiers")]
         public static void Build()
         {
+            var men = Us.Concat(Vc).Select(n => "soldier_" + n).ToArray();
             // Re-imported under ArtImport's rules: a changed rule does not re-import by itself.
-            foreach (var side in new[] { "us", "vc" })
+            foreach (var man in men)
             {
-                AssetDatabase.ImportAsset($"{Dir}/soldier_{side}.fbx", ImportAssetOptions.ForceUpdate);
+                AssetDatabase.ImportAsset($"{Dir}/{man}.fbx", ImportAssetOptions.ForceUpdate);
                 foreach (var f in new[] { "albedo", "normal", "mask" })
-                    AssetDatabase.ImportAsset($"{Dir}/soldier_{side}_{f}.png", ImportAssetOptions.ForceUpdate);
+                    AssetDatabase.ImportAsset($"{Dir}/{man}_{f}.png", ImportAssetOptions.ForceUpdate);
             }
-            var us = BuildAvatar("soldier_us");
-            var vc = BuildAvatar("soldier_vc");
-            var clips = ImportPoses(us);
+            var avatars = men.ToDictionary(m => m, BuildAvatar);
+            var clips = ImportPoses(avatars[men[0]]);
             var speeds = ClipSpeeds();
             foreach (var (name, clip, speed) in ImportMixamo())
             {
@@ -76,11 +79,15 @@ namespace LanesOfVietnam.Tools
                 if (speed > 0) speeds[name] = speed;
             }
             var ctrl = BuildController(clips, speeds);
-            BuildPrefab("soldier_us", us, ctrl, speeds);
-            BuildPrefab("soldier_vc", vc, ctrl, speeds);
+            foreach (var man in men) BuildPrefab(man, avatars[man], ctrl, speeds);
             AssetDatabase.SaveAssets();
-            Debug.Log("[LOV] soldiers built");
+            Debug.Log($"[LOV] soldiers built: {string.Join(", ", men)}");
         }
+
+        /// <summary>The built prefabs of one side, for the scene.</summary>
+        public static SoldierFigure[] Figures(string[] side) => side
+            .Select(n => AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/soldier_{n}.prefab"))
+            .Where(g => g != null).Select(g => g.GetComponent<SoldierFigure>()).ToArray();
 
         private static Dictionary<string, Transform> Find(Transform root)
             => root.GetComponentsInChildren<Transform>(true).GroupBy(t => t.name).ToDictionary(g => g.Key, g => g.First());
@@ -296,7 +303,7 @@ namespace LanesOfVietnam.Tools
         private static float HipHeight()
         {
             if (_hips > 0) return _hips;
-            var go = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/soldier_us.fbx"));
+            var go = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/soldier_us_a.fbx"));
             _hips = Find(go.transform)["pelvis"].position.y;
             Object.DestroyImmediate(go);
             return _hips;
@@ -350,7 +357,7 @@ namespace LanesOfVietnam.Tools
         /// <summary>Each gait clip's own speed: its measured stride over its cycle.</summary>
         private static Dictionary<string, float> ClipSpeeds()
         {
-            var json = File.ReadAllText($"{Dir}/soldier_us.json");
+            var json = File.ReadAllText($"{Dir}/soldier_us_a.json");
             var meta = JsonUtility.FromJson<RigMeta>(json);
             return (meta.clips ?? new ClipMeta[0]).Where(c => c.stride_m > 0 && c.seconds > 0)
                 .ToDictionary(c => c.name, c => c.stride_m / c.seconds);
@@ -654,6 +661,37 @@ namespace LanesOfVietnam.Tools
                       $"he turns into his aim {turn[0]:F0} / {turn[1]:F0} / {turn[2]:F0} deg standing / kneeling / prone");
         }
 
+        /// <summary>
+        /// The hands closed as on a rifle. The fingers are outside the Humanoid
+        /// mapping (Mixamo's curls tore them), so no clip moves them: they keep
+        /// what the prefab gives them, and an open hand under a rifle reads as a
+        /// man offering it. Each joint is curled about the line across the
+        /// knuckles, toward the palm (the side the thumb is on).
+        /// </summary>
+        private static void Grip(Dictionary<string, Transform> t)
+        {
+            foreach (var s in new[] { "l", "r" })
+            {
+                var hand = t["hand_" + s];
+                Vector3 across = (t["pinky_01_" + s].position - t["index_01_" + s].position).normalized;
+                Vector3 along = (t["middle_01_" + s].position - hand.position).normalized;
+                Vector3 normal = Vector3.Cross(across, along).normalized;
+                // The palm is on the thumb's side of the hand's plane.
+                float palm = Mathf.Sign(Vector3.Dot(t["thumb_03_" + s].position - hand.position, normal));
+                foreach (var f in new[] { "index", "middle", "ring", "pinky" })
+                {
+                    float[] curl = { 52f, 68f, 38f };
+                    for (int j = 0; j < 3; j++)
+                    {
+                        var bone = t[$"{f}_0{j + 1}_{s}"];
+                        // Positive about `across` carries `along` toward `normal`; flip for the palm's side.
+                        bone.rotation = Quaternion.AngleAxis(curl[j] * palm, across) * bone.rotation;
+                    }
+                }
+                t["thumb_02_" + s].rotation = Quaternion.AngleAxis(25f * palm, across) * t["thumb_02_" + s].rotation;
+            }
+        }
+
         private static void BuildPrefab(string name, Avatar avatar, AnimatorController ctrl, Dictionary<string, float> speed)
         {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{Dir}/{name}.fbx");
@@ -708,6 +746,7 @@ namespace LanesOfVietnam.Tools
                 fig.CrouchDeath = states.Contains("Dead death_crouch_head");
                 fig.ProneDeath = states.Contains("Dead prone_death");
 
+                Grip(t);
                 LearnMixamoGrip(fig, body, t);
 
                 // The avatar reads him facing +z (its body rotation in the bind pose
