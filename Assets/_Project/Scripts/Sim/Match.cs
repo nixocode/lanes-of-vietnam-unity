@@ -90,6 +90,8 @@ namespace LanesOfVietnam.Sim
         public bool Fieldcraft;
         /// <summary>Part 2: a weapon to every man, a squad to every card, a distance to every fight (Arms). False is the parity baseline.</summary>
         public bool Arms;
+        /// <summary>Part 2: squads that spot each other, fire only at what they have spotted, and react to contact (Senses). False is the parity baseline.</summary>
+        public bool Senses;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -187,7 +189,8 @@ namespace LanesOfVietnam.Sim
                     Cooldown = cd, Cover = -1, Dwell = 0,
                     // The Americans are visible; the VC are concealed until
                     // they fire or are found.
-                    Seen = side == Side.Us,
+                    // (Senses: nobody is seen until an enemy squad has him in sight.)
+                    Seen = side == Side.Us && !st.Senses,
                     Veterancy = 0, DiedAt = -1,
                     Rank = i,
                     Weapon = kit != null ? kit.Men[i] : Weapon.Rifle,
@@ -209,6 +212,7 @@ namespace LanesOfVietnam.Sim
                 Drill = opts.Drill,
                 Fieldcraft = opts.Fieldcraft,
                 Arms = opts.Arms,
+                Senses = opts.Senses,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
@@ -235,6 +239,8 @@ namespace LanesOfVietnam.Sim
                     var sq = SpawnSquad(st, side, lane % Tune.Lanes.Length, x, rng);
                     placed += Squads.Roster(st, sq.Id).Count;
                     lane++;
+                    // Senses: the side that opens holding opens in its positions.
+                    if (st.Senses && st.Fieldcraft && side == Side.Us && opts.Us.UseCover) Senses.Settle(st, sq);
                 }
             }
             return st;
@@ -313,7 +319,8 @@ namespace LanesOfVietnam.Sim
             }
             // Always the slot. Cover is reached by moving the anchor.
             double tx = slot.X, tz = slot.Z;
-            if (sq.Order == Order.Fallback) tx = m.X - dir * 12;
+            // (Senses: a squad falling back to a strongpoint runs to its places in it, not twelve metres.)
+            if (sq.Order == Order.Fallback && !(st.Senses && st.Fieldcraft && sq.Target >= 0)) tx = m.X - dir * 12;
             if (quarry != null)
             {
                 // To within a rifle's length of him, and no further.
@@ -336,6 +343,24 @@ namespace LanesOfVietnam.Sim
             // Arms: sappers come up bent double while they are unseen, which is how they get inside a
             // rifle's reach (a crouching man is found at 16 m, a walking one at 26).
             else if (st.Arms && sq.Reach <= Tune.Stalks && !m.Seen && quarry == null && sq.Order != Order.Fallback) want = Posture.Crouched;
+            // Senses: what the squad knows decides how its men carry themselves. With an enemy it is
+            // dealing with, nobody stands unless he is running: a squad on the move runs, a man whose
+            // place is a few paces off runs to it, and a man at his place is on a knee behind cover,
+            // flat in the open, and flat behind a machine gun or a scope either way. Out of contact, a
+            // squad paused in cover takes a knee in it.
+            else if (st.Senses && st.Fieldcraft && quarry == null && sq.Order != Order.Fallback && (Senses.InContact(sq) || sq.Task != SquadTask.March))
+            {
+                double away = JsMath.Hypot(tx - m.X, tz - m.Z);
+                bool gun = st.Arms && (m.Weapon == Weapon.M60 || m.Weapon == Weapon.Rpd || m.Weapon == Weapon.Sniper);
+                bool there = away <= (m.Posture == Posture.Standing ? Tune.SetOff : Tune.KneelWithin);
+                // (A squad on the move whose lead man was pinned stood behind him, upright, fifteen
+                // metres from the enemy: a man with nowhere to go this second is down, whatever his squad is doing.)
+                if (!there) want = Posture.Standing;
+                else if (sq.Halted && (gun || m.Cover < 0)) want = Posture.Prone;
+                else want = Posture.Crouched;
+            }
+            else if (st.Senses && st.Fieldcraft && quarry == null && sq.Order != Order.Fallback && sq.Halted
+                     && JsMath.Hypot(tx - m.X, tz - m.Z) <= Tune.KneelWithin) want = Posture.Crouched;
             // Fieldcraft: a squad that has halted in contact goes to ground: a knee for a rifleman, flat
             // behind his gun for a machine-gunner or a sniper. On the march, or out of contact, they stand:
             // kneeling at every pause, a man changed posture twenty times a minute.
@@ -372,10 +397,15 @@ namespace LanesOfVietnam.Sim
                 if (d > slack)
                 {
                     double stepLen = Math.Min(d, speed * Tune.Dt);
-                    if (st.Fieldcraft && sq.Order != Order.Fallback)
+                    // (Senses: men running to their places in the strongpoint behind go round each other too.)
+                    if (st.Fieldcraft && (sq.Order != Order.Fallback || (st.Senses && sq.Target >= 0)))
                     {
                         double nx = m.X + (dx / d) * stepLen, nz = m.Z + (dz / d) * stepLen;
-                        Fieldcraft.Clear(st, m, ref nx, ref nz, stepLen);
+                        bool blocked = Fieldcraft.Clear(st, m, ref nx, ref nz, stepLen);
+                        // Senses: a friend is on the spot he is a pace from (his squad's lead man, pinned
+                        // where the squad's next place is): he waits beside him. Sliding round him to a
+                        // place he could not take, he swung about sixty times a minute.
+                        if (blocked && st.Senses && quarry == null && d <= Tune.SetOff + 0.7) { nx = m.X; nz = m.Z; m.Still = true; }
                         m.X = nx; m.Z = nz;
                     }
                     else
@@ -445,6 +475,8 @@ namespace LanesOfVietnam.Sim
             // other. `opening` is read once, so the rest of this tick still
             // behaves as the opening even if contact happens now.
             bool opening = st.Phase == Phase.Opening;
+            // Part 2 (MatchOptions.Senses): who has whom in sight, before anyone acts on it.
+            if (st.Senses) Senses.Look(st);
             if (opening)
             {
                 bool spotted = false;
@@ -479,9 +511,12 @@ namespace LanesOfVietnam.Sim
                 sq.Order = sq.PlayerOrder
                     ?? (opening
                         ? (sq.Side == Side.Us ? Order.Hold : Order.Advance)
-                        : DecideOrder(st, sq, plan, original, ix));
+                        : st.Senses ? sq.Order : DecideOrder(st, sq, plan, original, ix));
+                // Part 2 (MatchOptions.Senses): the squad's own task, from what it has spotted, in place of the policy.
+                if (st.Senses && !opening)
+                    sq.Order = Senses.Decide(st, sq, live, plan, original.TryGetValue(sq.Id, out int was0) ? was0 : live.Count, prev);
                 // Part 2 (MatchOptions.Drill): the policy's order, steadied.
-                if (st.Drill && sq.PlayerOrder == null && !opening)
+                else if (st.Drill && sq.PlayerOrder == null && !opening)
                     sq.Order = Drill.Steady(st, sq, prev, sq.Order, live, original.TryGetValue(sq.Id, out int raised) ? raised : live.Count);
                 if (sq.Order == Order.Fallback && prev != Order.Fallback)
                 {
@@ -555,7 +590,7 @@ namespace LanesOfVietnam.Sim
                 // is a scan over every enemy for every unseen man, 27% of the
                 // sim unstaggered, and a fifth of a second late is not
                 // observable.
-                if (!m.Seen && (st.Tick + m.Id) % 4 == 0)
+                if (!st.Senses && !m.Seen && (st.Tick + m.Id) % 4 == 0)
                 {
                     // Concealment is a state, not a side: flat and still is hard
                     // to find, up and walking is not.

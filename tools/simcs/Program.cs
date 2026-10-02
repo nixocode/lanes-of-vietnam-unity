@@ -37,6 +37,8 @@ namespace LanesOfVietnam.SimCs
                     "hash" => HashRun(args),
                     "wander" => Wander(args),
                     "muddle" => Muddle(args),
+                    "aware" => Aware(args),
+                    "watch" => Watch(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
                     "player" => PlayerTable(args),
@@ -178,10 +180,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -263,7 +265,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms" }));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses" }));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -325,7 +327,7 @@ namespace LanesOfVietnam.SimCs
                 int wins = 0; double secs = 0, men = 0;
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms" });
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses" });
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -369,12 +371,249 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
-        private static MatchOptions Game(int seed, string[] a) => new MatchOptions
+        private static MatchOptions Game(int seed, string[] a)
         {
-            Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
-            Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
-            Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"),
-        };
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
+                Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
+                Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"),
+            };
+            // GameRoot's economy: one squad a side to open, points at the game's rate.
+            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32; }
+            return o;
+        }
+
+        /// <summary>The squads tick by tick, as the game plays them: `watch seed from to [every] [flags]`.</summary>
+        private static int Watch(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed = nums[0], from = nums[1], to = nums[2], every = nums.Length > 3 ? nums[3] : 20;
+            var m = new LiveMatch(Game(seed, a));
+            var st = m.State;
+            while (st.Tick < to && !st.Over)
+            {
+                int ev = st.Events.Count;
+                m.Step();
+                if (st.Tick < from) continue;
+                if (a.Contains("events"))
+                    for (int i = ev; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.Contact || e.Kind == EventKind.SquadBroke || e.Kind == EventKind.SquadSpawned || e.Kind == EventKind.Kill)
+                            Console.WriteLine($"      t{e.Tick} {e.Kind} {e.Side} {e.Id}{(e.Target.HasValue ? " -> " + e.Target : "")}");
+                    }
+                if ((st.Tick - from) % every != 0) continue;
+                Console.WriteLine($"  t{st.Tick} {st.Phase} morale {st.Morale[0]:F2}/{st.Morale[1]:F2} smoke {st.Areas.Count(x => x.Kind == AreaKind.Smoke)}");
+                foreach (var sq in st.Squads)
+                {
+                    var men = Squads.Roster(st, sq.Id);
+                    if (men.Count == 0) continue;
+                    Console.WriteLine($"    sq{sq.Id} {sq.Side} L{sq.Lane} {sq.Order,-8}{Senses.Describe(st, sq)} tgt {sq.Target,2} x {sq.AnchorX,5:F1} gap {(sq.Gap > 1e8 ? "  -" : sq.Gap.ToString("F0"))} {(sq.Halted ? "halt" : "    ")} | "
+                        + string.Join(" ", men.Select(x => $"{x.X:F0},{x.Z:F0}{x.Posture.ToString()[0]}{(x.Cover >= 0 ? "c" : "")}{(x.Pin >= Tune.PinStop ? "!!" : x.Pin >= Tune.PinDrop ? "!" : "")}")));
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// What the squads know and what they do about it, as the game plays it
+        /// (the owner, playtest 5: "don't see each other, stand around when not
+        /// supposed to", "shots should only be fired when a squad spots
+        /// another"). `aware [seed] [ticks] [seeds] [flags]`. Sight is
+        /// <see cref="Senses.Sight"/>, worked out here whether or not the rule
+        /// is on, so before and after are judged by one measure.
+        ///   blind shots      fired at a squad the firer's own has not had in sight in the last 3 s
+        ///   close, unaware   two enemy squads within 15 m, neither having fired at the other for 4 s
+        ///   upright          men standing while a squad theirs has in sight is inside their weapon's range
+        ///   idle in the open men at rest out of cover with a free place in cover within 12 m
+        ///   contacts         from a squad first having an enemy squad in sight and in reach of its weapons (after 15 s
+        ///                    with none) to its first shot, and to half of it being off its feet or in cover
+        ///   passed           two enemy squads within 16 m changing which is further up the lane
+        /// </summary>
+        private static int Aware(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 2400, seeds = nums.Length > 2 ? nums[2] : 6;
+            const int Keep = 60, Memory = 300;
+            double minutes = 0, shots = 0, blindOwn = 0, blindSide = 0, blindDist = 0;
+            double closeUnaware = 0, closeAware = 0;
+            double contact = 0, uprightStill = 0, uprightMoving = 0;
+            double idle = 0, idleContact = 0, manSeconds = 0;
+            double bursts = 0, waiting = 0, handToHand = 0, passed = 0, unseenMan = 0, unseenBySquad = 0, acrossLanes = 0;
+            var quiet = new Dictionary<string, double>(); var upright = new Dictionary<string, double>(); var idleBy = new Dictionary<string, double>();
+            var toShot = new List<double>(); var toGround = new List<double>();
+            int sightings = 0, noShot = 0, noGround = 0;
+            var blindBy = new Dictionary<string, double>();
+            int shown = 0;
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var m = new LiveMatch(Game(seed, a));
+                var st = m.State;
+                var inReach = new Dictionary<(int, int), int>();
+                var saw = new Dictionary<(int, int), int>(); var shotAt = new Dictionary<(int, int), int>();
+                var begun = new Dictionary<(int, int), int>(); var gotShot = new HashSet<(int, int)>(); var gotDown = new HashSet<(int, int)>();
+                var still = new Dictionary<int, int>(); var ahead = new Dictionary<(int, int), int>();
+                for (int t = 0; t < ticks && !st.Over; t++)
+                {
+                    var before = st.Men.Select(x => (x.X, x.Z)).ToArray();
+                    int from = st.Events.Count;
+                    m.Step();
+                    var rosters = st.Squads.Select(q => Squads.Roster(st, q.Id)).ToArray();
+                    var alive = Enumerable.Range(0, rosters.Length).Where(i => rosters[i].Count > 0).ToArray();
+
+                    // Who has whom in sight.
+                    foreach (int ai in alive) foreach (int bi in alive)
+                    {
+                        if (st.Squads[ai].Side == st.Squads[bi].Side) continue;
+                        if (!Senses.Spots(st, rosters[ai], rosters[bi])) continue;
+                        saw[(ai, bi)] = st.Tick;
+                        // In sight and in reach of one of its weapons: from here it can do something about it.
+                        if (!rosters[ai].Any(p => rosters[bi].Any(q => Combat.Dist(p, q) <= Arms.Of(st, p).Range))) continue;
+                        if (!inReach.TryGetValue((ai, -1), out int last) || st.Tick - last > Memory)
+                        {
+                            begun[(ai, -1)] = st.Tick; gotShot.Remove((ai, -1)); gotDown.Remove((ai, -1)); sightings++;
+                        }
+                        inReach[(ai, -1)] = st.Tick;
+                    }
+
+                    // The shots.
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind != EventKind.Fire && e.Kind != EventKind.Launch && e.Kind != EventKind.Melee) continue;
+                        var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                        var key = (by.Squad, at.Squad);
+                        shotAt[key] = st.Tick;
+                        if (begun.TryGetValue((by.Squad, -1), out int b0) && gotShot.Add((by.Squad, -1))) toShot.Add((st.Tick - b0) * Tune.Dt);
+                        if (e.Kind == EventKind.Melee) continue;
+                        shots++;
+                        if (e.Kind == EventKind.Fire && e.Amount.HasValue) bursts++;
+                        bool own = saw.TryGetValue(key, out int s0) && st.Tick - s0 <= Keep;
+                        bool side = own || st.Squads.Any(q => q.Side == by.Side && saw.TryGetValue((q.Id, at.Squad), out int s1) && st.Tick - s1 <= Keep);
+                        if (!own)
+                        {
+                            blindOwn++; blindDist += Combat.Dist(by, at);
+                            string k = $"{by.Side} {by.Weapon}";
+                            blindBy[k] = blindBy.GetValueOrDefault(k) + 1;
+                            if (a.Contains("why") && shown++ < 16)
+                                Console.WriteLine($"    seed {seed} t{st.Tick} {by.Side} man {by.Id} ({by.Weapon}, {by.Posture}) at {by.X:F1},{by.Z:F1} fires at man {at.Id} ({at.Posture}{(at.Cover >= 0 ? ", in cover" : "")}{(Squads.IsMoving(at) ? ", moving" : "")}) at {at.X:F1},{at.Z:F1}: {Combat.Dist(by, at):F1} m, seen from {Senses.Sight(st, by, at):F1}");
+                        }
+                        if (!side) blindSide++;
+                        if (!Senses.Sees(st, by, at)) unseenMan++;
+                        if (!rosters[by.Squad].Any(o => Senses.Sees(st, o, at))) unseenBySquad++;
+                        if (Math.Abs(by.Z - at.Z) > 6.5) acrossLanes++;
+                    }
+
+                    // Squads close to each other.
+                    for (int x = 0; x < alive.Length; x++) for (int y = x + 1; y < alive.Length; y++)
+                    {
+                        int ai = alive[x], bi = alive[y];
+                        if (st.Squads[ai].Side == st.Squads[bi].Side) continue;
+                        double near = double.PositiveInfinity;
+                        foreach (var p in rosters[ai]) foreach (var q in rosters[bi]) near = Math.Min(near, Combat.Dist(p, q));
+                        if (near <= 15)
+                        {
+                            bool fought = (shotAt.TryGetValue((ai, bi), out int f0) && st.Tick - f0 <= 80) || (shotAt.TryGetValue((bi, ai), out int f1) && st.Tick - f1 <= 80);
+                            if (fought) closeAware += Tune.Dt;
+                            else if (st.Phase == Phase.Fight)
+                            {
+                                closeUnaware += Tune.Dt;
+                                bool seesAB = saw.TryGetValue((ai, bi), out int v0) && st.Tick - v0 <= Keep, seesBA = saw.TryGetValue((bi, ai), out int v1) && st.Tick - v1 <= Keep;
+                                double pinA = rosters[ai].Average(p => p.Pin), pinB = rosters[bi].Average(p => p.Pin);
+                                string k = !seesAB && !seesBA ? "neither has the other in sight"
+                                    : pinA >= Tune.PinStop && pinB >= Tune.PinStop ? "both pinned flat"
+                                    : rosters[ai].Concat(rosters[bi]).All(p => !p.Seen || p.Side == Side.Us) && rosters[ai].Concat(rosters[bi]).Any(p => !p.Seen) ? "the VC squad unseen by the baseline's flag"
+                                    : st.Squads[ai].Lane != st.Squads[bi].Lane ? "in different lanes"
+                                    : st.Squads[ai].Order == Order.Fallback || st.Squads[bi].Order == Order.Fallback ? "one falling back"
+                                    : "in sight, same lane, not pinned";
+                                quiet[k] = quiet.GetValueOrDefault(k) + Tune.Dt;
+                                if ((a.Contains("why2") && k.StartsWith("in sight") || a.Contains("why3") && k.StartsWith("neither") && st.Tick % 20 == 0) && shown++ < 16)
+                                    Console.WriteLine($"    seed {seed} t{st.Tick} {near:F1} m: " + string.Join(" | ", new[] { ai, bi }.Select(q => $"sq{q} {st.Squads[q].Side} {st.Squads[q].Order} lane {st.Squads[q].Lane} x {st.Squads[q].AnchorX:F0} " + string.Join(" ", rosters[q].Select(p => $"{p.Weapon}/{p.Posture.ToString()[0]}{(p.Cover >= 0 ? "c" : "")}/pin{p.Pin:F2}/cd{p.Cooldown}{(p.Seen ? "" : "/unseen")}{(p.Vault > 0 ? "/vault" : "")}")))));
+                            }
+                        }
+                        if (near <= 16)
+                        {
+                            int now = Math.Sign(rosters[ai].Average(p => p.X) - rosters[bi].Average(p => p.X));
+                            if (ahead.TryGetValue((ai, bi), out int was) && was != now && now != 0 && was != 0) passed++;
+                            if (now != 0) ahead[(ai, bi)] = now;
+                        }
+                    }
+
+                    // The men.
+                    foreach (int ai in alive)
+                    {
+                        // The squads this one has in sight, and how its men stand to them.
+                        var inSight = alive.Where(bi => st.Squads[bi].Side != st.Squads[ai].Side && saw.TryGetValue((ai, bi), out int s0) && st.Tick - s0 <= Keep).ToArray();
+                        int down = rosters[ai].Count(p => p.Posture != Posture.Standing || p.Cover >= 0);
+                        if (begun.ContainsKey((ai, -1)) && down * 2 >= rosters[ai].Count && gotDown.Add((ai, -1))) toGround.Add((st.Tick - begun[(ai, -1)]) * Tune.Dt);
+                        foreach (var p in rosters[ai])
+                        {
+                            manSeconds += Tune.Dt;
+                            bool moved = p.Id < before.Length && Math.Abs(p.X - before[p.Id].X) + Math.Abs(p.Z - before[p.Id].Z) > 0.01;
+                            still[seed * 100000 + p.Id] = moved ? 0 : still.GetValueOrDefault(seed * 100000 + p.Id) + 1;
+                            double reach = Arms.Of(st, p).Range;
+                            bool threatened = inSight.Any(bi => rosters[bi].Any(q => Combat.Dist(p, q) <= reach));
+                            if (threatened)
+                            {
+                                contact += Tune.Dt;
+                                // A man with an enemy inside charging distance is fighting him hand to hand, or about to: on his feet is right.
+                                bool hands = alive.Any(bi => st.Squads[bi].Side != p.Side && rosters[bi].Any(q => Combat.Dist(p, q) <= Tune.ChargeRange));
+                                if (hands) handToHand += Tune.Dt;
+                                else if (p.Posture == Posture.Standing)
+                                {
+                                    if (moved) uprightMoving += Tune.Dt; else uprightStill += Tune.Dt;
+                                    var q = st.Squads[ai];
+                                    string k = $"{(moved ? "moving" : "still ")} {q.Side} {(st.Senses ? q.Task.ToString() : q.Order.ToString()),-9} {(q.Halted ? "halted" : "going ")} {(p.Cover >= 0 ? "in cover" : "open    ")} {(p.Vault > 0 ? "climbing" : p.Dwell < Tune.PostureDwell ? "dwell" : p.Cooldown > 0 && st.Tick - p.FiredAt < 30 ? "just fired" : "")}";
+                                    upright[k] = upright.GetValueOrDefault(k) + Tune.Dt;
+                                }
+                            }
+                            if (st.Phase == Phase.Fight && p.Cover < 0 && p.Pin < Tune.PinDrop && still.GetValueOrDefault(seed * 100000 + p.Id) >= 20)
+                            {
+                                bool room = st.Cover.Any(c => Math.Abs(c.Z - Tune.Lanes[st.Squads[ai].Lane]) <= 4.5
+                                    && Math.Max(0, Math.Abs(p.X - c.X) - c.Length * 0.5) <= 12
+                                    && st.Men.Count(o => o.Alive && o.Cover == c.Id) < c.Capacity);
+                                var q = st.Squads[ai];
+                                // The owner: "not all can fit at once". A man whose squad is in cover that is full waits behind it; that is not idling.
+                                bool noRoom = q.Target >= 0 && p.Place < 0 && rosters[ai].Any(o => o.PlaceCover == q.Target);
+                                if (room && noRoom) waiting += Tune.Dt;
+                                else if (room)
+                                {
+                                    idle += Tune.Dt; if (threatened) idleContact += Tune.Dt;
+                                    string k = $"{q.Side} {(st.Senses ? q.Task.ToString() : q.Order.ToString()),-9} {(q.Halted ? "halted" : "going ")} {p.Posture,-8} {(q.Target < 0 ? "no cover chosen" : p.Place < 0 ? "no place in its cover" : "has a place")} {(threatened ? "enemy in range" : "")}";
+                                    idleBy[k] = idleBy.GetValueOrDefault(k) + Tune.Dt;
+                                    if (a.Contains("why6") && k.Contains("March") && st.Tick % 20 == 0 && shown++ < 24)
+                                        Console.WriteLine($"    seed {seed} t{st.Tick} man {p.Id} at {p.X:F1},{p.Z:F1} rank {p.Rank} place {p.Place}@{p.PlaceCover} still {p.Still} | sq{q.Id} {q.Side} L{q.Lane} {q.Order} {q.Task} tgt {q.Target} x {q.AnchorX:F1} held {q.Held} {(q.Halted ? "halted" : "going")} gap {q.Gap:F0} threat {q.Threat} n {rosters[ai].Count} | squad at " + string.Join(" ", rosters[ai].Select(o => $"{o.X:F0}")));
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach (var kv in begun)
+                {
+                    if (st.Tick - kv.Value < 200) continue;         // too late in the match to say
+                    if (!gotShot.Contains(kv.Key)) noShot++;
+                    if (!gotDown.Contains(kv.Key)) noGround++;
+                }
+                minutes += st.Tick * Tune.Dt / 60;
+            }
+            double Pct(List<double> v, double q) => v.Count == 0 ? 0 : v.OrderBy(x => x).ElementAt(Math.Min(v.Count - 1, (int)(q * v.Count)));
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}, {minutes:F1} minutes of fighting; a minute:");
+            Console.WriteLine($"  shots                     {shots / minutes:F0}, of which at a squad the firer's own has not in sight {blindOwn / minutes:F1} ({100 * blindOwn / Math.Max(1, shots):F0}%; mean {blindDist / Math.Max(1, blindOwn):F1} m), that nobody on his side has {blindSide / minutes:F1} ({100 * blindSide / Math.Max(1, shots):F0}%)");
+            if (bursts > 0) Console.WriteLine($"      machine-gun bursts on cover lost sight of {bursts / minutes:F1}");
+            foreach (var kv in blindBy.OrderByDescending(k => k.Value).Take(4)) Console.WriteLine($"      {kv.Key,-12} {kv.Value / minutes:F1}");
+            Console.WriteLine($"      at a man the firer cannot himself see {unseenMan / minutes:F1} ({100 * unseenMan / Math.Max(1, shots):F0}%), that nobody in his squad can {unseenBySquad / minutes:F1} ({100 * unseenBySquad / Math.Max(1, shots):F0}%); across the lanes {acrossLanes / minutes:F1} ({100 * acrossLanes / Math.Max(1, shots):F0}%)");
+            Console.WriteLine($"  squads within 15 m        {closeUnaware / minutes:F1} squad-seconds with neither firing on the other, {closeAware / minutes:F1} fighting");
+            foreach (var kv in quiet.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / minutes:F1}");
+            Console.WriteLine($"  enemy squads passed       {passed / minutes:F2}");
+            Console.WriteLine($"  men with a seen enemy in range {contact / minutes:F0} man-seconds, of which standing still {uprightStill / minutes:F1} ({100 * uprightStill / Math.Max(1, contact):F0}%), standing and moving {uprightMoving / minutes:F1} ({100 * uprightMoving / Math.Max(1, contact):F0}%), within {Tune.ChargeRange:F0} m of him {handToHand / minutes:F1}");
+            if (a.Contains("why4")) foreach (var kv in upright.OrderByDescending(k => k.Value).Take(14)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / minutes:F1}");
+            Console.WriteLine($"  idle in the open by cover {idle / minutes:F1} man-seconds ({100 * idle / Math.Max(1, manSeconds):F0}% of all), of which with a seen enemy in range {idleContact / minutes:F1}; waiting behind cover their squad has filled {waiting / minutes:F1}");
+            if (a.Contains("why5")) foreach (var kv in idleBy.OrderByDescending(k => k.Value).Take(14)) Console.WriteLine($"      {kv.Key,-70} {kv.Value / minutes:F1}");
+            Console.WriteLine($"  contacts                  {sightings / minutes:F1}; to the first shot: median {Pct(toShot, 0.5):F1} s, nine in ten within {Pct(toShot, 0.9):F1} s, never {noShot / minutes:F1}");
+            Console.WriteLine($"                            to half the squad off its feet or in cover: median {Pct(toGround, 0.5):F1} s, nine in ten within {Pct(toGround, 0.9):F1} s, never {noGround / minutes:F1}");
+            return 0;
+        }
 
         /// <summary>
         /// How much a match looks like a muddle rather than a fight, as the
@@ -466,7 +705,7 @@ namespace LanesOfVietnam.SimCs
                                     : p.Place >= 0 ? "taking a place in cover"
                                     : Math.Abs(vx) < Math.Abs(vz) ? "across the lane" : "along the lane";
                                 turned[why] = turned.GetValueOrDefault(why) + 1;
-                                if (a.Contains("why2") && why == "falling back" && shown++ < 12)
+                                if (a.Contains("why2") && why == (a.Contains("close") ? "in a close fight" : "falling back") && shown++ < 14)
                                 {
                                     var fr = live.Where(e => e.Side == p.Side && e != p).OrderBy(e => (e.X - p.X) * (e.X - p.X) + (e.Z - p.Z) * (e.Z - p.Z)).First();
                                     before.TryGetValue(fr.Id, out var f0);
@@ -552,8 +791,8 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -569,7 +808,9 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var r = Match.Run(new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses };
+                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 32; }
+                var r = Match.Run(mo);
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];
                 lostGround += r.MoraleLostToGround[0] + r.MoraleLostToGround[1];

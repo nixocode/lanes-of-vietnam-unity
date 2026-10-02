@@ -20,7 +20,10 @@ namespace LanesOfVietnam.Sim
                 var sq = st.Squads[si];
                 if (sq.Smoke <= 0) continue;
                 // A bound that has stalled: the one move smoke exists for.
-                if (sq.Order != Order.Bound) continue;
+                // (Senses: a squad moving up under fire, or caught in the open with no cover to go to.)
+                if (st.Senses
+                    ? !(sq.Task == SquadTask.Close || sq.Task == SquadTask.Assault || (sq.Task == SquadTask.Firefight && sq.Target < 0))
+                    : sq.Order != Order.Bound) continue;
                 var live = Squads.Roster(st, sq.Id);
                 if (live.Count == 0) continue;
                 double pin = 0;

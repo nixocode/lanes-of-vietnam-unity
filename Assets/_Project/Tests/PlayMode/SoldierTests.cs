@@ -40,7 +40,10 @@ namespace LanesOfVietnam.Tests
                 // A trench is one man wide: a living man in one is drawn on its line.
                 if (m.Alive && m.Cover >= 0 && Fieldcraft.Dug(st.Cover[m.Cover])) z = st.Cover[m.Cover].Z;
                 var at = Coords.World(x, z, (float)Root.Ground.HeightAt(x, z));
-                Assert.Less(Vector3.Distance(f.transform.position, at), 0.01f, $"man {i} is not where the sim has him");
+                // A man climbing into a trench or out of one is carried over the parapet from where he
+                // stood to where the sim already has him: within the climb, not on the spot.
+                float slack = m.Alive && m.Vault > 0 ? 2.5f : 0.01f;
+                Assert.Less(Vector3.Distance(f.transform.position, at), slack, $"man {i} is not where the sim has him");
                 if (!m.Alive) { dead++; continue; }
                 var hips = f.Animator.GetBoneTransform(HumanBodyBones.Hips).position.y - at.y;
                 var head = f.Animator.GetBoneTransform(HumanBodyBones.Head).position.y - at.y;

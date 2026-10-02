@@ -326,13 +326,20 @@ namespace LanesOfVietnam.View
                     if (!m.Alive) continue;
                     double best = FrontRange * FrontRange;
                     float front = m.Side == Side.Us ? 90f : -90f;
+                    // Senses: the squad his own is dealing with comes first, in sight or not: a squad
+                    // that has gone to ground faces what put it there.
+                    int threat = st.Senses && m.Squad < st.Squads.Count ? st.Squads[m.Squad].Threat : -1;
+                    bool onThreat = false;
                     for (int j = 0; j < st.Men.Count; j++)
                     {
                         var o = st.Men[j];
-                        if (!o.Alive || o.Side == m.Side || !o.Seen) continue;
+                        if (!o.Alive || o.Side == m.Side) continue;
+                        bool theirs = o.Squad == threat;
+                        if (!theirs && (!o.Seen || onThreat)) continue;
                         double dx = o.X - m.X, dz = o.Z - m.Z, d2 = dx * dx + dz * dz;
-                        if (d2 >= best || d2 < 0.01) continue;
-                        best = d2;
+                        if (d2 < 0.01 || d2 >= FrontRange * FrontRange) continue;
+                        if (theirs == onThreat && d2 >= best) continue;
+                        best = d2; onThreat = theirs;
                         front = Mathf.Atan2((float)dx, (float)-dz) * Mathf.Rad2Deg;
                     }
                     // He does not swing his whole body for a few degrees: the nearest enemy changing
@@ -457,7 +464,10 @@ namespace LanesOfVietnam.View
                     // for the climb, then walks him in).
                     if (m.Cover >= 0 && m.Cover < st.Cover.Count && Fieldcraft.Dug(st.Cover[m.Cover])) z = st.Cover[m.Cover].Z;
                     float left = _climbUntil[i] - (st.Tick + (float)d.Alpha);
-                    if (left > 0 && _climbTicks[i] > 0 && !jump)
+                    // (Only from somewhere a climb could start: after a jump in time the place he was
+                    // last drawn is where he stood many seconds ago, and he was carried seven metres.)
+                    if (left > 0 && _climbTicks[i] > 0 && !jump
+                        && (_climbFrom[i] - new Vector2((float)x, (float)z)).sqrMagnitude < 9f)
                     {
                         float w = Mathf.SmoothStep(0f, 1f, 1f - left / _climbTicks[i]);
                         x = Mathf.Lerp(_climbFrom[i].x, (float)x, w);

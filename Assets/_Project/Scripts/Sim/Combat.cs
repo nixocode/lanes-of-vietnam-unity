@@ -173,7 +173,11 @@ namespace LanesOfVietnam.Sim
             // Arms: a launcher or a mortar fires a bursting round, not a bullet (and not while he is pinned flat).
             if (st.Arms && arm.Bursts) return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
 
-            var target = PickTarget(st, a);
+            // Senses: only at a squad his own has in sight; a machine gun with nothing in sight keeps
+            // bursts on the cover of one it knows was there.
+            var target = st.Senses ? Senses.PickTarget(st, a) : PickTarget(st, a);
+            bool blind = false;
+            if (target == null && st.Senses) { target = Senses.Suppress(st, a); blind = target != null; }
             if (target == null)
             {
                 // Nothing to shoot at: wait before looking again, or he rescans
@@ -187,16 +191,20 @@ namespace LanesOfVietnam.Sim
             if (rng.Next() > rate) { a.Cooldown = 2; return false; }
 
             a.Cooldown = arm.Cooldown;
+            // Senses: at a man he cannot himself see, on his squad's word, a rifleman fires slower.
+            if (st.Senses && !blind && a.Weapon != Weapon.M60 && a.Weapon != Weapon.Rpd && !Senses.Sees(st, a, target))
+                a.Cooldown = (int)(arm.Cooldown * Tune.BlindCooldown);
             // Firing gives away concealment.
             a.Seen = true;
+            a.FiredAt = st.Tick;
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Fire, Tick = st.Tick, Side = a.Side,
-                Id = a.Id, Target = target.Id,
+                Id = a.Id, Target = target.Id, Amount = blind ? 1 : (double?)null,
             });
 
             double p = HitChance(st, a, target);
-            if (rng.Next() < p)
+            if (!blind && rng.Next() < p)
             {
                 Kill(st, target);
                 if (st.Fieldcraft) Fieldcraft.Through(st, a, target, rng);
@@ -205,7 +213,7 @@ namespace LanesOfVietnam.Sim
 
             // The miss is the point: pin on the man it passed and everyone
             // near him, which is how fire suppresses a position.
-            double near = Tune.PinPerNearMiss * arm.Pin;
+            double near = Tune.PinPerNearMiss * arm.Pin * (blind ? Tune.SuppressPin : 1);
             ApplyPin(st, target, near);
             double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)
@@ -249,6 +257,8 @@ namespace LanesOfVietnam.Sim
                 {
                     Kind = EventKind.Pinned, Tick = st.Tick, Side = m.Side, Id = m.Id,
                 });
+                // Senses: a man the fire has found drops now, not when he has finished standing there.
+                if (st.Senses) m.Dwell = Math.Max(m.Dwell, Tune.PostureDwell);
             }
         }
 

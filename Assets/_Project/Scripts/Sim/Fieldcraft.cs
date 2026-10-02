@@ -109,7 +109,7 @@ namespace LanesOfVietnam.Sim
         /// was raised, so it is his for life (by rank, every casualty would send
         /// the men behind it across the column).
         /// </summary>
-        private static double SideOf(int number) => (number % 2 == 0 ? -1 : 1) * Tune.FileStagger;
+        internal static double SideOf(int number) => (number % 2 == 0 ? -1 : 1) * Tune.FileStagger;
 
         /// <summary>Where the <paramref name="number"/>th man of a new squad stands across the lane: in its file.</summary>
         public static double SpawnZ(Squad sq, int number) => Tune.Lanes[sq.Lane] + FileZ(sq) + SideOf(number);
@@ -134,11 +134,11 @@ namespace LanesOfVietnam.Sim
         /// past); in a trench there is no round, and he waits behind. A man
         /// falling back stops for nobody.
         /// </summary>
-        public static void Clear(SimState st, Man m, ref double nx, ref double nz, double step)
+        public static bool Clear(SimState st, Man m, ref double nx, ref double nz, double step)
         {
             const double Room = 0.7;
             Man f = Blocker(st, m, nx, nz, Room);
-            if (f == null) return;
+            if (f == null) return false;
             double sx = nx - m.X, sz = nz - m.Z;
             nx = m.X; nz = m.Z;
             if (m.Cover >= 0 && m.Cover < st.Cover.Count && Dug(st.Cover[m.Cover]))
@@ -146,7 +146,7 @@ namespace LanesOfVietnam.Sim
                 // One file down a trench: the man in his way has the place behind
                 // his own, so they change places rather than one wait for ever.
                 if (f.PlaceCover == m.PlaceCover && m.Place >= 0 && f.Place > m.Place) (m.Place, f.Place) = (f.Place, m.Place);
-                return;
+                return true;
             }
             double fx = f.X - m.X, fz = f.Z - m.Z, fd = Math.Sqrt(fx * fx + fz * fz);
             if (fd < 1e-6) { fx = 0; fz = m.Id < f.Id ? -1 : 1; fd = 1; }
@@ -160,6 +160,7 @@ namespace LanesOfVietnam.Sim
                 sx = -fz * turn * step; sz = fx * turn * step;
             }
             if (Blocker(st, m, m.X + sx, m.Z + sz, Room) == null) { nx = m.X + sx; nz = m.Z + sz; }
+            return true;
         }
 
         private static Man Blocker(SimState st, Man m, double nx, double nz, double room)
@@ -260,7 +261,7 @@ namespace LanesOfVietnam.Sim
             };
         }
 
-        private static bool Arrived(Squad sq, Cover c, double dir)
+        internal static bool Arrived(Squad sq, Cover c, double dir)
             => JsMath.Hypot(StopX(c, dir) - sq.AnchorX, c.Z - sq.AnchorZ) < 0.6;
 
         /// <summary>
@@ -289,7 +290,19 @@ namespace LanesOfVietnam.Sim
             return n;
         }
 
-        private static void Release(IReadOnlyList<Man> live)
+        /// <summary>Places in it not taken by another squad of the side: what is there for this one.</summary>
+        internal static int FreePlaces(SimState st, Cover c, Side side, int squad)
+        {
+            int n = c.Capacity;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var o = st.Men[i];
+                if (o.Alive && o.Side == side && o.Squad != squad && o.PlaceCover == c.Id && o.Place >= 0) n--;
+            }
+            return Math.Max(0, n);
+        }
+
+        internal static void Release(IReadOnlyList<Man> live)
         {
             for (int i = 0; i < live.Count; i++) { live[i].Place = -1; live[i].PlaceCover = -1; }
         }
@@ -313,7 +326,12 @@ namespace LanesOfVietnam.Sim
             var tc = plan.UseCover && sq.Target >= 0 && sq.Target < st.Cover.Count ? st.Cover[sq.Target] : null;
             if (!plan.UseCover) sq.Target = -1;
 
-            if (sq.Order == Order.Fallback)
+            if (sq.Order == Order.Fallback && st.Senses && tc != null)
+            {
+                // Senses: running to the strongpoint behind, each man for his place in it.
+                sq.Sent = 0;
+            }
+            else if (sq.Order == Order.Fallback)
             {
                 // Running: no cover, no places.
                 if (tc != null) { sq.Target = -1; sq.Held = 0; tc = null; }
@@ -340,7 +358,7 @@ namespace LanesOfVietnam.Sim
                 // The decision is made once and stands for a couple of seconds: taken afresh every
                 // tick, on a squad's pin as it crossed the line, it was a man hopping forward and stopping.
                 if (sq.Closing > 0) sq.Closing--;
-                if (st.Arms && free && !held && plan.Advance && st.Phase == Phase.Fight && sq.Order == Order.Hold && !sq.Rallied)
+                if (st.Arms && !st.Senses && free && !held && plan.Advance && st.Phase == Phase.Fight && sq.Order == Order.Hold && !sq.Rallied)
                 {
                     if (sq.Gap > sq.Reach + 2 && sq.Gap < 1e9 && MeanPin(live) < Tune.PinDrop) sq.Closing = Tune.ClosingTicks;
                     if (sq.Closing > 0 && MeanPin(live) < Tune.PinStop) sq.Order = Order.Advance;
@@ -361,15 +379,40 @@ namespace LanesOfVietnam.Sim
                     }
                     if (!arrived && sq.Order == Order.Hold) sq.Order = Order.Advance;
                 }
+                // Senses: a squad that has gone to ground has chosen where, cover or none, and stays.
+                else if (st.Senses && free && (sq.Task == SquadTask.Contact || sq.Task == SquadTask.Firefight || sq.Task == SquadTask.Regroup))
+                {
+                }
+                // Senses: a squad on the march, out of contact, marches: up the lane, not from one piece
+                // of cover to the next with a wait in each (eight seconds in a trench forty metres from
+                // anyone). Cover is what it takes when it meets the enemy. With none left ahead of it,
+                // it holds the last rather than walk to the end of the map.
+                else if (st.Senses && free && plan.Advance && sq.Task == SquadTask.March && st.Phase == Phase.Fight)
+                {
+                    bool more = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, true, sq.Side, live.Count) >= 0;
+                    if (more && tc != null) { Release(live); sq.Target = -1; sq.Held = 0; tc = null; }
+                    else if (!more && tc == null)
+                    {
+                        sq.Target = Senses.Ground(st, sq, live, dir, Tune.HoldRadius, double.NegativeInfinity);
+                        sq.Held = 0;
+                        tc = sq.Target >= 0 ? st.Cover[sq.Target] : null;
+                    }
+                }
                 else
                 {
                     // No cover yet, or it has had its pause in this one and is to go on.
                     bool moving = sq.Order == Order.Advance || sq.Order == Order.Bound;
-                    if (tc == null || (arrived && moving && sq.Held >= (Dug(tc) ? Tune.DugPause : Tune.CoverPause)))
+                    // Senses: a squad closing has had its pause, in the firefight it is leaving.
+                    bool paused = tc != null && (sq.Held >= (Dug(tc) ? Tune.DugPause : Tune.CoverPause)
+                                                 || (st.Senses && (sq.Task == SquadTask.Close || sq.Task == SquadTask.Assault)));
+                    if (tc == null || (arrived && moving && paused))
                     {
-                        int next = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, plan.Advance, sq.Side, live.Count);
-                        // Nothing further on: only a side that is taking ground leaves its cover for none.
-                        if (next < 0 && tc != null && !plan.Advance) next = sq.Target;
+                        // Senses: closing, a short rush to the next cover on, not a walk to the best on the map.
+                        int next = st.Senses && sq.Task == SquadTask.Close ? Senses.Ground(st, sq, live, dir, Tune.DashToCover + 4, 2) : -1;
+                        if (next < 0) next = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, plan.Advance, sq.Side, live.Count);
+                        // Nothing further on: only a side that is taking ground leaves its cover for none
+                        // (Senses: and it does not; a squad with no cover ahead holds the last).
+                        if (next < 0 && tc != null && (!plan.Advance || st.Senses)) next = sq.Target;
                         if (next != sq.Target)
                         {
                             Release(live);
@@ -392,7 +435,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var e = st.Men[i];
-                if (!e.Alive || e.Side == sq.Side || !e.Seen) continue;
+                if (!e.Alive || e.Side == sq.Side || !(st.Senses ? Senses.Remembers(st, sq, e.Squad) : e.Seen)) continue;
                 if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
                 double ahead = (e.X - sq.AnchorX) * dir;
                 if (ahead >= 0 && ahead < near) near = ahead;
@@ -425,12 +468,29 @@ namespace LanesOfVietnam.Sim
             return best;
         }
 
+        /// <summary>Senses: with the enemy in contact a squad moves between cover at a rush.</summary>
+        private static double Pace(SimState st, Squad sq)
+            => st.Senses && sq.Task != SquadTask.March ? Tune.RushPace : 1;
+
         private static void March(SimState st, Squad sq, IReadOnlyList<Man> live, Cover tc, double dir)
         {
             sq.Halted = false; sq.Assault = false;
             if (sq.Charge > 0) sq.Charge--;
             double was = sq.AnchorX;
-            if (sq.Order == Order.Fallback)
+            if (sq.Order == Order.Fallback && st.Senses && tc != null)
+            {
+                // Senses: back to the strongpoint behind, faster than it came.
+                double dx = StopX(tc, dir) - sq.AnchorX, dz = tc.Z - sq.AnchorZ;
+                double d = JsMath.Hypot(dx, dz);
+                if (d < 0.6) { sq.Held++; sq.Halted = true; }
+                if (d > 0.05)
+                {
+                    double step = Math.Min(d, Tune.MarchSpeed * Tune.WithdrawPace * Tune.Dt);
+                    sq.AnchorX += dx / d * step;
+                    sq.AnchorZ += dz / d * step;
+                }
+            }
+            else if (sq.Order == Order.Fallback)
             {
                 sq.AnchorX -= dir * Tune.MarchSpeed * Tune.Dt;
             }
@@ -445,37 +505,56 @@ namespace LanesOfVietnam.Sim
                 else if (!go) sq.Halted = true;
                 if (go && d > 0.05)
                 {
-                    double step = Math.Min(d, Tune.MarchSpeed * Tune.Dt);
+                    double step = Math.Min(d, Tune.MarchSpeed * Pace(st, sq) * Tune.Dt);
                     sq.AnchorX += dx / d * step;
                     sq.AnchorZ += dz / d * step;
                 }
             }
             else if (sq.Order == Order.Advance || sq.Order == Order.Bound)
             {
-                sq.AnchorX += dir * Tune.MarchSpeed * Tune.Dt;
+                sq.AnchorX += dir * Tune.MarchSpeed * Pace(st, sq) * Tune.Dt;
             }
             else sq.Halted = true;
 
             // The stand-off: no nearer to an enemy it can see, unless it is to close with him.
-            if (sq.Order != Order.Fallback && (sq.AnchorX - was) * dir > 0)
+            // (Senses: a squad going to ground in cover it has chosen goes to it.)
+            bool toGround = st.Senses && (sq.Task == SquadTask.Contact || sq.Task == SquadTask.Firefight || sq.Task == SquadTask.Regroup);
+            if (sq.Order != Order.Fallback && !toGround && (sq.AnchorX - was) * dir > 0)
             {
-                double near = double.PositiveInfinity, pin = 0;
+                double near = double.PositiveInfinity, pin = 0, flank = double.PositiveInfinity;
                 int enemies = 0;
                 for (int i = 0; i < st.Men.Count; i++)
                 {
                     var e = st.Men[i];
-                    if (!e.Alive || e.Side == sq.Side || !e.Seen) continue;
-                    if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
+                    if (!e.Alive || e.Side == sq.Side || !(st.Senses ? Senses.Remembers(st, sq, e.Squad) : e.Seen)) continue;
+                    if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5)
+                    {
+                        // Senses: the squad it is fighting is in the other lane. It comes up level with it,
+                        // as near along the lane as its weapons want across it, and does not walk on past.
+                        if (!st.Senses || e.Squad != sq.Threat) continue;
+                        double by = (e.X - was) * dir, across = e.Z - sq.AnchorZ;
+                        if (by < -Tune.FlankPast || by > Math.Max(Tune.AssaultReach, sq.Reach + 6)) continue;
+                        if (Combat.SmokeBlocks(st, was, sq.AnchorZ, e.X, e.Z)) continue;
+                        double along = Math.Sqrt(Math.Max(0, sq.Reach * sq.Reach - across * across));
+                        flank = Math.Min(flank, Math.Max(0, by - along));
+                        continue;
+                    }
                     double ahead = (e.X - was) * dir;
                     if (ahead < 0 || ahead > Math.Max(Tune.AssaultReach, sq.Reach + 6)) continue;
                     if (Combat.SmokeBlocks(st, was, sq.AnchorZ, e.X, e.Z)) continue;
                     enemies++; pin += e.Pin;
                     if (ahead < near) near = ahead;
                 }
+                if (flank < 1e9 && sq.Charge <= 0)
+                {
+                    double limit = was + dir * flank;
+                    if ((sq.AnchorX - limit) * dir > 0) { sq.AnchorX = limit; sq.Halted = true; }
+                }
                 if (enemies > 0)
                 {
                     // Arms: a squad fights from its own distance, and a support team does not go in.
-                    if (sq.Assaults && (pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies)) sq.Charge = Tune.ChargeTicks;
+                    // (Senses: the squad's task says when it goes in.)
+                    if (!st.Senses && sq.Assaults && (pin / enemies >= Tune.PinDrop || live.Count >= Tune.AssaultOdds * enemies)) sq.Charge = Tune.ChargeTicks;
                     // Once it goes in it goes in: the enemy's pin crossing the line the other way does not stop it mid-stride.
                     sq.Assault = sq.Charge > 0;
                     if (!sq.Assault)
@@ -492,7 +571,8 @@ namespace LanesOfVietnam.Sim
         {
             into.Clear();
             // Near enough its cover, each man takes a place in it, the lead man first.
-            bool near = tc != null && Math.Abs(sq.AnchorX - StopX(tc, dir)) < tc.Length + 4;
+            // (Senses: falling back, each man runs for his place in the strongpoint behind from wherever he is.)
+            bool near = tc != null && (Math.Abs(sq.AnchorX - StopX(tc, dir)) < tc.Length + 4 || (st.Senses && sq.Order == Order.Fallback));
             if (near)
             {
                 var byRank = _byRank ??= new List<Man>(Tune.SquadMax);
@@ -550,6 +630,11 @@ namespace LanesOfVietnam.Sim
             if (sq.Order == Order.Fallback || m.Pin >= Tune.PinDrop) return null;
             bool waits = m.Cover >= 0 && sq.Order == Order.Hold;
             double reach = waits ? Tune.ChargeRange * 0.5 : Tune.ChargeRange;
+            // Senses: a squad that is going in goes in man by man, each for the nearest enemy in
+            // front of it that it knows of. (Marching its anchor up, it stood behind its lead man
+            // the moment he was pinned.)
+            bool goingIn = st.Senses && sq.Task == SquadTask.Assault;
+            if (goingIn) reach = Tune.AssaultReach + Tune.ChargeRange;
             Man best = null;
             double best2 = reach * reach;
             for (int i = 0; i < st.Men.Count; i++)
@@ -559,7 +644,9 @@ namespace LanesOfVietnam.Sim
                 double dx = e.X - m.X, dz = e.Z - m.Z, d2 = dx * dx + dz * dz;
                 if (d2 >= best2) continue;
                 double half = Tune.ChargeRange * 0.5;
-                if (d2 > half * half && (!e.Seen || Combat.SmokeBlocks(st, m.X, m.Z, e.X, e.Z))) continue;
+                if (goingIn && d2 > Tune.ChargeRange * Tune.ChargeRange
+                    && (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5 || !Senses.Remembers(st, sq, e.Squad))) continue;
+                if (!goingIn && d2 > half * half && (!e.Seen || Combat.SmokeBlocks(st, m.X, m.Z, e.X, e.Z))) continue;
                 best = e; best2 = d2;
             }
             return best;
@@ -585,6 +672,7 @@ namespace LanesOfVietnam.Sim
         {
             a.Cooldown = Tune.MeleeCooldown;
             a.Seen = true; b.Seen = true;
+            a.FiredAt = st.Tick;
             st.Events.Add(new SimEvent { Kind = EventKind.Melee, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = b.Id });
             double p = Tune.MeleeKill * (1 - 0.6 * a.Pin) * (1 + 0.3 * (a.Veterancy - b.Veterancy));
             if (b.Pin >= Tune.PinStop || b.Vault > 0) p *= 1.4;

@@ -92,6 +92,16 @@ namespace LanesOfVietnam.Sim
                 foreach (var s in st.Squads) { h = MixD(h, s.Reach); h = MixB(h, s.Assaults); }
                 foreach (var g in st.Grenades) { h = MixI(h, g.Id); h = MixI(h, (int)g.By); h = MixD(h, g.X); h = MixD(h, g.Z); h = MixI(h, g.Ticks); }
             }
+            if (st.Senses)
+            {
+                foreach (var m in st.Men) h = MixI(h, m.FiredAt);
+                foreach (var s in st.Squads)
+                {
+                    h = MixI(h, (int)s.Task); h = MixI(h, s.TaskSince); h = MixI(h, s.SeenAt); h = MixI(h, s.Threat); h = MixB(h, s.ThreatSeen);
+                    h = MixI(h, s.SawAt.Count); foreach (int t in s.SawAt) h = MixI(h, t);
+                    h = MixI(h, s.KnownAt.Count); foreach (int t in s.KnownAt) h = MixI(h, t);
+                }
+            }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }

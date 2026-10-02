@@ -741,6 +741,140 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(reason, m.State.Reason);
         }
 
+        // --- Part 2: senses, behind MatchOptions.Senses ---------------------------------------
+
+        private static MatchOptions Sensed(int seed, bool onMap = true)
+        {
+            var o = Armed(seed, onMap);
+            o.Senses = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses [map]`.</summary>
+        [TestCase(1, true, 2830, 2659694081u, 3252506949u, 3165063579u, "us morale broke")]
+        [TestCase(7, false, 1494, 84624186u, 146792825u, 3130038291u, "vc morale broke")]
+        public void With_senses_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Senses, "senses must be off unless asked for");
+            var (a, m) = Played(Sensed(seed, asTheGame));
+            var (b, _) = Played(Sensed(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, playtest 5: "shots should only be fired when a squad spots
+        /// another. Most can be misses but the intent needs to be there."
+        /// Nobody is seen for free, and every round is fired at a squad the
+        /// firer's own has in sight (its own eyes, or word from a squad beside
+        /// it), except a machine gun's bursts on cover it knows was held, which
+        /// are marked and kill nobody.
+        /// </summary>
+        [Test]
+        public void With_senses_nobody_is_seen_for_free_and_every_shot_is_at_a_squad_the_firers_own_has_in_sight()
+        {
+            int shots = 0, bursts = 0;
+            for (int seed = 1; seed <= 8; seed++)
+            {
+                var o = Sensed(seed);
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32;      // as the game plays it
+                var m = new LiveMatch(o);
+                var st = m.State;
+                Assert.IsFalse(st.Men.Any(x => x.Seen), "somebody is seen before anyone has looked");
+                while (!st.Over && st.Tick < 3600)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind != EventKind.Fire) continue;
+                        var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                        var sq = st.Squads[by.Squad];
+                        if (e.Amount.HasValue)
+                        {
+                            bursts++;
+                            Assert.IsTrue(by.Weapon == Weapon.M60 || by.Weapon == Weapon.Rpd, $"a {by.Weapon} fired a suppressing burst");
+                            Assert.IsTrue(Senses.Remembers(st, sq, at.Squad), "a burst on cover nobody knew was held");
+                            // The event straight after a shot is its kill, if it made one.
+                            Assert.IsFalse(i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == at.Id,
+                                           "a suppressing burst killed a man");
+                            continue;
+                        }
+                        shots++;
+                        Assert.IsTrue(Senses.Knows(st, sq, at.Squad), $"seed {seed} tick {st.Tick}: man {by.Id} fired at a squad his own does not have in sight");
+                    }
+                }
+            }
+            Assert.Greater(shots, 500, "hardly a shot was fired");
+            Assert.Greater(bursts, 0, "no machine gun ever kept a burst on cover it had lost sight of");
+        }
+
+        /// <summary>
+        /// "Still wander around, don't see each other, stand around when not
+        /// supposed to." A squad has one task and it stands: every task is
+        /// reached, contact is an event, a squad that has gone to ground stays
+        /// there two seconds at least (unless it breaks), a broken squad runs
+        /// to cover behind it, and the side that opens holding opens in cover.
+        /// </summary>
+        [Test]
+        public void With_senses_a_squad_has_a_task_and_keeps_it()
+        {
+            var reached = new HashSet<SquadTask>();
+            int contacts = 0, withdrawals = 0, toCover = 0, shortLived = 0, changes = 0;
+            for (int seed = 3; seed <= 8; seed++)
+            {
+                var o = Sensed(seed);
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32;      // as the game plays it
+                var m = new LiveMatch(o);
+                var st = m.State;
+                foreach (var man in st.Men.Where(x => x.Side == Side.Us && x.Place >= 0))
+                    Assert.GreaterOrEqual(man.Cover, 0, "an American who opens the match holding a place is not in its cover");
+                Assert.IsTrue(st.Men.Any(x => x.Side == Side.Us && x.Place >= 0), "the Americans do not open in a position");
+                var task = new Dictionary<int, (SquadTask task, int since)>();
+                while (!st.Over && st.Tick < 3600)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++) if (st.Events[i].Kind == EventKind.Contact) contacts++;
+                    foreach (var sq in st.Squads)
+                    {
+                        if (!st.Men.Any(x => x.Alive && x.Squad == sq.Id)) continue;
+                        reached.Add(sq.Task);
+                        if (task.TryGetValue(sq.Id, out var was) && was.task != sq.Task)
+                        {
+                            changes++;
+                            bool grounded = was.task == SquadTask.Firefight || was.task == SquadTask.Regroup;
+                            if (grounded && sq.Task != SquadTask.Withdraw && st.Tick - was.since < Tune.TaskMin) shortLived++;
+                            if (sq.Task == SquadTask.Withdraw)
+                            {
+                                withdrawals++;
+                                if (sq.Target >= 0)
+                                {
+                                    toCover++;
+                                    double back = (Fieldcraft.StopX(st.Cover[sq.Target], Combat.Advance(sq.Side)) - sq.AnchorX) * Combat.Advance(sq.Side);
+                                    Assert.Less(back, 0, "a squad fell back to cover in front of it");
+                                }
+                            }
+                            task[sq.Id] = (sq.Task, st.Tick);
+                        }
+                        else if (!task.ContainsKey(sq.Id)) task[sq.Id] = (sq.Task, st.Tick);
+                    }
+                }
+            }
+            foreach (SquadTask t in System.Enum.GetValues(typeof(SquadTask)))
+                Assert.IsTrue(reached.Contains(t), $"no squad was ever on the task {t}");
+            Assert.Greater(contacts, 20, "hardly a squad ever came into contact");
+            Assert.Greater(withdrawals, 5, "hardly a squad ever fell back");
+            Assert.Greater(toCover * 2, withdrawals, "most squads that fell back had no strongpoint to fall back to");
+            Assert.AreEqual(0, shortLived, $"of {changes} changes of task, some squads got up again inside two seconds of going to ground");
+        }
+
         /// <summary>
         /// The owner: "add all the corresponding gun models to each class. Also
         /// add a sniper class." Every card with men on it buys exactly the squad

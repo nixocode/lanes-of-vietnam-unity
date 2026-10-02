@@ -370,6 +370,53 @@ namespace LanesOfVietnam.Sim
             _ => SpotRangeProne,
         };
 
+        // --- senses (MatchOptions.Senses) ---------------------------------------
+
+        /// <summary>A man kneeling or flat behind cover is seen from this fraction of the distance.</summary>
+        public const double SightInCover = 0.75;
+        /// <summary>A man who has just fired is seen from this far, for this long: the flash and the report.</summary>
+        public const double SightFired = 40;
+        public const int SightFiredTicks = 60;
+        /// <summary>A man pinned flat has his face in the dirt; a sniper has a scope.</summary>
+        public const double SightPinned = 0.6;
+        public const double SightScope = 1.5;
+        /// <summary>Ticks a squad keeps another in sight after it last saw it (3 s), and remembers where it was (15 s).</summary>
+        public const int SenseKeep = 60, SenseMemory = 300;
+        /// <summary>Squads of a side this near each other pass the word of what they see.</summary>
+        public const double WordRange = 30;
+        /// <summary>An enemy squad in the other lane counts as this much further off when a squad picks the one it deals with.</summary>
+        public const double LanePenalty = 6;
+        /// <summary>
+        /// A squad acts on an enemy it knows of inside this, or inside its own fighting distance and this much more if that is further.
+        /// (At rifle range, 20 m, a squad coming up to a firefight strolled upright through its own
+        /// firing line until it was itself that near; 28 is a machine gun's reach, near enough.)
+        /// </summary>
+        public const double ContactNear = 28, ContactPast = 6;
+        /// <summary>How much faster than a march a squad moves between cover with the enemy in sight: a rush, not a walk.</summary>
+        public const double RushPace = 1.45;
+        /// <summary>Once in contact it stays in it until the enemy is this much further off again.</summary>
+        public const double ContactSlack = 8;
+        /// <summary>A squad fighting one in the other lane stays level with it until it is this far behind.</summary>
+        public const double FlankPast = 4;
+        /// <summary>Ticks at first contact before the squad moves: everyone drops where he is.</summary>
+        public const int ContactTicks = 20;
+        /// <summary>Ticks a task stands before the squad may take another (falling back is obeyed at once).</summary>
+        public const int TaskMin = 40;
+        /// <summary>Ticks in a firefight before it closes or goes in; ticks before it moves on from an enemy that is not in front of it.</summary>
+        public const int FirefightMin = 80, FirefightMax = 240;
+        /// <summary>Ticks a move forward under fire may last, and an assault before it is judged again.</summary>
+        public const int CloseMax = 200, AssaultMax = 160;
+        /// <summary>Ticks a squad runs for before it stops whether or not it has reached anything.</summary>
+        public const int WithdrawMax = 300;
+        /// <summary>At contact a squad takes cover within this of it, whichever way; falling back, the nearest behind it within this.</summary>
+        public const double GroundReach = 10, WithdrawReach = 32;
+        /// <summary>It takes no cover this near an enemy it knows of.</summary>
+        public const double GroundClear = 6;
+        /// <summary>How much faster than a march a squad falls back.</summary>
+        public const double WithdrawPace = 1.5;
+        /// <summary>A man firing at a squad his own has in sight, at a man of it he cannot himself see, fires this much slower; a machine gun's bursts on cover it has lost sight of pin this fraction.</summary>
+        public const double BlindCooldown = 2.0, SuppressPin = 0.6;
+
         public const double VetPerSecond = 0.010;
         public const double VetCap = 1.0;
 

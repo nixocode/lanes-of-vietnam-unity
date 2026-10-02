@@ -51,6 +51,15 @@ namespace LanesOfVietnam.Sim
     /// </summary>
     public enum Lever { Auto, Hold, Go }
 
+    /// <summary>
+    /// The one thing a squad is doing (MatchOptions.Senses), decided from what
+    /// it has spotted and held for a minimum time: on the march; going to
+    /// ground at first contact; in a firefight from where it lies; closing to
+    /// its weapons' distance; going in; pulling back to the strongpoint
+    /// behind; holding there, spent.
+    /// </summary>
+    public enum SquadTask { March, Contact, Firefight, Close, Assault, Withdraw, Regroup }
+
     /// <summary>A called-in effect: a circle on the map with a clock on it.</summary>
     public enum AreaKind { Barrage, Smoke, Trap }
 
@@ -134,6 +143,9 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>At rest in his place: he sets off again only when it has moved a good pace from him (MatchOptions.Fieldcraft).</summary>
         public bool Still;
+
+        /// <summary>The tick he last fired, threw or struck: a muzzle flash is seen from a long way off (<see cref="Senses.Sight"/>).</summary>
+        public int FiredAt = -100000;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -194,6 +206,19 @@ namespace LanesOfVietnam.Sim
         public double Gap = double.PositiveInfinity;
         /// <summary>Ticks left of being sent out of a position by its lever; it ends when the squad reaches its next cover (MatchOptions.Fieldcraft).</summary>
         public int Sent;
+
+        // --- MatchOptions.Senses -----------------------------------------------------
+        /// <summary>What it is doing, and since which tick.</summary>
+        public SquadTask Task;
+        public int TaskSince;
+        /// <summary>By enemy squad id: the tick it last had that squad in sight with its own eyes, and the tick it last knew where it was (its own eyes, or word from a squad beside it).</summary>
+        public readonly List<int> SawAt = new List<int>(), KnownAt = new List<int>();
+        /// <summary>The tick an enemy squad last had this one in sight.</summary>
+        public int SeenAt = Senses.Never;
+        /// <summary>The enemy squad it is dealing with (the nearest it knows of), or -1; how far its nearest man is; whether it is in sight now.</summary>
+        public int Threat = -1;
+        public double ThreatGap = double.PositiveInfinity;
+        public bool ThreatSeen;
 
         /// <summary>The cover the squad is making for, or -1.</summary>
         public int Target = -1;
@@ -317,6 +342,10 @@ namespace LanesOfVietnam.Sim
         // (Amount 1 if it killed him too). The view throws the first man's
         // blood out along it.
         Through, Launch,
+        // Contact (MatchOptions.Senses): squad Id has just got its first
+        // sight of the enemy, squad Target, at X, Z; Amount 1 if it learned of
+        // him by being fired on.
+        Contact,
     }
 
     public struct SimEvent
@@ -381,6 +410,10 @@ namespace LanesOfVietnam.Sim
         public double CpRate = Tune.CpPerSecond, MusterCost = Tune.CpPerSquad;
         /// <summary>The side whose reinforcements are its player's to buy: its plan raises none for it (MatchOptions.Player).</summary>
         public Side? Player;
+        /// <summary>Part 2 rule: squads that spot each other, fire at what they have spotted, and react to it (<see cref="Sim.Senses"/>). Off is the baseline.</summary>
+        public bool Senses;
+        /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>
+        public double Sight = 1;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();

@@ -1353,6 +1353,54 @@ tick. Measured before and after in `simcs muddle`: shots at the unspotted,
 squad-seconds close and unaware, man-seconds upright in a firefight,
 man-seconds idle in the open beside cover, seconds from sight to reaction.
 
+**Phase 1 as built (2026-10-02; `Sim/Senses.cs`, on in the game).** Measured
+with `tools/simcs/run.sh aware 3 2400 6 fieldcraft arms tempo [senses]` and
+`muddle` (six seeds, twelve minutes of fighting, the game's economy), a minute:
+
+| | before | with Senses |
+|---|---|---|
+| shots at a squad nobody on the firer's side has in sight | 2.5 | 0.8, of which 0.6 are a machine gun's bursts on cover it has lost sight of (they pin, and kill nobody) |
+| men with a seen enemy in range who are standing still | 16% | 2% |
+| ... standing and moving (now a rush between cover, at a run) | 19% | 14% |
+| squad-seconds two enemy squads are within 15 m and neither fires | 24.0 | 16.6 (most of it smoke) |
+| shots across the lanes | 32% | 29% (a squad now stops level with one it is fighting in the other lane) |
+| a squad's changes of order | 8.1 | 6.3 |
+| a man turning about | 18.3 | 12.9 |
+| a man's changes of posture | 10.8 | 12.1 |
+| men idle in the open beside cover with a free place (man-seconds) | 91.5 | 83.0 |
+
+What does it: a squad spots a squad (kept three seconds, remembered fifteen,
+word passed within 30 m); fire only at a squad in sight, the squad's own
+threat first; at contact (inside 28 m, or its weapons' distance and 6 m) its
+men drop at once and it takes the nearest cover within 10 m; then one task at
+a time, each held two seconds at least: march (up the lane, no waiting in
+every piece of cover), contact, firefight, close (a rush to the next cover at
+1.45 times the march), assault (man by man, not behind a pinned lead man),
+withdraw (to the strongpoint behind, not twelve metres backwards), regroup. A
+pinned man drops at once. The Americans open in their position, not in a file
+beside it. `Man.Seen` now means "an enemy squad has his in sight", so the
+minimap shows only what has been spotted.
+
+Balance, 96 seeds: Americans 52.1% (42.2 to 61.8), mean 180 s (the VC's list
+of raised squads swaps one NVA squad for a cell under Senses; with the old
+list it was 36.5%). The computer's squad now costs it 32 (at 28 a player who
+only buys rifle squads won 9 of 24 as the Americans; at 32, 18, and 20 as the
+VC; one who buys nothing loses in about a minute). EditMode 54/54 (two new
+pins, every shot checked against its squad's sight, every task reached),
+PlayMode 14/14, WebGL 29.84 MB. Frame time not cleanly measured: 15 ms with
+the owner's own browser running the game on the same GPU, 5 to 7 ms in the
+one window it was not; to be taken again with nothing else running.
+
+`tools/strip.sh seed=3,tick=470,x=-2,n=8,every=1.5` is the way to look at a
+moment: eight frames as one image. `tools/simcs/run.sh watch <seed> <from>
+<to> [every] ... senses` prints each squad's task, threat and men tick by tick.
+
+**Still open in phase 1:** the motion audit as a PlayMode test (category
+`Motion`); a mark the player can see when a squad makes contact; men pinned
+in the open three metres in front of a wall they closed past; squads
+stringing out at the map's edge when they arrive (half of what is left of
+"idle in the open").
+
 **Then:** 2 a match a new player can read (difficulty, squad tags, cards that
 say what they buy); 3 guns (model detail, launcher sounds); 4 every class its
 job (mortar emplaced, satchel charges, the computer's lever); 5 weather (a
