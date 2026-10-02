@@ -18,17 +18,19 @@ namespace LanesOfVietnam.View.UI
     {
         public static readonly Dictionary<string, string> Lines = new Dictionary<string, string>
         {
-            ["select"] = "SELECTED. 1 ADVANCE · 2 HOLD · 3 BOUND · 4 FALL BACK · 0 LET THEM DECIDE",
+            ["select"] = "SELECTED: ITS TAG SAYS WHAT IT IS DOING. 1 ADVANCE · 2 HOLD · 4 FALL BACK · 0 LET THEM DECIDE",
             ["cover"] = "IN COVER. PACK IT PAST ITS ROOM AND EVERY MAN IN IT IS WORSE OFF",
-            ["pinned"] = "PINNED: MEN UNDER FIRE GO FLAT AND STOP. SUPPRESS BACK OR PULL THEM OUT",
+            ["pinned"] = "PINNED: MEN UNDER FIRE GO FLAT AND STOP. SUPPRESS BACK, SMOKE THEM OUT, OR SEND HELP",
             ["ranged"] = "THAT POSITION IS RANGED IN. MOVE, OR THE NEXT ROUNDS LAND ON YOU",
             ["broken"] = "A SQUAD HAS BROKEN. IT TAKES NO ORDERS UNTIL IT RALLIES",
-            ["concealed"] = "THE ENEMY IS HIDDEN IN THE GRASS UNTIL HE FIRES OR YOU GET CLOSE",
+            ["concealed"] = "NOBODY IS SEEN UNTIL HE IS SPOTTED: A MAN STANDING OR MOVING FROM FAR OFF, A MAN WHO FIRES AT ONCE",
             ["bound"] = "BOUNDING: ONE SQUAD MOVES WHILE ANOTHER KEEPS THEIR HEADS DOWN",
+            ["contact"] = "CONTACT: A SQUAD THAT SEES THE ENEMY GOES TO GROUND AND TAKES THE NEAREST COVER",
+            ["lanes"] = "EACH LANE IS ITS OWN FIGHT. MEN FIRE FROM A KNEE OR FLAT, DOWN THEIR LANE; ONLY WHAT IS THROWN OR LOBBED CROSSES",
             ["trap"] = "A TRAP HAS SPRUNG. EVERYONE NEAR IT GOES FLAT",
             ["glasses"] = "HOLD F FOR FIELD GLASSES",
             ["lever"] = "HOLD KEEPS A SQUAD IN A STRONGPOINT · GO SENDS IT ON · RIGHT CLICK: ITS OWN JUDGEMENT · NOT EVERYONE FITS",
-            ["armed"] = "CLICK THE GROUND TO PLACE IT · RIGHT CLICK OR ESC TO CANCEL",
+            ["armed"] = "POINT AT A LANE, OR A SQUAD IN IT · ↑ ↓ THE OTHER LANE · CLICK TO PLACE · RIGHT CLICK OR ESC TO CANCEL",
         };
 
         private const string Key = "lov_taught";

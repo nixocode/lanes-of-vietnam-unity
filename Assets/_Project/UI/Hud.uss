@@ -207,6 +207,28 @@
     border-radius: 2px;
 }
 
+/* ---- squad tags: what it is, how many, what it is doing ------------------ */
+
+.squad-tag {
+    position: absolute;
+    height: 22px; padding: 0 8px;
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 12px; letter-spacing: 1.5px;
+    -unity-text-align: middle-center;
+    color: rgb(236, 230, 206);
+    background-color: rgba(20, 21, 17, 0.55);
+    border-width: 1px; border-color: rgba(232, 226, 200, 0.3);
+    border-left-width: 3px;
+    border-radius: 2px;
+}
+.squad-tag.us { border-left-color: rgb(154, 167, 113); }
+.squad-tag.vc { border-left-color: rgb(197, 95, 73); }
+.squad-tag.contact {
+    color: rgb(255, 214, 140);
+    background-color: rgba(96, 30, 18, 0.72);
+    border-color: rgba(255, 150, 90, 0.9);
+}
+
 /* ---- the frame -------------------------------------------------------- */
 
 .frame {

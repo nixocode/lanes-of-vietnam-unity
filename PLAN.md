@@ -1544,6 +1544,53 @@ is the far lane's. PlayMode 16/16, WebGL 29.84 MB, 6.1 to 6.5 ms a frame.
 Not seen in a browser by me: only in captures.
 
 
+### 12.21 Phase 2 as built: a match a new player can read (2026-10-03)
+
+The second phase of §12.18's order.
+
+- **How hard the enemy is**, on the start screen (the 2D game's three): what a
+  squad costs the computer. Measured against a player who only ever buys line
+  squads when he can afford one, and never a call-in or a lever
+  (`simcs player 24 N rate=0.55`):
+
+  | | costs it | he wins, as the Americans | as the VC |
+  |---|---|---|---|
+  | Recruit | 30 | 23 of 24 | 24 of 24 |
+  | Veteran | 25 | 18 | 19 |
+  | Elite | 21 | 9 | 14 |
+
+  The VC are the easier side to play at every level; not addressed.
+- **Lengths.** The start screen says 2, 3½ and 8 minutes; the three had
+  drifted to 91, 127 and 306 s. `MatchOptions.MoraleRate` (the baseline's 1
+  untouched) is set by the game for each length (0.68, 0.55, 0.6): a skirmish
+  now runs 100 to 120 s, a standard match 170 to 210, a siege six to eight
+  minutes (a player who buys, and the two plans left to themselves). A test
+  holds each within a third of its label.
+- **Squad tags** (`UI/SquadTags.cs`): "RIFLE SQUAD 3/5 · IN A FIREFIGHT" over a
+  squad while the pointer is on it, while it is selected, for 2.5 s when it
+  arrives, and for 3.5 s in red when it makes contact (the mark at contact
+  that phase 1 left open). What it is doing is the squad's task in the
+  player's words: moving up, waiting, holding, contact, in a firefight,
+  closing, going in, pinned, falling back, spent. An enemy squad in sight has
+  its name and its number on the pointer, and nothing of what it means to do.
+  `Squad.Card` is what names it.
+- **Cards say what they buy** (`UI/CardText.cs`): on the pointer, the hint line
+  reads the squad off the simulation's own kit ("RIFLE SQUAD — 5 MEN: 5 M16 ·
+  FIGHTS FROM 13 M · CLOSES AND GOES IN"), or says what a call-in does.
+- **Lessons** brought up to the rules: contact, the lanes as two fights and
+  firing from a knee or flat, spotting for both sides, the lane selector's
+  keys; the bound order is no longer taught.
+
+EditMode 60/60, PlayMode 17/17, WebGL 29.87 MB, 6.3 to 6.4 ms a frame. Not
+seen by me: the start screen with its new row (no capture reaches it), and
+the tags and the hint in a browser.
+
+**Next in §12.18's order:** phase 3, the guns (model detail in
+`tools/blender/weapons.py`, and the M79's, the RPG's and the mortar's own
+firing sounds, which need the owner's yes before any download); phase 4,
+every class its job; phase 5, weather.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

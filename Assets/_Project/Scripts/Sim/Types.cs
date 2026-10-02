@@ -211,6 +211,9 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks left of being sent out of a position by its lever; it ends when the squad reaches its next cover (MatchOptions.Fieldcraft).</summary>
         public int Sent;
 
+        /// <summary>The card whose squad this is (MatchOptions.Arms; null in the baseline): what to call it.</summary>
+        public string Card;
+
         // --- MatchOptions.Senses -----------------------------------------------------
         /// <summary>What it is doing, and since which tick.</summary>
         public SquadTask Task;

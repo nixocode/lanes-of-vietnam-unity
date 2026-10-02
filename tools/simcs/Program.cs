@@ -327,7 +327,7 @@ namespace LanesOfVietnam.SimCs
                 int wins = 0; double secs = 0, men = 0;
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery" });
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -371,6 +371,9 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>GameRoot.RateFor: how fast will runs out in the game, by length.</summary>
+        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 0.68 : l == MatchLength.Siege ? 0.6 : 0.55;
+
         private static MatchOptions Game(int seed, string[] a)
         {
             var o = new MatchOptions
@@ -380,7 +383,11 @@ namespace LanesOfVietnam.SimCs
                 Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
-            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28; }
+            if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
+            if (a.Contains("siege")) o.Length = MatchLength.Siege;
+            // (GameRoot.CostFor(Veteran), GameRoot.RateFor(length).)
+            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = GameRate(o.Length); }
+            foreach (var x in a) if (x.StartsWith("rate=")) o.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
             return o;
         }
 
@@ -816,7 +823,8 @@ namespace LanesOfVietnam.SimCs
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
             bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery").ToArray();
+            string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") ? "siege" : "standard";
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -833,7 +841,8 @@ namespace LanesOfVietnam.SimCs
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
                 var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery };
-                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 28; }
+                if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
+                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 25; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];

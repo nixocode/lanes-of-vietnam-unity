@@ -31,6 +31,10 @@ namespace LanesOfVietnam.View.UI
         public Label CpValue { get; private set; }
         public Label TutorLine { get; private set; }
         public Label ArmedHint { get; private set; }
+        /// <summary>The tags over the squads: what each is, how many are left, what it is doing.</summary>
+        public SquadTags Tags { get; private set; }
+        /// <summary>The card the pointer is on, or null: the hint line says what it buys.</summary>
+        public Card HoveredCard { get; private set; }
         /// <summary>The lane selector's tags, a lane each, and the tag that follows the pointer.</summary>
         public Button[] LaneTags { get; private set; }
         public Label AimTag { get; private set; }
@@ -115,6 +119,7 @@ namespace LanesOfVietnam.View.UI
 
             // The levers float over the battlefield, under the bars.
             Positions = new PositionPlates(Root, ui);
+            Tags = new SquadTags(Root, ui) { Selected = () => Commander != null ? Commander.Selected : -1, ShowAll = CaptureSettings.Active?.Tags ?? false };
             Positions.Pulled += lever => { Orders.Mark(lever == Lever.Go ? "lever:go" : lever == Lever.Hold ? "lever:hold" : "lever:auto"); Tutor.Teach("lever"); };
 
             // --- the command strip ---------------------------------------------
@@ -243,6 +248,8 @@ namespace LanesOfVietnam.View.UI
                 if (Deployer.Armed == card) Deployer.Disarm();
                 else if (Deployer.Arm(card)) Tutor.Teach("armed");
             };
+            v.RegisterCallback<PointerEnterEvent>(_ => HoveredCard = c);
+            v.RegisterCallback<PointerLeaveEvent>(_ => { if (HoveredCard == c) HoveredCard = null; });
             parent.Add(v);
             Cards.Add(v);
         }
@@ -293,6 +300,7 @@ namespace LanesOfVietnam.View.UI
             OrdersLine.text = Orders.Line;
 
             Positions.Update();
+            Tags.Update();
             // H holds and G sends: the position under the pointer, else the selected squad's.
             if (CaptureSettings.Active == null && (Input.GetKeyDown(KeyCode.H) || Input.GetKeyDown(KeyCode.G)))
             {
@@ -325,7 +333,8 @@ namespace LanesOfVietnam.View.UI
             Buttons["snd"].EnableInClassList("on", Sound);
             Buttons["mus"].EnableInClassList("on", Music);
 
-            ArmedHint.text = Deployer.Armed == null ? ""
+            // With nothing in hand, the card the pointer is on says what it buys; in hand, where it goes.
+            ArmedHint.text = Deployer.Armed == null ? (HoveredCard != null ? Describe(HoveredCard) : "")
                 : Deployer.HasTarget
                     ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE · RIGHT CLICK TO CANCEL"
                     : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
@@ -371,6 +380,9 @@ namespace LanesOfVietnam.View.UI
 
         public const float LaneTagLeft = 46f, LaneTagHeight = 26f;
 
+        /// <summary>A card's line in the hint: its name and what it buys (UIAudit reads it).</summary>
+        public string Describe(Card card) => $"{card.Name} — {CardText.Line(card, Root.PlayerSide)}";
+
         /// <summary>Lessons from what has just happened to the player's side.</summary>
         private void TeachFromEvents(SimState st)
         {
@@ -385,6 +397,8 @@ namespace LanesOfVietnam.View.UI
                     case EventKind.RangedIn when e.Side != me: Tutor.Teach("ranged"); break;
                     case EventKind.SquadBroke when e.Side == me: Tutor.Teach("broken"); break;
                     case EventKind.BoundStart when e.Side == me: Tutor.Teach("bound"); break;
+                    case EventKind.Contact when e.Side == me: Tutor.Teach("contact"); break;
+                    case EventKind.Fire when e.Side == me: Tutor.Teach("lanes"); break;
                     case EventKind.TrapSprung: Tutor.Teach("trap"); break;
                     case EventKind.FirstContact: Tutor.Teach("concealed"); Tutor.Teach("glasses"); break;
                 }

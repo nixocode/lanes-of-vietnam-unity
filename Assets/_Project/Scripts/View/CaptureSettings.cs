@@ -90,6 +90,8 @@ namespace LanesOfVietnam.View
         /// <summary>Squads that spot each other and act on it (MatchOptions.Senses); the game's default (on) if not given.</summary>
         public bool? Senses;
         /// <summary>A card held in the hand for the picture (its id), the lane it is on and where along it.</summary>
+        /// <summary>Tag every squad in sight, for a picture of the squad tags.</summary>
+        public bool Tags;
         public string Arm;
         public int ArmLane;
         public double ArmX;
@@ -142,6 +144,7 @@ namespace LanesOfVietnam.View
                     case "fieldcraft": c.Fieldcraft = v == "1" || v == "true"; break;
                     case "arms": c.Arms = v == "1" || v == "true"; break;
                     case "senses": c.Senses = v == "1" || v == "true"; break;
+                    case "tags": c.Tags = v == "1" || v == "true"; break;
                     case "arm":
                         // arm=us-rifle:0:-10  a card held on a lane at an x, to look at the lane selector.
                         var arm = v.Split(':');
