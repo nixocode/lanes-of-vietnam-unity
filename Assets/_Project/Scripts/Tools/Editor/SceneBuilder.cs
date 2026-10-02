@@ -183,6 +183,7 @@ namespace LanesOfVietnam.Tools
             var deployer = game.AddComponent<Deployer>();
             deployer.Root = root;
             deployer.MarkerMaterial = rings.RingMaterial;
+            deployer.LaneMaterial = Mat("Lane", Shader.Find("LOV/Lane"), null);
             commander.Deployer = deployer;
 
             var hudGo = new GameObject("HUD");

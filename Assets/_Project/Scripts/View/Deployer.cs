@@ -23,6 +23,9 @@ namespace LanesOfVietnam.View
     {
         public GameRoot Root;
         public Material MarkerMaterial;
+        /// <summary>LOV/Lane: the ribbons, the disc and the beams of the lane selector (<see cref="LaneMarks"/>).</summary>
+        public Material LaneMaterial;
+        public LaneMarks Marks { get; private set; }
 
         public static readonly KeyCode[] CallKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T };
         public static readonly KeyCode[] UnitKeys = { KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N };
@@ -38,33 +41,13 @@ namespace LanesOfVietnam.View
         /// <summary>Raised when a card is placed: its id, lane and x. The HUD's field orders listen.</summary>
         public event Action<Card, int, double> Placed;
 
-        private Transform _marker, _area;
-        private MaterialPropertyBlock _mpb;
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
-
         private SimState State => Root.Driver.State;
 
         private void Awake()
         {
-            _mpb = new MaterialPropertyBlock();
-            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            var mesh = quad.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(quad);
-            _marker = MakeQuad("aim marker", mesh);
-            _area = MakeQuad("aim area", mesh);
-        }
-
-        private Transform MakeQuad(string name, Mesh mesh)
-        {
-            var go = new GameObject(name);
+            var go = new GameObject("lane marks");
             go.transform.SetParent(transform, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = MarkerMaterial;
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-            go.SetActive(false);
-            return go.transform;
+            Marks = go.AddComponent<LaneMarks>();
         }
 
         public Card[] Hand(CardGroup? group = null)
@@ -89,6 +72,7 @@ namespace LanesOfVietnam.View
             if (Armed != null) DisarmedFrame = Time.frameCount;
             Armed = null;
             HasTarget = false;
+            _chosen = -1;
         }
 
         private void Update()
@@ -103,6 +87,8 @@ namespace LanesOfVietnam.View
                     if (Input.GetKeyDown(UnitKeys[i])) Arm(units[i]);
                 if (Armed != null)
                 {
+                    // The other lane, by hand: up and down. It stands until the pointer is moved.
+                    if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow)) Switch(Input.GetKeyDown(KeyCode.UpArrow) ? 1 : -1);
                     Aim(Input.mousePosition);
                     if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)) Disarm();
                     else if (Input.GetMouseButtonDown(0) && !HudHasPointer()) PlaceAt(Input.mousePosition);
@@ -152,13 +138,97 @@ namespace LanesOfVietnam.View
             return best;
         }
 
+        /// <summary>A lane chosen by key, and where the pointer was when it was: moving the pointer takes the choice back.</summary>
+        private int _chosen = -1;
+        private Vector2 _chosenAt, _lastAim;
+        public const float ChoiceHolds = 36f;
+
+        /// <summary>Take this lane, whatever the pointer is on (the HUD's lane tags).</summary>
+        public void Choose(int lane)
+        {
+            if (Armed == null) return;
+            _chosen = Mathf.Clamp(lane, 0, Tune.Lanes.Length - 1);
+            _chosenAt = _lastAim;
+            TargetLane = _chosen;
+        }
+
+        /// <summary>Take the next lane further from the lens (+1) or nearer it (-1), whatever the pointer is on.</summary>
+        public void Switch(int step)
+        {
+            // Lane 0 is the near one; the far lanes follow it.
+            int now = _chosen >= 0 ? _chosen : TargetLane;
+            _chosen = Mathf.Clamp(now + step, 0, Tune.Lanes.Length - 1);
+            _chosenAt = _lastAim;
+            TargetLane = _chosen;
+        }
+
+        /// <summary>
+        /// The lane a screen point is on. A man it is on is in his lane: the
+        /// lens sits at eye level, so the head and chest of a man in the near
+        /// lane are drawn over the far lane's ground, and by the ground alone
+        /// pointing at a squad chose the lane behind it. Off any man, the lane
+        /// nearest the ground under the point; over the trees and the sky,
+        /// where there is no ground, the far lane.
+        /// </summary>
+        public int LaneAt(Vector2 screen, out bool onGround, out double groundX, out int groundLane)
+        {
+            onGround = GroundAt(screen, out groundX, out double z);
+            groundLane = onGround ? LaneNearest(z) : -1;
+            var cam = Root.CameraRig.Camera;
+            var st = State;
+            int over = -1;
+            float nearest = float.MaxValue;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive || (m.Side != Root.PlayerSide && !m.Seen)) continue;
+                var (mx, mz) = Root.Driver.Position(i);
+                float y = (float)Root.Ground.HeightAt(mx, mz);
+                float tall = m.Posture == Posture.Prone ? 0.5f : m.Posture == Posture.Crouched ? 1.15f : 1.8f;
+                var feet = cam.WorldToScreenPoint(Coords.World(mx, mz, y));
+                var head = cam.WorldToScreenPoint(Coords.World(mx, mz, y + tall));
+                if (feet.z <= 0) continue;
+                float half = Mathf.Max(6f, (head.y - feet.y) / tall * 0.45f);
+                if (screen.x < feet.x - half || screen.x > feet.x + half || screen.y < feet.y - 4f || screen.y > head.y + 4f) continue;
+                if (feet.z < nearest) { nearest = feet.z; over = st.Squads[m.Squad].Lane; }
+            }
+            if (over >= 0) return over;
+            return onGround ? groundLane : Tune.Lanes.Length - 1;
+        }
+
         public bool Aim(Vector2 screen)
         {
-            HasTarget = GroundAt(screen, out double x, out double z);
-            if (!HasTarget) return false;
-            TargetLane = LaneNearest(z);
+            _lastAim = screen;
+            int lane = LaneAt(screen, out bool onGround, out double gx, out int groundLane);
+            if (_chosen >= 0)
+            {
+                if ((screen - _chosenAt).sqrMagnitude > ChoiceHolds * ChoiceHolds) _chosen = -1;
+                else lane = _chosen;
+            }
+            TargetLane = lane;
+            // Along the lane: under the pointer if it is on that lane's ground; else where the line
+            // of sight through the pointer crosses the lane (over a man, the trees or the sky).
+            double x = gx;
+            if (!onGround || groundLane != lane)
+            {
+                var ray = Root.CameraRig.Camera.ScreenPointToRay(screen);
+                float planeZ = Coords.WorldZ(Tune.Lanes[lane]);
+                if (Mathf.Abs(ray.direction.z) > 1e-5f)
+                {
+                    float t = (planeZ - ray.origin.z) / ray.direction.z;
+                    if (t > 0) x = ray.origin.x + ray.direction.x * t;
+                }
+            }
+            HasTarget = true;
             TargetX = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, x));
             return true;
+        }
+
+        /// <summary>Hold a card on a lane at an x without the pointer: for a capture and the tests.</summary>
+        public void Hold(Card card, int lane, double x)
+        {
+            Armed = card;
+            TargetLane = lane; TargetX = x; HasTarget = card != null;
         }
 
         /// <summary>Place the armed card at a screen point. Returns whether a purchase was sent.</summary>
@@ -187,28 +257,16 @@ namespace LanesOfVietnam.View
             _ => 0f,
         };
 
+        /// <summary>Where a squad bought now would come in: its side's end of the lane.</summary>
+        public double EntryX => Combat.Advance(Root.PlayerSide) > 0 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
+
         private void DrawMarker()
         {
+            if (Marks == null || Root == null || Root.CameraRig == null) return;
+            Marks.Material = LaneMaterial;
             bool show = Armed != null && HasTarget;
-            _marker.gameObject.SetActive(show);
-            _area.gameObject.SetActive(show && Radius(Armed) > 0);
-            if (!show) return;
-            double laneZ = Tune.Lanes[TargetLane];
-            float y = (float)Root.Ground.HeightAt(TargetX, laneZ);
-            var cam = Root.CameraRig.Camera.transform;
-            _mpb.SetColor(ColorId, new Color(1f, 0.74f, 0.26f, 0.95f));
-            _marker.SetPositionAndRotation(Coords.World(TargetX, laneZ, y + 1.3f), cam.rotation);
-            _marker.localScale = Vector3.one * 1.6f;
-            _marker.GetComponent<MeshRenderer>().SetPropertyBlock(_mpb);
-            float r = Radius(Armed);
-            if (r > 0)
-            {
-                // The reach on the ground. Seen along the ground it is a thin
-                // ellipse — enough to show how far along the line it bites.
-                _area.SetPositionAndRotation(Coords.World(TargetX, laneZ, y + 0.15f), Quaternion.Euler(90, 0, 0));
-                _area.localScale = new Vector3(r * 2, r * 2, 1);
-                _area.GetComponent<MeshRenderer>().SetPropertyBlock(_mpb);
-            }
+            Marks.Show(Root.Ground, Root.CameraRig.Camera.transform, show, TargetLane, TargetX,
+                       show ? Radius(Armed) : 0f, EntryX, (float)Combat.Advance(Root.PlayerSide), Time.unscaledDeltaTime);
         }
     }
 }

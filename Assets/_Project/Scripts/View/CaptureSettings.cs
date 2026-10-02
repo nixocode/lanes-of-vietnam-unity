@@ -89,6 +89,10 @@ namespace LanesOfVietnam.View
         public bool? Arms;
         /// <summary>Squads that spot each other and act on it (MatchOptions.Senses); the game's default (on) if not given.</summary>
         public bool? Senses;
+        /// <summary>A card held in the hand for the picture (its id), the lane it is on and where along it.</summary>
+        public string Arm;
+        public int ArmLane;
+        public double ArmX;
         /// <summary>Fire down the lane, from a knee or flat, never on the move (MatchOptions.Gunnery); the game's default (on) if not given.</summary>
         public bool? Gunnery;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
@@ -138,6 +142,13 @@ namespace LanesOfVietnam.View
                     case "fieldcraft": c.Fieldcraft = v == "1" || v == "true"; break;
                     case "arms": c.Arms = v == "1" || v == "true"; break;
                     case "senses": c.Senses = v == "1" || v == "true"; break;
+                    case "arm":
+                        // arm=us-rifle:0:-10  a card held on a lane at an x, to look at the lane selector.
+                        var arm = v.Split(':');
+                        c.Arm = arm[0];
+                        c.ArmLane = arm.Length > 1 ? int.Parse(arm[1], inv) : 0;
+                        c.ArmX = arm.Length > 2 ? double.Parse(arm[2], inv) : 0;
+                        break;
                     case "gunnery": c.Gunnery = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
