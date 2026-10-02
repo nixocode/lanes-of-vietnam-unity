@@ -149,7 +149,6 @@ namespace LanesOfVietnam.Sim
         private const double Pio2_2t = 2.02226624879595063154e-21;
         private const double Pio2_3 = 2.02226624871116645580e-21;
         private const double Pio2_3t = 8.47842766036889956997e-32;
-        private const double TwoPow24 = 1.67772160000000000000e+07;
 
         /// <summary>
         /// __ieee754_rem_pio2: x = n*pi/2 + (y0 + y1), |y0 + y1| &lt;= pi/4.

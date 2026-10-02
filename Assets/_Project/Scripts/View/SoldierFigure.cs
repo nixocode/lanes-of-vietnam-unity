@@ -117,6 +117,8 @@ namespace LanesOfVietnam.View
         private static readonly int HitId = Animator.StringToHash("Hit");
         private static readonly int ReloadId = Animator.StringToHash("Reload");
         private static readonly int ThrowId = Animator.StringToHash("Throw");
+        private static readonly int StandState = Animator.StringToHash("Stand");
+        private static readonly int ClimbInState = Animator.StringToHash("Climb in"), ClimbOutState = Animator.StringToHash("Climb out");
         private int _reactLayer = -1;
 
         private float _recoil, _aim, _deadFor = -1f;
@@ -145,6 +147,23 @@ namespace LanesOfVietnam.View
         private int _aimLayer = -1;
         private bool _baked;
         private Mesh _fallen;
+
+        /// <summary>Fallen, still, and a plain mesh: nothing more is to be done for him.</summary>
+        public bool Baked => _baked;
+
+        /// <summary>
+        /// On his feet: standing, walking or running, or in the last of getting up. Not while he is
+        /// still coming up off a knee or off the ground: until he is, he has no legs to go anywhere on.
+        /// </summary>
+        public bool OnFeet
+        {
+            get
+            {
+                if (_baked || _deadFor >= 0) return false;
+                if (Animator.GetCurrentAnimatorStateInfo(0).shortNameHash == StandState) return true;
+                return Animator.IsInTransition(0) && Animator.GetNextAnimatorStateInfo(0).shortNameHash == StandState;
+            }
+        }
 
         private void Awake()
         {
@@ -209,7 +228,8 @@ namespace LanesOfVietnam.View
             bool busy = _reactLayer >= 0 && !Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Calm");
             _look = Mathf.MoveTowards(_look, dead || busy ? 0f : _lookWant, dt / 0.3f);
             Animator.transform.localPosition = dead ? Vector3.zero : Vector3.forward * (LungeReach * Mathf.Sin(Mathf.PI * (1f - _lunge)) * (_lunge > 0 ? 1f : 0f));
-            Animator.Update(dt);
+            // (A climb is played at the pace the simulation climbs at.)
+            Animator.Update(_climbPace != 1f && !dead && Climbing ? dt * _climbPace : dt);
 
             if (Hips != null) Centre = Hips.position;
             _recoil *= Mathf.Exp(-dt / 0.06f);
@@ -314,12 +334,33 @@ namespace LanesOfVietnam.View
                 Animator.CrossFadeInFixedTime("Calm", 0.08f, _reactLayer);
         }
 
-        /// <summary>Into a trench or out of it (the sim's VaultIn and VaultOut). False if there is no clip for it.</summary>
-        public bool Climb(bool into)
+        /// <summary>
+        /// Into a trench or out of it (the sim's VaultIn and VaultOut), at <paramref name="pace"/> times
+        /// the clip's own speed: the climb takes as long as the simulation has him on the parapet.
+        /// False if there is no clip for it.
+        /// </summary>
+        public bool Climb(bool into, float pace = 1f)
         {
             if (_deadFor >= 0 || _baked || !Climbs || _reactLayer < 0) return false;
+            _climbPace = Mathf.Clamp(pace, 0.25f, 2f);
             Animator.CrossFadeInFixedTime(into ? "Climb in" : "Climb out", 0.08f, _reactLayer);
             return true;
+        }
+
+        private float _climbPace = 1f;
+
+        /// <summary>In the climb's clip, or going into it.</summary>
+        private bool Climbing
+        {
+            get
+            {
+                if (_reactLayer < 0) return false;
+                int now = Animator.GetCurrentAnimatorStateInfo(_reactLayer).shortNameHash;
+                if (now == ClimbInState || now == ClimbOutState) return true;
+                if (!Animator.IsInTransition(_reactLayer)) return false;
+                int next = Animator.GetNextAnimatorStateInfo(_reactLayer).shortNameHash;
+                return next == ClimbInState || next == ClimbOutState;
+            }
         }
 
         /// <summary>A lull after shooting: a fresh magazine (where the posture has a reload clip).</summary>

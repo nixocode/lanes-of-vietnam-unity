@@ -751,8 +751,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses [map]`.</summary>
-        [TestCase(1, true, 2830, 2659694081u, 3252506949u, 3165063579u, "us morale broke")]
-        [TestCase(7, false, 1494, 84624186u, 146792825u, 3130038291u, "vc morale broke")]
+        [TestCase(1, true, 4549, 2659694081u, 3159165556u, 582378346u, "us morale broke")]
+        [TestCase(7, false, 1529, 84624186u, 2067593218u, 125784578u, "vc wiped out")]
         public void With_senses_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -782,7 +782,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 1; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 Assert.IsFalse(st.Men.Any(x => x.Seen), "somebody is seen before anyone has looked");
@@ -830,7 +830,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 3; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 foreach (var man in st.Men.Where(x => x.Side == Side.Us && x.Place >= 0))
@@ -881,13 +881,13 @@ namespace LanesOfVietnam.Tests
         {
             var o = Sensed(seed, onMap);
             o.Gunnery = true;
-            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55; }      // as the game plays it
+            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6; }      // as the game plays it
             return o;
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery [map]`.</summary>
-        [TestCase(1, true, 3221, 7149770u, 4068052772u, 4074593876u, "vc morale broke")]
-        [TestCase(7, false, 1810, 1725442961u, 268683800u, 2531677947u, "us morale broke")]
+        [TestCase(1, true, 3478, 3328910929u, 2449430004u, 515081853u, "vc morale broke")]
+        [TestCase(7, false, 1860, 3648839479u, 2208226111u, 3683317779u, "us morale broke")]
         public void With_gunnery_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -976,9 +976,9 @@ namespace LanesOfVietnam.Tests
         /// the two plans left to fight it out run what the screen says, give
         /// or take a third, and the baseline's own rate is untouched.
         /// </summary>
-        [TestCase(MatchLength.Skirmish, 0.68, 85, 165)]
-        [TestCase(MatchLength.Standard, 0.55, 150, 270)]
-        [TestCase(MatchLength.Siege, 0.6, 330, 600)]
+        [TestCase(MatchLength.Skirmish, 0.75, 85, 165)]
+        [TestCase(MatchLength.Standard, 0.6, 150, 270)]
+        [TestCase(MatchLength.Siege, 0.71, 330, 600)]
         public void At_the_games_settings_a_match_runs_as_long_as_the_start_screen_says(MatchLength length, double rate, int atLeast, int atMost)
         {
             Assert.AreEqual(1.0, new MatchOptions().MoraleRate, "the baseline's morale rate moved");

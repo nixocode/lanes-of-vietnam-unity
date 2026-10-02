@@ -144,8 +144,11 @@ namespace LanesOfVietnam.SimCs
             bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms");
             a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 3;
-            var usPlan = Plan.ByName(a.Length > 2 ? a[2] : "ceiling");
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
+            var usPlan = Plan.ByName(a.Length > 2 && a[2] != "game" ? a[2] : "ceiling");
+            // "game": the match as the game (and a capture of it) plays it, every rule on and its own economy.
+            var m = a.Contains("game")
+                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "tempo" }))
+                : new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
             var st = m.State;
@@ -372,7 +375,7 @@ namespace LanesOfVietnam.SimCs
         }
 
         /// <summary>GameRoot.RateFor: how fast will runs out in the game, by length.</summary>
-        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 0.68 : l == MatchLength.Siege ? 0.6 : 0.55;
+        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 0.75 : l == MatchLength.Siege ? 0.71 : 0.6;
 
         private static MatchOptions Game(int seed, string[] a)
         {
@@ -386,7 +389,7 @@ namespace LanesOfVietnam.SimCs
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
             if (a.Contains("siege")) o.Length = MatchLength.Siege;
             // (GameRoot.CostFor(Veteran), GameRoot.RateFor(length).)
-            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = GameRate(o.Length); }
+            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = GameRate(o.Length); }
             foreach (var x in a) if (x.StartsWith("rate=")) o.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
             return o;
         }
@@ -842,7 +845,7 @@ namespace LanesOfVietnam.SimCs
                 var t0 = sw.Elapsed.TotalMilliseconds;
                 var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery };
                 if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
-                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 25; mo.MoraleRate = GameRate(mo.Length); }
+                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];

@@ -400,7 +400,7 @@ namespace LanesOfVietnam.Sim
             if (!pinnedDown && !climbing && !held)
             {
                 double speed = Tune.Speed(m.Posture);
-                if (st.Gunnery && m.Posture == Posture.Standing && Gunnery.Rushing(sq)) speed = Tune.SpeedRush;
+                if (st.Gunnery && m.Posture == Posture.Standing) speed = Gunnery.Pace(sq);
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
                 // With drill a man close enough to his place stays put (falling back, he always moves).
@@ -463,7 +463,7 @@ namespace LanesOfVietnam.Sim
                 bool outOf = was >= 0 && Fieldcraft.Dug(st.Cover[was]);
                 if (into || outOf)
                 {
-                    m.Vault = into ? Tune.VaultInTicks : Tune.VaultOutTicks;
+                    m.Vault = Gunnery.VaultTicks(st, into);
                     st.Events.Add(new SimEvent
                     {
                         Kind = into ? EventKind.VaultIn : EventKind.VaultOut,
@@ -526,8 +526,10 @@ namespace LanesOfVietnam.Sim
             for (int si = 0; si < st.Squads.Count; si++)
             {
                 var sq = st.Squads[si];
+                // (Asked before the roster is made: by the end of a match most squads have nobody
+                // left, and a list was made and sorted for each of them every tick to find that out.)
+                if (!Squads.AnyAlive(st, sq.Id)) continue;
                 var live = Squads.Roster(st, sq.Id);
-                if (live.Count == 0) continue;
                 var plan = sq.Side == Side.Us ? us : vc;
                 var prev = sq.Order;
                 // The player's order wins over the plan and over the opening
@@ -538,7 +540,14 @@ namespace LanesOfVietnam.Sim
                         : st.Senses ? sq.Order : DecideOrder(st, sq, plan, original, ix));
                 // Part 2 (MatchOptions.Senses): the squad's own task, from what it has spotted, in place of the policy.
                 if (st.Senses && !opening)
+                {
+                    // It decides from where its living men are. The anchor is leashed to them after
+                    // the squad moves, and men fall after that: a squad whose lead man had just been
+                    // shot twelve metres ahead of the rest broke, chose the cover "behind it" from
+                    // where he had been, and ran forward to it, toward the enemy (review, PLAN §12.23).
+                    Squads.Reanchor(sq, live);
                     sq.Order = Senses.Decide(st, sq, live, plan, original.TryGetValue(sq.Id, out int was0) ? was0 : live.Count, prev);
+                }
                 // Part 2 (MatchOptions.Drill): the policy's order, steadied.
                 else if (st.Drill && sq.PlayerOrder == null && !opening)
                     sq.Order = Drill.Steady(st, sq, prev, sq.Order, live, original.TryGetValue(sq.Id, out int raised) ? raised : live.Count);
@@ -954,9 +963,11 @@ namespace LanesOfVietnam.Sim
         /// Who holds each lane, and by how much: whose front is further up it.
         /// §7's objective diamonds are coloured by this.
         /// </summary>
-        public static (Side? side, double margin)[] LaneControl(SimState st)
+        public static (Side? side, double margin)[] LaneControl(SimState st) => LaneControl(st, new (Side?, double)[Tune.Lanes.Length]);
+
+        /// <summary>The same, into an array the caller keeps: the HUD asks every frame.</summary>
+        public static (Side? side, double margin)[] LaneControl(SimState st, (Side? side, double margin)[] result)
         {
-            var result = new (Side?, double)[Tune.Lanes.Length];
             for (int lane = 0; lane < Tune.Lanes.Length; lane++)
             {
                 double fu = double.NegativeInfinity, fv = double.NegativeInfinity;

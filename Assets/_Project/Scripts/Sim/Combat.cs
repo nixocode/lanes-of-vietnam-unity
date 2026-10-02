@@ -27,15 +27,6 @@ namespace LanesOfVietnam.Sim
 
         public static double Dist(Man a, Man b) => Dist(a.X, a.Z, b.X, b.Z);
 
-        public static bool CanEngage(Man a, Man b)
-        {
-            if (!a.Alive || !b.Alive) return false;
-            if (a.Side == b.Side) return false;
-            // A VC in the grass is not a target until he gives himself away.
-            if (!b.Seen) return false;
-            return Dist(a, b) <= Tune.Range;
-        }
-
         /// <summary>
         /// Is this point behind that cover? Along the lane it is the berm's
         /// length that matters; across it, how close he is tucked in. One

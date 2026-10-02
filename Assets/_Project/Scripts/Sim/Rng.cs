@@ -78,21 +78,6 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// Box-Muller, for jitter that should cluster around a mean.
-        ///
-        /// <b>View-side only.</b> It calls <see cref="Math.Log"/> and
-        /// <see cref="Math.Cos"/>, whose last bit is platform-dependent (see
-        /// <see cref="JsMath"/>), so nothing the match depends on may use it.
-        /// The simulation never has.
-        /// </summary>
-        public double Normal(double mean = 0, double sd = 1)
-        {
-            double u = Math.Max(1e-12, Next());
-            double v = Next();
-            return mean + sd * Math.Sqrt(-2 * Math.Log(u)) * Math.Cos(2 * Math.PI * v);
-        }
-
-        /// <summary>
         /// A named, independent stream from this one.
         ///
         /// This is the mechanism that keeps the renderer from perturbing the

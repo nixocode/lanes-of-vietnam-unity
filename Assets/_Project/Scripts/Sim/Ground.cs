@@ -206,18 +206,5 @@ namespace LanesOfVietnam.Sim
             h += Noise.Fbm2D(x * 0.17 + o[7], z * 0.17, 3, 2.1, 0.5) * 0.12;
             return h;
         }
-
-        /// <summary>Surface normal, from the same function the mesh is built from.</summary>
-        public (double x, double y, double z) NormalAt(double x, double z, double e = 0.4)
-        {
-            double hx = HeightAt(x + e, z) - HeightAt(x - e, z);
-            double hz = HeightAt(x, z + e) - HeightAt(x, z - e);
-            double nx = -hx, ny = 2 * e, nz = -hz;
-            double len = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-            return (nx / len, ny / len, nz / len);
-        }
-
-        /// <summary>Steepness in degrees.</summary>
-        public double SlopeAt(double x, double z) => Math.Acos(NormalAt(x, z).y) * (180 / Math.PI);
     }
 }

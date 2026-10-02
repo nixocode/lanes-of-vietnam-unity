@@ -57,6 +57,16 @@ namespace LanesOfVietnam.View.UI
 
         private VisualElement _root;
         private int _eventsRead;
+        // What the HUD last showed, so a label is written (and the strip drawn) when it changes and not
+        // every frame: in a browser every string made is the collector's to clear, and every text set
+        // or element moved is the panel's to lay out and draw again.
+        private int _stripTick = -1, _cpShown = int.MinValue;
+        /// <summary>Ticks between drawings of the tactical strip's pips: four a second.</summary>
+        public const int StripEvery = 5;
+        private readonly (Side? side, double margin)[] _control = new (Side?, double)[Tune.Lanes.Length];
+        private float _speedShown = -1f;
+        private (Card armed, bool target, int lane, Card hovered) _hintFor;
+        private (Card armed, int lane) _aimFor;
 
         private void OnEnable()
         {
@@ -97,6 +107,9 @@ namespace LanesOfVietnam.View.UI
             Cards.Clear();
             Buttons.Clear();
             _eventsRead = 0;
+            _stripTick = -1; _cpShown = int.MinValue;
+            _speedShown = -1f;
+            _hintFor = default; _aimFor = default;
             Build(_container);
         }
 
@@ -184,12 +197,17 @@ namespace LanesOfVietnam.View.UI
                 var tag = new Button(() => Deployer.Choose(which)) { name = $"lane-tag-{lane}", text = lane == 0 ? "NEAR LANE  ↓" : "FAR LANE  ↑" };
                 tag.AddToClassList("lane-tag");
                 tag.style.display = DisplayStyle.None;
+                // Moved by a transform (as the plates and the squad tags are): no layout when the camera moves.
+                tag.style.left = LaneTagLeft; tag.style.top = 0;
+                tag.usageHints = UsageHints.DynamicTransform;
                 ui.Add(tag);
                 LaneTags[lane] = tag;
             }
             AimTag = new Label("") { name = "aim-tag", pickingMode = PickingMode.Ignore };
             AimTag.AddToClassList("aim-tag");
             AimTag.style.display = DisplayStyle.None;
+            AimTag.style.left = 0; AimTag.style.top = 0;
+            AimTag.usageHints = UsageHints.DynamicTransform;
             ui.Add(AimTag);
 
             var bottom = new VisualElement { name = "bottombar" };
@@ -279,7 +297,18 @@ namespace LanesOfVietnam.View.UI
             return picked != null && picked.pickingMode == PickingMode.Position && picked != _root && picked != _container;
         }
 
+        /// <summary>Milliseconds the last frame's update took (not the panel's own layout and drawing). For the frame-time probe.</summary>
+        public float LastMs { get; private set; }
+        private readonly System.Diagnostics.Stopwatch _clock = new System.Diagnostics.Stopwatch();
+
         private void Update()
+        {
+            _clock.Restart();
+            Refresh();
+            LastMs = (float)_clock.Elapsed.TotalMilliseconds;
+        }
+
+        private void Refresh()
         {
             if (Root.Driver == null || !Visible) return;
             var st = Root.Driver.State;
@@ -287,13 +316,14 @@ namespace LanesOfVietnam.View.UI
             UsMorale.Set(st.Morale[(int)Side.Us]);
             VcMorale.Set(st.Morale[(int)Side.Vc]);
 
-            var control = Match.LaneControl(st);
+            var control = Match.LaneControl(st, _control);
             for (int i = 0; i < Diamonds.Count && i < control.Length; i++)
             {
                 var d = Diamonds[i];
                 d.EnableInClassList("us", control[i].side == Side.Us);
                 d.EnableInClassList("vc", control[i].side == Side.Vc);
-                d.style.opacity = 0.45f + 0.55f * (float)control[i].margin;
+                // In twentieths: a diamond a hair brighter is not worth drawing again.
+                d.style.opacity = 0.45f + 0.55f * Mathf.Round((float)control[i].margin * 20f) / 20f;
             }
 
             Orders.Update(st);
@@ -316,10 +346,20 @@ namespace LanesOfVietnam.View.UI
             var cam = Root.CameraRig.Camera;
             float dist = Coords.Camera.SimZ - (float)Tune.Lanes[0];
             Strip.CameraHalfWidth = dist * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * cam.aspect;
-            Strip.MarkDirtyRepaint();
+            // The strip's pips are drawn again a few times a second, not every frame: a man crosses
+            // one of its pixels in about a second, and every time the panel's geometry changes the
+            // frame it changes in runs long (3 to 4 ms in a browser, measured: PLAN §12.23). The
+            // camera's window over it is a transform, and follows the camera every frame.
+            if (st.Tick < _stripTick || st.Tick - _stripTick >= StripEvery || _stripTick < 0)
+            {
+                _stripTick = st.Tick;
+                Strip.MarkDirtyRepaint();
+            }
+            Strip.PlaceWindow();
 
             double cpNow = st.Cp[(int)Root.PlayerSide];
-            CpValue.text = Mathf.FloorToInt((float)cpNow).ToString();
+            int cp = Mathf.FloorToInt((float)cpNow);
+            if (cp != _cpShown) { _cpShown = cp; CpValue.text = cp.ToString(); }
             foreach (var v in Cards)
             {
                 int cd = Deck.CooldownLeft(st, Root.PlayerSide, v.Card);
@@ -328,16 +368,21 @@ namespace LanesOfVietnam.View.UI
 
             Buttons["pause"].text = Root.Paused ? "▶" : "❚❚";
             Buttons["pause"].EnableInClassList("on", Root.Paused);
-            Buttons["speed"].text = $"{Root.Speed:0}×";
+            if (Root.Speed != _speedShown) { _speedShown = Root.Speed; Buttons["speed"].text = $"{Root.Speed:0}×"; }
             Buttons["speed"].EnableInClassList("on", Root.Speed > 1f);
             Buttons["snd"].EnableInClassList("on", Sound);
             Buttons["mus"].EnableInClassList("on", Music);
 
             // With nothing in hand, the card the pointer is on says what it buys; in hand, where it goes.
-            ArmedHint.text = Deployer.Armed == null ? (HoveredCard != null ? Describe(HoveredCard) : "")
-                : Deployer.HasTarget
-                    ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE · RIGHT CLICK TO CANCEL"
-                    : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
+            var hint = (Deployer.Armed, Deployer.HasTarget, Deployer.TargetLane, HoveredCard);
+            if (!hint.Equals(_hintFor) || ArmedHint.text == null)
+            {
+                _hintFor = hint;
+                ArmedHint.text = Deployer.Armed == null ? (HoveredCard != null ? Describe(HoveredCard) : "")
+                    : Deployer.HasTarget
+                        ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE · RIGHT CLICK TO CANCEL"
+                        : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
+            }
             LaneSelector();
 
             TeachFromEvents(st);
@@ -365,17 +410,16 @@ namespace LanesOfVietnam.View.UI
                 double x = probe.x, z = Tune.Lanes[lane];
                 var vp = cam.WorldToViewportPoint(Coords.World(x, z, (float)Root.Ground.HeightAt(x, z)));
                 float panelH = _root.resolvedStyle.height;
-                tag.style.left = LaneTagLeft;
-                tag.style.top = Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f));
+                tag.style.translate = new Translate(0, Mathf.Round(Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f))));
                 tag.EnableInClassList("lit", Deployer.TargetLane == lane);
             }
             AimTag.style.display = armed && CaptureSettings.Active == null ? DisplayStyle.Flex : DisplayStyle.None;
             if (!armed) return;
             var mouse = Input.mousePosition;
             var m = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(mouse.x, Screen.height - mouse.y));
-            AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE";
-            AimTag.style.left = m.x + 22f;
-            AimTag.style.top = m.y - 44f;
+            var aim = (Deployer.Armed, Deployer.TargetLane);
+            if (!aim.Equals(_aimFor)) { _aimFor = aim; AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE"; }
+            AimTag.style.translate = new Translate(Mathf.Round(m.x + 22f), Mathf.Round(m.y - 44f));
         }
 
         public const float LaneTagLeft = 46f, LaneTagHeight = 26f;

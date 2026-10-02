@@ -66,8 +66,6 @@ namespace LanesOfVietnam.View
             if (Mountains != null) Mountains.Build();
             if (Dressing != null)
             {
-                // The grey box's sphere ridges stand in only when there is no real terrain.
-                Dressing.GreyBoxRidges = Mountains == null || Mountains.Vertices == 0;
                 Dressing.Bags = CoverView.Bags;
                 Dressing.Build(Ground, cover, MapSeed);
             }
@@ -113,38 +111,31 @@ namespace LanesOfVietnam.View
         /// </summary>
         /// <summary>Command points a second and at the start, and the men each side opens with (at least), in the game.</summary>
         public const double CpRate = 1.6, StartCp = 20;
-        /// <summary>
-        /// What a squad costs the computer's side (the baseline's 22 is at the baseline's income). Chosen with
-        /// `tools/simcs/run.sh player 24 N`, against a player who only ever buys line squads when he can: at 22
-        /// that player wins half his matches, at 28 three in four, at 40 all of them. One who buys nothing loses
-        /// in about a minute at any of them. With Senses on, 28 gave that player nine wins in twenty-four as
-        /// the Americans (the computer's mixed squads see and outrange a line of riflemen); at 32 it is
-        /// nineteen, and twenty-two as the VC. With Gunnery on (the lanes two separate fights, nobody firing
-        /// on the move) it is 28 again: sixteen of twenty-four as the Americans, twenty-two as the VC; at 32
-        /// he hardly loses.
-        /// </summary>
-        public const double MusterCost = 28;
         /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
         public const int OpeningStrength = 4;
 
         /// <summary>
-        /// How hard the computer is: what a squad costs it (30, 25, 21). Measured with
-        /// `tools/simcs/run.sh player 24 N rate=0.55`, against a player who only ever buys line squads
+        /// How hard the computer is: what a squad costs it (40, 29, 22). Measured with
+        /// `tools/simcs/run.sh player 24 N rate=0.6`, against a player who only ever buys line squads
         /// when he can afford one and never uses a call-in or a lever: against a Recruit he wins 23 of
-        /// 24 as the Americans and 24 as the VC; against a Veteran 18 and 19; against the Elite 9 and 14.
+        /// 24 as the Americans and 24 as the VC; against a Veteran 17 and 20; against the Elite 9 and 13.
+        /// (They were 30, 25 and 21 until the men were slowed, PLAN §12.22: at those he won 15, 14 and 5
+        /// as the Americans, whose squads now take longer to come up from their end of the lane.)
         /// </summary>
         public enum Difficulty { Recruit, Veteran, Elite }
 
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 30 : d == Difficulty.Elite ? 21 : 25;
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 22 : 29;
 
         /// <summary>
         /// How fast will runs out, against the length setting's own rate. The settings were calibrated
         /// when a standard match ran 204 s; with the game's tempo and the rules since, the three ran 91,
         /// 127 and 306 s against the start screen's 2, 3½ and 8 minutes. At these rates (`simcs player
-        /// 24 25 [skirmish|siege] rate=N`: a player who buys, and the two plans left to themselves) a
-        /// skirmish runs 100 to 120 s, a standard match 170 to 210, a siege six to eight minutes.
+        /// 24 29 [skirmish|siege] rate=N`: a player who buys, and the two plans left to themselves) a
+        /// skirmish runs 110 to 130 s, a standard match 170 to 250, a siege six to eight and a half
+        /// minutes. (0.68, 0.55 and 0.6 until the men were slowed, PLAN §12.22: a slower fight is a
+        /// longer one, and at those the three ran to 136, 241 and 590 s.)
         /// </summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 0.68 : l == MatchLength.Siege ? 0.6 : 0.55;
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 0.75 : l == MatchLength.Siege ? 0.71 : 0.6;
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 
@@ -217,11 +208,17 @@ namespace LanesOfVietnam.View
             ViewTime += seconds;
         }
 
+        /// <summary>Milliseconds the simulation took in the last frame (none, on a frame with no tick in it). For the frame-time probe.</summary>
+        public float LastSimMs { get; private set; }
+        private readonly System.Diagnostics.Stopwatch _simClock = new System.Diagnostics.Stopwatch();
+
         private void Update()
         {
             if (CaptureSettings.Active == null)
             {
+                _simClock.Restart();
                 if (!Paused) Driver.Advance(Time.deltaTime * Speed);
+                LastSimMs = (float)_simClock.Elapsed.TotalMilliseconds;
                 ViewTime += Time.deltaTime;
             }
             Shader.SetGlobalFloat(LovTime, ViewTime);

@@ -34,11 +34,13 @@ namespace LanesOfVietnam.Sim
     ///             did. On his feet he fires one chance in ten, and hits a
     ///             third as often
     ///   movement  a man on a knee or flat stays where he is. One who has to
-    ///             move gets up (it takes him the time it takes), runs, and
+    ///             move gets up (it takes him the time it takes), goes, and
     ///             goes down when he has been still a moment. A squad in
-    ///             contact moves at a run, on the march at a walk, and a man
-    ///             up with his squad keeps its pace instead of stopping and
-    ///             setting off again every pace. A man falling back runs
+    ///             contact moves at the double (2.4 m/s; it was a run at 4,
+    ///             until the owner saw it: "too quick, almost half"), on the
+    ///             march at a walk, and a man up with his squad keeps its
+    ///             pace instead of stopping and setting off again every pace.
+    ///             A man falling back goes at the double too
     ///   impacts   a round that misses lands: past the man it was fired at, on
     ///             its own line, a little wide. The Fire event carries the
     ///             point, so the view draws the round to where it went
@@ -63,8 +65,15 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks it takes him to get to his feet from how he was.</summary>
         public static int RiseTicks(Posture from) => from == Posture.Prone ? Tune.RiseFromProne : from == Posture.Crouched ? Tune.RiseFromKnee : 0;
 
-        /// <summary>Is this squad moving at a run: in contact with the enemy, or falling back?</summary>
+        /// <summary>Is this squad moving at the double: in contact with the enemy, or falling back?</summary>
         public static bool Rushing(Squad sq) => sq.Task != SquadTask.March || sq.Order == Order.Fallback;
+
+        /// <summary>How fast a man on his feet goes, m/s: at the double with his squad in contact, else at a walk.</summary>
+        public static double Pace(Squad sq) => Rushing(sq) ? Tune.SpeedRush : Tune.SpeedWalk;
+
+        /// <summary>Ticks a climb into a trench, or out of one, takes: a quarter longer under this rule.</summary>
+        public static int VaultTicks(SimState st, bool into)
+            => st.Gunnery ? (into ? Tune.SlowVaultInTicks : Tune.SlowVaultOutTicks) : (into ? Tune.VaultInTicks : Tune.VaultOutTicks);
 
         /// <summary>
         /// How he carries himself, given what the rules before this one wanted

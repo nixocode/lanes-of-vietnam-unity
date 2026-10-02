@@ -46,8 +46,7 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
-            else if ((p.StartsWith("Assets/_Project/Art/Plants/") || p.StartsWith("Assets/_Project/Art/Soldiers/")
-                      || p.StartsWith("Assets/_Project/Art/Props/")) && p.EndsWith(".png"))
+            else if ((p.StartsWith("Assets/_Project/Art/Plants/") || p.StartsWith("Assets/_Project/Art/Props/")) && p.EndsWith(".png"))
             {
                 // Baked plant atlases (tools/blender/plant_bake.py). The normal
                 // atlas is not a Unity normal map: it holds the bake frame's x

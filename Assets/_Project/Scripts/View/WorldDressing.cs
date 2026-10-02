@@ -30,7 +30,6 @@ namespace LanesOfVietnam.View
     {
         public Material Foliage;
         public Material FoliageDark;
-        public Material Mountain;
         public Material Wire;
         public Material Timber;
         public Material Sandbag;
@@ -39,8 +38,6 @@ namespace LanesOfVietnam.View
         public PlantSet[] Plants;
         /// <summary>Baked props placed by name (the firebase's tower and vehicles). Missing: grey boxes.</summary>
         public PlantSet[] Props;
-        /// <summary>Build the grey box's sphere ridges (false when MountainView has the real terrain).</summary>
-        public bool GreyBoxRidges = true;
 
         /// <summary>
         /// The treeline begins here (sim z), 68 m from the lens. Derived from
@@ -67,8 +64,6 @@ namespace LanesOfVietnam.View
 
         private Dictionary<string, PlantSpecies> _species;
         private PlantBatch _plants;
-        /// <summary>How many plants were placed.</summary>
-        public int PlantCount => _plants?.Count ?? 0;
 
         public void Build(Ground g, IReadOnlyList<Cover> cover, int seed)
         {
@@ -88,7 +83,6 @@ namespace LanesOfVietnam.View
             Grass(g, cover, rng.Fork("grass"));
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
-            if (GreyBoxRidges) Ridges(rng.Fork("ridges"));
             CombineByMaterial();
             _built.AddRange(_plants.Build(transform));
             if (_plants.Count > 0) Debug.Log($"[LOV] plants: {_plants.Count:N0} of {_species.Count} species");
@@ -516,29 +510,6 @@ namespace LanesOfVietnam.View
             float y = (float)g.HeightAt(x, z);
             Prim(PrimitiveType.Cube, Coords.World(x, z, y + (float)h * 0.5f - 0.1f),
                  new Vector3((float)lenX, (float)h, (float)lenZ), Sandbag, "revetment");
-        }
-
-        /// <summary>
-        /// Four ridges, receding. Sized by angle rather than by metres: the
-        /// reference's peaks stand about 4-6 degrees above the horizon, so a
-        /// ridge's height is its distance times tan of that — the first grey-box
-        /// made them hills looming at 20 degrees.
-        /// </summary>
-        private void Ridges(Rng rng)
-        {
-            for (int r = 0; r < 4; r++)
-            {
-                double z = -450 - r * 160;
-                double dist = Coords.Camera.SimZ - z;
-                for (double x = -1100; x < 1100; x += rng.Range(110, 240))
-                {
-                    double deg = rng.Range(2.2, 5.8) - r * 0.4;
-                    float top = (float)(Coords.Camera.Height + dist * System.Math.Tan(deg * System.Math.PI / 180));
-                    float w = (float)rng.Range(180, 380);
-                    var t = Prim(PrimitiveType.Sphere, Coords.World(x, z + rng.Range(-40, 40), 0), new Vector3(w, top * 2f, w * 0.6f), Mountain, "ridge");
-                    t.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
-                }
-            }
         }
 
         private Transform Prim(PrimitiveType type, Vector3 pos, Vector3 scale, Material mat, string name)

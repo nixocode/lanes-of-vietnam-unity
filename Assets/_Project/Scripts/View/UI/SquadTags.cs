@@ -24,6 +24,10 @@ namespace LanesOfVietnam.View.UI
         private readonly GameRoot _root;
         private readonly VisualElement _layer;
         private readonly Dictionary<int, Label> _tags = new Dictionary<int, Label>();
+        /// <summary>What each tag last said, so its text is written when it changes and not every frame.</summary>
+        private readonly Dictionary<int, (int live, int raised, string doing)> _said = new Dictionary<int, (int, int, string)>();
+        /// <summary>Each squad's living men, by id as the simulation has them, gathered once a frame.</summary>
+        private readonly List<List<Man>> _rosters = new List<List<Man>>();
         private readonly Dictionary<int, int> _contactAt = new Dictionary<int, int>();
         private readonly Dictionary<int, int> _raisedAt = new Dictionary<int, int>();
         private int _eventsRead;
@@ -81,7 +85,7 @@ namespace LanesOfVietnam.View.UI
             float w = _layer.resolvedStyle.width, h = _layer.resolvedStyle.height;
             if (float.IsNaN(w) || w <= 0) return;
             var me = _root.PlayerSide;
-            if (_eventsRead > st.Events.Count) { _eventsRead = 0; _contactAt.Clear(); _raisedAt.Clear(); foreach (var t in _tags.Values) t.RemoveFromHierarchy(); _tags.Clear(); }
+            if (_eventsRead > st.Events.Count) { _eventsRead = 0; _contactAt.Clear(); _raisedAt.Clear(); foreach (var t in _tags.Values) t.RemoveFromHierarchy(); _tags.Clear(); _said.Clear(); }
             for (; _eventsRead < st.Events.Count; _eventsRead++)
             {
                 var e = st.Events[_eventsRead];
@@ -92,10 +96,16 @@ namespace LanesOfVietnam.View.UI
             var pointer = Pointer ?? RuntimePanelUtils.ScreenToPanel(_layer.panel, new Vector2(mouse.x, Screen.height - mouse.y));
             int selected = Selected();
 
+            // Every squad's living men in one pass. (A roster a squad a frame was a list made and sorted
+            // for every squad ever raised, the dead ones too.)
+            while (_rosters.Count < st.Squads.Count) _rosters.Add(new List<Man>(Tune.SquadMax));
+            for (int id = 0; id < st.Squads.Count; id++) _rosters[id].Clear();
+            for (int i = 0; i < st.Men.Count; i++) if (st.Men[i].Alive) _rosters[st.Men[i].Squad].Add(st.Men[i]);
+
             for (int id = 0; id < st.Squads.Count; id++)
             {
                 var sq = st.Squads[id];
-                var live = Squads.Roster(st, id);
+                var live = _rosters[id];
                 _tags.TryGetValue(id, out var tag);
                 bool mine = sq.Side == me;
                 bool seen = mine;
@@ -107,7 +117,7 @@ namespace LanesOfVietnam.View.UI
                 bool on = false, any = false;
                 for (int i = 0; i < live.Count; i++)
                 {
-                    var (x, z) = _root.Driver.Position(live[i].Id);
+                    var (x, z) = _root.ArmyView.Where(_root.Driver, live[i].Id);
                     float y = (float)_root.Ground.HeightAt(x, z);
                     float tall = live[i].Posture == Posture.Prone ? 0.5f : live[i].Posture == Posture.Crouched ? 1.15f : 1.8f;
                     var vp = cam.WorldToViewportPoint(Coords.World(x, z, y + tall));
@@ -129,20 +139,28 @@ namespace LanesOfVietnam.View.UI
                     tag = new Label { name = $"squad-tag-{id}", pickingMode = PickingMode.Ignore };
                     tag.AddToClassList("squad-tag");
                     tag.AddToClassList(sq.Side == Side.Us ? "us" : "vc");
+                    // It follows its squad by a transform, not by its layout: moved by left and top, a tag
+                    // over a squad on the march was the whole panel laid out again every frame.
+                    tag.style.left = 0; tag.style.top = 0;
+                    tag.usageHints = UsageHints.DynamicTransform;
                     _layer.Add(tag);
                     _tags[id] = tag;
                 }
                 int raised = 0;
                 for (int i = 0; i < st.Men.Count; i++) if (st.Men[i].Squad == id) raised++;
-                string name = CardText.SquadName(sq);
-                tag.text = mine ? $"{name} {live.Count}/{raised} · {(contact ? "CONTACT" : Doing(st, sq, live))}" : $"{name} · {live.Count}";
+                string doing = !mine ? "" : contact ? "CONTACT" : Doing(st, sq, live);
+                if (!_said.TryGetValue(id, out var said) || said.live != live.Count || said.raised != raised || said.doing != doing)
+                {
+                    string name = CardText.SquadName(sq);
+                    tag.text = mine ? $"{name} {live.Count}/{raised} · {doing}" : $"{name} · {live.Count}";
+                    _said[id] = (live.Count, raised, doing);
+                }
                 tag.EnableInClassList("contact", contact);
                 tag.style.display = DisplayStyle.Flex;
                 tag.style.opacity = on || id == selected || contact ? 1f : 0.8f;
                 float tw = tag.resolvedStyle.width;
                 if (float.IsNaN(tw) || tw <= 0) tw = 180;
-                tag.style.left = Mathf.Clamp(sx - tw * 0.5f, 40, w - tw - 12);
-                tag.style.top = Mathf.Max(70, top - 30);
+                tag.style.translate = new Translate(Mathf.Round(Mathf.Clamp(sx - tw * 0.5f, 40, w - tw - 12)), Mathf.Round(Mathf.Max(70, top - 30)));
             }
         }
     }

@@ -27,6 +27,7 @@ Material:
     m_Floats:
     - _Flow: 0
     - _Focus: 0
+    - _Occluded: 0.5
     - _Reach: 16
     - _Shape: 0
     m_Colors:

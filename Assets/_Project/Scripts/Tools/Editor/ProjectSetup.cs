@@ -184,8 +184,11 @@ namespace LanesOfVietnam.Tools
             SetRel(l, "skinWeights", 4);
             // The camera looks along the ground at a fraction of a degree.
             // Without anisotropic filtering the ground texture blurs to a
-            // smear a few metres in.
-            SetRel(l, "anisotropicTextures", 2);      // forced on
+            // smear a few metres in. Each texture's own level (ArtImport: 8 on
+            // the ground, 1 to 4 on the rest), not "forced on", which raises
+            // every texture in the game to 9 or more: the same picture (0.009
+            // of 255 mean difference in a capture) for 0.9 ms of a 6 ms frame.
+            SetRel(l, "anisotropicTextures", 1);      // per texture
             SetRel(l, "antiAliasing", 0);             // the pipeline owns AA
             SetRel(l, "softParticles", true);
             SetRel(l, "realtimeReflectionProbes", false);

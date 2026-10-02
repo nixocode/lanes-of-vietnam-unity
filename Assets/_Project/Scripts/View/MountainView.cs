@@ -21,8 +21,6 @@ namespace LanesOfVietnam.View
 
         [Serializable] private class L { public int rings, columns; public float near_m, far_m, az_half_deg; }
 
-        public int Vertices { get; private set; }
-
         public void Build()
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
@@ -67,7 +65,6 @@ namespace LanesOfVietnam.View
             mr.sharedMaterial = Material;
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
-            Vertices = pos.Length;
             Debug.Log($"[LOV] mountains: {R} x {C} grid, {idx.Length / 3:N0} triangles, {l.near_m / 1000:F1}-{l.far_m / 1000:F0} km");
         }
     }

@@ -27,6 +27,10 @@ namespace LanesOfVietnam.View.UI
             name = $"plate-{c.Id}";
             AddToClassList("plate");
             pickingMode = PickingMode.Ignore;
+            // Placed by a transform, not by its layout: it moves whenever the camera does, and a plate
+            // moved by left and top is the whole panel laid out again and its text drawn again.
+            style.left = 0; style.top = 0;
+            usageHints = UsageHints.DynamicTransform;
             Flag = new VisualElement { pickingMode = PickingMode.Ignore }; Flag.AddToClassList("plate-flag");
             Count = new Label("0/0") { pickingMode = PickingMode.Ignore }; Count.AddToClassList("plate-count");
             // Left click flips it between Hold and Go; right click gives it back to the plan.
@@ -43,11 +47,14 @@ namespace LanesOfVietnam.View.UI
             Add(Flag); Add(body);
         }
 
+        private int _mine = -1, _capacity = -1;
+
         public void Set(Side? owner, int mine, int capacity, Lever lever, bool enemyHeld)
         {
             Flag.EnableInClassList("us", owner == Side.Us);
             Flag.EnableInClassList("vc", owner == Side.Vc);
-            Count.text = $"{mine}/{capacity}";
+            // (Written when it changes: every frame, it was a string a plate a frame for the collector.)
+            if (mine != _mine || capacity != _capacity) { _mine = mine; _capacity = capacity; Count.text = $"{mine}/{capacity}"; }
             Shown = lever;
             LeverButton.text = lever == Lever.Hold ? "HOLD" : lever == Lever.Go ? "GO ▶" : "AUTO";
             LeverButton.EnableInClassList("hold", lever == Lever.Hold);
@@ -55,6 +62,9 @@ namespace LanesOfVietnam.View.UI
             // The enemy's position shows whose it is; the lever on it is for when it is yours.
             LeverButton.style.opacity = enemyHeld && mine == 0 ? 0.55f : 1f;
         }
+
+        /// <summary>Put it at a point of the panel: its top left corner.</summary>
+        internal void MoveTo(float x, float y) => style.translate = new Translate(Mathf.Round(x), Mathf.Round(y));
     }
 
     /// <summary>
@@ -130,7 +140,7 @@ namespace LanesOfVietnam.View.UI
             foreach (var p in Plates)
             {
                 if (p.style.display == DisplayStyle.None) continue;
-                float d = Vector2.Distance(p.worldBound.center, panel);
+                float d = Vector2.Distance(p.Centre, panel);
                 if (d < bestD) { best = p; bestD = d; }
             }
             return best;
@@ -170,8 +180,7 @@ namespace LanesOfVietnam.View.UI
                 bool shown = Fieldcraft.Built(c) || mine > 0 || p.Shown != Lever.Auto || p.Hovered;
                 p.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
                 p.style.opacity = p.Hovered ? 1f : Faded;
-                p.style.left = p.Centre.x - 46;
-                p.style.top = p.Centre.y - 23;
+                if (shown) p.MoveTo(p.Centre.x - 46, p.Centre.y - 23);
             }
         }
     }

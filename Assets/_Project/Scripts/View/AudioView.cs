@@ -205,14 +205,27 @@ namespace LanesOfVietnam.View
             _later.Clear(); _salvoTick = _salvoArea = -1; _radioed = false;
         }
 
-        private string Pick(params string[] sets)
+        /// <summary>One recording of a set, at random; null if there is no such set.</summary>
+        private string Pick(string set)
+            => _sets.TryGetValue(set, out var l) && l.Count > 0 ? l[_rng.Next(l.Count)] : null;
+
+        /// <summary>One recording out of two or three sets taken together (a set named twice counts twice).</summary>
+        private string Pick(string a, string b, string c = null)
         {
-            var from = new List<string>();
-            foreach (var s in sets) if (_sets.TryGetValue(s, out var l)) from.AddRange(l);
-            return from.Count == 0 ? null : from[_rng.Next(from.Count)];
+            _sets.TryGetValue(a, out var la);
+            _sets.TryGetValue(b, out var lb);
+            List<string> lc = null;
+            if (c != null) _sets.TryGetValue(c, out lc);
+            int na = la?.Count ?? 0, nb = lb?.Count ?? 0, nc = lc?.Count ?? 0;
+            if (na + nb + nc == 0) return null;
+            int k = _rng.Next(na + nb + nc);
+            return k < na ? la[k] : k < na + nb ? lb[k - na] : lc[k - na - nb];
         }
 
         private float Range(float a, float b) => a + (float)_rng.NextDouble() * (b - a);
+
+        private UI.Hud _hud;
+        private readonly List<(Man m, float d)> _shots = new List<(Man, float)>();
 
         private void LateUpdate()
         {
@@ -223,8 +236,9 @@ namespace LanesOfVietnam.View
             float lx = cam.x, lz = (float)Coords.SimZ(cam.z);
             Out.Listener(lx, lz);
 
-            var hud = FindAnyObjectByType<UI.Hud>();
-            bool on = hud == null || hud.Sound;
+            // (Found once: looked for every frame, it was a search of the scene a hundred times a second.)
+            if (_hud == null) _hud = FindAnyObjectByType<UI.Hud>();
+            bool on = _hud == null || _hud.Sound;
             var s = _root.Settings;
             Out.Volume(on ? (s?.Master ?? 0.9f) : 0f, s?.Effects ?? 1f, s?.Ambience ?? 0.8f);
 
@@ -233,7 +247,8 @@ namespace LanesOfVietnam.View
             var ev = st.Events;
             if (_cursor > ev.Count) _cursor = 0;
 
-            var shots = new List<(Man m, float d)>();
+            var shots = _shots;
+            shots.Clear();
             int fired = 0;
             for (int i = _cursor; i < ev.Count; i++)
             {

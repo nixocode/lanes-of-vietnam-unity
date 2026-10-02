@@ -73,9 +73,10 @@ reference/TARGET.jpg             the specification for the look
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
-| Build | 29.87 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
+| Build | 25.07 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
+| Frame | 4.5 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
 
-The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17.
+The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17 and the sections after it (the latest: §12.23).
 
 ## Direction
 

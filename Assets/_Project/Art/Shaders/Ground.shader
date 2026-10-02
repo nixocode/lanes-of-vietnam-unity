@@ -160,10 +160,23 @@ Shader "LOV/Ground"
 
                 // One layer: the near read, the far read blended in with
                 // distance, and the normal. Every map shares its sampler state.
+                //
+                // Only where the layer is. Most of the ground is one layer, the
+                // grass floor, and all four were read everywhere: twelve reads a
+                // pixel, each of them anisotropic at this camera's few degrees to
+                // the ground, to throw nine of them away. It was most of the frame
+                // (6.2 ms of 10.7 at 2592 x 1370, measured by switching the ground
+                // off). A layer with no weight has none in the blend below either
+                // (the same 0.001), so the picture is the same picture. The reads
+                // take their gradients as arguments, so they may sit in a branch.
                 #define LOV_LAYER(k, A, NM) \
-                    a[k] = lerp(SAMPLE_TEXTURE2D_GRAD(A, sampler_Albedo0, w * invTile[k], dx * invTile[k], dy * invTile[k]), \
-                                SAMPLE_TEXTURE2D_GRAD(A, sampler_Albedo0, wf * invTile[k], dxf * invTile[k], dyf * invTile[k]), far); \
-                    nt[k] = UnpackNormalScale(SAMPLE_TEXTURE2D_GRAD(NM, sampler_Normal0, w * invTile[k], dx * invTile[k], dy * invTile[k]), _NormalScale);
+                    UNITY_BRANCH if (wt[k] >= 0.001) \
+                    { \
+                        a[k] = lerp(SAMPLE_TEXTURE2D_GRAD(A, sampler_Albedo0, w * invTile[k], dx * invTile[k], dy * invTile[k]), \
+                                    SAMPLE_TEXTURE2D_GRAD(A, sampler_Albedo0, wf * invTile[k], dxf * invTile[k], dyf * invTile[k]), far); \
+                        nt[k] = UnpackNormalScale(SAMPLE_TEXTURE2D_GRAD(NM, sampler_Normal0, w * invTile[k], dx * invTile[k], dy * invTile[k]), _NormalScale); \
+                    } \
+                    else { a[k] = 0; nt[k] = half3(0, 0, 1); }
                 half4 a[4];
                 half3 nt[4];
                 LOV_LAYER(0, _Albedo0, _Normal0)

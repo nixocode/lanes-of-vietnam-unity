@@ -468,9 +468,9 @@ namespace LanesOfVietnam.Sim
             return best;
         }
 
-        /// <summary>Senses: with the enemy in contact a squad moves between cover at a rush.</summary>
+        /// <summary>Senses: with the enemy in contact a squad moves between cover at a rush. (Gunnery: at the double; and on the march, slower than the baseline's.)</summary>
         private static double Pace(SimState st, Squad sq)
-            => st.Senses && sq.Task != SquadTask.March ? (st.Gunnery ? Tune.RushPaceRun : Tune.RushPace) : 1;
+            => st.Senses && sq.Task != SquadTask.March ? (st.Gunnery ? Tune.RushPaceRun : Tune.RushPace) : st.Gunnery ? Tune.MarchPace : 1;
 
         private static void March(SimState st, Squad sq, IReadOnlyList<Man> live, Cover tc, double dir)
         {
