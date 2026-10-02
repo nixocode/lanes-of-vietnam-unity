@@ -144,6 +144,10 @@ namespace LanesOfVietnam.Sim
         /// <summary>At rest in his place: he sets off again only when it has moved a good pace from him (MatchOptions.Fieldcraft).</summary>
         public bool Still;
 
+        /// <summary>Ticks he has been still, and the posture he last changed from (MatchOptions.Gunnery).</summary>
+        public int Rest;
+        public Posture Before;
+
         /// <summary>The tick he last fired, threw or struck: a muzzle flash is seen from a long way off (<see cref="Senses.Sight"/>).</summary>
         public int FiredAt = -100000;
     }
@@ -412,8 +416,12 @@ namespace LanesOfVietnam.Sim
         public Side? Player;
         /// <summary>Part 2 rule: squads that spot each other, fire at what they have spotted, and react to it (<see cref="Sim.Senses"/>). Off is the baseline.</summary>
         public bool Senses;
+        /// <summary>Part 2 rule: fire down the lane, from a knee or flat, never on the move, and every round lands somewhere (<see cref="Sim.Gunnery"/>). Off is the baseline.</summary>
+        public bool Gunnery;
         /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>
         public double Sight = 1;
+        /// <summary>Gunnery's own random stream: the standing man's chance, and where a miss lands.</summary>
+        public Rng GunRng;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();

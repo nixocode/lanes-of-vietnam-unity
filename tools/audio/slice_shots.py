@@ -83,6 +83,9 @@ SETS = {
     "sks": ("SKS", None, 4),
     # The snipers' rifle on both sides: a Mosin-Nagant, the bolt action of this war's marksmen.
     "bolt": ("Mosin Nagant", None, 4),
+    # The American sniper's: a Tikka bolt action in .308, as near the Marines' M40 (a Remington 700
+    # in 7.62 NATO) as the library has. The owner, playtest 6: "sounds for sniper".
+    "sniper": ("Tikka", None, 4),
 }
 
 

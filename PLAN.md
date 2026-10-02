@@ -1387,16 +1387,15 @@ list it was 36.5%). The computer's squad now costs it 32 (at 28 a player who
 only buys rifle squads won 9 of 24 as the Americans; at 32, 18, and 20 as the
 VC; one who buys nothing loses in about a minute). EditMode 54/54 (two new
 pins, every shot checked against its squad's sight, every task reached),
-PlayMode 14/14, WebGL 29.84 MB. Frame time not cleanly measured: 15 ms with
-the owner's own browser running the game on the same GPU, 5 to 7 ms in the
-one window it was not; to be taken again with nothing else running.
+PlayMode 14/14, WebGL 29.84 MB. Frame time: 15 ms read with the owner's own
+browser running the game on the same GPU; taken again alone with the next
+build (§12.19), 6.1 to 6.5 ms.
 
 `tools/strip.sh seed=3,tick=470,x=-2,n=8,every=1.5` is the way to look at a
 moment: eight frames as one image. `tools/simcs/run.sh watch <seed> <from>
 <to> [every] ... senses` prints each squad's task, threat and men tick by tick.
 
-**Still open in phase 1:** the motion audit as a PlayMode test (category
-`Motion`); a mark the player can see when a squad makes contact; men pinned
+**Still open in phase 1:** (the motion audit is done, §12.19;) a mark the player can see when a squad makes contact; men pinned
 in the open three metres in front of a wall they closed past; squads
 stringing out at the map's edge when they arrive (half of what is left of
 "idle in the open").
@@ -1407,6 +1406,108 @@ job (mortar emplaced, satchel charges, the computer's lever); 5 weather (a
 schedule from the seed, sight scaled through Senses, sky, rain, a rain bed);
 6 look, speed, content.
 
+
+### 12.19 Playtest 6: the Senses build (2026-10-02, evening)
+
+The owner played commit `643230f`. His notes, and where each goes. This
+section is worked through before phase 2 of §12.18; phases 2 to 6 follow it
+unchanged.
+
+| his note | what it is, and the change | where |
+|---|---|---|
+| "still too many random shots shooting up, down and in circles" | on a side-on camera a shot across the lanes is a shot straight up or down the screen (29% of all shots), and a man whose nearest target changes lane swings round to it. **Gunnery, lanes:** a rifle, a machine gun and a scope fire down their own lane only; a squad's threat is a squad in its lane; only what is thrown or lobbed (grenades, the M79, the RPG, the mortar) crosses, and a man at arm's length | `Sim/Gunnery.cs` (`MatchOptions.Gunnery`), `Senses.PickTarget`, `Senses.Look` |
+| "the gunners sometimes shoot and walk, they should only shoot prone or kneeling. Shooting while standing should be very inaccurate (and happen 10% of the time or less)" | **Gunnery, stance:** nobody fires while he is moving. A man at rest on a knee or flat fires as now. A man at rest on his feet fires one time in ten and hits a third as often. The count to hold: shots by standing men under 10% of all, shots by moving men none | `Combat.Fire`, `Combat.HitChance` |
+| "lots of US soldiers sliding and not walking" | men moving while the simulation has them kneeling or flat (a kneeling man shuffled up to four metres to his place; a broken man crawled away), drawn with no gait to match. **Sim:** a man who has to move gets up and runs, then goes down; a squad falling back runs. **View:** a motion audit (PlayMode, category `Motion`) that measures foot skate, so it is a number and not an impression | `Match.MoveMan`, `Tests/PlayMode/MotionAuditTests.cs`, `View/ArmyView.cs`, `SoldierFigure.cs` |
+| "US soldiers clipping when prone next to the US spawn (sandbags)" | a prone man is 1.8 m long and the firebase's walls are drawn where the files walk. Keep men's places and files clear of the drawn walls; a man with a wall inside his own length kneels | `View/CoverView.cs`, `WorldDressing.cs`, `Sim/Fieldcraft.cs` places |
+| "some trees could have some sway, or they need to be higher quality" (the bamboo) | wind in the plants' vertex shader (cheap on WebGL: no extra draw calls), stronger at the tips, phased by position; then the bamboo's leaf cards looked at close | plant shader and `Art/` |
+| "want to improve the shooting mechanics. See real impacts, where bullets go" | every round goes somewhere: a hit is on the man; a miss lands on the ground, the cover or the foliage beyond him (dust, a puff off a sandbag, splinters, leaves), on a line from the muzzle. Tracers one round in a few, along that line and no further. The simulation says where (so a replay shows the same); the view draws it | `Gunnery` (miss point on the `Fire` event), `View/CombatView.cs` |
+| "better muzzle flashes" | a flash at the muzzle of the model in the man's hands, shaped by weapon (a star for the M16's birdcage, a long tongue for the M60, a ball for the M79), a frame or two, lighting the man | `CombatView`, `SoldierFigure` (muzzle empties are already on the weapon models) |
+| "sounds for sniper" | the sniper's own report: a single heavy crack and its echo, apart from the rifles' set. From recordings already licensed and on disk if one fits; otherwise named, with source and size, for the owner's yes before any download | `tools/audio/slice_shots.py`, `AudioView.Shot` |
+
+Order: Gunnery (lanes, stance) with its counts and balance; the sliding (sim
+side, then the audit); impacts, tracers and flashes; the sandbag clipping; the
+sway; the sniper's sound.
+
+**As built (2026-10-02, night).** `MatchOptions.Gunnery` (`Sim/Gunnery.cs`),
+on in the game; off, every earlier pin holds. Six seeds, a minute of fighting
+(`simcs aware ... senses [gunnery]`), and the motion audit (PlayMode,
+category `Motion`, 75 s of a fight, `Logs/motion.txt`):
+
+| | the Senses build | with Gunnery |
+|---|---|---|
+| bullets more across the lane than along it (straight up or down the screen) | 14% | 0% |
+| shots across the two lanes at all | 29% | 5% (a machine gun's or a sniper's long diagonal, and what is lobbed) |
+| bullets fired by a man on the move | 28% | 0% |
+| bullets fired by a man on his feet | 18% | 2% (one chance in ten, a third as accurate) |
+| man-seconds travelling on a knee or flat (the sim) | 174 | 0 |
+| ... as drawn: share of travelling time gliding (the audit) | about 24% | 0.1% |
+| ... travelling sideways or backwards to his facing | about 5% | 2.6% |
+| men at rest whose legs are still walking | (0.45 of a walk, on average) | 1.5% of the time |
+| bullets a minute | 528 | 224 |
+| a man setting off | 11.2 | 6.6 |
+| enemy squads within 15 m, neither firing (squad-seconds) | 16.6 | 6.2 |
+
+What does it:
+- **Lanes.** A bullet is fired at a man no further across than half as far as
+  he is along (`Gunnery.InArc`), or at arm's length; a squad's threat is a
+  squad in its own lane. Grenades, the M79, the RPG and the mortar still cross.
+  The two lanes are now two fights: squads abreast in different lanes do not
+  shoot at each other. If that reads as "don't see each other" it is one
+  constant (`Tune.ArcSlope`) and one line in `Senses.Look` to give back.
+- **Stance.** A man fires only when he has been still a fifth of a second; on
+  his feet one chance in ten and a third as accurate. Inside ten metres fear
+  no longer stops him firing or spoils his aim much, and nobody throws smoke at
+  an enemy nearer than twelve: two squads that ran into each other used to lie
+  seven metres apart, pinned, behind a cloud, for twelve seconds.
+- **Movement.** A man on a knee or flat stays put; one with further than 1.5 m
+  to go gets up (0.6 s from a knee, 1.2 s from flat, the length of the view's
+  clips), runs, and goes down 0.4 s after he stops. In contact a squad runs
+  (4 m/s, the run clip's own speed; it was a walk at double time); on the march
+  it walks, and a man up with it keeps its pace instead of walking a second and
+  standing two thirds of one. A squad falling back runs. A squad its lever
+  holds does not assault out of the position.
+- **The view.** One gait at a time at the rate that matches the man's speed
+  (half way between the kneeling idle and the crouched walk he was a kneeling
+  man gliding); his speed follows the sim's in a tenth of a second and stops
+  when it stops; a man who is moving faces where he is going and does not have
+  his rifle in his shoulder.
+- **Rounds.** The `Fire` event carries where the round came down
+  (`Gunnery.Miss`: past the man on its own line, a little wide). The view draws
+  every round's path as a thin pale line gone in a blink, one in five from an
+  automatic weapon as a tracer; a miss kicks up earth where it landed, or dust
+  off the sandbags in front of a man behind a wall; the flash at the muzzle is
+  shaped by the weapon (the M16's star, the long tongue of the M60 and the bolt
+  rifles, a submachine gun's small ball).
+- **The sniper.** His own recordings (`sniper_*`: the library's Tikka, a .308
+  bolt action, already on disk; nothing downloaded), never rationed out behind
+  the nearer rifles as it always was, heavier, with a slap back off the
+  treeline a third of a second later.
+- **Clipping.** Sandbag walls are drawn behind the band the lane's three files
+  walk in (2.75 m behind its middle; the perimeter wall and the bunker's stood
+  in it, and the third squad into a lane walked the length of the wall inside
+  it). The bunker's roof is on posts at 2.05 m: a man can stand under it. The
+  firebase's east wall has a gate where the far lane runs through it, and the
+  watchtower stands behind that lane, not on it.
+- **The plants.** Sway by species (the bamboo's tops move 40 cm, the palms'
+  28, the trees' 16, ground plants 6) in gusts that cross the valley; the
+  broadleaf textures read sharper near the lens (bias 0.5 to 0.15: that was a
+  TAA setting, and the camera is on SMAA).
+
+Balance, 96 seeds: Americans 54.2% (44.2 to 63.8), with the VC's first list of
+squads again. A match is shorter: 128 s mean (180 under Senses), which the
+length setting has to answer (§12.18 phase 2). The computer's squad costs it 28
+(a player buying only line squads wins 16 of 24 as the Americans, 22 as the
+VC). EditMode 57/57, PlayMode 15/15 (the audit is one of them), WebGL 29.84 MB,
+real Chrome 6.1 to 6.5 ms a frame with nothing else on the GPU (the 15 ms of
+§12.18 was the owner's browser running the game at the same time).
+
+**Not done, or not sure of:** the gaits' true speed on these bodies could not
+be measured by the feet (a running stride is mostly in the air, a walking toe
+skims the ground), so the clips' own root travel is trusted, as before; a
+kneeling man has no reload clip of his own and a kneeling man throwing a
+grenade stands to do it; the bamboo's leaf cards themselves are unchanged
+(sharper sampling and sway only); the mark at contact and the launcher sounds
+of §12.18 are still open.
 
 ### 12.13 Corrections to earlier sections
 

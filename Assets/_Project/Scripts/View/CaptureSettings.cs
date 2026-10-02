@@ -89,6 +89,8 @@ namespace LanesOfVietnam.View
         public bool? Arms;
         /// <summary>Squads that spot each other and act on it (MatchOptions.Senses); the game's default (on) if not given.</summary>
         public bool? Senses;
+        /// <summary>Fire down the lane, from a knee or flat, never on the move (MatchOptions.Gunnery); the game's default (on) if not given.</summary>
+        public bool? Gunnery;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -136,6 +138,7 @@ namespace LanesOfVietnam.View
                     case "fieldcraft": c.Fieldcraft = v == "1" || v == "true"; break;
                     case "arms": c.Arms = v == "1" || v == "true"; break;
                     case "senses": c.Senses = v == "1" || v == "true"; break;
+                    case "gunnery": c.Gunnery = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

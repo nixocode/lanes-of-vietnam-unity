@@ -106,7 +106,11 @@ Shader "LOV/Foliage"
             float h = saturate(i.plant.x);
             float phase = i.color.a * 6.2832;
             float t = _LovTime;
-            float sway = (sin(t * 1.3 + phase + p.x * 0.21) * 0.7 + sin(t * 2.9 + phase * 1.7) * 0.3) * _Wind * h * h;
+            // And the wind comes in gusts that cross the valley: every plant's sway swells and dies as one
+            // passes it. (_Wind is by species: a culm of bamboo eight metres tall moves a hand's breadth
+            // at 6 cm and half a metre in a breeze; the owner, playtest 6: "some trees could have some sway".)
+            float gust = 0.55 + 0.45 * sin(t * 0.37 + p.x * 0.045 + p.z * 0.03);
+            float sway = (sin(t * 1.1 + phase + p.x * 0.21) * 0.7 + sin(t * 2.6 + phase * 1.7) * 0.3) * _Wind * gust * h * h;
             p.x += sway;
             o.positionWS = p;
             o.positionCS = TransformWorldToHClip(p);

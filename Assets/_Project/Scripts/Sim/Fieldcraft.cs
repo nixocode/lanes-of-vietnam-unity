@@ -470,7 +470,7 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Senses: with the enemy in contact a squad moves between cover at a rush.</summary>
         private static double Pace(SimState st, Squad sq)
-            => st.Senses && sq.Task != SquadTask.March ? Tune.RushPace : 1;
+            => st.Senses && sq.Task != SquadTask.March ? (st.Gunnery ? Tune.RushPaceRun : Tune.RushPace) : 1;
 
         private static void March(SimState st, Squad sq, IReadOnlyList<Man> live, Cover tc, double dir)
         {
@@ -485,7 +485,7 @@ namespace LanesOfVietnam.Sim
                 if (d < 0.6) { sq.Held++; sq.Halted = true; }
                 if (d > 0.05)
                 {
-                    double step = Math.Min(d, Tune.MarchSpeed * Tune.WithdrawPace * Tune.Dt);
+                    double step = Math.Min(d, Tune.MarchSpeed * (st.Gunnery ? Tune.RushPaceRun : Tune.WithdrawPace) * Tune.Dt);
                     sq.AnchorX += dx / d * step;
                     sq.AnchorZ += dz / d * step;
                 }
@@ -633,7 +633,7 @@ namespace LanesOfVietnam.Sim
             // Senses: a squad that is going in goes in man by man, each for the nearest enemy in
             // front of it that it knows of. (Marching its anchor up, it stood behind its lead man
             // the moment he was pinned.)
-            bool goingIn = st.Senses && sq.Task == SquadTask.Assault;
+            bool goingIn = st.Senses && sq.Task == SquadTask.Assault && sq.Order != Order.Hold;
             if (goingIn) reach = Tune.AssaultReach + Tune.ChargeRange;
             Man best = null;
             double best2 = reach * reach;

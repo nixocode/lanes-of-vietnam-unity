@@ -177,6 +177,8 @@ namespace LanesOfVietnam.Sim
                 {
                     var sb = st.Squads[b];
                     if (sb.Side == sa.Side || rosters[b].Count == 0 || !Remembers(st, sa, b)) continue;
+                    // Gunnery: a squad deals with the enemy in its own lane.
+                    if (st.Gunnery && sb.Lane != sa.Lane) continue;
                     double near = double.PositiveInfinity;
                     for (int i = 0; i < rosters[a].Count; i++)
                         for (int j = 0; j < rosters[b].Count; j++)
@@ -209,6 +211,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Men[i];
                 if (!b.Alive || b.Side == a.Side || !Knows(st, sq, b.Squad)) continue;
+                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 bool theirs = b.Squad == sq.Threat;
@@ -234,6 +237,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Men[i];
                 if (!b.Alive || b.Side == a.Side || b.Cover < 0 || !Remembers(st, sq, b.Squad)) continue;
+                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 if (d2 > bestD2 || Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
@@ -249,6 +253,14 @@ namespace LanesOfVietnam.Sim
             double pin = 0;
             for (int i = 0; i < live.Count; i++) pin += live[i].Pin;
             return live.Count == 0 ? 0 : pin / live.Count;
+        }
+
+        /// <summary>Is it in a position its side's lever says to hold?</summary>
+        private static bool Held(SimState st, Squad sq)
+        {
+            if (!st.Fieldcraft || sq.Target < 0 || sq.Target >= st.Cover.Count) return false;
+            var c = st.Cover[sq.Target];
+            return Fieldcraft.LeverOf(c, sq.Side) == Lever.Hold && Fieldcraft.Arrived(sq, c, Combat.Advance(sq.Side));
         }
 
         private static bool LeadPinned(IReadOnlyList<Man> live)
@@ -316,7 +328,8 @@ namespace LanesOfVietnam.Sim
             {
                 case SquadTask.March:
                     // Near enough to do something about, or already under its fire.
-                    if (threat && (InContact(sq) || pin >= Tune.BoundSweepPin)) task = SquadTask.Contact;
+                    // (Gunnery: and under fire from somewhere it does not know of, the other lane's long diagonal.)
+                    if ((threat || st.Gunnery) && (InContact(sq) || pin >= Tune.BoundSweepPin)) task = SquadTask.Contact;
                     break;
                 case SquadTask.Contact:
                     if (held >= Tune.ContactTicks) task = SquadTask.Firefight;
@@ -324,21 +337,26 @@ namespace LanesOfVietnam.Sim
                 case SquadTask.Firefight:
                     if (held < Tune.TaskMin) break;
                     // Out of it only when the enemy is gone, or a good way further off than brought it to ground.
-                    if (!threat || (!InContact(sq, Tune.ContactSlack) && pin < Tune.RallyPin)) { task = SquadTask.March; break; }
+                    if (st.Gunnery ? (!threat || !InContact(sq, Tune.ContactSlack)) && pin < Tune.RallyPin
+                                   : !threat || (!InContact(sq, Tune.ContactSlack) && pin < Tune.RallyPin)) { task = SquadTask.March; break; }
                     // With the enemy beyond its weapons it has no fight to stay for: it goes on as soon as it has its breath.
+                    // Told to hold the position it is in (its lever), it holds it: it does not close or go in.
+                    if (Held(st, sq)) break;
                     if (held < Tune.FirefightMin && !(plan.Advance && sq.ThreatGap > sq.Reach + Tune.ContactPast)) break;
                     if (CanAssault(st, sq, live, pin)) task = SquadTask.Assault;
                     else if (plan.Advance && pin < Tune.PinDrop && !LeadPinned(live) && ShouldClose(st, sq, live, held)) task = SquadTask.Close;
                     break;
                 case SquadTask.Close:
-                    if (!threat) task = SquadTask.March;
+                    if (Held(st, sq)) task = SquadTask.Firefight;
+                    else if (!threat) task = SquadTask.March;
                     // A squad goes at the pace of its lead man: with him pinned it is going nowhere, and goes to ground.
                     else if (pin >= Tune.PinStop || (held >= Tune.ContactTicks && LeadPinned(live))) task = SquadTask.Firefight;
                     else if (held >= Tune.TaskMin && sq.Halted) task = SquadTask.Firefight;
                     else if (held >= Tune.CloseMax) task = SquadTask.Firefight;
                     break;
                 case SquadTask.Assault:
-                    if (!threat) task = SquadTask.March;
+                    if (Held(st, sq)) task = SquadTask.Firefight;
+                    else if (!threat) task = SquadTask.March;
                     else if (pin >= (Tune.PinDrop + Tune.PinStop) * 0.5) task = SquadTask.Firefight;      // it falters
                     else if (held >= Tune.AssaultMax && !CanAssault(st, sq, live, pin)) task = SquadTask.Firefight;
                     break;
@@ -438,6 +456,8 @@ namespace LanesOfVietnam.Sim
                     break;
                 case SquadTask.Withdraw:
                     Retarget(sq, live, Ground(st, sq, live, dir, Tune.WithdrawReach, double.NegativeInfinity, -Tune.GroundClear));
+                    // Gunnery: they get up and run now.
+                    if (st.Gunnery) for (int i = 0; i < live.Count; i++) live[i].Dwell = Math.Max(live[i].Dwell, Tune.PostureDwell);
                     break;
             }
         }

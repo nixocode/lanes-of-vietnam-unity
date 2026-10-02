@@ -180,10 +180,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -265,7 +265,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses" }));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery" }));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -327,7 +327,7 @@ namespace LanesOfVietnam.SimCs
                 int wins = 0; double secs = 0, men = 0;
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses" });
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery" });
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -377,10 +377,10 @@ namespace LanesOfVietnam.SimCs
             {
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
                 Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
-                Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"),
+                Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
-            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32; }
+            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28; }
             return o;
         }
 
@@ -440,8 +440,9 @@ namespace LanesOfVietnam.SimCs
             double closeUnaware = 0, closeAware = 0;
             double contact = 0, uprightStill = 0, uprightMoving = 0;
             double idle = 0, idleContact = 0, manSeconds = 0;
+            double bullets = 0, shotMoving = 0, shotStanding = 0, shotSteep = 0, shotBack = 0, movedDown = 0;
             double bursts = 0, waiting = 0, handToHand = 0, passed = 0, unseenMan = 0, unseenBySquad = 0, acrossLanes = 0;
-            var quiet = new Dictionary<string, double>(); var upright = new Dictionary<string, double>(); var idleBy = new Dictionary<string, double>();
+            var quiet = new Dictionary<string, double>(); var upright = new Dictionary<string, double>(); var ready = new Dictionary<string, double>(); var idleBy = new Dictionary<string, double>();
             var toShot = new List<double>(); var toGround = new List<double>();
             int sightings = 0, noShot = 0, noGround = 0;
             var blindBy = new Dictionary<string, double>();
@@ -503,6 +504,17 @@ namespace LanesOfVietnam.SimCs
                         if (!Senses.Sees(st, by, at)) unseenMan++;
                         if (!rosters[by.Squad].Any(o => Senses.Sees(st, o, at))) unseenBySquad++;
                         if (Math.Abs(by.Z - at.Z) > 6.5) acrossLanes++;
+                        // The owner, playtest 6: "shooting up, down and in circles", "shoot and walk".
+                        if (e.Kind == EventKind.Fire)
+                        {
+                            bullets++;
+                            bool onTheMove = by.Id < before.Length && Math.Abs(by.X - before[by.Id].X) + Math.Abs(by.Z - before[by.Id].Z) > 0.01;
+                            if (onTheMove) shotMoving++;
+                            if (by.Posture == Posture.Standing) shotStanding++;
+                            double ax = at.X - by.X, az = at.Z - by.Z;
+                            if (Math.Abs(az) > Math.Abs(ax)) shotSteep++;
+                            if (ax * Combat.Advance(by.Side) < -2) shotBack++;
+                        }
                     }
 
                     // Squads close to each other.
@@ -512,6 +524,8 @@ namespace LanesOfVietnam.SimCs
                         if (st.Squads[ai].Side == st.Squads[bi].Side) continue;
                         double near = double.PositiveInfinity;
                         foreach (var p in rosters[ai]) foreach (var q in rosters[bi]) near = Math.Min(near, Combat.Dist(p, q));
+                        // (Gunnery: the lanes are two fights. Squads abreast in different lanes are not each other's business.)
+                        if (st.Gunnery && st.Squads[ai].Lane != st.Squads[bi].Lane) continue;
                         if (near <= 15)
                         {
                             bool fought = (shotAt.TryGetValue((ai, bi), out int f0) && st.Tick - f0 <= 80) || (shotAt.TryGetValue((bi, ai), out int f1) && st.Tick - f1 <= 80);
@@ -552,8 +566,15 @@ namespace LanesOfVietnam.SimCs
                             manSeconds += Tune.Dt;
                             bool moved = p.Id < before.Length && Math.Abs(p.X - before[p.Id].X) + Math.Abs(p.Z - before[p.Id].Z) > 0.01;
                             still[seed * 100000 + p.Id] = moved ? 0 : still.GetValueOrDefault(seed * 100000 + p.Id) + 1;
+                            if (moved && p.Posture != Posture.Standing) movedDown += Tune.Dt;
                             double reach = Arms.Of(st, p).Range;
-                            bool threatened = inSight.Any(bi => rosters[bi].Any(q => Combat.Dist(p, q) <= reach));
+                            // (Gunnery: an enemy he could put a round at: down the lane from him, not across it.)
+                            bool threatened = inSight.Any(bi => rosters[bi].Any(q => Combat.Dist(p, q) <= reach && (!st.Gunnery || Gunnery.InArc(p, q))));
+                            if (threatened)
+                            {
+                                string can = p.Vault > 0 ? "climbing" : p.Pin >= Tune.PinStop ? "pinned flat" : moved ? "moving" : p.Posture == Posture.Standing ? "on his feet, still" : "down and still";
+                                ready[can] = ready.GetValueOrDefault(can) + Tune.Dt;
+                            }
                             if (threatened)
                             {
                                 contact += Tune.Dt;
@@ -603,10 +624,13 @@ namespace LanesOfVietnam.SimCs
             if (bursts > 0) Console.WriteLine($"      machine-gun bursts on cover lost sight of {bursts / minutes:F1}");
             foreach (var kv in blindBy.OrderByDescending(k => k.Value).Take(4)) Console.WriteLine($"      {kv.Key,-12} {kv.Value / minutes:F1}");
             Console.WriteLine($"      at a man the firer cannot himself see {unseenMan / minutes:F1} ({100 * unseenMan / Math.Max(1, shots):F0}%), that nobody in his squad can {unseenBySquad / minutes:F1} ({100 * unseenBySquad / Math.Max(1, shots):F0}%); across the lanes {acrossLanes / minutes:F1} ({100 * acrossLanes / Math.Max(1, shots):F0}%)");
+            Console.WriteLine($"  bullets                   {bullets / minutes:F0}: fired by a man on his feet {100 * shotStanding / Math.Max(1, bullets):F0}%, by a man moving {100 * shotMoving / Math.Max(1, bullets):F0}%, more across the lane than along it {100 * shotSteep / Math.Max(1, bullets):F0}%, back over his shoulder {100 * shotBack / Math.Max(1, bullets):F1}%");
+            Console.WriteLine($"  moving on a knee or flat  {movedDown / minutes:F1} man-seconds");
             Console.WriteLine($"  squads within 15 m        {closeUnaware / minutes:F1} squad-seconds with neither firing on the other, {closeAware / minutes:F1} fighting");
             foreach (var kv in quiet.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / minutes:F1}");
             Console.WriteLine($"  enemy squads passed       {passed / minutes:F2}");
             Console.WriteLine($"  men with a seen enemy in range {contact / minutes:F0} man-seconds, of which standing still {uprightStill / minutes:F1} ({100 * uprightStill / Math.Max(1, contact):F0}%), standing and moving {uprightMoving / minutes:F1} ({100 * uprightMoving / Math.Max(1, contact):F0}%), within {Tune.ChargeRange:F0} m of him {handToHand / minutes:F1}");
+            Console.WriteLine("      of that time: " + string.Join(", ", ready.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {100 * k.Value / Math.Max(1e-9, contact):F0}%")));
             if (a.Contains("why4")) foreach (var kv in upright.OrderByDescending(k => k.Value).Take(14)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / minutes:F1}");
             Console.WriteLine($"  idle in the open by cover {idle / minutes:F1} man-seconds ({100 * idle / Math.Max(1, manSeconds):F0}% of all), of which with a seen enemy in range {idleContact / minutes:F1}; waiting behind cover their squad has filled {waiting / minutes:F1}");
             if (a.Contains("why5")) foreach (var kv in idleBy.OrderByDescending(k => k.Value).Take(14)) Console.WriteLine($"      {kv.Key,-70} {kv.Value / minutes:F1}");
@@ -791,8 +815,8 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -808,8 +832,8 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses };
-                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 32; }
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery };
+                if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 28; }
                 var r = Match.Run(mo);
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
                 lostCas += r.MoraleLostToCasualties[0] + r.MoraleLostToCasualties[1];

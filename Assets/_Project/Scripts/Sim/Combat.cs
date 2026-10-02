@@ -85,9 +85,13 @@ namespace LanesOfVietnam.Sim
             // A suppressed man shoots worse. Veterancy steadies the aim but
             // never raises the ceiling — steadier, not stronger.
             double steadied = a.Pin * (1 - Tune.VetPinResist * a.Veterancy);
-            p *= Math.Max(0.15, 1 - steadied);
+            // Gunnery: at a few paces fear does not make a man miss by much. (Two squads that had run
+            // into each other lay four metres apart, pinned, for twelve seconds.)
+            p *= Math.Max(st.Gunnery && d < Tune.CloseRange ? Tune.CloseSteady : 0.15, 1 - steadied);
 
             p *= Tune.Exposure(b.Posture);
+            // Gunnery: a man shooting from his feet hits a third as often.
+            if (st.Gunnery && a.Posture == Posture.Standing) p *= Tune.StandingHit;
 
             var c = CoverOf(st, b);
             // Fieldcraft: a parapet is no cover from a man standing on it.
@@ -142,6 +146,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Men[i];
                 if (!b.Alive || !b.Seen || b.Side == a.Side) continue;
+                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 if (d2 > bestD2) continue;
@@ -170,8 +175,14 @@ namespace LanesOfVietnam.Sim
             }
 
             var arm = Arms.Of(st, a);
+            // Gunnery: nobody fires on the move.
+            if (st.Gunnery && !Gunnery.Steady(a)) { a.Cooldown = Tune.ScanIdle; return false; }
             // Arms: a launcher or a mortar fires a bursting round, not a bullet (and not while he is pinned flat).
-            if (st.Arms && arm.Bursts) return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
+            if (st.Arms && arm.Bursts)
+            {
+                if (st.Gunnery && a.Posture == Posture.Standing && st.GunRng.Next() > Tune.StandingFire) { a.Cooldown = Tune.Cooldown; return false; }
+                return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
+            }
 
             // Senses: only at a squad his own has in sight; a machine gun with nothing in sight keeps
             // bursts on the cover of one it knows was there.
@@ -188,7 +199,11 @@ namespace LanesOfVietnam.Sim
 
             double pinFrac = Math.Min(1, a.Pin / Tune.PinStop);
             double rate = 1 - (1 - Tune.PinnedFireRate) * pinFrac;
+            // Gunnery: nor does it stop him shooting at a man that near.
+            if (st.Gunnery && Dist(a, target) < Tune.CloseRange) rate = Math.Max(rate, Tune.CloseSteady);
             if (rng.Next() > rate) { a.Cooldown = 2; return false; }
+            // Gunnery: a man on his feet takes one chance in ten.
+            if (st.Gunnery && a.Posture == Posture.Standing && st.GunRng.Next() > Tune.StandingFire) { a.Cooldown = arm.Cooldown; return false; }
 
             a.Cooldown = arm.Cooldown;
             // Senses: at a man he cannot himself see, on his squad's word, a rifleman fires slower.
@@ -197,14 +212,22 @@ namespace LanesOfVietnam.Sim
             // Firing gives away concealment.
             a.Seen = true;
             a.FiredAt = st.Tick;
+            double p = HitChance(st, a, target);
+            bool hit = !blind && rng.Next() < p;
+            // Gunnery: the round goes somewhere. A hit is on the man; a miss comes down past him.
+            double? atX = null, atZ = null;
+            if (st.Gunnery)
+            {
+                if (hit) { atX = target.X; atZ = target.Z; }
+                else { var (mx, mz) = Gunnery.Miss(st, a, target); atX = mx; atZ = mz; }
+            }
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Fire, Tick = st.Tick, Side = a.Side,
-                Id = a.Id, Target = target.Id, Amount = blind ? 1 : (double?)null,
+                Id = a.Id, Target = target.Id, Amount = blind ? 1 : (double?)null, X = atX, Z = atZ,
             });
 
-            double p = HitChance(st, a, target);
-            if (!blind && rng.Next() < p)
+            if (hit)
             {
                 Kill(st, target);
                 if (st.Fieldcraft) Fieldcraft.Through(st, a, target, rng);

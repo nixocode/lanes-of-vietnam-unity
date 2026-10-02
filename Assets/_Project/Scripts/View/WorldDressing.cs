@@ -59,6 +59,8 @@ namespace LanesOfVietnam.View
 
         /// <summary>The firebase compound's east edge (sim x): it holds the west end of the map.</summary>
         public const double FirebaseEastX = -21;
+        /// <summary>Half the width of the gap left in a wall that a lane runs through: its files and a man's length each side.</summary>
+        public const double LaneGate = 3.4;
 
         private readonly List<Renderer> _built = new List<Renderer>();
         public IReadOnlyList<Renderer> Built => _built;
@@ -467,12 +469,15 @@ namespace LanesOfVietnam.View
             // side facing the track.
             for (double x = -52; x < FirebaseEastX - 3; x += 2.6)
                 Wall(g, x, 2.6, 2.6, 1.1, 0.9);
-            for (double z = -12; z < 2.6; z += 2.6)
-                Wall(g, FirebaseEastX - 3.5, z, 0.9, 1.1, 2.6);
+            // (With a gate in it where the far lane runs out through the wire: the wall used to stand
+            // across the lane, and every squad raised there walked through it.)
+            for (double z = -14.6; z < 2.6; z += 2.6)
+                if (System.Math.Abs(z - Tune.Lanes[1]) > LaneGate) Wall(g, FirebaseEastX - 3.5, z, 0.9, 1.1, 2.6);
 
             // The watchtower: real elevation for whoever holds it. Its top sits
             // about 7 degrees above the horizon, as the reference's does.
-            double tx = -39, tz = -7;
+            // (Behind the far lane, not astride it: its legs stood where that lane's squads form up.)
+            double tx = -39, tz = Tune.Lanes[1] - 5.6;
             float ty = (float)g.HeightAt(tx, tz);
             if (!Prop(g, "firebase", "tower", tx, tz))
             for (int i = 0; i < 4; i++)
@@ -487,7 +492,7 @@ namespace LanesOfVietnam.View
             }
 
             // The vehicle park inside the wire: two M35s and the jeep.
-            foreach (var (vx, vz, len, h, key) in new[] { (-33.5, -1.5, 6.7, 2.8, "m35_covered"), (-27.0, -0.8, 6.7, 2.8, "m35_open"), (-45.0, -3.0, 3.4, 1.8, "jeep") })
+            foreach (var (vx, vz, len, h, key) in new[] { (-33.5, -1.5, 6.7, 2.8, "m35_covered"), (-27.0, -0.8, 6.7, 2.8, "m35_open"), (-45.0, -1.0, 3.4, 1.8, "jeep") })
             {
                 if (Prop(g, "firebase", key, vx, vz)) continue;
                 float vy = (float)g.HeightAt(vx, vz);

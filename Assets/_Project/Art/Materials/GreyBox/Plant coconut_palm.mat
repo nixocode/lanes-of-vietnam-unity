@@ -38,8 +38,8 @@ Material:
     - _FieldOcclusion: 0.45
     - _Pitch: 6
     - _Translucency: 0.35
-    - _Wind: 0.06
+    - _Wind: 0.28
     m_Colors:
-    - _MipBias: {r: 0.5, g: 1.75, b: 40, a: 90}
+    - _MipBias: {r: 0.15, g: 1.75, b: 40, a: 90}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -79,7 +79,8 @@ namespace LanesOfVietnam.Tests
             var feet = Enumerable.Range(0, Root.Driver.State.Men.Count).Select(i => army.FigureOf(i))
                 .Where(f => f != null).Select(f => f.Animator.GetBoneTransform(HumanBodyBones.LeftFoot)).ToArray();
             var rots = feet.Select(t => t.localRotation).ToArray();
-            for (int k = 0; k < 20; k++) yield return null;
+            // In seconds, not frames: headless frames run in a fraction of a millisecond.
+            yield return new WaitForSecondsRealtime(0.6f);
             for (int k = 0; k < feet.Length; k++) moved = Mathf.Max(moved, Quaternion.Angle(rots[k], feet[k].localRotation));
             Assert.Greater(moved, 1f, "nobody's feet moved while the match ran");
         }

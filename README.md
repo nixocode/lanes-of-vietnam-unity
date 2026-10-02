@@ -63,7 +63,7 @@ reference/TARGET.jpg             the specification for the look
 |---|---|
 | Toolchain | Unity 6000.6.3f1 + Web Build Support, verified headless |
 | Step 0 — empty WebGL build | **7.34 MB** initial with physics removed (was 8.00), the floor |
-| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 54/54 tests |
+| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 57/57 tests |
 | Step 2 — harnesses | capture, LookMeter, Flicker, Budget: running, zeros proven |
 | Step 2a — technology decisions | editor, physics, modules, streaming: decided and measured — PLAN §12.9a |
 | Step 3 — grey-box map | lanes readable; the map's layout rules kept under the art |

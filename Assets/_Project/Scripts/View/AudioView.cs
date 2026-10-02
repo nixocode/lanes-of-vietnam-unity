@@ -147,7 +147,8 @@ namespace LanesOfVietnam.View
                 case Weapon.Sks: return Pick("sks");
                 case Weapon.M60: case Weapon.Rpd: return Pick("mg");
                 case Weapon.Smg: return Pick("smg");
-                case Weapon.Sniper: return Pick("bolt") ?? Pick("sks");
+                // A bolt action each: the Marines' rifle (a .308), the VC marksman's Mosin-Nagant.
+                case Weapon.Sniper: return (m.Side == Side.Us ? Pick("sniper") : null) ?? Pick("bolt") ?? Pick("sks");
                 default:
                     bool auto = Automatic(m);
                     return (m.Side == Side.Us ? (auto ? Pick("mg") : Pick("m16")) : (auto ? Pick("smg") : Pick("ak", "ak", "sks")))
@@ -243,7 +244,16 @@ namespace LanesOfVietnam.View
                         if (e.Id >= st.Men.Count) break;
                         fired++;
                         var m = st.Men[e.Id];
-                        shots.Add((m, Dist(m.X, m.Z, lx, lz)));
+                        if (m.Weapon == Weapon.Sniper)
+                        {
+                            // A sniper's shot is one shot, and it is heard: never rationed out behind the
+                            // rifles nearer the listener (he fires from the back, so it always was), heavier
+                            // than they are, and with its slap back off the treeline a third of a second on.
+                            string report = Shot(m);
+                            if (report != null && Out.Play(report, (float)m.X, (float)m.Z, 1.2f, Range(0.9f, 0.96f), 0f, false)) Played++;
+                            _later.Add((Time.unscaledTime + Range(0.3f, 0.38f), report, (float)m.X + Range(-25, 25), (float)m.Z - 45f, 0.5f));
+                        }
+                        else shots.Add((m, Dist(m.X, m.Z, lx, lz)));
                         // A miss near the listener: the round into the earth by its target.
                         if (e.Target is int tg && tg < st.Men.Count && Time.unscaledTime - _lastDirtAt > 0.12f
                             && !(i + 1 < ev.Count && ev[i + 1].Kind == EventKind.Kill && ev[i + 1].Id == tg)
@@ -253,7 +263,8 @@ namespace LanesOfVietnam.View
                             var t = st.Men[tg];
                             // Mostly into the dirt; now and then off something hard, whining away.
                             bool ricochet = _rng.NextDouble() < 0.3;
-                            Play(Pick(ricochet ? "crack" : "dirt"), t.X + Range(-3, 3), t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
+                            // (Gunnery: where the round came down, which the event carries.)
+                            Play(Pick(ricochet ? "crack" : "dirt"), e.X ?? t.X + Range(-3, 3), e.Z ?? t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
                         }
                         break;
                     case EventKind.Launch:

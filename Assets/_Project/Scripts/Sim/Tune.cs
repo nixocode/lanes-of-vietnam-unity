@@ -417,6 +417,28 @@ namespace LanesOfVietnam.Sim
         /// <summary>A man firing at a squad his own has in sight, at a man of it he cannot himself see, fires this much slower; a machine gun's bursts on cover it has lost sight of pin this fraction.</summary>
         public const double BlindCooldown = 2.0, SuppressPin = 0.6;
 
+        // --- gunnery (MatchOptions.Gunnery) ---------------------------------------
+
+        /// <summary>A bullet is fired at a man no further across from the firer than this times how far he is along the lane.</summary>
+        public const double ArcSlope = 0.5;
+        /// <summary>Ticks a man has been still before he fires (0.2 s), and before he goes down from his feet (0.4 s).</summary>
+        public const int SteadyTicks = 4, RestToKneel = 8;
+        /// <summary>A man on his feet takes this share of his chances to fire, and hits this often against a man who is down.</summary>
+        public const double StandingFire = 0.1, StandingHit = 0.33;
+        /// <summary>A man on a knee or flat whose place is further off than this gets up and goes to it; nearer, he stays where he is.</summary>
+        public const double GetUpBeyond = 1.5;
+        /// <summary>Ticks to get to his feet: from a knee (0.6 s), from flat (1.2 s).</summary>
+        public const int RiseFromKnee = 12, RiseFromProne = 24;
+        /// <summary>
+        /// A man's speed at a run, m/s, and how much faster than its march a squad's anchor goes when its men are running.
+        /// (The run clip runs at 4.5 m/s. At 3 it was a run in slow motion or a walk at double time.)
+        /// </summary>
+        public const double SpeedRush = 4.0, RushPaceRun = 2.8;
+        /// <summary>Inside ten metres a pinned man still fires this share of his chances, and aims this well at worst; and nobody throws smoke at an enemy nearer than SmokeBeyond.</summary>
+        public const double CloseSteady = 0.6, SmokeBeyond = 12;
+        /// <summary>A miss lands up to this far past the man, and this far to a side plus this much a metre of range.</summary>
+        public const double MissOver = 9, MissWide = 0.35, MissWidePerMetre = 0.035;
+
         public const double VetPerSecond = 0.010;
         public const double VetCap = 1.0;
 
