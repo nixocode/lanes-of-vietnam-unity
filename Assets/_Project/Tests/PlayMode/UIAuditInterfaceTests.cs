@@ -300,6 +300,87 @@ namespace LanesOfVietnam.Tests
             StringAssert.Contains("lever", string.Join(" ", hud.Positions.Log));
         }
 
+        /// <summary>
+        /// The lane selector (the owner, 2026-10-02: "fix the lane selector").
+        /// The lens is at eye level, so the chest of a man in the near lane is
+        /// drawn over the far lane's ground: by the ground under the pointer
+        /// alone, pointing at a squad chose the lane behind it. A man the
+        /// pointer is on is in his own lane; off any man the ground decides,
+        /// and over the trees the far lane; the tags and the keys take the
+        /// other lane until the pointer moves; and what is drawn says which.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_lane_selector_follows_the_pointer_the_men_and_the_keys()
+        {
+            yield return LoadAndDeploy();
+            var hud = HudOf;
+            var dep = Object.FindAnyObjectByType<Deployer>();
+            var st = Root.Driver.State;
+            var line = Deck.For(Side.Us).First(c => c.Group == CardGroup.Line);
+            // A squad on its feet in the near lane: bought now, it comes in standing.
+            st.Cp[(int)Side.Us] = 500;
+            dep.Arm(line);
+            Assert.IsTrue(dep.Place(0, 0));
+            Root.Driver.FastForward(30);
+            Root.Paused = true;
+            var man = st.Men.Last(m => m.Alive && m.Side == Side.Us && m.Posture == Posture.Standing && st.Squads[m.Squad].Lane == 0);
+            Root.CameraRig.Focus((float)man.X + 6f, instant: true);
+            yield return null; yield return null;
+            var cam = Root.CameraRig.Camera;
+            var (mx, mz) = Root.Driver.Position(man.Id);
+            float my = (float)Root.Ground.HeightAt(mx, mz);
+            Vector2 chest = cam.WorldToScreenPoint(Coords.World(mx, mz, my + 1.45f));
+            Assert.IsTrue(dep.GroundAt(chest, out _, out double behind));
+            Assert.AreEqual(1, Deployer.LaneNearest(behind), "the test's premise: the ground behind a near-lane man's chest is the far lane's");
+            Assert.AreEqual(0, dep.LaneAt(chest, out _, out _, out _), "pointing at a man in the near lane chose the far lane");
+
+            // Off any man: the ground under the pointer; over the trees, the far lane.
+            double clear = mx + 14;
+            Vector2 nearGround = cam.WorldToScreenPoint(Coords.World(clear, Tune.Lanes[0], (float)Root.Ground.HeightAt(clear, Tune.Lanes[0])));
+            Vector2 farGround = cam.WorldToScreenPoint(Coords.World(clear, Tune.Lanes[1], (float)Root.Ground.HeightAt(clear, Tune.Lanes[1])));
+            Assert.AreEqual(0, dep.LaneAt(nearGround, out _, out _, out _));
+            Assert.AreEqual(1, dep.LaneAt(farGround, out _, out _, out _));
+            Assert.AreEqual(1, dep.LaneAt(new Vector2(Screen.width * 0.5f, Screen.height * 0.92f), out bool onGround, out _, out _));
+            Assert.IsFalse(onGround, "the test's premise: the top of the picture is sky");
+
+            // In hand: the lane is lit on the ground and on its tag, and there is always somewhere it would go.
+            dep.Arm(line);
+            Assert.IsTrue(dep.Aim(nearGround));
+            yield return null; yield return null; yield return null;
+            Assert.AreEqual(0, dep.TargetLane);
+            Assert.AreEqual(clear, dep.TargetX, 1.0, "the card is not aimed where the pointer is on the lane");
+            Assert.AreEqual(0, dep.Marks.Lit, "the near lane is not the one lit");
+            Assert.IsFalse(dep.Marks.DiscShown, "a squad has no disc");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, hud.LaneTags[0].style.display.value);
+            Assert.IsTrue(hud.LaneTags[0].ClassListContains("lit") && !hud.LaneTags[1].ClassListContains("lit"));
+            Assert.IsTrue(dep.Aim(new Vector2(Screen.width * 0.5f, Screen.height * 0.92f)), "over the sky there was nowhere to put the card");
+            Assert.AreEqual(1, dep.TargetLane);
+
+            // The other lane by its tag (or the keys), until the pointer moves away.
+            dep.Aim(nearGround);
+            dep.Choose(1);
+            dep.Aim(nearGround + new Vector2(10, 0));
+            yield return null; yield return null;
+            Assert.AreEqual(1, dep.TargetLane, "the lane taken by its tag did not stand");
+            Assert.IsTrue(hud.LaneTags[1].ClassListContains("lit"));
+            dep.Switch(-1);
+            Assert.AreEqual(0, dep.TargetLane, "the down key did not take the near lane");
+            dep.Switch(1);
+            dep.Aim(nearGround + new Vector2(Deployer.ChoiceHolds + 30, 0));
+            Assert.AreEqual(0, dep.TargetLane, "the pointer moved away and the chosen lane stood");
+
+            // A call-in has its disc; put away, everything goes.
+            dep.Arm(Deck.For(Side.Us).First(c => c.Id == "us-arty"));
+            dep.Aim(farGround);
+            yield return null; yield return null; yield return null;
+            Assert.IsTrue(dep.Marks.DiscShown, "a barrage in hand shows no disc");
+            Assert.AreEqual(1, dep.Marks.Lit);
+            dep.Disarm();
+            yield return new WaitForSecondsRealtime(0.5f);
+            Assert.IsFalse(dep.Marks.Shown, "the lane marks are still drawn with nothing in hand");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, hud.LaneTags[0].style.display.value);
+        }
+
         [UnityTest, Category("UIAudit")]
         public IEnumerator Every_card_of_both_decks_arms_places_and_changes_the_simulation()
         {

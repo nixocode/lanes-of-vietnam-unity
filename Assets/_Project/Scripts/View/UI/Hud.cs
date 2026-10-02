@@ -31,6 +31,9 @@ namespace LanesOfVietnam.View.UI
         public Label CpValue { get; private set; }
         public Label TutorLine { get; private set; }
         public Label ArmedHint { get; private set; }
+        /// <summary>The lane selector's tags, a lane each, and the tag that follows the pointer.</summary>
+        public Button[] LaneTags { get; private set; }
+        public Label AimTag { get; private set; }
         public readonly List<VisualElement> Diamonds = new List<VisualElement>();
         public readonly List<CardView> Cards = new List<CardView>();
         public readonly Dictionary<string, Button> Buttons = new Dictionary<string, Button>();
@@ -165,6 +168,24 @@ namespace LanesOfVietnam.View.UI
             ArmedHint = new Label("") { name = "armed-hint", pickingMode = PickingMode.Ignore };
             ArmedHint.AddToClassList("armed-hint");
             ui.Add(ArmedHint);
+
+            // The lane selector's tags: one a lane, at the left of the picture at its lane's height,
+            // shown while a card is in hand. The lit one is where the card goes; a click on the other
+            // (or the up and down keys) takes it.
+            LaneTags = new Button[Tune.Lanes.Length];
+            for (int lane = 0; lane < LaneTags.Length; lane++)
+            {
+                int which = lane;
+                var tag = new Button(() => Deployer.Choose(which)) { name = $"lane-tag-{lane}", text = lane == 0 ? "NEAR LANE  ↓" : "FAR LANE  ↑" };
+                tag.AddToClassList("lane-tag");
+                tag.style.display = DisplayStyle.None;
+                ui.Add(tag);
+                LaneTags[lane] = tag;
+            }
+            AimTag = new Label("") { name = "aim-tag", pickingMode = PickingMode.Ignore };
+            AimTag.AddToClassList("aim-tag");
+            AimTag.style.display = DisplayStyle.None;
+            ui.Add(AimTag);
 
             var bottom = new VisualElement { name = "bottombar" };
             bottom.AddToClassList("bottombar");
@@ -306,13 +327,49 @@ namespace LanesOfVietnam.View.UI
 
             ArmedHint.text = Deployer.Armed == null ? ""
                 : Deployer.HasTarget
-                    ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · RIGHT CLICK TO CANCEL"
+                    ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE · RIGHT CLICK TO CANCEL"
                     : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
+            LaneSelector();
 
             TeachFromEvents(st);
             Tutor.Update(Time.unscaledDeltaTime, (float)st.Tick / Tune.TickHz);
             TutorLine.text = Tutor.Showing ?? "";
         }
+
+        /// <summary>
+        /// The lane tags and the pointer's tag, while a card is in hand. Each lane's tag sits at the
+        /// left of the picture at the height its lane's ground is drawn at; the pointer's says what
+        /// is in hand and where it would go.
+        /// </summary>
+        private void LaneSelector()
+        {
+            bool armed = Deployer.Armed != null && Deployer.HasTarget && _root?.panel != null && Root.CameraRig != null;
+            for (int lane = 0; lane < LaneTags.Length; lane++)
+            {
+                var tag = LaneTags[lane];
+                tag.style.display = armed ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!armed) continue;
+                var cam = Root.CameraRig.Camera;
+                // The lane's ground near the picture's left edge: its height on the screen. By the
+                // viewport, not the screen (PositionPlates): the picture is not always the screen's size.
+                var probe = cam.ViewportToWorldPoint(new Vector3(0.08f, 0.5f, Coords.Camera.SimZ - (float)Tune.Lanes[lane]));
+                double x = probe.x, z = Tune.Lanes[lane];
+                var vp = cam.WorldToViewportPoint(Coords.World(x, z, (float)Root.Ground.HeightAt(x, z)));
+                float panelH = _root.resolvedStyle.height;
+                tag.style.left = LaneTagLeft;
+                tag.style.top = Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f));
+                tag.EnableInClassList("lit", Deployer.TargetLane == lane);
+            }
+            AimTag.style.display = armed && CaptureSettings.Active == null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!armed) return;
+            var mouse = Input.mousePosition;
+            var m = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(mouse.x, Screen.height - mouse.y));
+            AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE";
+            AimTag.style.left = m.x + 22f;
+            AimTag.style.top = m.y - 44f;
+        }
+
+        public const float LaneTagLeft = 46f, LaneTagHeight = 26f;
 
         /// <summary>Lessons from what has just happened to the player's side.</summary>
         private void TeachFromEvents(SimState st)

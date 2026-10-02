@@ -1509,6 +1509,41 @@ grenade stands to do it; the bamboo's leaf cards themselves are unchanged
 (sharper sampling and sway only); the mark at contact and the launcher sounds
 of §12.18 are still open.
 
+### 12.20 The lane selector (owner, 2026-10-02: "fix the lane selector, something visually appealing, transparent")
+
+**What was wrong.** With a card in hand the lane was the one nearest the
+ground under the pointer, and the only mark was an orange ring hung in the
+air. The lens is at eye level (5.1 m up, 44 m back, a 19 degree lens), so the
+chest of a man in the near lane is drawn over the far lane's ground: pointing
+at your own squad chose the lane behind it. Over the trees and the sky there
+was no ground, so no target at all.
+
+**What it is now** (`View/Deployer.cs`, `View/LaneMarks.cs`, `LOV/Lane`):
+- **Which lane.** A man the pointer is on is in his own lane; off any man, the
+  lane nearest the ground under it; over the trees and the sky, the far lane.
+  There is always a target. The up and down keys, or a click on a lane's tag,
+  take the other lane until the pointer moves 36 px.
+- **On the ground.** Each lane is a translucent ribbon laid on its own ground
+  (it follows the craters and the banks): the lane in hand gold, with a rail
+  down each edge, brightest where the pointer is; the other pale and faint,
+  still there to be chosen. Where grass, a wall or a man stands in front of a
+  ribbon it is drawn through them at half strength, so the far lane, whose
+  ground is mostly behind grass, is on the screen too.
+- **A squad** has chevrons running up its lane the way it will go, a beam where
+  it comes in (its side's end of the lane) and a short one under the pointer.
+- **A call-in** has a disc the size of what it does, laid on the ground, a ring
+  pulsing out across it, and a beam standing on its middle.
+- **Tags.** One a lane at the left of the picture, at its lane's height, the
+  lit one being where the card goes; and one that follows the pointer with the
+  card's name and the lane.
+
+`tools/capture.sh ...,arm=us-rifle:0:-10` (card : lane : x) holds a card for a
+picture. UIAudit has the row (`The_lane_selector_follows_the_pointer_the_men_and_the_keys`),
+whose premise is the fault itself: the ground behind a near-lane man's chest
+is the far lane's. PlayMode 16/16, WebGL 29.84 MB, 6.1 to 6.5 ms a frame.
+Not seen in a browser by me: only in captures.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

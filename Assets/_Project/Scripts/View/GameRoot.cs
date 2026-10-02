@@ -95,6 +95,12 @@ namespace LanesOfVietnam.View
                 ViewTime = cap.ViewTime;
                 CameraRig.Focus(cap.CameraX, instant: true);
                 CameraRig.SetDolly(cap.Dolly, instant: true);
+                if (cap.Arm != null)
+                {
+                    var held = Deck.For(cap.Arm.StartsWith("us-") ? Side.Us : Side.Vc).FirstOrDefault(c => c.Id == cap.Arm);
+                    var dep = FindAnyObjectByType<Deployer>();
+                    if (held != null && dep != null) dep.Hold(held, cap.ArmLane, cap.ArmX);
+                }
                 gameObject.AddComponent<CaptureRunner>();
             }
             else if (PerfProbe.Param("perf") != null) gameObject.AddComponent<PerfProbe>();
