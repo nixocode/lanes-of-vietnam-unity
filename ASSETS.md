@@ -585,7 +585,8 @@ to −1 dBFS.
 | `m16_*` | AR-15 (the M16's civilian twin) | 4 | the US rifles |
 | `ak_*` | AK-47 | 8 | the VC and NVA |
 | `sks_*` | SKS | 4 | the VC and NVA, mixed with the AK so a volley is not one rifle |
-| `bolt_*` | Mosin Nagant | 4 | the snipers of both sides (added 2026-10-01 with the sniper class) |
+| `bolt_*` | Mosin Nagant | 4 | the VC marksman (2026-10-01: both sides' snipers; the American one has his own since 2026-10-02) |
+| `sniper_*` | Tikka (a bolt action in .308) | 4 | the US sniper: as near the Marines' M40, a Remington 700 in 7.62 NATO, as the library has (added 2026-10-02; the owner, playtest 6: "sounds for sniper") |
 
 These are CC0, so they are committed.
 

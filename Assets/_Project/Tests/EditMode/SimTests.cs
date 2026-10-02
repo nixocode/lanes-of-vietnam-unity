@@ -782,7 +782,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 1; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 Assert.IsFalse(st.Men.Any(x => x.Seen), "somebody is seen before anyone has looked");
@@ -830,7 +830,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 3; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 foreach (var man in st.Men.Where(x => x.Side == Side.Us && x.Place >= 0))
@@ -873,6 +873,99 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(withdrawals, 5, "hardly a squad ever fell back");
             Assert.Greater(toCover * 2, withdrawals, "most squads that fell back had no strongpoint to fall back to");
             Assert.AreEqual(0, shortLived, $"of {changes} changes of task, some squads got up again inside two seconds of going to ground");
+        }
+
+        // --- Part 2: gunnery, behind MatchOptions.Gunnery -------------------------------------
+
+        private static MatchOptions Gunned(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Sensed(seed, onMap);
+            o.Gunnery = true;
+            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28; }      // as the game plays it
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery [map]`.</summary>
+        [TestCase(1, true, 3221, 7149770u, 4068052772u, 4074593876u, "vc morale broke")]
+        [TestCase(7, false, 1810, 1725442961u, 268683800u, 2531677947u, "us morale broke")]
+        public void With_gunnery_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Gunnery, "gunnery must be off unless asked for");
+            var (a, m) = Played(Gunned(seed, asTheGame));
+            var (b, _) = Played(Gunned(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, playtest 6: "too many random shots shooting up, down and
+        /// in circles"; "the gunners sometimes shoot and walk, they should only
+        /// shoot prone or kneeling. Shooting while standing should be very
+        /// inaccurate (and happen 10% of the time or less)"; "see where bullets
+        /// go". Every bullet is fired by a man who is not moving, down the lane
+        /// (or at arm's length), and says where it went; fewer than one in ten
+        /// is fired from the feet, and those hit less than half as often as the
+        /// rest.
+        /// </summary>
+        [Test]
+        public void With_gunnery_bullets_are_fired_at_rest_down_the_lane_and_seldom_from_the_feet()
+        {
+            int bullets = 0, standing = 0, standingHits = 0, downHits = 0;
+            for (int seed = 3; seed <= 8; seed++)
+            {
+                var m = new LiveMatch(Gunned(seed, tempo: true));
+                var st = m.State;
+                while (!st.Over && st.Tick < 3600)
+                {
+                    var before = st.Men.Select(x => (x.X, x.Z)).ToArray();
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.Launch) Assert.IsTrue(e.Id >= before.Length || (st.Men[e.Id].X == before[e.Id].X && st.Men[e.Id].Z == before[e.Id].Z), "a man fired a launcher on the move");
+                        if (e.Kind != EventKind.Fire) continue;
+                        var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                        bullets++;
+                        Assert.IsTrue(by.X == before[by.Id].X && by.Z == before[by.Id].Z, $"seed {seed} tick {st.Tick}: man {by.Id} fired while moving");
+                        Assert.IsTrue(e.X.HasValue && e.Z.HasValue, "a round that went nowhere");
+                        bool hit = i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == at.Id;
+                        // Where the man he fired at was when he fired (a man hit has not moved since: he is dead).
+                        double tx = at.Id < before.Length ? before[at.Id].X : at.X, tz = at.Id < before.Length ? before[at.Id].Z : at.Z;
+                        double dx = System.Math.Abs(by.X - tx), dz = System.Math.Abs(by.Z - tz);
+                        Assert.IsTrue(dz <= Tune.ArcSlope * dx + 0.5 || dx * dx + dz * dz <= (Tune.ChargeRange + 0.5) * (Tune.ChargeRange + 0.5),
+                                      $"seed {seed} tick {st.Tick}: a bullet fired {dz:F1} m across the lane for {dx:F1} m along it");
+                        if (hit) Assert.AreEqual(at.X, e.X.Value, 1e-9, "a hit that landed somewhere else");
+                        if (by.Posture == Posture.Standing) { standing++; if (hit) standingHits++; }
+                        else if (hit) downHits++;
+                    }
+                    foreach (var man in st.Men)
+                    {
+                        if (!man.Alive || man.Id >= before.Length || man.Posture == Posture.Standing) continue;
+                        bool moved = man.X != before[man.Id].X || man.Z != before[man.Id].Z;
+                        bool sapper = st.Squads[man.Squad].Reach <= Tune.Stalks && man.Posture == Posture.Crouched;
+                        Assert.IsFalse(moved && !sapper, $"seed {seed} tick {st.Tick}: man {man.Id} travelled {man.Posture}");
+                    }
+                }
+            }
+            Assert.Greater(bullets, 1500, "hardly a shot was fired");
+            Assert.Less(standing * 10, bullets, $"{standing} of {bullets} bullets were fired by a man on his feet");
+            Assert.GreaterOrEqual(standingHits + downHits, 20, "hardly anyone was hit");
+
+            // And from his feet a man hits a third as often as the same man on a knee, at the same target.
+            var fresh = Match.Create(Gunned(3));
+            var a = fresh.Men.First(x => x.Side == Side.Us); var b = fresh.Men.First(x => x.Side == Side.Vc);
+            b.X = a.X + 12; b.Z = a.Z;
+            a.Posture = Posture.Crouched;
+            double kneeling = Combat.HitChance(fresh, a, b);
+            a.Posture = Posture.Standing;
+            Assert.AreEqual(Tune.StandingHit * kneeling, Combat.HitChance(fresh, a, b), 1e-12);
+            Assert.Less(Tune.StandingHit, 0.5);
         }
 
         /// <summary>

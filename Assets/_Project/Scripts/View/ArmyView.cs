@@ -57,6 +57,9 @@ namespace LanesOfVietnam.View
         /// <summary>Milliseconds the last Draw took: for the 3D men, stepping every Animator and its IK.</summary>
         public float LastDrawMs { get; private set; }
         /// <summary>The 3D man drawn for a man, or null (sprites, capsules, or not drawn yet).</summary>
+        /// <summary>Step every figure every frame, on screen or off: for the motion audit, which measures feet frame to frame.</summary>
+        public bool StepAll;
+
         public SoldierFigure FigureOf(int id) => id >= 0 && id < _figures.Count ? _figures[id] : null;
         private readonly System.Diagnostics.Stopwatch _clock = new System.Diagnostics.Stopwatch();
 
@@ -144,7 +147,7 @@ namespace LanesOfVietnam.View
         public const float FrontSlack = 22f, TurnRate = 240f;
         private int _speedTick = -1;
         /// <summary>Metres a second: above this a standing man jogs rather than walks.</summary>
-        public const float RunAbove = 1.7f;
+        public const float RunAbove = 1.7f, RunTurnRate = 600f;
         /// <summary>The tick each man last fired, from the sim's events; -1 never.</summary>
         private int[] _firedAt = new int[0];
         private int _eventCursor;
@@ -304,7 +307,10 @@ namespace LanesOfVietnam.View
             if (st.Tick != _speedTick)
             {
                 int ticks = _speedTick < 0 || st.Tick < _speedTick ? 1 : st.Tick - _speedTick;
-                float k = 1f - Mathf.Exp(-ticks * (float)Tune.Dt / 0.3f);
+                // His speed follows the sim's within a tenth of a second. (Over three tenths, a man who
+                // set off slid for half a second before his legs caught up, and one who stopped walked
+                // on the spot for most of a second: the motion audit's "standing at rest", skating.)
+                float k = 1f - Mathf.Exp(-ticks * (float)Tune.Dt / 0.1f);
                 for (int i = 0; i < st.Men.Count; i++)
                 {
                     var (dx, dz) = d.LastStep(i);
@@ -312,7 +318,9 @@ namespace LanesOfVietnam.View
                     _speed[i] += (v - _speed[i]) * k;
                     _vx[i] += ((float)(dx / Tune.Dt) - _vx[i]) * k;
                     _vz[i] += ((float)(dz / Tune.Dt) - _vz[i]) * k;
-                    if (_moving[i]) { if (_speed[i] < 0.15f) _moving[i] = false; }
+                    // Stopped in the sim is stopped: no walking on after the ground has.
+                    if (v < 1e-3f) { _speed[i] = 0f; _moving[i] = false; }
+                    else if (_moving[i]) { if (_speed[i] < 0.15f) _moving[i] = false; }
                     else if (_speed[i] > 0.35f) _moving[i] = true;
                     // Face the way he is going; at rest, the enemy. A man moving
                     // mostly along the lane's depth keeps the facing he had.
@@ -478,7 +486,8 @@ namespace LanesOfVietnam.View
                 // He lies where he was drawn when he fell (unless this frame is a jump in time).
                 else if (jump || _figures[i] == null || _drawn[i] == default) _drawn[i] = new Vector2((float)x, (float)z);
                 else { x = _drawn[i].x; z = _drawn[i].y; }
-                bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (!_moving[i] || _speed[i] < RunAbove);
+                // (Gunnery: nobody fires on the move, and nobody walks with his rifle in his shoulder either.)
+                bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (st.Gunnery ? !_moving[i] : !_moving[i] || _speed[i] < RunAbove);
                 // Where he faces, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
                 float yaw = _yaw[i];
                 if (m.Alive)
@@ -502,7 +511,8 @@ namespace LanesOfVietnam.View
                             float travel = Mathf.Atan2(_vx[i], -_vz[i]) * Mathf.Rad2Deg;
                             float off = Mathf.Abs(Mathf.DeltaAngle(_front[i], travel));
                             bool fleeing = m.Squad < st.Squads.Count && st.Squads[m.Squad].Order == Order.Fallback;
-                            _turned[i] = fleeing || off < (_turned[i] ? 100f : 70f);
+                            // (Gunnery: a man who is moving is on his feet and going somewhere: he faces it.)
+                            _turned[i] = st.Gunnery || fleeing || off < (_turned[i] ? 100f : 70f);
                             if (_turned[i]) yaw = travel;
                         }
                         else _turned[i] = false;
@@ -520,7 +530,8 @@ namespace LanesOfVietnam.View
                     _yaw[i] = yaw;
                 }
                 // Turned at most TurnRate degrees a second of match time: a man pivots, he does not snap.
-                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, TurnRate * dt);
+                // (A man setting off turns to where he is going at once, not over the first three paces of it.)
+                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, (st.Gunnery && _moving[i] ? RunTurnRate : TurnRate) * dt);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
                 float ground = (float)g.HeightAt(x, z);
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
@@ -584,7 +595,7 @@ namespace LanesOfVietnam.View
                     var vp = _cam.WorldToViewportPoint(at + Vector3.up);
                     float px = vp.z > 0.1f ? 1.8f * pxPerMetre / vp.z : 0f;
                     bool seen = vp.z > 0.1f && vp.x > -0.08f && vp.x < 1.08f && vp.y > -0.1f && vp.y < 1.2f;
-                    every = !seen ? 4 : px < NearPixels ? 2 : 1;
+                    every = StepAll ? 1 : !seen ? 4 : px < NearPixels ? 2 : 1;
                     f.Body.quality = every == 1 ? SkinQuality.Bone4 : SkinQuality.Bone2;
                 }
                 _pending[i] += dt;

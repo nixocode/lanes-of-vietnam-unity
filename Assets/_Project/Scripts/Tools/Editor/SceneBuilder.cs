@@ -318,6 +318,7 @@ namespace LanesOfVietnam.Tools
                 m.SetTexture("_Normal", normal);
                 m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);
                 m.SetVector("_MipBias", MipBiasFor(name));
+                m.SetFloat("_Wind", WindFor(name));
                 m.SetFloat("_Dither", name.Contains("grass") ? GrassDither : 0f);
                 m.SetFloat("_FieldOcclusion", FieldOcclusionFor(name));
                 EditorUtility.SetDirty(m);
@@ -343,7 +344,25 @@ namespace LanesOfVietnam.Tools
              : species is "jacaranda" or "island_tree" ? 0.25f : 0.45f;
 
         private static Vector4 MipBiasFor(string species)
-            => species.Contains("grass") ? GrassBias : new Vector4(0.5f, 1.75f, 40, 90);
+            => species.Contains("grass") ? GrassBias : new Vector4(BroadleafBias, 1.75f, 40, 90);
+
+        /// <summary>
+        /// The broadleaf plants' bias near the lens. It was 0.5 under TAA; the camera is on SMAA now
+        /// (no jitter to resample the leaves by), and at 0.5 a bamboo at the closest zoom was a blur
+        /// (the owner, playtest 6: "they need to be higher quality").
+        /// </summary>
+        public static float BroadleafBias = 0.15f;
+
+        /// <summary>
+        /// How far the top of a plant moves in the wind, in metres, by species: by how tall it is and
+        /// how stiff. Bamboo and the palms' crowns sway; a tree's crown shifts; the ground plants stir.
+        /// </summary>
+        private static float WindFor(string species)
+            => species.Contains("bamboo") ? 0.40f
+             : species.Contains("palm") ? 0.28f
+             : species.Contains("elephant") ? 0.14f
+             : species.Contains("ficus") || species.Contains("jacaranda") || species.Contains("tree") || species.Contains("pachira") ? 0.16f
+             : 0.06f;
 
         /// <summary>Metres of air for 63% haze on the massif (Mountain.shader).</summary>
         public static float MountainHaze = 2500f;

@@ -92,6 +92,8 @@ namespace LanesOfVietnam.Sim
         public bool Arms;
         /// <summary>Part 2: squads that spot each other, fire only at what they have spotted, and react to contact (Senses). False is the parity baseline.</summary>
         public bool Senses;
+        /// <summary>Part 2: fire down the lane, from a knee or flat, never on the move; rounds that land somewhere (Gunnery). False is the parity baseline.</summary>
+        public bool Gunnery;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -213,11 +215,13 @@ namespace LanesOfVietnam.Sim
                 Fieldcraft = opts.Fieldcraft,
                 Arms = opts.Arms,
                 Senses = opts.Senses,
+                Gunnery = opts.Gunnery,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
+            if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
@@ -370,8 +374,13 @@ namespace LanesOfVietnam.Sim
                 bool gun = st.Arms && (m.Weapon == Weapon.M60 || m.Weapon == Weapon.Rpd || m.Weapon == Weapon.Sniper);
                 want = away > Tune.KneelWithin ? Posture.Standing : gun && away <= Tune.SetOff ? Posture.Prone : Posture.Crouched;
             }
+            // Gunnery: up to move, down when he has stopped; and nobody travels on a knee or flat
+            // except a sapper coming up unseen.
+            bool stalking = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen && quarry == null && sq.Order != Order.Fallback && m.Pin < Tune.PinDrop;
+            if (st.Gunnery) want = Gunnery.Carry(st, m, sq, want, quarry != null, stalking, JsMath.Hypot(tx - m.X, tz - m.Z));
             if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
             {
+                m.Before = m.Posture;
                 m.Posture = want;
                 m.Dwell = 0;
             }
@@ -379,9 +388,13 @@ namespace LanesOfVietnam.Sim
             // Pinned men drop, shoot less and stop advancing. He still has to be
             // placed in whatever he is lying behind, so only movement is skipped.
             bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback;
-            if (!pinnedDown && !climbing)
+            double wasX = m.X, wasZ = m.Z;
+            // Gunnery: getting to his feet takes its time, and a man who is down stays where he is.
+            bool held = st.Gunnery && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
+            if (!pinnedDown && !climbing && !held)
             {
                 double speed = Tune.Speed(m.Posture);
+                if (st.Gunnery && m.Posture == Posture.Standing && Gunnery.Rushing(sq)) speed = Tune.SpeedRush;
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
                 // With drill a man close enough to his place stays put (falling back, he always moves).
@@ -391,6 +404,10 @@ namespace LanesOfVietnam.Sim
                 if (st.Fieldcraft && sq.Order != Order.Fallback && quarry == null)
                 {
                     slack = m.Still ? Tune.SetOff : Tune.Arrive;
+                    // Gunnery: up with a squad that is moving, he keeps its pace. (Stopping when he
+                    // reached his place and setting off again when it was a pace ahead, a marching man
+                    // walked a second and stood two thirds of one, all the way up the lane.)
+                    if (st.Gunnery && !sq.Halted && sq.Order != Order.Hold && d <= Tune.SetOff) slack = 0.02;
                     m.Still = d <= slack;
                 }
                 else m.Still = false;
@@ -416,6 +433,7 @@ namespace LanesOfVietnam.Sim
                 }
                 m.X = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, m.X));
             }
+            m.Rest = m.X != wasX || m.Z != wasZ ? 0 : m.Rest + 1;
             Squads.PushTrail(m);
 
             // Cover, for every man every tick, pinned or not. This once sat

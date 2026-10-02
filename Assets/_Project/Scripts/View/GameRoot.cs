@@ -113,9 +113,11 @@ namespace LanesOfVietnam.View
         /// that player wins half his matches, at 28 three in four, at 40 all of them. One who buys nothing loses
         /// in about a minute at any of them. With Senses on, 28 gave that player nine wins in twenty-four as
         /// the Americans (the computer's mixed squads see and outrange a line of riflemen); at 32 it is
-        /// nineteen, and twenty-two as the VC.
+        /// nineteen, and twenty-two as the VC. With Gunnery on (the lanes two separate fights, nobody firing
+        /// on the move) it is 28 again: sixteen of twenty-four as the Americans, twenty-two as the VC; at 32
+        /// he hardly loses.
         /// </summary>
-        public const double MusterCost = 32;
+        public const double MusterCost = 28;
         /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
         public const int OpeningStrength = 4;
 
@@ -143,6 +145,9 @@ namespace LanesOfVietnam.View
                 // Senses (Part 2): squads that spot each other, fire only at what they have spotted, go to
                 // ground at contact and hold one task at a time. On in the game.
                 Senses = CaptureSettings.Active?.Senses ?? true,
+                // Gunnery (Part 2): fire down the lane only, from a knee or flat and never on the move; a
+                // man gets up to move and runs; every round lands somewhere. On in the game.
+                Gunnery = CaptureSettings.Active?.Gunnery ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

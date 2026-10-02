@@ -121,6 +121,31 @@
    ]
   },
   {
+   "name": "sniper",
+   "files": [
+    {
+     "file": "sniper_0.m4a",
+     "source": "Tikka/W_24P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "sniper_1.m4a",
+     "source": "Tikka/W_24P.wav shot 1",
+     "seconds": 1.6
+    },
+    {
+     "file": "sniper_2.m4a",
+     "source": "Tikka/W_29P.wav shot 0",
+     "seconds": 1.6
+    },
+    {
+     "file": "sniper_3.m4a",
+     "source": "Tikka/W_29P.wav shot 1",
+     "seconds": 1.6
+    }
+   ]
+  },
+  {
    "name": "shell",
    "files": [
     {

@@ -93,6 +93,8 @@ namespace LanesOfVietnam.View
         private float _speed;
         /// <summary>Each gait clip's own speed, m/s: the Animator plays it faster or slower to match the man's.</summary>
         public float WalkSpeed = 1f, RunSpeed = 2.3f, CrouchSpeed = 0.8f, CrawlSpeed = 0.4f;
+        /// <summary>Above this he runs; at it and below he walks (the sim's men march at 1.35, catch up at 2 and rush at 4 m/s; the clips walk at 1.8 and run at 4.5).</summary>
+        public const float RunFrom = 2.6f;
         public int Deaths = 2;
         /// <summary>Deaths for circumstances, where Mixamo's clips exist for them.</summary>
         public bool RunDeath, BlastDeath, CrouchDeath, ProneDeath;
@@ -176,16 +178,24 @@ namespace LanesOfVietnam.View
                 // Fallen and still: freeze him as a plain mesh.
                 if ((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) { Bake(); return; }
             }
+            // One gait at a time, played at the rate that puts his feet down where he is going: the walk
+            // or the run, the crouched walk, the crawl; never a blend of two, whose feet agree with
+            // neither. (Half way between the kneeling idle and the crouched walk, which is where the
+            // sim's 1.1 m/s put him, he was a kneeling man gliding: the motion audit, playtest 6.)
             // Backwards he has his own clips (standing and crouched); a crawl has none.
-            float signed = posture == 2 ? Mathf.Abs(speed) : speed;
+            bool back = speed < 0 && posture != 2;
             speed = Mathf.Abs(speed);
-            float native = posture == 2 ? CrawlSpeed : posture == 1 ? CrouchSpeed : speed > (WalkSpeed + RunSpeed) * 0.5f ? RunSpeed : WalkSpeed;
-            // Between the walk and the run the blend tree's own speed follows his;
-            // outside it, the clip is sped up or slowed so the feet do not skate.
-            float lo = posture == 0 ? WalkSpeed : native, hi = posture == 0 ? RunSpeed : native;
-            // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
-            float scale = speed < 0.05f ? 1f : Mathf.Clamp(speed / Mathf.Clamp(speed, lo, hi), 0.5f, posture == 2 ? 2.4f : 1.8f);
-            Animator.SetFloat(SpeedId, signed);
+            float key = 0f, scale = 1f;
+            if (speed >= 0.05f)
+            {
+                bool run = posture == 0 && speed > RunFrom;
+                key = posture == 2 ? CrawlSpeed : posture == 1 ? CrouchSpeed : run ? RunSpeed : WalkSpeed;
+                // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
+                scale = Mathf.Clamp(speed / Mathf.Max(0.05f, key), 0.5f, posture == 2 ? 2.4f : 1.8f);
+            }
+            // Eased over a tenth of a second, so he goes from standing to walking and from a walk to a run, not snaps.
+            float now = Animator.GetFloat(SpeedId), want = back ? -key : key;
+            Animator.SetFloat(SpeedId, dt <= 0 ? want : Mathf.MoveTowards(now, want, Mathf.Max(Mathf.Abs(want - now), RunSpeed) * dt / 0.1f));
             Animator.SetFloat(ScaleId, scale);
             Animator.SetInteger(PostureId, posture);
             _posture = posture;

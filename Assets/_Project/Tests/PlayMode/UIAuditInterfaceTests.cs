@@ -293,7 +293,9 @@ namespace LanesOfVietnam.Tests
             Root.Driver.FastForward(300);
             yield return null; yield return null;
             int inside = st.Men.Count(m => m.Alive && m.Side == Side.Us && m.Cover == trench.Id);
-            Assert.Greater(inside, 2, "the held position did not fill");
+            Assert.Greater(inside, 2, "the held position did not fill: cover " + trench.Id + " " + trench.Kind + " at " + trench.X + ", phase " + st.Phase + " tick " + st.Tick + "; "
+                + string.Join(" | ", st.Squads.Where(q => q.Side == Side.Us).Select(q => $"sq{q.Id} {q.Order} {q.Task} tgt {q.Target} x {q.AnchorX:F1} sent {q.Sent} halted {q.Halted}: "
+                    + string.Join(" ", st.Men.Where(m => m.Alive && m.Squad == q.Id).Select(m => $"{m.X:F1},{m.Z:F1}/{m.Posture.ToString()[0]}/c{m.Cover}/p{m.Place}")))));
             StringAssert.StartsWith($"{inside}/", hud.Positions.Of(trench.Id).Count.text, "the plate does not count the men in it");
             StringAssert.Contains("lever", string.Join(" ", hud.Positions.Log));
         }

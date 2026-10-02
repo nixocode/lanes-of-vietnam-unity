@@ -42,6 +42,8 @@ namespace LanesOfVietnam.Sim
                     if (d2 < best) { best = d2; foe = b; }
                 }
                 if (foe == null) continue;
+                // Gunnery: not at an enemy a few paces off. (Two squads seven metres apart sat out a cloud between them.)
+                if (st.Gunnery && best < Tune.SmokeBeyond * Tune.SmokeBeyond) continue;
                 // Already screened: no second canister into the same cloud.
                 if (Combat.SmokeBlocks(st, sq.AnchorX, sq.AnchorZ, foe.X, foe.Z)) continue;
 

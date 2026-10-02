@@ -54,6 +54,8 @@ namespace LanesOfVietnam.View
         private static readonly Color UsTracer = new Color(1.0f, 0.09f, 0.025f) * 3.2f;
         private static readonly Color VcTracer = new Color(0.14f, 1.0f, 0.16f) * 2.6f;
         private static readonly Color Flash = new Color(1.0f, 0.70f, 0.34f);
+        /// <summary>A round in the air that is not a tracer: pale and faint, a line and not a light.</summary>
+        private static readonly Color Trace = new Color(1.0f, 0.93f, 0.8f) * 0.55f;
 
         private GameRoot _root;
         private MeshFilter _glowMf, _smokeMf;
@@ -200,19 +202,94 @@ namespace LanesOfVietnam.View
             bool auto = AudioView.Automatic(shooter);
             // A belt-fed gun's burst is longer than a rifleman's on automatic.
             int rounds = !auto ? 1 : shooter.Weapon == Weapon.M60 || shooter.Weapon == Weapon.Rpd ? BurstRounds + 2 : BurstRounds;
+            // Gunnery: the simulation says where a miss came down. What is there: the wall or the
+            // parapet the man is behind, if he is behind one and the round was close; else the ground.
+            var st = _root.Driver.State;
+            Vector3? landed = null;
+            int surface = Earth;
+            if (!hit && e.X.HasValue && e.Z.HasValue)
+            {
+                double lx = e.X.Value, lz = e.Z.Value;
+                var cover = target.Cover >= 0 && target.Cover < st.Cover.Count ? st.Cover[target.Cover] : null;
+                var (tx, tz) = _root.Driver.Position(target.Id);
+                if (cover != null && Fieldcraft.Built(cover) && Hash(i, 40) < 0.55)
+                {
+                    // Into the bags in front of him: a pace short of him on the round's own line, at the height of the wall.
+                    var back = new Vector3(-aim.x, 0, -aim.z).normalized;
+                    var face = Coords.World(tx, tz, (float)_root.Ground.HeightAt(tx, tz)) + back * (0.7f + 0.5f * (float)Hash(i, 41))
+                               + new Vector3(-back.z, 0, back.x) * (float)(Hash(i, 42) * 1.6 - 0.8);
+                    landed = face + Vector3.up * (cover.Kind == CoverKind.Trench ? 0.12f : 0.3f + 0.55f * (float)Hash(i, 43));
+                    surface = cover.Kind == CoverKind.Trench ? Earth : Bags;
+                }
+                else landed = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.05f);
+            }
             for (int r = 0; r < rounds; r++)
             {
                 float ra = age - r * BurstGap;
                 if (ra < 0) break;
-                Round(i * 8 + r, ra, muzzle, b, aim, hit && r == rounds - 1, auto, shooter.Side);
+                Round(i * 8 + r, ra, muzzle, b, aim, hit && r == rounds - 1, auto, shooter.Side, shooter.Weapon, r == 0 ? landed : Near(landed, i * 8 + r), surface);
             }
         }
 
-        /// <summary>One round: the spark at the muzzle, now and then a tracer, and what it does where it lands.</summary>
-        private void Round(int s, float age, Vector3 muzzle, Vector3 b, Vector3 aim, bool hit, bool auto, Side side)
+        private const int Earth = 0, Bags = 1;
+
+        /// <summary>The later rounds of a burst land round the first: a metre or so, on the ground.</summary>
+        private Vector3? Near(Vector3? first, int s)
+        {
+            if (!first.HasValue) return null;
+            var p = first.Value + new Vector3((float)(Hash(s, 44) * 2.4 - 1.2), 0, (float)(Hash(s, 45) * 1.6 - 0.8));
+            return p;
+        }
+
+        /// <summary>
+        /// The flash at the muzzle, by weapon: a ball of burning gas, a tongue
+        /// of it down the line of the barrel, and what the flash hider does
+        /// with the rest (the M16's birdcage throws a star; the belt-fed guns
+        /// and the old bolt rifles a long tongue; a submachine gun a small
+        /// ball). Two or three frames, and bright enough to bloom.
+        /// </summary>
+        private void MuzzleFlash(int s, float age, Vector3 muzzle, Vector3 dir, Weapon w)
+        {
+            const float life = 0.055f;
+            if (age >= life) return;
+            float k = 1 - age / life;
+            float ball, tongue; int star = 0;
+            switch (w)
+            {
+                case Weapon.M60: case Weapon.Rpd: ball = 0.34f; tongue = 0.75f; break;
+                case Weapon.Sniper: ball = 0.40f; tongue = 0.90f; break;
+                case Weapon.Smg: ball = 0.22f; tongue = 0.28f; break;
+                case Weapon.Ak: case Weapon.Sks: ball = 0.30f; tongue = 0.50f; break;
+                default: ball = 0.24f; tongue = 0.38f; star = 3; break;        // the M16 and the baseline's rifle
+            }
+            float jit = 0.8f + 0.4f * (float)Hash(s, 3);
+            // (Hot enough to bloom, no hotter: at 9x the tongue was a white bar, not a flame.)
+            var hot = Flash * (4.5f * k);
+            AddGlow(muzzle + dir * (0.10f + 0.3f * tongue), ball * jit, hot, 0, (float)Hash(s, 4));
+            AddGlow(muzzle + dir * 0.06f, ball * 0.4f, new Color(1f, 0.86f, 0.6f) * (6f * k), 0, (float)Hash(s, 12));
+            AddStreak(muzzle, muzzle + dir * (tongue * jit), 0.03f + 0.02f * ball / 0.24f, hot, (float)Hash(s, 13));
+            if (star > 0)
+            {
+                // Out through the slots of the flash hider: short tongues to the sides, seen as a star.
+                var side = Vector3.Cross(dir, _camPos - muzzle).normalized;
+                var up = Vector3.Cross(side, dir).normalized;
+                for (int q = 0; q < star; q++)
+                {
+                    float ang = (q + (float)Hash(s, 14)) * 6.2832f / star;
+                    var o = (side * Mathf.Cos(ang) + up * Mathf.Sin(ang)) * 0.7f + dir * 0.7f;
+                    AddStreak(muzzle + dir * 0.04f, muzzle + dir * 0.04f + o.normalized * (0.2f * jit), 0.03f, hot * 0.8f, (float)Hash(s, 15 + q));
+                }
+            }
+            Flashes++;
+        }
+
+        /// <summary>One round: the flash at the muzzle, its path through the air, and what it does where it lands.</summary>
+        private void Round(int s, float age, Vector3 muzzle, Vector3 b, Vector3 aim, bool hit, bool auto, Side side,
+                           Weapon weapon = Weapon.Rifle, Vector3? landed = null, int surface = Earth)
         {
             Vector3 end;
             if (hit) end = b;
+            else if (landed.HasValue) end = landed.Value;
             else
             {
                 // A miss goes into the ground by him: beside, short or long.
@@ -225,29 +302,25 @@ namespace LanesOfVietnam.View
             float dist = Vector3.Distance(muzzle, end);
             var dir = (end - muzzle) / Mathf.Max(dist, 0.01f);
 
-            // The muzzle: a spark for two frames, a breath of smoke after it.
-            if (age < 0.04f)
-            {
-                float k = 1 - age / 0.04f;
-                AddGlow(muzzle + dir * 0.12f, 0.17f + 0.1f * (float)Hash(s, 3), Flash * (8f * k), 0, (float)Hash(s, 4));
-                Flashes++;
-            }
+            MuzzleFlash(s, age, muzzle, dir, weapon);
             if (age < 0.7f)
             {
                 float f = 1 - age / 0.7f;
                 AddPuff(muzzle + dir * (0.25f + 0.5f * age) + Vector3.up * (0.25f * age), 0.16f + 0.5f * age,
                         new Color(0.62f, 0.62f, 0.6f, 0.2f * f * f), (float)Hash(s, 9), 1f);
             }
-            // Tracers: automatic weapons only, one round in five, thin and brief.
-            if (auto && Hash(s, 5) < TracerShare)
+            // Its path: every round is seen going, as a thin pale line a couple of metres long that is
+            // gone before the eye can hold it (the owner: "see where bullets go"); one round in five from
+            // an automatic weapon is a tracer, lit all the way.
             {
                 float head = TracerSpeed * age;
-                float tail = Mathf.Max(0, head - 3.5f);
+                bool tracer = auto && Hash(s, 5) < TracerShare;
+                float tail = Mathf.Max(0, head - (tracer ? 3.5f : 2.2f));
                 float h = Mathf.Min(head, dist);
                 if (h > tail)
                 {
-                    AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, side == Side.Us ? UsTracer : VcTracer, (float)Hash(s, 6));
-                    Tracers++;
+                    if (tracer) { AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, side == Side.Us ? UsTracer : VcTracer, (float)Hash(s, 6)); Tracers++; }
+                    else AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.016f, Trace, (float)Hash(s, 6));
                 }
             }
             float ai = age - dist / TracerSpeed;
@@ -257,23 +330,43 @@ namespace LanesOfVietnam.View
                 Blood(s, ai, b, dir, 1f);
                 return;
             }
-            // Into the earth: a hard little kick of dirt at once, then the dust it leaves.
-            if (ai < 0.22f)
+            if (surface == Bags)
             {
-                float f = 1 - ai / 0.22f;
-                for (int k = 0; k < 3; k++)
+                // Into a sandbag: a slap of pale dust off the face of the wall, and sand running out of the hole.
+                if (ai < 0.05f) AddGlow(end, 0.16f, new Color(1f, 0.85f, 0.6f) * (2.5f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
+                if (ai < 0.9f)
+                {
+                    float f = 1 - ai / 0.9f;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var v = -dir * (1.6f + 1.2f * (float)Hash(s, 20 + k)) + Vector3.up * (0.8f + 1.0f * (float)Hash(s, 23 + k))
+                                + new Vector3(-dir.z, 0, dir.x) * (float)(Hash(s, 26 + k) - 0.5);
+                        AddPuff(end + v * ai * (1f - 0.5f * ai), 0.16f + 0.75f * ai, new Color(0.46f, 0.40f, 0.30f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
+                    }
+                    for (int k = 0; k < 2; k++)
+                        AddPuff(end + Vector3.down * (0.5f * ai + 1.6f * ai * ai) + new Vector3(0.03f * k, 0, 0), 0.06f + 0.04f * k,
+                                new Color(0.40f, 0.34f, 0.24f, 0.9f * f), (float)Hash(s, 50 + k), 1f);
+                }
+                return;
+            }
+            // Into the earth: a spurt of dirt straight up at once, then the dust it leaves hanging.
+            if (ai < 0.04f) AddGlow(end + Vector3.up * 0.05f, 0.12f, new Color(1f, 0.8f, 0.55f) * (2f * (1 - ai / 0.04f)), 0, (float)Hash(s, 35));
+            if (ai < 0.32f)
+            {
+                float f = 1 - ai / 0.32f;
+                for (int k = 0; k < 5; k++)
                 {
                     float az = (float)(Hash(s, 20 + k) * Math.PI * 2);
-                    var v = new Vector3(Mathf.Cos(az) * 1.2f, 4.5f + 2.5f * (float)Hash(s, 23 + k), Mathf.Sin(az) * 1.2f) - dir * 1.5f;
-                    AddPuff(end + v * ai + Vector3.down * (9.8f * ai * ai), 0.12f + 0.25f * ai, new Color(0.13f, 0.1f, 0.07f, 0.95f * f), (float)Hash(s, 26 + k), 1f);
+                    var v = new Vector3(Mathf.Cos(az) * 0.9f, 5.5f + 3.5f * (float)Hash(s, 23 + k), Mathf.Sin(az) * 0.9f) - dir * 1.2f;
+                    AddPuff(end + v * ai + Vector3.down * (9.8f * ai * ai), 0.12f + 0.3f * ai, new Color(0.13f, 0.1f, 0.07f, 0.95f * f), (float)Hash(s, 26 + k), 1f);
                 }
             }
-            if (ai < 1.5f)
+            if (ai < 1.8f)
             {
-                float f = 1 - ai / 1.5f;
+                float f = 1 - ai / 1.8f;
                 for (int k = 0; k < 2; k++)
-                    AddPuff(end + Vector3.up * (0.1f + 0.5f * ai + 0.15f * k), 0.3f + (0.9f + 0.3f * k) * ai,
-                            new Color(0.20f, 0.17f, 0.13f, 0.75f * f * f), (float)Hash(s, 8 + k), 1f);
+                    AddPuff(end + Vector3.up * (0.1f + 0.6f * ai + 0.15f * k), 0.34f + (1.0f + 0.3f * k) * ai,
+                            new Color(0.22f, 0.19f, 0.14f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
             }
             // Now and then it glances off and goes on, lit: a ricochet.
             if (Hash(s, 30) < RicochetShare && ai < 0.16f)
@@ -282,7 +375,7 @@ namespace LanesOfVietnam.View
                 var off = (flat * 0.8f + Vector3.up * (0.35f + 0.5f * (float)Hash(s, 31))
                            + new Vector3(-flat.z, 0, flat.x) * (float)(Hash(s, 32) - 0.5)).normalized;
                 float head = 190f * ai, tail = Mathf.Max(0, head - 2.2f);
-                AddStreak(end + off * tail, end + off * head, 0.03f, new Color(1f, 0.62f, 0.25f) * (3.5f * (1 - ai / 0.16f)), (float)Hash(s, 33));
+                AddStreak(end + off * tail, end + off * head, 0.018f, new Color(1f, 0.62f, 0.25f) * (1.8f * (1 - ai / 0.16f)), (float)Hash(s, 33));
                 if (ai < 0.05f) AddGlow(end + Vector3.up * 0.05f, 0.22f, Flash * (6f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
             }
         }

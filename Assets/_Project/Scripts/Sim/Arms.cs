@@ -143,7 +143,8 @@ namespace LanesOfVietnam.Sim
         {
             int n = 0;
             for (int i = 0; i < st.Squads.Count; i++) if (st.Squads[i].Side == side) n++;
-            var list = side == Side.Us ? UsRaised : st.Senses ? VcRaisedSenses : VcRaised;
+            // (Gunnery: with nobody firing across the lanes or on the move, the first list again.)
+            var list = side == Side.Us ? UsRaised : st.Senses && !st.Gunnery ? VcRaisedSenses : VcRaised;
             return For(list[n % list.Length]);
         }
 

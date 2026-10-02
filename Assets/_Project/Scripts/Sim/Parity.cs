@@ -102,6 +102,8 @@ namespace LanesOfVietnam.Sim
                     h = MixI(h, s.KnownAt.Count); foreach (int t in s.KnownAt) h = MixI(h, t);
                 }
             }
+            if (st.Gunnery)
+                foreach (var m in st.Men) { h = MixI(h, m.Rest); h = MixI(h, (int)m.Before); }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }

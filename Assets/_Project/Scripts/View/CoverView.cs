@@ -36,14 +36,24 @@ namespace LanesOfVietnam.View
                 {
                     // The walls as sandbags; the bunker keeps its timber roof.
                     double w = c.X - c.Length / 2, e = c.X + c.Length / 2;
+                    // A wall stands behind the men it shelters, as the lens sees them, and behind where
+                    // the lane's files walk too: the three files of a lane march in a band 1.9 m either
+                    // side of its middle, and a wall drawn 1.3 m behind its own cover stood in that band
+                    // (the owner, playtest 6: "soldiers clipping next to the US spawn (sandbags)"; the
+                    // third squad into a lane walked the length of the perimeter wall inside it).
+                    double wall = System.Math.Min(c.Z - 1.3, LaneOf(c) - WallBehind);
                     switch (c.Kind)
                     {
-                        case CoverKind.Sandbag: Bags.Wall(transform, Built, g, w, c.Z - 1.3, e, c.Z - 1.3, 0.95f, false, c.Id); break;
+                        case CoverKind.Sandbag: Bags.Wall(transform, Built, g, w, wall, e, wall, 0.95f, false, c.Id); break;
                         case CoverKind.Bunker:
-                            Bags.Wall(transform, Built, g, w, c.Z - 1.2, e, c.Z - 1.2, 1.25f, false, c.Id);
-                            // Timbers across, and bags on top of them: overhead cover.
-                            Box(g, c.X, c.Z - 0.4, (float)c.Length + 0.6f, 0.2f, 2.6f, TimberMaterial, $"bunker roof {c.Id}", lift: 1.3f);
-                            Bags.Wall(transform, Built, g, w - 0.2, c.Z + 0.5, e + 0.2, c.Z + 0.5, 0.45f, true, c.Id + 7, lift: 1.48f);
+                            Bags.Wall(transform, Built, g, w, wall, e, wall, 1.45f, false, c.Id);
+                            // Timbers across on four posts, and bags on top of them: overhead cover a man can stand under.
+                            float depth = (float)(c.Z + 0.9 - wall) + 0.4f;
+                            double mid = (c.Z + 0.9 + wall) * 0.5 - 0.2;
+                            Box(g, c.X, mid, (float)c.Length + 0.6f, 0.2f, depth, TimberMaterial, $"bunker roof {c.Id}", lift: 2.05f);
+                            foreach (double px in new[] { w - 0.1, e + 0.1 })
+                                Box(g, px, c.Z + 0.9, 0.18f, 2.05f, 0.18f, TimberMaterial, $"bunker post {c.Id}", lift: 0.1f);
+                            Bags.Wall(transform, Built, g, w - 0.2, c.Z + 0.6, e + 0.2, c.Z + 0.6, 0.45f, true, c.Id + 7, lift: 2.23f);
                             break;
                         case CoverKind.Trench: Bags.Wall(transform, Built, g, w, c.Z - 1.05, e, c.Z - 1.05, 0.45f, true, c.Id); break;
                     }
@@ -67,6 +77,17 @@ namespace LanesOfVietnam.View
                         break;
                 }
             }
+        }
+
+        /// <summary>How far behind a lane's middle its walls are drawn: clear of the files, which reach 1.9 m from it.</summary>
+        public const double WallBehind = 2.75;
+
+        /// <summary>The middle of the lane a piece of cover is in.</summary>
+        private static double LaneOf(Cover c)
+        {
+            double best = Tune.Lanes[0];
+            foreach (double z in Tune.Lanes) if (System.Math.Abs(z - c.Z) < System.Math.Abs(best - c.Z)) best = z;
+            return best;
         }
 
         private void Box(Ground g, double simX, double simZ, float length, float height, float depth,
