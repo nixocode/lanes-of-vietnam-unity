@@ -1591,6 +1591,124 @@ firing sounds, which need the owner's yes before any download); phase 4,
 every class its job; phase 5, weather.
 
 
+### 12.22 Playtest 7: the phase 2 build (owner, 2026-10-02)
+
+The owner played the phase 2 build (`daccef6`, the first he has seen with
+Gunnery's movement in it) and said, in his words:
+
+1. "Seems like frames have taken a hit."
+2. "Also way more bugs when walking, sliding around."
+3. "Gameplay seems to go too fast now; too quick from spawning and climbing
+   (climb animations need to be slowed by a quarter), walk run is too quick
+   (almost half)."
+4. "Grenades still don't show properly when launched (only animation is
+   there)."
+
+Notes 1 and 2 are what the code review of §12.23 was asked for, and are
+worked there. Notes 3 and 4, in the order they are worked:
+
+- **The pace of a man.** Gunnery made a man in contact run at 4.0 m/s
+  (`Tune.SpeedRush`) with his squad's anchor at 3.78 (`MarchSpeed` x
+  `RushPaceRun`), where the march is 1.35: the fastest thing on the screen
+  went three times as fast overnight, in dashes of two or three metres. "Almost
+  half" is the instruction: the run comes down to about 2.4 m/s and the anchor
+  with it, and the walk is looked at against its clip (1.35 m/s played on a
+  1.8 m/s clip). They are simulation numbers, behind `MatchOptions.Gunnery`:
+  the pinned hashes move, and the match lengths and the three difficulties of
+  §12.21 are measured again after.
+- **The climb.** Into a trench and out of one a quarter slower: the
+  simulation's `VaultInTicks` and `VaultOutTicks`, and the clips' own speeds
+  with them, so the man is on the parapet for as long as the simulation has
+  him there.
+- **From spawning.** A squad bought now is in the fight too soon. Slower men
+  are most of it; what is left after that is measured (seconds from a card
+  placed to its squad's first contact) before anything else is changed.
+- **Grenades in the air.** The throw is animated and nothing is seen to
+  leave the hand: the grenade is drawn as a dark speck 22 cm across, which at
+  this distance is two or three pixels against dark grass. It is to be seen:
+  larger than life, a glint on it, a thin trail behind it for the flight, and
+  the same for an M79's round. View only.
+
+**As built (2026-10-02, the same day).**
+
+- *Pace* (`Tune.SpeedRush`, `RushPaceRun`, `MarchPace`, `SpeedWalk`, all behind
+  Gunnery): in contact a man goes at 2.4 m/s (it was 4.0) and his squad's
+  anchor at 2.2 (3.8); on the march the anchor goes at 1.08 (1.35) and a man
+  coming up to his place at 1.5 (2.0). At 2.4 he plays the walk's clip a third
+  fast: the only faster clip is the run at 4.5 m/s, which at half speed is a
+  run in slow motion. **A jog clip is the right answer and needs the owner's
+  yes to a Mixamo download.**
+- *The climb* (`Gunnery.VaultTicks`): 19 and 24 ticks into a trench and out
+  (14 and 18), and the clips played at 14/19 and 18/24 of their speed
+  (`SoldierFigure.Climb`), so he is on the parapet as long as the simulation
+  has him there.
+- *From spawning*: not changed beyond the pace. Slower men are slower to the
+  fight by a fifth on the march and by two fifths in contact.
+- *Lengths and difficulty*, measured again (`simcs player 24 N rate=R`),
+  because a slower fight is a longer one and the Americans' squads take longer
+  to come up: will runs out at 0.75, 0.6 and 0.71 (skirmish 110 to 130 s,
+  standard 170 to 250, siege six to eight and a half minutes); a squad costs
+  the computer 40, 29 and 22 (a line-squad buyer wins 23 of 24 as the
+  Americans and 24 as the VC against a Recruit; 17 and 20 against a Veteran;
+  9 and 13 against the Elite).
+- *Grenades* (`CombatView.GrenadeFlight`, `Launched`): a dense dark body 42 cm
+  across (it was a 22 cm puff of smoke, thin at the edge and faded out near
+  the ground) and a pale line through where it was a sixth of a second ago.
+  Seen in a strip of frames (`tools/strip.sh seed=3,tick=318,x=3,dolly=0.45`):
+  the arcs read. An M79's round and a mortar bomb the same.
+
+EditMode 60/60 (the Senses and Gunnery pins re-recorded; the baseline, Frag,
+Drill, Fieldcraft and Arms pins untouched), PlayMode 17/17.
+
+
+### 12.23 The code review: frames, motion, awareness (2026-10-02)
+
+The owner, after playtest 7: review the whole codebase for performance,
+animation and AI awareness; a report and fixes that do not break the build;
+remove the code that is not needed. The report is
+`Docs/CODE-REVIEW-2026-10-02.md`; this is what it comes to. The version before
+it is `daccef6`, pushed first, as he asked.
+
+Measured in the WebGL build, headless Chrome, at the owner's screen (2592 x
+1370; every figure before this section was taken at 1843 x 913, where the
+same frame was 6 ms):
+
+| | before | after |
+|---|---|---|
+| frame, mean / median / 95th percentile | 10.7 / 10.5 / 18 to 20 ms | 4.5 / 4.0 / 6 ms |
+| collections | one a second | none in 20 s |
+| at 1843 x 913 | 6.0 ms | 2.6 ms |
+| download | 29.87 MB | 25.07 MB |
+| ground covered without the legs (motion audit, a new measure and a gate) | 4.9% | 0.6% |
+
+- **Frames.** The ground was 6.2 ms of the 10.7: its shader read all four
+  texture layers at every pixel, anisotropically, where most of the ground is
+  one layer. It reads a layer only where it is (the same picture). Anisotropic
+  filtering was forced on for every texture; it is each texture's own level
+  now (the same picture). Every long frame was the interface: plates and tags
+  moved by layout, a vector path filled for every pip of the strip, strings
+  made every frame. They are moved by transforms, drawn as plain triangles
+  four times a second, and written when they change. The effects renderer
+  rebuilt every mark of the match every frame, and found two men and the
+  ground under them for every shot of the last eleven seconds.
+- **Motion.** The drawn man follows the simulation's instead of being put
+  where it has him: he waits until he is on his feet, gathers speed, and slows
+  into his place; his gait is played at the speed he is drawn moving at; he is
+  moved on the frames he is posed.
+- **Awareness.** A squad decided from an anchor that was leashed to its men
+  before the last of them fell: a broken squad could choose "the cover behind
+  it" from where its dead lead man had been and run forward to it. The anchor
+  is leashed before the squad decides.
+- **Removed.** The sprite and capsule soldiers and their atlases, the grey-box
+  ridges, and a dozen members nothing referenced.
+- **The probe** (`?perf=1`) says what the simulation, the men, the effects and
+  the interface each cost, and switches parts of the frame off (`&off=`): that
+  is how the ground was found.
+
+**For the owner to decide:** a jog clip (§12.22); the bound order, which does
+nothing since Senses; the two lanes as separate fights (§12.19).
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

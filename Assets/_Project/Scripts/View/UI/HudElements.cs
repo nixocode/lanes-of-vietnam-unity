@@ -46,7 +46,9 @@ namespace LanesOfVietnam.View.UI
     /// <summary>
     /// The tactical strip: both lanes drawn schematically along the whole map,
     /// with every unit a pip, each side's front traced, and the camera's
-    /// window over it (brief §7). Clicking it moves the camera there.
+    /// window over it (brief §7). Clicking it moves the camera there. The pips
+    /// are drawn four times a second (a man crosses a pixel of it in about a
+    /// second); the window follows the camera every frame.
     ///
     /// Pips differ in shape as well as colour — squares for the US, triangles
     /// for the VC — because side is otherwise shown only by green against red,
@@ -72,10 +74,21 @@ namespace LanesOfVietnam.View.UI
         public const float Margin = 8f;
         public static float Extent => (float)Tune.HalfLength + Margin;
 
+        // The camera's window over the strip: an element of its own, moved by a transform. Drawn into
+        // the strip's mesh it had the whole strip drawn again on every frame of a pan.
+        private readonly VisualElement _window = new VisualElement { name = "strip-window", pickingMode = PickingMode.Ignore };
+        private float _windowWidth = -1f;
+
         public TacticalStrip()
         {
             AddToClassList("strip");
             generateVisualContent += Draw;
+            _window.style.position = Position.Absolute;
+            _window.style.left = 0; _window.style.top = 1; _window.style.bottom = 1;
+            _window.style.borderLeftWidth = _window.style.borderRightWidth = _window.style.borderTopWidth = _window.style.borderBottomWidth = 1.2f;
+            _window.style.borderLeftColor = _window.style.borderRightColor = _window.style.borderTopColor = _window.style.borderBottomColor = Window;
+            _window.usageHints = UsageHints.DynamicTransform;
+            Add(_window);
             RegisterCallback<PointerDownEvent>(e =>
             {
                 float t = e.localPosition.x / Mathf.Max(1f, contentRect.width);
@@ -86,30 +99,45 @@ namespace LanesOfVietnam.View.UI
 
         private float X(double worldX, Rect r) => r.xMin + (float)((worldX + Extent) / (2 * Extent)) * r.width;
 
+        /// <summary>Put the camera's window where the camera is (every frame: it costs a transform).</summary>
+        public void PlaceWindow()
+        {
+            var r = contentRect;
+            if (float.IsNaN(r.width) || r.width < 10) return;
+            float x0 = X(CameraX - CameraHalfWidth, r), x1 = X(CameraX + CameraHalfWidth, r);
+            // Its width changes only with the zoom.
+            if (Mathf.Abs(x1 - x0 - _windowWidth) > 0.5f) { _windowWidth = x1 - x0; _window.style.width = _windowWidth; }
+            _window.style.translate = new Translate(x0, 0);
+        }
+
+        // The strip's own triangles, written straight into the panel's mesh. It was drawn with the
+        // vector painter, a path filled for every pip: sixty paths cut into triangles at every
+        // repaint, which in a browser is three to four milliseconds, twenty times a second (the
+        // frames that ran long, PLAN §12.23). A pip is two triangles or one; nothing here needs a curve.
+        private readonly List<Vertex> _verts = new List<Vertex>(512);
+        private readonly List<ushort> _tris = new List<ushort>(768);
+
         private void Draw(MeshGenerationContext ctx)
         {
             var r = contentRect;
-            var p = ctx.painter2D;
             if (State == null || r.width < 10) return;
+            _verts.Clear(); _tris.Clear();
             // Lanes top to bottom as they lie in the picture: far lane higher.
             float farY = r.yMin + r.height * 0.30f, nearY = r.yMin + r.height * 0.58f;
             float traceY = r.yMin + r.height * 0.86f;
 
-            p.lineWidth = 1f;
-            p.strokeColor = Line;
-            foreach (var y in new[] { farY, nearY })
-            {
-                p.BeginPath(); p.MoveTo(new Vector2(r.xMin + 2, y)); p.LineTo(new Vector2(r.xMax - 2, y)); p.Stroke();
-            }
+            Quad(r.xMin + 2, farY - 0.5f, r.xMax - 2, farY + 0.5f, Line);
+            Quad(r.xMin + 2, nearY - 0.5f, r.xMax - 2, nearY + 0.5f, Line);
 
             // Each side's front, as a bar from its own end to its furthest man.
             double usFront = State.Front[(int)Side.Us], vcFront = State.Front[(int)Side.Vc];
-            Bar(p, r.xMin + 1, X(usFront, r), traceY - 3, 4, Us);
-            Bar(p, X(vcFront, r), r.xMax - 1, traceY + 1, 4, Vc);
+            Quad(r.xMin + 1, traceY - 3, X(usFront, r), traceY + 1, Us);
+            Quad(X(vcFront, r), traceY + 1, r.xMax - 1, traceY + 5, Vc);
 
             PipsDrawn = 0;
-            foreach (var m in State.Men)
+            for (int i = 0; i < State.Men.Count; i++)
             {
+                var m = State.Men[i];
                 if (!m.Alive) continue;
                 // The strip shows what the viewer's side knows: a concealed
                 // enemy is not on it.
@@ -117,48 +145,37 @@ namespace LanesOfVietnam.View.UI
                 var sq = State.Squads[m.Squad];
                 float y = sq.Lane == 0 ? nearY : farY;
                 float x = X(m.X, r);
-                if (m.Side == Side.Us) Square(p, x, y, 2.6f, Us);
-                else Triangle(p, x, y, 3.2f, Vc);
+                if (m.Side == Side.Us) Quad(x - 2.6f, y - 2.6f, x + 2.6f, y + 2.6f, Us);
+                else Triangle(x, y, 3.2f, Vc);
                 PipsDrawn++;
             }
 
-            // The camera's window.
-            float wx0 = X(CameraX - CameraHalfWidth, r), wx1 = X(CameraX + CameraHalfWidth, r);
-            p.strokeColor = Window;
-            p.lineWidth = 1.2f;
-            p.BeginPath();
-            p.MoveTo(new Vector2(wx0, r.yMin + 1)); p.LineTo(new Vector2(wx1, r.yMin + 1));
-            p.LineTo(new Vector2(wx1, r.yMax - 1)); p.LineTo(new Vector2(wx0, r.yMax - 1));
-            p.ClosePath();
-            p.Stroke();
+            var mesh = ctx.Allocate(_verts.Count, _tris.Count);
+            for (int i = 0; i < _verts.Count; i++) mesh.SetNextVertex(_verts[i]);
+            for (int i = 0; i < _tris.Count; i++) mesh.SetNextIndex(_tris[i]);
         }
 
-        private static void Bar(Painter2D p, float x0, float x1, float y, float h, Color c)
+        private void Corner(float x, float y, Color32 c)
+            => _verts.Add(new Vertex { position = new Vector3(x, y, Vertex.nearZ), tint = c });
+
+        /// <summary>A filled rectangle; nothing, if it has no width.</summary>
+        private void Quad(float x0, float y0, float x1, float y1, Color c)
         {
-            if (x1 <= x0) return;
-            p.fillColor = c;
-            p.BeginPath();
-            p.MoveTo(new Vector2(x0, y)); p.LineTo(new Vector2(x1, y));
-            p.LineTo(new Vector2(x1, y + h)); p.LineTo(new Vector2(x0, y + h));
-            p.ClosePath(); p.Fill();
+            if (x1 <= x0 || y1 <= y0) return;
+            int k = _verts.Count;
+            Color32 tint = c;
+            // Clockwise as the panel sees it (y runs down): bottom left, top left, top right, bottom right.
+            Corner(x0, y1, tint); Corner(x0, y0, tint); Corner(x1, y0, tint); Corner(x1, y1, tint);
+            _tris.Add((ushort)k); _tris.Add((ushort)(k + 1)); _tris.Add((ushort)(k + 2));
+            _tris.Add((ushort)(k + 2)); _tris.Add((ushort)(k + 3)); _tris.Add((ushort)k);
         }
 
-        private static void Square(Painter2D p, float x, float y, float s, Color c)
+        private void Triangle(float x, float y, float s, Color c)
         {
-            p.fillColor = c;
-            p.BeginPath();
-            p.MoveTo(new Vector2(x - s, y - s)); p.LineTo(new Vector2(x + s, y - s));
-            p.LineTo(new Vector2(x + s, y + s)); p.LineTo(new Vector2(x - s, y + s));
-            p.ClosePath(); p.Fill();
-        }
-
-        private static void Triangle(Painter2D p, float x, float y, float s, Color c)
-        {
-            p.fillColor = c;
-            p.BeginPath();
-            p.MoveTo(new Vector2(x, y - s)); p.LineTo(new Vector2(x + s, y + s * 0.8f));
-            p.LineTo(new Vector2(x - s, y + s * 0.8f));
-            p.ClosePath(); p.Fill();
+            int k = _verts.Count;
+            Color32 tint = c;
+            Corner(x - s, y + s * 0.8f, tint); Corner(x, y - s, tint); Corner(x + s, y + s * 0.8f, tint);
+            _tris.Add((ushort)k); _tris.Add((ushort)(k + 1)); _tris.Add((ushort)(k + 2));
         }
     }
 
@@ -213,6 +230,13 @@ namespace LanesOfVietnam.View.UI
             _cd = new VisualElement();
             _cd.AddToClassList("card-cd");
             _cd.pickingMode = PickingMode.Ignore;
+            // The shade is the whole card's height, scaled down from its top edge: a transform, which
+            // costs nothing, where its height changing every tick of a cooldown was the deck laid out
+            // again twenty times a second.
+            _cd.style.height = Length.Percent(100);
+            _cd.style.transformOrigin = new TransformOrigin(Length.Percent(50), Length.Percent(0));
+            _cd.style.scale = new Scale(new Vector3(1, 0, 1));
+            _cd.usageHints = UsageHints.DynamicTransform;
             Add(_cd);
 
             var k = new Label(key);
@@ -230,7 +254,7 @@ namespace LanesOfVietnam.View.UI
             if (Math.Abs(coolingFraction - Cooling) > 0.001f)
             {
                 Cooling = coolingFraction;
-                _cd.style.height = Length.Percent(Mathf.Clamp01(coolingFraction) * 100f);
+                _cd.style.scale = new Scale(new Vector3(1, Mathf.Clamp01(coolingFraction), 1));
             }
         }
     }

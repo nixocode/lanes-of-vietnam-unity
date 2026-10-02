@@ -13,6 +13,8 @@
 WebGLBuild/
 
 *.csproj
+# (Unity's own, which it generates. The headless sim runner's is ours, and the tool does not build without it.)
+!tools/simcs/SimCs.csproj
 *.unityproj
 *.sln
 *.suo

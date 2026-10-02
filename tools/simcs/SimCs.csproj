@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The simulation, headless, outside Unity. It compiles the Sim assembly's own
+    source files — not a copy — which is only possible because that assembly
+    references nothing from the engine (noEngineReferences in its asmdef).
+
+    Built with the .NET 8 SDK that ships inside the Unity editor:
+      tools/simcs/run.sh parity <trace.json>
+      tools/simcs/run.sh seeds 48 ceiling floor
+
+    LangVersion 9 because that is what Unity's compiler accepts: syntax that
+    builds here and not in the editor would be a trap.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Optimize>true</Optimize>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>simcs</AssemblyName>
+    <RootNamespace>LanesOfVietnam.SimCs</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Scripts/Sim/**/*.cs" />
+    <Compile Include="*.cs" />
+  </ItemGroup>
+</Project>

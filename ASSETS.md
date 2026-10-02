@@ -262,7 +262,14 @@ massif's eastern foot, looking along a heading of **262°**.
 |---|---|
 | `mountains.bytes` | `9397666d04ed41c86c3194cf9dd879bb7c81e9562b861c0a8506e4fa2aba6028` |
 
-### Soldiers (interim) — `Assets/_Project/Art/Soldiers/`
+### Soldiers (interim): removed 2026-10-02
+
+The baked sprite soldiers (`Assets/_Project/Art/Soldiers/`: two atlases a
+side and their layouts) left the project in the code review of 2026-10-02
+(`Docs/CODE-REVIEW-2026-10-02.md`, PLAN §12.23): nothing had drawn them since
+the 3D men of the next section. They are in git at `daccef6`. What follows is
+kept because the 3D men's interim clips (`soldier_poses.fbx`) are made from
+the same poses and the same motion capture.
 
 **Our own work:** the earlier build's rigged soldiers, from its
 `pipeline/build_soldier.py`. They are an MPFB2 (MakeHuman) body, **CC0**, on
@@ -299,17 +306,10 @@ ahead to left heel ahead, and records its stride.
 | crouch | 136_09 "walk crouched" (torso at 45%) | 12 | 0.98 m | 1.27 s | `f958ad4cfc516b025da94eb1085b7ded2f34e0fad2c0520fb554a29794b28c33` |
 | idle | 137_28 "normal wait": its stillest 3 s by foot travel and hip turn (torso at 60%) | 8 | — | 3 s | `10ee250f5676265860a4fa4bad8c5d74af7116c038f9fea998e1bbd7f4d395ad` |
 
-This is an **interim** until the PLAN §12.3 soldiers (textured kit,
-Mixamo-driven Humanoid motion) exist. It costs one quad per man.
-
 | file | sha256 |
 |---|---|
 | `us_rifleman.glb` (source) | `ff0cd3c3388ae6ede5bbea97e0f40fea93043e33831356a61737d9a89d652b40` |
 | `vc_guerrilla.glb` (source) | `2722ca1736956df6db650c30dee512d957050798a878125a56c4ec820f6b06a8` |
-| `soldier_us_albedo.png` | `1199ae2cfc74685e9d9e4ca01d2d0fabd7472b90761f34e263412ddaf8d7fa77` |
-| `soldier_us_normal.png` | `3d857e18777d4af2b63292f5613572c14dd2fb0a39873632dcd3e0baa59cdbb4` |
-| `soldier_vc_albedo.png` | `4d6d02154f9ec7062b75dd80210884c59e0052733aa4ef3aa9e6ea54fdceb2b9` |
-| `soldier_vc_normal.png` | `5de2e0ad9f6b42620e4660678a6770c8a1b4fb98a0b507202393886c51f9f2a8` |
 
 ### Soldiers (3D) — `Assets/_Project/Art/Soldiers3D/`
 

@@ -122,16 +122,6 @@ namespace LanesOfVietnam.View
             return (p.X + (c.X - p.X) * a, p.Z + (c.Z - p.Z) * a);
         }
 
-        /// <summary>Metres moved over the last tick: what a walk cycle advances by (PLAN §5.4 — distance, not time, or feet skate).</summary>
-        public double StepLength(int id)
-        {
-            if (id >= _prevCount) return 0;
-            var c = _curr[id];
-            var p = _prev[id];
-            double dx = c.X - p.X, dz = c.Z - p.Z;
-            return Math.Sqrt(dx * dx + dz * dz);
-        }
-
         /// <summary>How man <paramref name="id"/> moved over the last tick (sim x, z), for facing and gait.</summary>
         public (double dx, double dz) LastStep(int id)
         {

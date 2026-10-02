@@ -98,7 +98,7 @@ namespace LanesOfVietnam.View
                 Root.CameraRig.FieldGlasses = true;
             }
             if (Input.GetKeyUp(KeyCode.F)) Root.CameraRig.FieldGlasses = false;
-            if (Selected >= 0 && Squads.Roster(State, Selected).Count == 0) Clear();
+            if (Selected >= 0 && !Squads.AnyAlive(State, Selected)) Clear();
         }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace LanesOfVietnam.View
         /// </summary>
         public Vector3 ChestOf(int manId)
         {
-            var (x, z) = Root.Driver.Position(manId);
+            var (x, z) = Root.ArmyView.Where(Root.Driver, manId);
             var m = State.Men[manId];
             float h = m.Posture == Posture.Prone ? 0.32f : m.Posture == Posture.Crouched ? 0.85f : Chest;
             return Coords.World(x, z, (float)Root.Ground.HeightAt(x, z) + h);
@@ -142,7 +142,7 @@ namespace LanesOfVietnam.View
             foreach (var sq in State.Squads)
             {
                 if (sq.Side != Root.PlayerSide) continue;
-                if (Squads.Roster(State, sq.Id).Count == 0) continue;
+                if (!Squads.AnyAlive(State, sq.Id)) continue;
                 ids.Add((sq.Id, Mathf.Abs((float)sq.AnchorX - Root.CameraRig.X)));
             }
             ids.Sort((a, b) => a.d != b.d ? a.d.CompareTo(b.d) : a.id.CompareTo(b.id));

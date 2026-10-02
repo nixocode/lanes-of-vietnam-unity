@@ -70,11 +70,7 @@ namespace LanesOfVietnam.View
         private readonly List<Vector4> _suv = new List<Vector4>();
         private readonly List<int> _si = new List<int>();
         private readonly Light[] _lights = new Light[4];
-        private Mesh _markMesh;
-        private readonly List<Vector3> _mp = new List<Vector3>();
-        private readonly List<Color> _mc = new List<Color>();
-        private readonly List<Vector4> _muv = new List<Vector4>();
-        private readonly List<int> _mi = new List<int>();
+        private Mesh _markMesh, _settledMesh;
         private readonly List<(Vector3 pos, float intensity)> _flashes = new List<(Vector3, float)>();
         private Vector3 _right, _up, _camPos;
         private int _shaken;
@@ -97,7 +93,12 @@ namespace LanesOfVietnam.View
         {
             _glowMf = Child("combat light", Glow, out _glowMesh);
             _smokeMf = Child("combat smoke", Smoke, out _smokeMesh);
-            if (Marks != null) Child("ground marks", Marks, out _markMesh);
+            if (Marks != null)
+            {
+                // What has stopped changing under what has not: the same material, the settled marks drawn first.
+                Child("ground marks, settled", Marks, out _settledMesh).GetComponent<MeshRenderer>().sortingOrder = -1;
+                Child("ground marks", Marks, out _markMesh);
+            }
             for (int i = 0; i < _lights.Length; i++)
             {
                 var go = new GameObject("shell flash");
@@ -127,7 +128,18 @@ namespace LanesOfVietnam.View
             return mf;
         }
 
+        /// <summary>Milliseconds the last frame's effects took to build. For the frame-time probe.</summary>
+        public float LastMs { get; private set; }
+        private readonly System.Diagnostics.Stopwatch _clock = new System.Diagnostics.Stopwatch();
+
         private void LateUpdate()
+        {
+            _clock.Restart();
+            Build();
+            LastMs = (float)_clock.Elapsed.TotalMilliseconds;
+        }
+
+        private void Build()
         {
             _root ??= GameRoot.Instance;
             if (_root == null || _root.Driver == null || _root.CameraRig == null) return;
@@ -142,7 +154,13 @@ namespace LanesOfVietnam.View
             for (int i = ev.Count - 1; i >= 0; i--)
             {
                 var e = ev[i];
-                if (now - e.Tick * Tune.Dt > MaxAge) break;
+                // At least this old: the tick's end. (Its shots are spread back across the tick.)
+                double least = now - e.Tick * Tune.Dt;
+                if (least > MaxAge) break;
+                // Most of the log is not drawn at all, and what is has its own time: a shot's dust is gone
+                // in two seconds, a shell's smoke hangs for ten. (Every shot of the last eleven seconds had
+                // its men found and the ground under them measured, every frame, to draw nothing.)
+                if (least > Life(e.Kind)) continue;
                 double age = now - (e.Tick - 1 + Hash(i, 0)) * Tune.Dt;
                 if (age < 0) continue;
                 switch (e.Kind)
@@ -173,11 +191,34 @@ namespace LanesOfVietnam.View
             Lights();
         }
 
+        /// <summary>
+        /// Seconds an event of this kind has anything on the screen, at the most; nothing for a kind
+        /// that is not drawn. A shot: the last round of a burst out, across the map, and its dust
+        /// settled. A blow or a round through a man: the blood. A grenade: its smoke. The rest, as
+        /// long as a shell's smoke hangs.
+        /// </summary>
+        private static float Life(EventKind kind)
+        {
+            switch (kind)
+            {
+                case EventKind.Fire: return 2.6f;
+                case EventKind.Melee: case EventKind.Through: return 1.3f;
+                case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
+                case EventKind.GrenadeBlast: return 6f;
+                case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
+                default: return -1f;
+            }
+        }
+
         // --- shots -------------------------------------------------------------------
+
+        /// <summary>Where a man is on the screen (ArmyView.Where): what is drawn about him is drawn on him.</summary>
+        private (double x, double z) At(int id)
+            => _root.ArmyView != null ? _root.ArmyView.Where(_root.Driver, id) : _root.Driver.Position(id);
 
         private Vector3 Chest(Man m)
         {
-            var (x, z) = _root.Driver.Position(m.Id);
+            var (x, z) = At(m.Id);
             float h = m.Posture == Posture.Prone ? 0.3f : m.Posture == Posture.Crouched ? 0.95f : 1.35f;
             return Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + h);
         }
@@ -211,7 +252,7 @@ namespace LanesOfVietnam.View
             {
                 double lx = e.X.Value, lz = e.Z.Value;
                 var cover = target.Cover >= 0 && target.Cover < st.Cover.Count ? st.Cover[target.Cover] : null;
-                var (tx, tz) = _root.Driver.Position(target.Id);
+                var (tx, tz) = At(target.Id);
                 if (cover != null && Fieldcraft.Built(cover) && Hash(i, 40) < 0.55)
                 {
                     // Into the bags in front of him: a pace short of him on the round's own line, at the height of the wall.
@@ -448,6 +489,7 @@ namespace LanesOfVietnam.View
             if (e.X == null || e.Id >= men.Count) return;
             var by = men[e.Id];
             float flight = (float)((e.Amount ?? 10) * Tune.Dt);
+            if (age >= 1.6f && age >= flight) return;           // landed, and the smoke of the shot gone
             var a = Chest(by);
             double lx = e.X.Value, lz = e.Z.Value;
             var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.1f);
@@ -485,7 +527,13 @@ namespace LanesOfVietnam.View
                     AddPuff(pk, 0.25f + 0.12f * k, new Color(0.7f, 0.7f, 0.68f, 0.5f - 0.07f * k), (float)Hash(i, 62 + k), 1f);
                 }
             }
-            else AddPuff(p, mortar ? 0.3f : 0.2f, new Color(0.035f, 0.035f, 0.03f, 1f), 0.5f, 1f);
+            else
+            {
+                // An M79's round or a mortar bomb: the dark body, and the line it draws (GrenadeFlight).
+                float tw = Mathf.Max(0f, t - 0.07f / flight);
+                AddStreak(Vector3.Lerp(from, to, tw) + Vector3.up * (4f * apex * tw * (1 - tw)), p, 0.03f, Wake, (float)Hash(i, 63));
+                AddPuff(p, mortar ? 0.45f : 0.32f, Missile, 0.5f, 4f);
+            }
         }
 
         /// <summary>
@@ -510,14 +558,26 @@ namespace LanesOfVietnam.View
 
         // --- grenades ---------------------------------------------------------------------
 
+        /// <summary>What is thrown or fired through the air is drawn as a dark body, denser than any smoke.</summary>
+        private static readonly Color Missile = new Color(0.03f, 0.035f, 0.025f, 1f);
+        /// <summary>And the line it leaves on the eye: pale, faint, where it has just been.</summary>
+        private static readonly Color Wake = new Color(0.80f, 0.82f, 0.72f) * 0.6f;
+
         /// <summary>
         /// A grenade from the thrower's hand to where it lands, on a lob, then
-        /// lying there until the blast event takes over: a dark speck, which is
-        /// all a grenade is at this distance, and it reads because it moves.
+        /// lying there until the blast event takes over.
+        ///
+        /// It was a dark speck 22 cm across, "all a grenade is at this distance",
+        /// drawn as a puff of smoke: thin at its edge and faded out wherever it
+        /// came near the ground. Nothing was seen to leave the hand (the owner,
+        /// playtest 7: "grenades still don't show properly when launched, only
+        /// animation is there"). It is larger than life now and dense, and it
+        /// draws its own arc: a pale line through where it was an eighth of a
+        /// second ago, which is what the eye follows.
         /// </summary>
         private void GrenadeFlight(SimEvent e, float age)
         {
-            const float flight = 1.1f;
+            const float flight = 1.1f, wake = 0.16f;
             float fuse = Tune.FragFuse * (float)Tune.Dt;
             if (age > fuse || e.X == null) return;
             var men = _root.Driver.State.Men;
@@ -525,15 +585,16 @@ namespace LanesOfVietnam.View
             var from = Chest(men[e.Id]) + Vector3.up * 0.5f;
             double lx = e.X.Value, lz = e.Z.Value;
             var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.08f);
-            Vector3 p;
+            float apex = 2.5f + 0.12f * Vector3.Distance(from, to);
+            Vector3 Arc(float t) => Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
             if (age < flight)
             {
-                float t = age / flight;
-                float apex = 2.5f + 0.12f * Vector3.Distance(from, to);
-                p = Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
+                var p = Arc(age / flight);
+                AddStreak(Arc(Mathf.Max(0f, age - wake) / flight), p, 0.03f, Wake, (float)Hash(e.Id * 31 + e.Tick, 46));
+                AddPuff(p, 0.42f, Missile, 0.5f, 4f);
             }
-            else p = to;
-            AddPuff(p, 0.22f, new Color(0.035f, 0.035f, 0.03f, 1f), 0.5f, 1f);
+            // Lying where it came down, a hand's breadth clear of the ground it would fade into.
+            else AddPuff(to + Vector3.up * 0.12f, 0.3f, Missile, 0.5f, 4f);
         }
 
         /// <summary>
@@ -689,10 +750,9 @@ namespace LanesOfVietnam.View
                     float t = (float)now;
                     double x = ar.X + Math.Cos(ang) * r + Math.Sin(t * 0.13 + k) * 1.2;
                     double z = ar.Z + Math.Sin(ang) * r;
-                    float y = (float)_root.Ground.HeightAt(x, z) + 1.2f + 2.2f * (float)Hash(seed, 2) + 0.5f * Mathf.Sin(t * 0.21f + k);
                     // Puffs sized to the screen: a fire mission's 14 m bank or a squad's 3.5 m canister.
                     float size = (float)ar.Radius * (0.32f + 0.2f * (float)Hash(seed, 3));
-                    y = (float)_root.Ground.HeightAt(x, z) + size * (0.25f + 0.35f * (float)Hash(seed, 2));
+                    float y = (float)_root.Ground.HeightAt(x, z) + size * (0.25f + 0.35f * (float)Hash(seed, 2));
                     AddPuff(Coords.World(x, z, y), size, new Color(0.52f, 0.52f, 0.50f, 0.55f * density),
                             (float)Hash(seed, 4), 1f);
                 }
@@ -701,89 +761,173 @@ namespace LanesOfVietnam.View
 
         // --- marks on the ground ------------------------------------------------------------
 
+        /// <summary>Four lists that make a mesh of quads on the ground.</summary>
+        private sealed class MarkQuads
+        {
+            public readonly List<Vector3> P = new List<Vector3>();
+            public readonly List<Color> C = new List<Color>();
+            public readonly List<Vector4> Uv = new List<Vector4>();
+            public readonly List<int> I = new List<int>();
+
+            public void Clear() { P.Clear(); C.Clear(); Uv.Clear(); I.Clear(); }
+
+            public void Into(Mesh m)
+            {
+                m.Clear();
+                if (P.Count == 0) return;
+                m.SetVertices(P);
+                m.SetColors(C);
+                m.SetUVs(0, Uv);
+                m.SetTriangles(I, 0, false);
+                m.bounds = new Bounds(Vector3.zero, Vector3.one * 4000f);
+            }
+        }
+
+        /// <summary>A kill or a blast whose marks are still coming in: its place in the log, and whether a round made the kill.</summary>
+        private struct Fresh { public int Event; public bool Shot; }
+
+        /// <summary>Seconds after which a dead man's marks, and a blast's, have stopped changing: he has fallen and lies still, his blood has soaked out, the scorch has darkened in.</summary>
+        private const float KillSettles = 6.6f, BlastSettles = 1.6f;
+
+        private readonly MarkQuads _live = new MarkQuads(), _settled = new MarkQuads();
+        private readonly List<Fresh> _fresh = new List<Fresh>();
+        private bool[] _lies = new bool[0];
+        private SimState _marksOf;
+        private int _markCursor;
+
         /// <summary>
         /// A soft shadow under every man, living or dead, and a scorch wherever
         /// a shell or a grenade went off, for the rest of the match. The scorch
         /// darkens in as the blast clears, so it never pops.
+        ///
+        /// Two meshes. A mark that has stopped changing (a dead man's shadow
+        /// and his blood once he lies still, a scorch once it has darkened) is
+        /// built once, into the first, and stays. Only the living men's
+        /// shadows and the marks of the last few seconds are built each frame.
+        /// (All of them were, from the whole log, every frame: by the end of a
+        /// match that was the ground measured some thousands of times a frame
+        /// to redraw what had not moved.)
         /// </summary>
         private void GroundMarks(SimState st, double now)
         {
-            _mp.Clear(); _mc.Clear(); _muv.Clear(); _mi.Clear();
-            var d = _root.Driver;
-            for (int i = 0; i < st.Men.Count; i++)
-            {
-                var m = st.Men[i];
-                var (x, z) = d.Position(i);
-                bool flat = !m.Alive || m.Posture == Posture.Prone;
-                float w = flat ? 1.9f : m.Posture == Posture.Crouched ? 1.0f : 0.9f;
-                float h = flat ? 0.8f : 0.55f;
-                Flat(x, z, w, h, new Color(0.45f, 0.44f, 0.42f, 0.8f), i * 0.013f, 0f);
-            }
             var ev = st.Events;
-            for (int i = 0; i < ev.Count; i++)
+            if (!ReferenceEquals(st, _marksOf) || _markCursor > ev.Count)
             {
-                var e = ev[i];
+                // A new match.
+                _marksOf = st; _markCursor = 0;
+                _fresh.Clear(); _settled.Clear();
+                System.Array.Clear(_lies, 0, _lies.Length);
+                _settled.Into(_settledMesh);
+            }
+            if (_lies.Length < st.Men.Count) System.Array.Resize(ref _lies, st.Men.Count * 2);
+            for (; _markCursor < ev.Count; _markCursor++)
+            {
+                var e = ev[_markCursor];
+                int i = _markCursor;
                 if (e.Kind == EventKind.Kill && e.Id < st.Men.Count)
                 {
-                    float since = (float)(now - e.Tick * Tune.Dt);
-                    if (since >= 0.25f && i > 0 && ev[i - 1].Tick == e.Tick && ev[i - 1].Target == e.Id
-                        && (ev[i - 1].Kind == EventKind.Fire || ev[i - 1].Kind == EventKind.Through))
-                    {
-                        // Shot: what the round threw out of him lies on the ground beyond
-                        // where he stood, the way it was going (it came from the other side).
-                        var man = st.Men[e.Id];
-                        double go = Combat.Advance(Combat.Other(man.Side));
-                        float show = Mathf.Clamp01((since - 0.25f) / 0.3f);
-                        for (int k = 0; k < 3; k++)
-                        {
-                            double reach = 0.8 + 1.1 * k + 0.9 * Hash(e.Id, 110 + k);
-                            float spot = 0.55f - 0.12f * k + 0.2f * (float)Hash(e.Id, 113 + k);
-                            Flat(man.X + go * reach, man.Z + (Hash(e.Id, 116 + k) - 0.5) * (0.5 + 0.5 * k), spot, spot * 0.6f,
-                                 new Color(0.30f, 0.04f, 0.03f, 0.8f * show), (float)Hash(e.Id, 119 + k), 1f);
-                        }
-                    }
-                    // Blood: where he lies (the body, not the sim's point: a fall
-                    // carries him), soaking out over a few seconds, and it stays.
-                    if (since < 0.6f) continue;
-                    var (bx, bz) = d.Position(e.Id);
-                    if (_root.ArmyView != null && _root.ArmyView.TryBody(e.Id, out var body)) { bx = body.x; bz = Coords.SimZ(body.z); }
-                    float soak = Mathf.SmoothStep(0, 1, (since - 0.6f) / 5f);
-                    float pool = 0.45f + 0.75f * soak + 0.3f * (float)Hash(e.Id, 95);
-                    Flat(bx + (Hash(e.Id, 96) - 0.5) * 0.3, bz + (Hash(e.Id, 97) - 0.5) * 0.3, pool, pool * 0.8f,
-                         new Color(0.34f, 0.045f, 0.035f, 0.9f * Mathf.Clamp01((since - 0.6f) / 1.2f)), (float)Hash(e.Id, 98), 1f);
+                    // The simulation writes a kill straight after the shot, or the round through another man, that made it.
+                    bool shot = i > 0 && ev[i - 1].Tick == e.Tick && ev[i - 1].Target == e.Id
+                                && (ev[i - 1].Kind == EventKind.Fire || ev[i - 1].Kind == EventKind.Through);
+                    _fresh.Add(new Fresh { Event = i, Shot = shot });
+                }
+                else if ((e.Kind == EventKind.Shell || e.Kind == EventKind.GrenadeBlast) && e.X != null) _fresh.Add(new Fresh { Event = i });
+            }
+
+            _live.Clear();
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                if (_lies[i]) continue;
+                Shadow(_live, st.Men[i]);
+            }
+            int before = _settled.P.Count;
+            for (int k = 0; k < _fresh.Count; k++)
+            {
+                var f = _fresh[k];
+                var e = ev[f.Event];
+                float age = (float)(now - e.Tick * Tune.Dt);
+                bool kill = e.Kind == EventKind.Kill;
+                if (age < (kill ? KillSettles : BlastSettles))
+                {
+                    if (kill) Bled(_live, st, e, f.Shot, age); else Scorch(_live, e, f.Event, age);
                     continue;
                 }
-                if ((e.Kind != EventKind.Shell && e.Kind != EventKind.GrenadeBlast) || e.X == null) continue;
-                float age = (float)(now - e.Tick * Tune.Dt);
-                if (age < 0) continue;
-                float grow = Mathf.Clamp01(age / 1.5f);
-                float size = e.Kind == EventKind.Shell ? 5.5f : 3.0f;
-                Flat(e.X.Value, e.Z.Value, size, size, new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(i, 90), 1f);
+                if (kill)
+                {
+                    Shadow(_settled, st.Men[e.Id]);
+                    Bled(_settled, st, e, f.Shot, age);
+                    _lies[e.Id] = true;
+                }
+                else Scorch(_settled, e, f.Event, age);
+                _fresh.RemoveAt(k--);
             }
-            _markMesh.Clear();
-            if (_mp.Count == 0) return;
-            _markMesh.SetVertices(_mp);
-            _markMesh.SetColors(_mc);
-            _markMesh.SetUVs(0, _muv);
-            _markMesh.SetTriangles(_mi, 0, false);
-            _markMesh.bounds = new Bounds(Vector3.zero, Vector3.one * 4000f);
+            if (_settled.P.Count != before) _settled.Into(_settledMesh);
+            _live.Into(_markMesh);
+        }
+
+        private void Shadow(MarkQuads into, Man m)
+        {
+            var (x, z) = At(m.Id);
+            bool flat = !m.Alive || m.Posture == Posture.Prone;
+            float w = flat ? 1.9f : m.Posture == Posture.Crouched ? 1.0f : 0.9f;
+            float h = flat ? 0.8f : 0.55f;
+            Flat(into, x, z, w, h, new Color(0.45f, 0.44f, 0.42f, 0.8f), m.Id * 0.013f, 0f);
+        }
+
+        /// <summary>A dead man's blood: what the round threw out of him, and the pool where he lies.</summary>
+        private void Bled(MarkQuads into, SimState st, SimEvent e, bool shot, float since)
+        {
+            if (since >= 0.25f && shot)
+            {
+                // Shot: what the round threw out of him lies on the ground beyond
+                // where he stood, the way it was going (it came from the other side).
+                var man = st.Men[e.Id];
+                double go = Combat.Advance(Combat.Other(man.Side));
+                float show = Mathf.Clamp01((since - 0.25f) / 0.3f);
+                for (int k = 0; k < 3; k++)
+                {
+                    double reach = 0.8 + 1.1 * k + 0.9 * Hash(e.Id, 110 + k);
+                    float spot = 0.55f - 0.12f * k + 0.2f * (float)Hash(e.Id, 113 + k);
+                    Flat(into, man.X + go * reach, man.Z + (Hash(e.Id, 116 + k) - 0.5) * (0.5 + 0.5 * k), spot, spot * 0.6f,
+                         new Color(0.30f, 0.04f, 0.03f, 0.8f * show), (float)Hash(e.Id, 119 + k), 1f);
+                }
+            }
+            // Blood: where he lies (the body, not the sim's point: a fall
+            // carries him), soaking out over a few seconds, and it stays.
+            if (since < 0.6f) return;
+            var (bx, bz) = At(e.Id);
+            if (_root.ArmyView != null && _root.ArmyView.TryBody(e.Id, out var body)) { bx = body.x; bz = Coords.SimZ(body.z); }
+            float soak = Mathf.SmoothStep(0, 1, (since - 0.6f) / 5f);
+            float pool = 0.45f + 0.75f * soak + 0.3f * (float)Hash(e.Id, 95);
+            Flat(into, bx + (Hash(e.Id, 96) - 0.5) * 0.3, bz + (Hash(e.Id, 97) - 0.5) * 0.3, pool, pool * 0.8f,
+                 new Color(0.34f, 0.045f, 0.035f, 0.9f * Mathf.Clamp01((since - 0.6f) / 1.2f)), (float)Hash(e.Id, 98), 1f);
+        }
+
+        /// <summary>Where a shell or a grenade went off: the earth burnt, darkening in as the blast clears.</summary>
+        private void Scorch(MarkQuads into, SimEvent e, int index, float age)
+        {
+            if (age < 0) return;
+            float grow = Mathf.Clamp01(age / 1.5f);
+            float size = e.Kind == EventKind.Shell ? 5.5f : 3.0f;
+            Flat(into, e.X.Value, e.Z.Value, size, size, new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(index, 90), 1f);
         }
 
         /// <summary>A flat quad on the ground at a sim position, following its slope at the corners.</summary>
-        private void Flat(double x, double z, float w, float h, Color col, float seed, float kind)
+        private void Flat(MarkQuads into, double x, double z, float w, float h, Color col, float seed, float kind)
         {
-            var g = _root.Ground;
-            int k = _mp.Count;
+            int k = into.P.Count;
             float hw = w * 0.5f, hh = h * 0.5f;
-            foreach (var (dx, dz) in new[] { (-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh) })
-            {
-                double cx = x + dx, cz = z + dz;
-                _mp.Add(Coords.World(cx, cz, (float)g.HeightAt(cx, cz) + 0.04f));
-                _mc.Add(col);
-            }
-            _muv.Add(new Vector4(0, 0, seed, kind)); _muv.Add(new Vector4(1, 0, seed, kind));
-            _muv.Add(new Vector4(1, 1, seed, kind)); _muv.Add(new Vector4(0, 1, seed, kind));
-            _mi.Add(k); _mi.Add(k + 1); _mi.Add(k + 2); _mi.Add(k); _mi.Add(k + 2); _mi.Add(k + 3);
+            Corner(into, x - hw, z - hh, col); Corner(into, x + hw, z - hh, col);
+            Corner(into, x + hw, z + hh, col); Corner(into, x - hw, z + hh, col);
+            into.Uv.Add(new Vector4(0, 0, seed, kind)); into.Uv.Add(new Vector4(1, 0, seed, kind));
+            into.Uv.Add(new Vector4(1, 1, seed, kind)); into.Uv.Add(new Vector4(0, 1, seed, kind));
+            into.I.Add(k); into.I.Add(k + 1); into.I.Add(k + 2); into.I.Add(k); into.I.Add(k + 2); into.I.Add(k + 3);
+        }
+
+        private void Corner(MarkQuads into, double x, double z, Color col)
+        {
+            into.P.Add(Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + 0.04f));
+            into.C.Add(col);
         }
 
         // --- geometry ---------------------------------------------------------------------------

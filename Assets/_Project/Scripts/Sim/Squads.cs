@@ -34,6 +34,14 @@ namespace LanesOfVietnam.Sim
             return outv;
         }
 
+        /// <summary>Has this squad anyone left? (A question the view asks every frame: no list is made to answer it.)</summary>
+        public static bool AnyAlive(SimState st, int squadId)
+        {
+            for (int i = 0; i < st.Men.Count; i++)
+                if (st.Men[i].Squad == squadId && st.Men[i].Alive) return true;
+            return false;
+        }
+
         /// <summary>
         /// Where each man should stand, given who is actually alive.
         ///
@@ -149,13 +157,6 @@ namespace LanesOfVietnam.Sim
         {
             m.Trail.Add(m.X);
             if (m.Trail.Count > Tune.MoveWindow) m.Trail.RemoveAt(0);
-        }
-
-        /// <summary>Fraction of a squad's original strength still alive, for the break test.</summary>
-        public static double Strength(SimState st, Squad sq, IReadOnlyDictionary<int, int> original)
-        {
-            int n0 = original.TryGetValue(sq.Id, out int v) ? v : 1;
-            return (double)Roster(st, sq.Id).Count / Math.Max(1, n0);
         }
     }
 }

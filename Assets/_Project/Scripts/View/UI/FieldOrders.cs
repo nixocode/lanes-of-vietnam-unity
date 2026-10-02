@@ -81,7 +81,7 @@ namespace LanesOfVietnam.View.UI
             {
                 if (_done[i]) continue;
                 var s = steps[i];
-                if ((s.Mark != null && _marks.Contains(s.Mark)) || (s.Done != null && s.Done(st))) _done[i] = true;
+                if ((s.Mark != null && _marks.Contains(s.Mark)) || (s.Done != null && s.Done(st))) { _done[i] = true; _line = null; }
             }
         }
 
@@ -97,13 +97,17 @@ namespace LanesOfVietnam.View.UI
         {
             get
             {
+                // Written once for each order, not once a frame.
+                if (_line != null) return _line;
                 var steps = For(_side);
                 for (int i = 0; i < steps.Count; i++)
                 {
-                    if (!_done[i]) return $"ORDERS {i + 1}/{steps.Count} — {steps[i].Text}";
+                    if (!_done[i]) return _line = $"ORDERS {i + 1}/{steps.Count} — {steps[i].Text}";
                 }
-                return $"ORDERS {steps.Count}/{steps.Count} — CARRY ON";
+                return _line = $"ORDERS {steps.Count}/{steps.Count} — CARRY ON";
             }
         }
+
+        private string _line;
     }
 }

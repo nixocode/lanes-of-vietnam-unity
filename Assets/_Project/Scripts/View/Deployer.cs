@@ -54,8 +54,18 @@ namespace LanesOfVietnam.View
         {
             var all = Deck.For(Root.PlayerSide);
             if (group == null) return all;
-            return Array.FindAll(all, c => group == CardGroup.Call ? c.Group == CardGroup.Call : c.Group != CardGroup.Call);
+            // The call-ins, or the squads: sorted out once for each side, not on every frame the keys are read.
+            if (_handOf != Root.PlayerSide || _calls == null)
+            {
+                _handOf = Root.PlayerSide;
+                _calls = Array.FindAll(all, c => c.Group == CardGroup.Call);
+                _units = Array.FindAll(all, c => c.Group != CardGroup.Call);
+            }
+            return group == CardGroup.Call ? _calls : _units;
         }
+
+        private Side _handOf;
+        private Card[] _calls, _units;
 
         public bool Arm(Card card)
         {
@@ -182,7 +192,7 @@ namespace LanesOfVietnam.View
             {
                 var m = st.Men[i];
                 if (!m.Alive || (m.Side != Root.PlayerSide && !m.Seen)) continue;
-                var (mx, mz) = Root.Driver.Position(i);
+                var (mx, mz) = Root.ArmyView.Where(Root.Driver, i);
                 float y = (float)Root.Ground.HeightAt(mx, mz);
                 float tall = m.Posture == Posture.Prone ? 0.5f : m.Posture == Posture.Crouched ? 1.15f : 1.8f;
                 var feet = cam.WorldToScreenPoint(Coords.World(mx, mz, y));

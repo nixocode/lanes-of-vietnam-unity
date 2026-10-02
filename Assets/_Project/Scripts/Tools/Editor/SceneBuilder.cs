@@ -128,13 +128,8 @@ namespace LanesOfVietnam.Tools
             var armyGo = new GameObject("Army");
             armyGo.transform.SetParent(game.transform, false);
             var army = armyGo.AddComponent<ArmyView>();
-            army.UsMaterial = Lit("US", new Color(0.24f, 0.26f, 0.17f), 0.15f);
-            army.VcMaterial = Lit("VC", new Color(0.07f, 0.07f, 0.07f), 0.2f);
-            army.DeadMaterial = Lit("Dead", new Color(0.16f, 0.14f, 0.12f), 0.1f);
             cover.Bags = Bags();
-            army.UsSoldiers = SoldierSet("soldier_us");
-            army.VcSoldiers = SoldierSet("soldier_vc");
-            // The 3D men (SoldierBuilder.Build makes them), over the sprites when present.
+            // The men (SoldierBuilder.Build makes them).
             army.UsFigures = SoldierBuilder.Figures(SoldierBuilder.Us);
             army.VcFigures = SoldierBuilder.Figures(SoldierBuilder.Vc);
             root.ArmyView = army;
@@ -144,7 +139,6 @@ namespace LanesOfVietnam.Tools
             var dress = dressGo.AddComponent<WorldDressing>();
             dress.Foliage = Lit("Foliage", new Color(0.16f, 0.24f, 0.10f), 0.1f);
             dress.FoliageDark = Lit("Foliage Dark", new Color(0.09f, 0.15f, 0.07f), 0.1f);
-            dress.Mountain = Lit("Mountain", new Color(0.30f, 0.38f, 0.33f), 0.0f);
             dress.Wire = Lit("Wire", new Color(0.30f, 0.29f, 0.27f), 0.45f);
             dress.Timber = cover.TimberMaterial;
             dress.Sandbag = cover.SandbagMaterial;
@@ -161,7 +155,7 @@ namespace LanesOfVietnam.Tools
             mount.Layout = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/Art/Mountains/mountains.json");
             mount.Material = Mat("Mountains", Shader.Find("LOV/Mountain"), null);
             mount.Material.SetVector("_Haze", new Vector4(MountainHaze, 600, 0, 0));
-            if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data — the grey-box ridges stand in (run tools/art/mountains.py)");
+            if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data: there is no horizon (run tools/art/mountains.py)");
             root.Mountains = mount;
 
             // The fighting, drawn from the simulation's events (step 7).
@@ -424,25 +418,6 @@ namespace LanesOfVietnam.Tools
             if (json == null) return default;
             foreach (var f in new[] { "albedo", "normal" }) AssetDatabase.ImportAsset($"{dir}/{name}_{f}.png", ImportAssetOptions.ForceUpdate);
             var m = Mat($"Prop {name}", Shader.Find("LOV/Foliage"), null);
-            m.SetTexture("_Albedo", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_albedo.png"));
-            m.SetTexture("_Normal", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_normal.png"));
-            m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);
-            m.SetFloat("_Wind", 0f);
-            m.SetFloat("_Translucency", 0f);
-            m.SetFloat("_FieldOcclusion", 0f);
-            m.SetVector("_MipBias", new Vector4(0.25f, 0.75f, 40, 90));
-            EditorUtility.SetDirty(m);
-            return new PlantSet { Name = name, Layout = json, Material = m };
-        }
-
-        /// <summary>A baked soldier set (Art/Soldiers), lit by the foliage shader without wind, leaf glow or field shade.</summary>
-        private static PlantSet SoldierSet(string name)
-        {
-            const string dir = "Assets/_Project/Art/Soldiers";
-            var json = AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/{name}.json");
-            if (json == null) return default;
-            foreach (var f in new[] { "albedo", "normal" }) AssetDatabase.ImportAsset($"{dir}/{name}_{f}.png", ImportAssetOptions.ForceUpdate);
-            var m = Mat(name, Shader.Find("LOV/Foliage"), null);
             m.SetTexture("_Albedo", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_albedo.png"));
             m.SetTexture("_Normal", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{name}_normal.png"));
             m.SetFloat("_Pitch", JsonUtility.FromJson<PlantLayout>(json.text).pitch_deg);

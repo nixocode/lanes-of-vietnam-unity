@@ -85,8 +85,6 @@ namespace LanesOfVietnam.Sim
             _ => SpeedProne,
         };
 
-        public const double SlotPull = 1.6;
-
         /// <summary>
         /// How fast an anchor advances under orders, m/s. Slower than a man
         /// walks, so the formation keeps together.
@@ -284,7 +282,6 @@ namespace LanesOfVietnam.Sim
         public const double CoverRadius = 2.2;
         public const double CoverLengthMin = 5;
         public const double CoverLengthMax = 15;
-        public const double MetresPerManInCover = 2.4;
 
         /// <summary>
         /// How far a holding squad will go for better cover. Unbounded, "hold"
@@ -321,7 +318,6 @@ namespace LanesOfVietnam.Sim
         /// means the side's mean pin in the lane is at least this.
         /// </summary>
         public const double BoundSweepPin = 0.18;
-        public const double BoundOpen = 9;
 
         // --- the arc ---------------------------------------------------------
 
@@ -430,10 +426,24 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks to get to his feet: from a knee (0.6 s), from flat (1.2 s).</summary>
         public const int RiseFromKnee = 12, RiseFromProne = 24;
         /// <summary>
-        /// A man's speed at a run, m/s, and how much faster than its march a squad's anchor goes when its men are running.
-        /// (The run clip runs at 4.5 m/s. At 3 it was a run in slow motion or a walk at double time.)
+        /// A man's speed in contact, m/s, and how much faster than the baseline's march a squad's anchor
+        /// goes when its men are at it (2.2 m/s). It was a run: 4.0, and the anchor at 2.8 times its march.
+        /// The owner, playtest 7, the first he saw of it: "gameplay seems to go too fast now ... walk run
+        /// is too quick (almost half)". At double time, then, not at a sprint: the walk's clip (1.8 m/s)
+        /// played a third fast, which is a hurried man and not a run in slow motion.
         /// </summary>
-        public const double SpeedRush = 4.0, RushPaceRun = 2.8;
+        public const double SpeedRush = 2.4, RushPaceRun = 1.65;
+        /// <summary>
+        /// On the march: the anchor's pace against the baseline's 1.35 m/s (1.08), and a man's own
+        /// speed coming up to his place in the file (it was the baseline's 2.0). The same note: a
+        /// squad was in the fight too soon after it came on.
+        /// </summary>
+        public const double MarchPace = 0.8, SpeedWalk = 1.5;
+        /// <summary>
+        /// Ticks to climb into a trench, and out of one (0.95 and 1.2 s): a quarter slower than
+        /// Fieldcraft's own (the same note: "climb animations need to be slowed by a quarter").
+        /// </summary>
+        public const int SlowVaultInTicks = 19, SlowVaultOutTicks = 24;
         /// <summary>Inside ten metres a pinned man still fires this share of his chances, and aims this well at worst; and nobody throws smoke at an enemy nearer than SmokeBeyond.</summary>
         public const double CloseSteady = 0.6, SmokeBeyond = 12;
         /// <summary>A miss lands up to this far past the man, and this far to a side plus this much a metre of range.</summary>

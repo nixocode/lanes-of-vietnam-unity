@@ -25,6 +25,7 @@ namespace LanesOfVietnam.View
         public float Diameter = 1.05f;
 
         private readonly List<Transform> _rings = new List<Transform>();
+        private readonly List<MeshRenderer> _renderers = new List<MeshRenderer>();
         private MaterialPropertyBlock _mpb;
         private Mesh _quad;
         private static readonly int ColorId = Shader.PropertyToID("_Color");
@@ -54,16 +55,20 @@ namespace LanesOfVietnam.View
                 ShownColor = color;
                 _mpb.SetColor(ColorId, color);
                 var camRot = root.CameraRig.Camera.transform.rotation;
-                foreach (var m in Squads.Roster(st, squad))
+                // The squad's living men, in the simulation's own order (by id).
+                for (int i = 0; i < st.Men.Count; i++)
                 {
-                    var t = Ring(Shown++);
+                    var m = st.Men[i];
+                    if (m.Squad != squad || !m.Alive) continue;
+                    int k = Shown++;
+                    var t = Ring(k);
                     t.SetPositionAndRotation(Commander.ChestOf(m.Id), camRot);
                     t.localScale = Vector3.one * Diameter;
-                    t.GetComponent<MeshRenderer>().SetPropertyBlock(_mpb);
-                    t.gameObject.SetActive(true);
+                    _renderers[k].SetPropertyBlock(_mpb);
+                    if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
                 }
             }
-            for (int i = Shown; i < _rings.Count; i++) _rings[i].gameObject.SetActive(false);
+            for (int i = Shown; i < _rings.Count; i++) if (_rings[i].gameObject.activeSelf) _rings[i].gameObject.SetActive(false);
         }
 
         private Transform Ring(int i)
@@ -78,6 +83,7 @@ namespace LanesOfVietnam.View
                 mr.shadowCastingMode = ShadowCastingMode.Off;
                 mr.receiveShadows = false;
                 _rings.Add(go.transform);
+                _renderers.Add(mr);
             }
             return _rings[i];
         }
