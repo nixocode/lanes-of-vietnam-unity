@@ -102,6 +102,12 @@ namespace LanesOfVietnam.Sim
         /// <summary>Men a side has on the map at the start, at least. The baseline's: 16.</summary>
         public int OpeningStrength = Tune.OpeningStrength;
         /// <summary>
+        /// How fast will runs out, against the length setting's own rate. The settings were calibrated
+        /// when a standard match ran 204 s; the tempo and the rules since have made it 128 s, and the
+        /// game sets this so the lengths on the start screen are the lengths played. The baseline's: 1.
+        /// </summary>
+        public double MoraleRate = 1;
+        /// <summary>
         /// The side a person is playing, if one is: its plan raises no squads
         /// for it, because its points are his to spend. (Left to the plan, a
         /// player's side bought a squad for him every time he reached 22: he
@@ -173,7 +179,7 @@ namespace LanesOfVietnam.Sim
                 Held = 0, Target = -1, Bounding = false, PlayerOrder = null,
             };
             st.Squads.Add(sq);
-            if (kit != null) { sq.Reach = kit.Reach; sq.Assaults = kit.Assaults; }
+            if (kit != null) { sq.Reach = kit.Reach; sq.Assaults = kit.Assaults; sq.Card = kit.Card; }
             if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             int n = size ?? rng.Int(Tune.SquadMin, Tune.SquadMax + 1);
             double dir = Combat.Advance(side);
@@ -208,7 +214,7 @@ namespace LanesOfVietnam.Sim
             var st = new SimState
             {
                 Tick = 0, Phase = Phase.Opening, ContactTick = -1,
-                MoraleScale = LengthScale(opts.Length),
+                MoraleScale = LengthScale(opts.Length) * opts.MoraleRate,
                 Frag = opts.Frag,
                 SquadSmoke = opts.SquadSmoke,
                 Drill = opts.Drill,

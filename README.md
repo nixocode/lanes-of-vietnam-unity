@@ -63,7 +63,7 @@ reference/TARGET.jpg             the specification for the look
 |---|---|
 | Toolchain | Unity 6000.6.3f1 + Web Build Support, verified headless |
 | Step 0 — empty WebGL build | **7.34 MB** initial with physics removed (was 8.00), the floor |
-| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 57/57 tests |
+| Step 1 — simulation | ported and **proven exact**: 22 matches identical to the TypeScript original at every tick; 60/60 tests |
 | Step 2 — harnesses | capture, LookMeter, Flicker, Budget: running, zeros proven |
 | Step 2a — technology decisions | editor, physics, modules, streaming: decided and measured — PLAN §12.9a |
 | Step 3 — grey-box map | lanes readable; the map's layout rules kept under the art |
@@ -73,7 +73,7 @@ reference/TARGET.jpg             the specification for the look
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
-| Build | 29.84 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
+| Build | 29.87 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 
 The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17.
 

@@ -127,10 +127,33 @@ namespace LanesOfVietnam.View
         /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
         public const int OpeningStrength = 4;
 
+        /// <summary>
+        /// How hard the computer is: what a squad costs it (30, 25, 21). Measured with
+        /// `tools/simcs/run.sh player 24 N rate=0.55`, against a player who only ever buys line squads
+        /// when he can afford one and never uses a call-in or a lever: against a Recruit he wins 23 of
+        /// 24 as the Americans and 24 as the VC; against a Veteran 18 and 19; against the Elite 9 and 14.
+        /// </summary>
+        public enum Difficulty { Recruit, Veteran, Elite }
+
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 30 : d == Difficulty.Elite ? 21 : 25;
+
+        /// <summary>
+        /// How fast will runs out, against the length setting's own rate. The settings were calibrated
+        /// when a standard match ran 204 s; with the game's tempo and the rules since, the three ran 91,
+        /// 127 and 306 s against the start screen's 2, 3½ and 8 minutes. At these rates (`simcs player
+        /// 24 25 [skirmish|siege] rate=N`: a player who buys, and the two plans left to themselves) a
+        /// skirmish runs 100 to 120 s, a standard match 170 to 210, a siege six to eight minutes.
+        /// </summary>
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 0.68 : l == MatchLength.Siege ? 0.6 : 0.55;
+
+        public Difficulty Level { get; private set; } = Difficulty.Veteran;
+
         public void NewMatch(Side player, MatchLength length, int? seed = null,
-                             System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null)
+                             System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null,
+                             Difficulty level = Difficulty.Veteran)
         {
             PlayerSide = player;
+            Level = level;
             Seed = seed ?? ChooseSeed();
             Options = new MatchOptions
             {
@@ -159,7 +182,8 @@ namespace LanesOfVietnam.View
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had
                 // been spending his points for him, a squad every time he reached 22. A capture and the
                 // frame-time probe have no player, so there both sides raise their own.
-                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength, MusterCost = MusterCost,
+                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength, MusterCost = CostFor(level),
+                MoraleRate = RateFor(length),
                 Player = CaptureSettings.Active != null || PerfProbe.Param("perf") != null ? (Side?)null : player,
             };
             Driver = new MatchDriver(Options, replay);

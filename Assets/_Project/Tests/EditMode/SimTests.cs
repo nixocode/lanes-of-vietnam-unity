@@ -782,7 +782,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 1; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 Assert.IsFalse(st.Men.Any(x => x.Seen), "somebody is seen before anyone has looked");
@@ -830,7 +830,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 3; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 foreach (var man in st.Men.Where(x => x.Side == Side.Us && x.Place >= 0))
@@ -881,7 +881,7 @@ namespace LanesOfVietnam.Tests
         {
             var o = Sensed(seed, onMap);
             o.Gunnery = true;
-            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 28; }      // as the game plays it
+            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 25; o.MoraleRate = 0.55; }      // as the game plays it
             return o;
         }
 
@@ -966,6 +966,31 @@ namespace LanesOfVietnam.Tests
             a.Posture = Posture.Standing;
             Assert.AreEqual(Tune.StandingHit * kneeling, Combat.HitChance(fresh, a, b), 1e-12);
             Assert.Less(Tune.StandingHit, 0.5);
+        }
+
+        /// <summary>
+        /// The start screen says a skirmish is about two minutes, a standard
+        /// match about three and a half, a siege about eight. They had drifted
+        /// to a minute and a half, two and five. At the game's settings (its
+        /// economy, a Veteran's squad cost, its morale rate for each length),
+        /// the two plans left to fight it out run what the screen says, give
+        /// or take a third, and the baseline's own rate is untouched.
+        /// </summary>
+        [TestCase(MatchLength.Skirmish, 0.68, 85, 165)]
+        [TestCase(MatchLength.Standard, 0.55, 150, 270)]
+        [TestCase(MatchLength.Siege, 0.6, 330, 600)]
+        public void At_the_games_settings_a_match_runs_as_long_as_the_start_screen_says(MatchLength length, double rate, int atLeast, int atMost)
+        {
+            Assert.AreEqual(1.0, new MatchOptions().MoraleRate, "the baseline's morale rate moved");
+            double seconds = 0;
+            const int seeds = 12;
+            for (int seed = 1; seed <= seeds; seed++)
+            {
+                var o = Gunned(seed, tempo: true);
+                o.Length = length; o.MoraleRate = rate;
+                seconds += Match.Run(o).Seconds;
+            }
+            Assert.That(seconds / seeds, Is.InRange((double)atLeast, (double)atMost), $"a {length} match runs {seconds / seeds:F0} s on average");
         }
 
         /// <summary>

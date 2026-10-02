@@ -381,6 +381,94 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, hud.LaneTags[0].style.display.value);
         }
 
+        /// <summary>
+        /// A match a new player can read (PLAN §12.18 phase 2): the start screen
+        /// sets how hard the enemy is and the game plays at the rates measured
+        /// for it; every card says what it buys; and a squad has a tag that
+        /// says what it is, how many are left and what it is doing, on the
+        /// pointer, when selected, and in red when it makes contact.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_start_screen_sets_the_enemy_cards_say_what_they_buy_and_squads_are_tagged()
+        {
+            yield return LoadAndDeploy();
+            var screens = Object.FindAnyObjectByType<Screens>();
+            Assert.AreEqual(GameRoot.Difficulty.Veteran, Root.Level);
+            Assert.AreEqual(GameRoot.CostFor(GameRoot.Difficulty.Veteran), Root.Options.MusterCost);
+            Assert.AreEqual(GameRoot.RateFor(MatchLength.Standard), Root.Options.MoraleRate);
+            Assert.Greater(GameRoot.CostFor(GameRoot.Difficulty.Recruit), GameRoot.CostFor(GameRoot.Difficulty.Veteran));
+            Assert.Greater(GameRoot.CostFor(GameRoot.Difficulty.Veteran), GameRoot.CostFor(GameRoot.Difficulty.Elite));
+            foreach (var id in new[] { "level-recruit", "level-veteran", "level-elite" })
+                Assert.IsTrue(screens.Buttons.ContainsKey(id), $"the start screen has no {id} button");
+            // A press as the panel delivers it: the button's own click.
+            void Press(UnityEngine.UIElements.Button b)
+            {
+                using var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled();
+                e.target = b;
+                b.SendEvent(e);
+            }
+            screens.ToMenu();
+            Press(screens.Buttons["level-elite"]);
+            Press(screens.Buttons["len-siege"]);
+            Assert.IsTrue(screens.Buttons["level-elite"].ClassListContains("on") && !screens.Buttons["level-veteran"].ClassListContains("on"));
+            screens.Deploy(); screens.Skip();
+            yield return null;
+            Assert.AreEqual(GameRoot.Difficulty.Elite, Root.Level);
+            Assert.AreEqual(GameRoot.CostFor(GameRoot.Difficulty.Elite), Root.Options.MusterCost, "the level chosen is not the match's");
+            Assert.AreEqual(GameRoot.RateFor(MatchLength.Siege), Root.Options.MoraleRate);
+            screens.ToMenu();
+            Press(screens.Buttons["level-veteran"]);
+            Press(screens.Buttons["len-standard"]);
+            screens.Deploy(); screens.Skip();
+            yield return null;
+
+            // Every card of both decks says what it buys; a squad's line is its kit's.
+            var hud = HudOf;
+            foreach (var side in new[] { Side.Us, Side.Vc })
+                foreach (var card in Deck.For(side))
+                {
+                    string line = CardText.Line(card, side);
+                    Assert.Greater(line.Length, 12, $"{card.Id} says nothing of what it buys");
+                    var kit = Arms.For(card.Id);
+                    if (kit == null) continue;
+                    StringAssert.StartsWith($"{kit.Men.Length} M", line, $"{card.Id}: the line does not begin with its men");
+                    StringAssert.Contains($"{kit.Reach:0} M", line);
+                    Assert.AreEqual(card.Pips, kit.Men.Length, $"{card.Id}: its pips are not its men");
+                }
+            StringAssert.Contains("RIFLE SQUAD", hud.Describe(Deck.Find(Side.Us, "us-rifle")));
+
+            // A squad's tag: on the pointer, and while it is the selected one.
+            var st = Root.Driver.State;
+            Root.Paused = true;
+            var man = st.Men.First(m => m.Alive && m.Side == Side.Us);
+            Root.CameraRig.Focus((float)man.X, instant: true);
+            hud.Tags.Pointer = new Vector2(-5000, -5000);
+            yield return null; yield return null;
+            var tag = hud.Tags.Of(man.Squad);
+            Assert.IsTrue(tag == null || tag.style.display.value == UnityEngine.UIElements.DisplayStyle.None, "a squad nobody is pointing at is tagged");
+            var cmd = Object.FindAnyObjectByType<Commander>();
+            Assert.IsTrue(cmd.SelectSquad(man.Squad));
+            yield return null; yield return null;
+            tag = hud.Tags.Of(man.Squad);
+            Assert.IsNotNull(tag, "the selected squad has no tag");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, tag.style.display.value);
+            int alive = st.Men.Count(m => m.Alive && m.Squad == man.Squad), raised = st.Men.Count(m => m.Squad == man.Squad);
+            StringAssert.StartsWith($"{CardText.SquadName(st.Squads[man.Squad])} {alive}/{raised} · ", tag.text);
+            StringAssert.Contains(SquadTags.Doing(st, st.Squads[man.Squad], Squads.Roster(st, man.Squad)), tag.text);
+            cmd.Clear();
+            yield return null; yield return null;
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, tag.style.display.value, "the tag stayed when the selection went");
+            // On the pointer: the middle of the man, in the panel.
+            var cam = Root.CameraRig.Camera;
+            var (mx, mz) = Root.Driver.Position(man.Id);
+            var vp = cam.WorldToViewportPoint(Coords.World(mx, mz, (float)Root.Ground.HeightAt(mx, mz) + 0.6f));
+            var layer = tag.parent;
+            hud.Tags.Pointer = new Vector2(vp.x * layer.resolvedStyle.width, (1 - vp.y) * layer.resolvedStyle.height);
+            yield return null; yield return null;
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, tag.style.display.value, "pointing at a squad did not tag it");
+            hud.Tags.Pointer = null;
+        }
+
         [UnityTest, Category("UIAudit")]
         public IEnumerator Every_card_of_both_decks_arms_places_and_changes_the_simulation()
         {
