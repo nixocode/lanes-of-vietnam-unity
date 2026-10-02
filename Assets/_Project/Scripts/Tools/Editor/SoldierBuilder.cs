@@ -844,6 +844,9 @@ namespace LanesOfVietnam.Tools
                 fig.HandR = t["hand_r"]; fig.HandL = t["hand_l"]; fig.LowerArmR = t["lowerarm_r"];
                 fig.Chest = t["spine_03"];
                 fig.Hips = t["pelvis"];
+                // His face, in the head bone's own space: the bind pose looks along the body's forward.
+                fig.Head = t["head"]; fig.Neck = t["neck_01"];
+                fig.HeadForward = Quaternion.Inverse(fig.Head.rotation) * body.transform.forward;
                 // The bind pose does not hold the rifle (it floats at his chest, 38
                 // cm from either wrist; the earlier build posed the arms onto it),
                 // so where the hands go comes from the rifle's own shape.

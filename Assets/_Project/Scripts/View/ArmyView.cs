@@ -536,6 +536,22 @@ namespace LanesOfVietnam.View
                     else if (along < 0.3f) speed *= 0.6f;
                 }
                 int death = (int)(Hash(m.Id, 1) * 16);
+                if (m.Alive)
+                {
+                    // His eyes: on the man he is shooting at, else along his front. Not when he is flat and
+                    // hiding from fire, nor at a run (he looks where he is going).
+                    Vector3 eyes = at + Vector3.up * (posture == 2 ? 0.35f : posture == 1 ? 1.0f : 1.6f);
+                    Vector3 look = eyes + Quaternion.Euler(0, _front[i], 0) * Vector3.forward * 20f;
+                    int tg = _target[i];
+                    if (aiming && tg >= 0 && tg < st.Men.Count)
+                    {
+                        var (tx, tz) = d.Position(tg);
+                        look = Coords.World(tx, tz, (float)g.HeightAt(tx, tz) + 1.0f);
+                    }
+                    bool hiding = m.Pin >= Tune.PinStop;
+                    bool running = _moving[i] && _speed[i] > RunAbove;
+                    f.Look(look, hiding || running ? 0f : posture == 0 ? 0.6f : 1f);
+                }
                 if (_shot[i]) { f.Fire(); _shot[i] = false; }
                 // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
                 if (_pinnedAt[i]) { if (!_moving[i] && !jump) f.React(); _pinnedAt[i] = false; }

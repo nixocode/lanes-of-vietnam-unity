@@ -70,13 +70,15 @@ SIDES = {
                  macro=dict(gender=0.90, age=0.30, muscle=0.55, weight=0.38, proportions=0.55, height=0.69,
                             race={"asian": 0.94, "caucasian": 0.03, "african": 0.03}),
                  kit=("webbing", "gun_steel", "gun_furniture")),
-    # An older, stockier man. (Age moves height: 0.42 built a 1.77 m guerrilla.)
-    "vc_b": dict(VC, skin="middleage_asian_male", cloth=(0.040, 0.037, 0.036),
+    # An older, stockier man, in brown-dyed cotton. (Age moves height: 0.42 built a 1.77 m guerrilla.)
+    "vc_b": dict(VC, skin="middleage_asian_male", cloth=(0.046, 0.034, 0.024),
                  macro=dict(gender=0.92, age=0.34, muscle=0.62, weight=0.45, proportions=0.52, height=0.66,
                             race={"asian": 0.96, "caucasian": 0.02, "african": 0.02}),
                  kit=("helmet_cover", "webbing", "gun_steel", "gun_furniture")),
-    # An NVA regular: khaki-green cotton and the sun helmet.
-    "vc_c": dict(VC, skin="young_asian_male", cloth=(0.105, 0.105, 0.062), shoes="shoes03",
+    # An NVA regular and the sun helmet. His cotton was khaki-green (0.105, 0.105, 0.062), which at
+    # this distance was an American's olive: the owner, 2026-10-02, "some Viet Cong forces' colors look
+    # too alike to US, make them darker browns". Earth brown now, well under the US fatigue's 0.085.
+    "vc_c": dict(VC, skin="young_asian_male", cloth=(0.066, 0.047, 0.030), shoes="shoes03",
                  macro=dict(gender=0.90, age=0.27, muscle=0.58, weight=0.40, proportions=0.56, height=0.71,
                             race={"asian": 0.95, "caucasian": 0.03, "african": 0.02}),
                  kit=("helmet_cover", "webbing", "gun_steel", "gun_furniture")),

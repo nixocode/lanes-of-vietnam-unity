@@ -580,6 +580,9 @@ MonoBehaviour:
   Chest: {fileID: 6394235903366701338}
   LowerArmR: {fileID: 2777696430350226259}
   Hips: {fileID: 1536827598766803493}
+  Head: {fileID: 9169745990329758902}
+  Neck: {fileID: 8377774803829092029}
+  HeadForward: {x: 0.000000043305896, y: -0.00547258, z: 0.99998504}
   RifleGripR: {x: -0.268, y: -0.1, z: 0}
   RifleGripL: {x: -0.585, y: -0.08098, z: 0}
   RifleUp: {x: 0, y: 1, z: 0}

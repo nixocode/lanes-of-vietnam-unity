@@ -16,6 +16,10 @@ namespace LanesOfVietnam.View.UI
         public readonly Label Count;
         public readonly Button LeverButton;
         public Lever Shown { get; private set; } = Lever.Auto;
+        /// <summary>Whether the pointer is on it (within PositionPlates.HoverRadius of it).</summary>
+        public bool Hovered { get; internal set; }
+        /// <summary>Where it sits in the panel, shown or not.</summary>
+        public Vector2 Centre { get; internal set; }
 
         public PositionPlate(Cover c, System.Action<int, Lever> pull)
         {
@@ -80,6 +84,17 @@ namespace LanesOfVietnam.View.UI
         private readonly VisualElement _layer;
         /// <summary>Metres above the ground the plate floats.</summary>
         public const float Height = 2.7f;
+        /// <summary>
+        /// A plate's opacity until the pointer is on it, and how near (panel
+        /// pixels) counts as on it. The owner, 2026-10-02: "too prominent and
+        /// there is too many, make it 60% transparent until you hover over it."
+        /// And to thin them: a crater or a bank shows its plate only while it
+        /// holds his men, has a lever set, or is under the pointer; what was
+        /// built (a wall, the bunker, a trench) always shows.
+        /// </summary>
+        public const float Faded = 0.4f, HoverRadius = 70f;
+        /// <summary>Where the pointer is, in the panel. Null: the mouse. UIAudit sets it.</summary>
+        public Vector2? Pointer;
 
         public PositionPlates(GameRoot root, VisualElement parent)
         {
@@ -129,6 +144,8 @@ namespace LanesOfVietnam.View.UI
             var cam = _root.CameraRig != null ? _root.CameraRig.Camera : null;
             if (st == null || cam == null || _layer.panel == null) return;
             var me = _root.PlayerSide;
+            var mouse = Input.mousePosition;
+            var pointer = Pointer ?? RuntimePanelUtils.ScreenToPanel(_layer.panel, new Vector2(mouse.x, Screen.height - mouse.y));
             foreach (var p in Plates)
             {
                 var c = st.Cover[p.Cover];
@@ -145,13 +162,16 @@ namespace LanesOfVietnam.View.UI
                 var world = Coords.World(c.X, c.Z, (float)_root.Ground.HeightAt(c.X, c.Z) + Height);
                 var vp = cam.WorldToViewportPoint(world);
                 bool seen = vp.z > 0.5f && vp.x > -0.05f && vp.x < 1.05f && vp.y > 0.05f && vp.y < 1.0f;
-                p.style.display = seen ? DisplayStyle.Flex : DisplayStyle.None;
-                if (!seen) continue;
                 // From the viewport, not from screen pixels: the panel is scaled, and a capture's lens draws to its own texture.
                 float w = _layer.resolvedStyle.width, h = _layer.resolvedStyle.height;
-                if (float.IsNaN(w) || w <= 0) continue;
-                p.style.left = vp.x * w - 46;
-                p.style.top = (1 - vp.y) * h - 46;
+                if (!seen || float.IsNaN(w) || w <= 0) { p.style.display = DisplayStyle.None; p.Hovered = false; continue; }
+                p.Centre = new Vector2(vp.x * w, (1 - vp.y) * h - 23);
+                p.Hovered = Vector2.Distance(p.Centre, pointer) < HoverRadius;
+                bool shown = Fieldcraft.Built(c) || mine > 0 || p.Shown != Lever.Auto || p.Hovered;
+                p.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+                p.style.opacity = p.Hovered ? 1f : Faded;
+                p.style.left = p.Centre.x - 46;
+                p.style.top = p.Centre.y - 23;
             }
         }
     }

@@ -36,6 +36,9 @@ namespace LanesOfVietnam.View
         public Renderer Rifle;
         public Transform GripL, Muzzle;
         public Transform HandR, HandL, Chest, LowerArmR, Hips;
+        /// <summary>His head and neck, and which way his face points in the head's own space (SoldierBuilder, from the bind pose).</summary>
+        public Transform Head, Neck;
+        public Vector3 HeadForward = Vector3.forward;
         /// <summary>Where his body is (his hips), which a fall can carry a metre or two from where the sim has him.</summary>
         public Vector3 Centre { get; private set; }
         /// <summary>In the rifle's own space, from the bind pose: where each wrist holds it, and which way is up.</summary>
@@ -118,6 +121,23 @@ namespace LanesOfVietnam.View
         /// <summary>A blow hand to hand: 1 as it starts, 0 when it is over.</summary>
         private float _lunge;
         private bool _lean;
+        /// <summary>Where he is looking (a point in the world) and how much of the turn he makes, 0 to 1.</summary>
+        private Vector3 _lookAt;
+        private float _lookWant, _look;
+        /// <summary>The most his neck and head turn off the pose's own line, degrees: prone, that is his chin off the ground.</summary>
+        public const float MaxLook = 85f;
+
+        /// <summary>
+        /// What he is looking at: his target, or his front. Mixamo's prone and
+        /// kneeling idles look at the ground (the owner, 2026-10-02: "heads look
+        /// down when prone, make sure they are looking at what they're shooting
+        /// at, unless hiding for cover"). Weight 0 leaves the clip's own head.
+        /// </summary>
+        public void Look(Vector3 worldPoint, float weight)
+        {
+            _lookAt = worldPoint;
+            _lookWant = Mathf.Clamp01(weight);
+        }
         /// <summary>Seconds a blow takes, and how far it carries him toward his man.</summary>
         public const float LungeSeconds = 0.42f, LungeReach = 0.55f;
         private int _aimLayer = -1;
@@ -175,6 +195,9 @@ namespace LanesOfVietnam.View
             Animator.transform.localRotation = Quaternion.Euler(0, AimTurn[Mathf.Clamp(posture, 0, 2)] * _aim, 0);
             // The blow: his whole body goes in behind the rifle and comes back.
             _lunge = Mathf.MoveTowards(_lunge, 0f, dt / LungeSeconds);
+            // Not through a reload, a throw, a blow or a climb: those clips have his eyes on what his hands are doing.
+            bool busy = _reactLayer >= 0 && !Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Calm");
+            _look = Mathf.MoveTowards(_look, dead || busy ? 0f : _lookWant, dt / 0.3f);
             Animator.transform.localPosition = dead ? Vector3.zero : Vector3.forward * (LungeReach * Mathf.Sin(Mathf.PI * (1f - _lunge)) * (_lunge > 0 ? 1f : 0f));
             Animator.Update(dt);
 
@@ -301,6 +324,17 @@ namespace LanesOfVietnam.View
         {
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
+            if (_look > 0.01f && Head != null)
+            {
+                // The neck takes two fifths of the turn and the head the rest, each about its own axis to the point.
+                var want = _lookAt - Head.position;
+                if (want.sqrMagnitude > 0.04f)
+                {
+                    want.Normalize();
+                    if (Neck != null) Turn(Neck, want, MaxLook * 0.4f, 0.4f * _look);
+                    Turn(Head, want, MaxLook * 0.6f, _look);
+                }
+            }
             if (_lunge > 0f && _lean && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(24f * Mathf.Sin(Mathf.PI * (1f - _lunge)), transform.right) * Chest.rotation;
             if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
@@ -324,6 +358,15 @@ namespace LanesOfVietnam.View
             var held = (r.position, r.rotation);
             Lay(wl - wr, wr);
             if (w < 0.99f) r.SetPositionAndRotation(Vector3.Lerp(held.position, r.position, w), Quaternion.Slerp(held.rotation, r.rotation, w));
+        }
+
+        /// <summary>Turn a bone so that his face comes toward a direction: a share of the angle, and no further than a limit.</summary>
+        private void Turn(Transform bone, Vector3 toward, float limit, float share)
+        {
+            var facing = Head.rotation * HeadForward;
+            Quaternion.FromToRotation(facing, toward).ToAngleAxis(out float angle, out var axis);
+            if (angle < 0.5f || float.IsNaN(axis.x)) return;
+            bone.rotation = Quaternion.AngleAxis(Mathf.Min(angle, limit) * share, axis) * bone.rotation;
         }
 
         /// <summary>The rifle upright along a direction, its right-hand grip at a point.</summary>

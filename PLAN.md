@@ -1323,6 +1323,43 @@ build the owner can play. Anything that downloads asks first.
 http://127.0.0.1:8065. Nothing is left running between sessions.
 
 
+### 12.18 Playtest 5 and the order after it (2026-10-02)
+
+The owner's eight notes, and where each goes:
+
+| note | where |
+|---|---|
+| strongpoint plates too prominent, too many | **done (phase 0):** 40% opacity until the pointer is within 70 px; craters and banks show a plate only while they hold his men, have a lever set or are hovered |
+| heads look down when prone | **done (phase 0):** head and neck turned to the target, or the front, after the Animator's pose (85 degrees at most; not while pinned flat or mid-reaction). `SoldierPreview.RenderLook` is the sheet |
+| some VC look too like the US | **done (phase 0):** NVA cotton and VC webbing to dark browns (cloth 0.035 to 0.049, webbing 0.037 linear); three bodies re-exported |
+| still too many soldiers at the start | **done (phase 0):** one squad a side to open (`OpeningStrength` 4). `simcs player 24 28`: a player who buys wins 20 of 24, one who does nothing loses in about 55 s |
+| unnecessary shooting: fire only at what a squad has spotted | phase 1, Senses |
+| **main focus:** awareness and combat instincts (wander, don't see each other, stand around) | phase 1, Senses |
+| some guns look too basic | phase 3 |
+| start thinking of dynamic weather | phase 5 |
+
+Phase 0 numbers: EditMode 50/50, PlayMode 14/14, WebGL 29.83 MB, real Chrome
+5.6 to 6.2 ms a frame (52 to 59 men).
+
+**Phase 1, Senses (`MatchOptions.Senses`).** Sight today is one flag a man,
+lopsided and permanent: every American is seen from the moment he spawns, a
+VC is unseen until he fires or is walked onto, and nobody is ever lost sight
+of. So: both sides spotted the same way (posture, movement, firing, cover,
+smoke), each squad keeping what **it** has spotted and for how long; fire only
+at what the squad has spotted; a `Contact` event the moment a squad spots or
+is fired on, and a reaction to it (to ground, nearest cover, return fire); a
+task a squad holds for a minimum time in place of an order re-decided every
+tick. Measured before and after in `simcs muddle`: shots at the unspotted,
+squad-seconds close and unaware, man-seconds upright in a firefight,
+man-seconds idle in the open beside cover, seconds from sight to reaction.
+
+**Then:** 2 a match a new player can read (difficulty, squad tags, cards that
+say what they buy); 3 guns (model detail, launcher sounds); 4 every class its
+job (mortar emplaced, satchel charges, the computer's lever); 5 weather (a
+schedule from the seed, sight scaled through Senses, sky, rain, a rain bed);
+6 look, speed, content.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.
