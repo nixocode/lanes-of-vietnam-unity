@@ -86,6 +86,7 @@ namespace LanesOfVietnam.Sim
             a.FragCooldown = Tune.FragInterval;
             // Throwing exposes him, and his rifle waits while he does it.
             a.Seen = true;
+            a.FiredAt = st.Tick;
             a.Cooldown = Math.Max(a.Cooldown, Tune.Cooldown * 2);
             st.Events.Add(new SimEvent
             {

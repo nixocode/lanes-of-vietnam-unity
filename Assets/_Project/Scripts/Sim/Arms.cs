@@ -127,6 +127,12 @@ namespace LanesOfVietnam.Sim
 
         private static readonly string[] UsRaised = { "us-rifle", "us-rifle", "us-mg", "us-rifle", "us-weapons", "us-rifle", "us-sniper" };
         private static readonly string[] VcRaised = { "vc-squad", "vc-cell", "vc-squad", "vc-squad", "vc-rpg", "vc-cell", "vc-squad", "vc-marksman" };
+        /// <summary>
+        /// With Senses the Americans are no longer shot at from the moment they arrive, but nor are the
+        /// VC found only at arm's length: over 96 seeds the list above gave the Americans 36.5%
+        /// (27.5-46.4). One NVA squad in four becomes a local-force cell.
+        /// </summary>
+        private static readonly string[] VcRaisedSenses = { "vc-squad", "vc-cell", "vc-squad", "vc-cell", "vc-rpg", "vc-cell", "vc-squad", "vc-marksman" };
 
         /// <summary>
         /// The squad a side raises by itself (the opening, and a plan's
@@ -137,7 +143,7 @@ namespace LanesOfVietnam.Sim
         {
             int n = 0;
             for (int i = 0; i < st.Squads.Count; i++) if (st.Squads[i].Side == side) n++;
-            var list = side == Side.Us ? UsRaised : VcRaised;
+            var list = side == Side.Us ? UsRaised : st.Senses ? VcRaisedSenses : VcRaised;
             return For(list[n % list.Length]);
         }
 
@@ -175,6 +181,7 @@ namespace LanesOfVietnam.Sim
             st.Grenades.Add(g);
             a.Cooldown = arm.Cooldown;
             a.Seen = true;
+            a.FiredAt = st.Tick;
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Launch, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = target.Id,

@@ -283,14 +283,17 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(1f, built.style.opacity.value, 0.01f);
             hud.Positions.Pointer = null;
 
-            // Held, the forward trench fills with men and they stay; the plate counts them.
-            var trench = positions.First(c => c.Kind == CoverKind.Trench && c.Z > 0);
+            // Held, a position fills with men and they stay; the plate counts them. (With Senses the
+            // squad opens the match in a position, and the lever pulled to Go above may have sent it on:
+            // the one held here is the first at or ahead of its lead man with room for three.)
+            double lead = st.Men.Where(m => m.Alive && m.Side == Side.Us).Max(m => m.X);
+            var trench = positions.Where(c => c.Z > 0 && c.Capacity >= 3 && c.X + c.Length * 0.5 >= lead - 1).OrderBy(c => c.X).First();
             hud.Positions.Pull(trench.Id, Lever.Hold);
             yield return null;
-            Root.Driver.FastForward(240);
+            Root.Driver.FastForward(300);
             yield return null; yield return null;
             int inside = st.Men.Count(m => m.Alive && m.Side == Side.Us && m.Cover == trench.Id);
-            Assert.Greater(inside, 2, "the held trench did not fill");
+            Assert.Greater(inside, 2, "the held position did not fill");
             StringAssert.StartsWith($"{inside}/", hud.Positions.Of(trench.Id).Count.text, "the plate does not count the men in it");
             StringAssert.Contains("lever", string.Join(" ", hud.Positions.Log));
         }

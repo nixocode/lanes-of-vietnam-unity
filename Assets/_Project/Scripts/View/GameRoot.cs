@@ -111,9 +111,11 @@ namespace LanesOfVietnam.View
         /// What a squad costs the computer's side (the baseline's 22 is at the baseline's income). Chosen with
         /// `tools/simcs/run.sh player 24 N`, against a player who only ever buys line squads when he can: at 22
         /// that player wins half his matches, at 28 three in four, at 40 all of them. One who buys nothing loses
-        /// in about a minute at any of them.
+        /// in about a minute at any of them. With Senses on, 28 gave that player nine wins in twenty-four as
+        /// the Americans (the computer's mixed squads see and outrange a line of riflemen); at 32 it is
+        /// nineteen, and twenty-two as the VC.
         /// </summary>
-        public const double MusterCost = 28;
+        public const double MusterCost = 32;
         /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
         public const int OpeningStrength = 4;
 
@@ -138,6 +140,9 @@ namespace LanesOfVietnam.View
                 Fieldcraft = CaptureSettings.Active?.Fieldcraft ?? true,
                 // Arms (Part 2): every man his weapon, every card its squad, every fight at its weapons' distance. On in the game.
                 Arms = CaptureSettings.Active?.Arms ?? true,
+                // Senses (Part 2): squads that spot each other, fire only at what they have spotted, go to
+                // ground at contact and hold one task at a time. On in the game.
+                Senses = CaptureSettings.Active?.Senses ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

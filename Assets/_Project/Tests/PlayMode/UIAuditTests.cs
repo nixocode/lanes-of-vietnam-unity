@@ -74,6 +74,9 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(0, rings.Shown, "rings still drawn after the selection was cleared");
 
             // Tab, twice: each press selects a squad of ours and moves the camera to it.
+            // (From somewhere else: the squad opens in the firebase, where the camera opens too.)
+            root.CameraRig.Focus(20f, instant: true);
+            yield return null;
             float x0 = root.CameraRig.X;
             Assert.IsTrue(cmd.Cycle());
             int first = cmd.Selected;
