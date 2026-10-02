@@ -326,7 +326,7 @@ namespace LanesOfVietnam.SimCs
                 for (int seed = 1; seed <= seeds; seed++)
                 {
                     var o = Game(seed, new[] { "fieldcraft", "arms" });
-                    o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 8; o.MusterCost = muster;
+                    o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
                     var card = Deck.For(side).First(c => c.Group == CardGroup.Line);

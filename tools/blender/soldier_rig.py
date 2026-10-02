@@ -62,13 +62,17 @@ OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Soldiers3D")
 #   lift        plain gains for materials that bake too dark to read (polished
 #               black shoes at 0.005)
 US_TAN, VC_TAN = (0.55, 0.50, 0.46), (0.58, 0.53, 0.49)
+#   shade       what a material's baked colour is multiplied by, channel by channel. The VC's chest
+#               rigs and helmet covers came off the earlier model in the Americans' olive (0.14);
+#               they are dark brown canvas now, so the two sides do not share a colour.
+VC_KIT = {"webbing": (0.36, 0.24, 0.20), "helmet_cover": (0.50, 0.36, 0.30)}
 SIDES = {
     "us_a": dict(src="soldiers/us_a_v2.glb", fatigue_to=0.085, tan=US_TAN, lift={"boots": 4.5}),
     "us_b": dict(src="soldiers/us_b_v2.glb", fatigue_to=0.085, tan=(1.75, 1.70, 1.65), lift={"boots": 4.5}),   # his skin photograph is dark already: 0.05 as shot, 0.085 here
     "us_c": dict(src="soldiers/us_c_v2.glb", fatigue_to=0.085, tan=US_TAN, lift={"boots": 4.5}),
-    "vc_a": dict(src="soldiers/vc_a_v2.glb", tan=VC_TAN),
-    "vc_b": dict(src="soldiers/vc_b_v2.glb", tan=VC_TAN),
-    "vc_c": dict(src="soldiers/vc_c_v2.glb", tan=VC_TAN, lift={"boots": 4.5}),
+    "vc_a": dict(src="soldiers/vc_a_v2.glb", tan=VC_TAN, shade=VC_KIT),
+    "vc_b": dict(src="soldiers/vc_b_v2.glb", tan=VC_TAN, shade=VC_KIT),
+    "vc_c": dict(src="soldiers/vc_c_v2.glb", tan=VC_TAN, lift={"boots": 4.5}, shade=VC_KIT),
 }
 ATLAS = 2048
 BODY_TRIS = 9000
@@ -243,7 +247,7 @@ def write_png(path, px):
     out.close()
 
 
-def albedo_gains(mats, fatigue_to, tan=None, lift=None):
+def albedo_gains(mats, fatigue_to, tan=None, lift=None, shade=None):
     """Per material, the colour gain that makes its base colour's median its
     palette albedo. The earlier build wrote each material as palette colour
     (its glTF factor: OG-107 at 0.118, black leather 0.022, gun steel 0.04,
@@ -282,12 +286,14 @@ def albedo_gains(mats, fatigue_to, tan=None, lift=None):
         g = 1.0 / np.maximum(np.median(a, 0), 1e-4)
         if fatigue_to and mat.name in ("fatigue", "helmet_cover"):
             g = g * fatigue_to / 0.1206
+        if shade and mat.name in shade:
+            g = g * np.array(shade[mat.name])
         gains[mat.name] = tuple(float(x) for x in g)
         log(f"{mat.name}: {img.name} median {np.median(a @ [0.2126, 0.7152, 0.0722]):.3f}, gain {g.mean():.1f}")
     return gains
 
 
-def bake_atlas(side, body, rifle, fatigue_to, skin=None, tan=None, lift=None):
+def bake_atlas(side, body, rifle, fatigue_to, skin=None, tan=None, lift=None, shade=None):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     try:
@@ -307,7 +313,7 @@ def bake_atlas(side, body, rifle, fatigue_to, skin=None, tan=None, lift=None):
     img = bpy.data.images.new("bake", ATLAS, ATLAS, alpha=True, float_buffer=True)
     img.colorspace_settings.name = "Non-Color"
     out = {}
-    gains = albedo_gains(mats, fatigue_to, tan, lift)
+    gains = albedo_gains(mats, fatigue_to, tan, lift, shade)
     for name, socket in (("albedo", "Base Color"), ("metal", "Metallic"), ("rough", "Roughness")):
         restore = route(mats, socket, gains if socket == "Base Color" else None)
         bake(both, "EMIT", img)
@@ -724,7 +730,7 @@ def build(side, spec, clips):
     log(f"{side}: body {tris(body)} triangles, rifle {tris(rifle)} ({src_tris} together)")
 
     atlas_uv([body, rifle])
-    bake_atlas(side, body, rifle, spec.get("fatigue_to"), spec.get("skin"), spec.get("tan"), spec.get("lift"))
+    bake_atlas(side, body, rifle, spec.get("fatigue_to"), spec.get("skin"), spec.get("tan"), spec.get("lift"), spec.get("shade"))
 
     poser = Poser(arm, body, rifle)
     # The support hand's grip and the muzzle, under the rifle.

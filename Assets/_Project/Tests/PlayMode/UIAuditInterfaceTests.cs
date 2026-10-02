@@ -163,7 +163,14 @@ namespace LanesOfVietnam.Tests
             // The lane diamonds take the colour of whoever holds the lane.
             foreach (var m in st.Men) if (m.Side == Side.Vc) m.Alive = false;
             yield return null;
-            Assert.IsTrue(hud.Diamonds.All(d => d.ClassListContains("us")), "with no VC standing, the US holds both lanes");
+            // (A side opens with one squad now, so a lane may have nobody in it: that one is nobody's.)
+            for (int lane = 0; lane < hud.Diamonds.Count; lane++)
+            {
+                bool held = st.Men.Any(m => m.Alive && m.Side == Side.Us && st.Squads[m.Squad].Lane == lane);
+                Assert.AreEqual(held, hud.Diamonds[lane].ClassListContains("us"), $"lane {lane}: with no VC standing, the US holds every lane it has men in");
+                Assert.IsFalse(hud.Diamonds[lane].ClassListContains("vc"), $"lane {lane} is shown as the VC's with no VC standing");
+            }
+            Assert.IsTrue(hud.Diamonds.Any(d => d.ClassListContains("us")));
         }
 
         [UnityTest, Category("UIAudit")]
@@ -254,6 +261,27 @@ namespace LanesOfVietnam.Tests
             }
             Assert.AreEqual(positions.Count * 3, Root.Driver.Match.Log.Count(l => l.Command.Kind == CommandKind.Lever && l.Accepted),
                             "a lever pulled is not in the match's command log");
+
+            // The plates keep out of the way: faint until the pointer is on one, and a crater or a bank
+            // shows none at all unless it holds his men, has a lever set, or is pointed at.
+            var bank = positions.First(c => c.Kind == CoverKind.Berm && c.Z > 0);
+            Root.CameraRig.Focus((float)bank.X - 5f, instant: true);       // the bank and the listening post's wall both in frame
+            hud.Positions.Pointer = new Vector2(-5000, -5000);
+            yield return null; yield return null;
+            var built = hud.Positions.Plates.First(p => Fieldcraft.Built(st.Cover[p.Cover]) && p.style.display.value == UnityEngine.UIElements.DisplayStyle.Flex);
+            Assert.AreEqual(PositionPlates.Faded, built.style.opacity.value, 0.01f, "a plate nobody is pointing at is not faded");
+            var natural = hud.Positions.Of(bank.Id);
+            Assert.AreEqual(0, st.Men.Count(m => m.Alive && m.Side == Side.Us && m.Cover == bank.Id), "the test's bank has men in it");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, natural.style.display.value, "an empty bank with no lever set shows a plate");
+            hud.Positions.Pointer = natural.Centre;
+            yield return null; yield return null;
+            Assert.IsTrue(natural.Hovered);
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, natural.style.display.value, "pointing at a bank did not show its plate");
+            Assert.AreEqual(1f, natural.style.opacity.value, 0.01f, "a plate under the pointer is not solid");
+            hud.Positions.Pointer = built.Centre;
+            yield return null; yield return null;
+            Assert.AreEqual(1f, built.style.opacity.value, 0.01f);
+            hud.Positions.Pointer = null;
 
             // Held, the forward trench fills with men and they stay; the plate counts them.
             var trench = positions.First(c => c.Kind == CoverKind.Trench && c.Z > 0);

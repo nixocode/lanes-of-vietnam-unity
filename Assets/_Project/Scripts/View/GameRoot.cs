@@ -114,7 +114,8 @@ namespace LanesOfVietnam.View
         /// in about a minute at any of them.
         /// </summary>
         public const double MusterCost = 28;
-        public const int OpeningStrength = 8;
+        /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
+        public const int OpeningStrength = 4;
 
         public void NewMatch(Side player, MatchLength length, int? seed = null,
                              System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null)
@@ -138,7 +139,7 @@ namespace LanesOfVietnam.View
                 // Arms (Part 2): every man his weapon, every card its squad, every fight at its weapons' distance. On in the game.
                 Arms = CaptureSettings.Active?.Arms ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
-                // the start"). Each side opens with a squad a lane, not eighteen men; points come in at
+                // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had
                 // been spending his points for him, a squad every time he reached 22. A capture and the
                 // frame-time probe have no player, so there both sides raise their own.

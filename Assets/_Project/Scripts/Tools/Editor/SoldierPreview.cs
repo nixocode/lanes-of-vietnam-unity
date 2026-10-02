@@ -91,6 +91,21 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
+        /// <summary>
+        /// Where a man lying or kneeling looks: the clip's own head, then with his eyes on a point
+        /// 20 m to his front (SoldierFigure.Look): captures/soldiers/&lt;side&gt;_look.png.
+        /// </summary>
+        public static void RenderLook()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            // death -8: Look at his front before he is stepped.
+            States = new[] { ("prone", 0f, 2, false, false, 0, 1f), ("prone", 0f, 2, false, false, 0, 1f), ("prone look", 0f, 2, false, false, -8, 1f),
+                             ("prone aim look", 0f, 2, true, false, -8, 1f), ("kneel", 0f, 1, false, false, 0, 1f), ("kneel look", 0f, 1, false, false, -8, 1f) };
+            foreach (var side in new[] { "us_a", "vc_c" }) Sheet(side, 1.6f, "_look", 1.15f);
+            States = orig;
+        }
+
         /// <summary>For RenderArms: the weapon each column's man is given.</summary>
         private static string[] Carry;
 
@@ -144,6 +159,7 @@ namespace LanesOfVietnam.Tools
                 if (!s.dead && s.death == -1) f.React();
                 if (!s.dead && s.death == -2) f.Reload();
                 if (!s.dead && s.death == -3) f.Throw();
+                if (!s.dead && s.death == -8) f.Look(new Vector3(20f, s.posture == 2 ? 0.35f : 1.0f, 0f), 1f);
                 if (!s.dead && s.death == -4) f.Strike(0);
                 if (!s.dead && s.death == -5) f.Strike(1);
                 if (!s.dead && s.death == -6) f.Climb(true);
