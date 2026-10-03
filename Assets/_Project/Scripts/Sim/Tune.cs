@@ -382,6 +382,8 @@ namespace LanesOfVietnam.Sim
         public const double WordRange = 30;
         /// <summary>An enemy squad in the other lane counts as this much further off when a squad picks the one it deals with.</summary>
         public const double LanePenalty = 6;
+        /// <summary>Gunnery: as much, so that an enemy squad in its own lane it knows of is always the one a squad deals with.</summary>
+        public const double LaneShun = 1000;
         /// <summary>
         /// A squad acts on an enemy it knows of inside this, or inside its own fighting distance and this much more if that is further.
         /// (At rifle range, 20 m, a squad coming up to a firefight strolled upright through its own
@@ -430,24 +432,35 @@ namespace LanesOfVietnam.Sim
         /// goes when its men are at it (2.2 m/s). It was a run: 4.0, and the anchor at 2.8 times its march.
         /// The owner, playtest 7, the first he saw of it: "gameplay seems to go too fast now ... walk run
         /// is too quick (almost half)". At double time, then, not at a sprint: the walk's clip (1.8 m/s)
-        /// played a third fast, which is a hurried man and not a run in slow motion.
+        /// played a third fast, which is a hurried man and not a run in slow motion. Playtest 8, on 2.4:
+        /// "all speeds seem too fast now: running, walking and even gunfights". 1.9: the walk's clip at its
+        /// own pace, a man going briskly; the anchor at 1.75.
         /// </summary>
-        public const double SpeedRush = 2.4, RushPaceRun = 1.65;
+        public const double SpeedRush = 1.9, RushPaceRun = 1.3;
         /// <summary>
         /// On the march: the anchor's pace against the baseline's 1.35 m/s (1.08), and a man's own
         /// speed coming up to his place in the file (it was the baseline's 2.0). The same note: a
         /// squad was in the fight too soon after it came on.
         /// </summary>
-        public const double MarchPace = 0.8, SpeedWalk = 1.5;
+        public const double MarchPace = 0.7, SpeedWalk = 1.25;
         /// <summary>
         /// Ticks to climb into a trench, and out of one (0.95 and 1.2 s): a quarter slower than
-        /// Fieldcraft's own (the same note: "climb animations need to be slowed by a quarter").
+        /// Fieldcraft's own (the same note: "climb animations need to be slowed by a quarter"). Each man
+        /// takes up to two ticks more or less (Gunnery.VaultTicks): playtest 8, "all climb simultaneously".
         /// </summary>
         public const int SlowVaultInTicks = 19, SlowVaultOutTicks = 24;
+        /// <summary>Ticks each man waits after the one ahead of him before he gets up or sets off (Gunnery.Stagger).</summary>
+        public const int StaggerTicks = 4;
         /// <summary>Inside ten metres a pinned man still fires this share of his chances, and aims this well at worst; and nobody throws smoke at an enemy nearer than SmokeBeyond.</summary>
         public const double CloseSteady = 0.6, SmokeBeyond = 12;
         /// <summary>A miss lands up to this far past the man, and this far to a side plus this much a metre of range.</summary>
-        public const double MissOver = 9, MissWide = 0.35, MissWidePerMetre = 0.035;
+        public const double MissOver = 4, MissWide = 0.25, MissWidePerMetre = 0.02;
+
+        // --- ammunition (MatchOptions.Ammo) ---------------------------------------------
+
+        /// <summary>How much likelier a long burst, close in, is to hit than a short one; and ticks a squad leaves between one man's grenade and the next's (3 s).</summary>
+        public const double LongBurstHit = 1.4;
+        public const int SquadThrowGap = 60;
 
         public const double VetPerSecond = 0.010;
         public const double VetCap = 1.0;

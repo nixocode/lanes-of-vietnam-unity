@@ -52,6 +52,9 @@ namespace LanesOfVietnam.View
         [DllImport("__Internal")] private static extern float LovInput_PointerY();
         [DllImport("__Internal")] private static extern int LovInput_Dragging();
         [DllImport("__Internal")] private static extern float LovInput_CanvasWidth();
+        [DllImport("__Internal")] private static extern float LovInput_SteerX();
+        [DllImport("__Internal")] private static extern float LovInput_SteerY();
+        [DllImport("__Internal")] private static extern int LovInput_Steering();
         private bool _browser;
 #endif
         private float _trauma;
@@ -69,6 +72,18 @@ namespace LanesOfVietnam.View
         /// </summary>
         public bool FieldGlasses;
         public const float GlassesFov = 7f;
+
+        /// <summary>
+        /// Where the zoom points: degrees up (+) or down from the lanes, toward what was under the pointer
+        /// when the zoom went in, or where Option (or Cmd) and the mouse have steered it. The owner, playtest 8:
+        /// "camera zooms only into one spot ... you should be able to zoom into whatever you want by holding
+        /// down a key and moving the mouse". At the authored view it is none (the composition holds); it
+        /// may be more the further in the zoom is.
+        /// </summary>
+        public float AimUp { get; private set; }
+        private float _targetAimUp;
+        /// <summary>The most the zoom may point off the lanes, degrees, at full zoom; and how far a pixel of steering turns it.</summary>
+        public const float MaxAimUp = 7f, SteerDegreesPerPixel = 0.03f;
         public float Zoom { get; private set; }          // 0 = authored lens, 1 = glasses
         private Vector2 _glassesAim;                      // viewport offset from centre, -0.5..0.5
 
@@ -119,6 +134,8 @@ namespace LanesOfVietnam.View
             float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime * 9f);
             X = Mathf.Lerp(X, _targetX, k);
             Dolly = Mathf.Lerp(Dolly, _targetDolly, k);
+            _targetAimUp = Mathf.Clamp(_targetAimUp, -MaxAimUp * _targetDolly, MaxAimUp * _targetDolly);
+            AimUp = Mathf.Lerp(AimUp, _targetAimUp, k);
             Apply();
         }
 
@@ -131,13 +148,15 @@ namespace LanesOfVietnam.View
 
             // Two fingers (or the wheel) up and down zoom, sideways pan; one finger
             // with the button down drags the line, and at the view's edge pans.
-            float zoom, sideways, drag = 0, px = -1, py = -1, cssToScreen = 1;
+            float zoom, sideways, drag = 0, px = -1, py = -1, cssToScreen = 1, steerX = 0, steerY = 0;
+            bool steering;
 #if UNITY_WEBGL && !UNITY_EDITOR
             if (!_browser) { LovInput_Init(); _browser = true; }
             zoom = LovInput_Zoom(); sideways = LovInput_Pan(); drag = LovInput_Drag();
             px = LovInput_PointerX(); py = LovInput_PointerY();
             BrowserDragging = LovInput_Dragging() != 0;
             cssToScreen = Screen.width / Mathf.Max(1f, LovInput_CanvasWidth());
+            steerX = LovInput_SteerX(); steerY = LovInput_SteerY(); steering = LovInput_Steering() != 0;
 #else
             var wheel = Input.mouseScrollDelta;
             zoom = wheel.y * 0.12f;
@@ -145,12 +164,22 @@ namespace LanesOfVietnam.View
             var mouse = Input.mousePosition;
             if (Application.isFocused && mouse.x >= 0 && mouse.x <= Screen.width && mouse.y >= 0 && mouse.y <= Screen.height)
             { px = mouse.x / Screen.width; py = mouse.y / Screen.height; }
+            steering = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
+            if (steering && _lastMouse.x >= 0) { steerX = mouse.x - _lastMouse.x; steerY = _lastMouse.y - mouse.y; }
+            _lastMouse = mouse;
 #endif
-            if (zoom != 0) ZoomBy(Mathf.Clamp(zoom, -0.6f, 0.6f));
+            // The zoom goes in toward what is under the pointer, not the middle of the picture.
+            if (zoom != 0) ZoomToward(Mathf.Clamp(zoom, -0.6f, 0.6f), px, py);
             float mpp = MetresPerPixel() * cssToScreen;
             if (sideways != 0) PanBy(sideways * mpp);
             if (drag != 0) PanBy(-drag * mpp);                 // the ground follows the finger
-            if (EdgePan && px >= 0 && py > EdgeBottom && py < EdgeTop && !_dragging && !BrowserDragging && !Input.GetMouseButton(0))
+            // Option (or Cmd) held: the mouse steers where the zoom points, along the line and up and down.
+            if (steering)
+            {
+                if (steerX != 0) PanBy(steerX * mpp);
+                if (steerY != 0) _targetAimUp -= steerY * cssToScreen * SteerDegreesPerPixel;
+            }
+            if (EdgePan && !steering && px >= 0 && py > EdgeBottom && py < EdgeTop && !_dragging && !BrowserDragging && !Input.GetMouseButton(0))
             {
                 float push = px < EdgeZone ? -(1f - px / EdgeZone) : px > 1f - EdgeZone ? (px - (1f - EdgeZone)) / EdgeZone : 0f;
                 if (push != 0) _targetX = Mathf.Clamp(_targetX + push * PanSpeed * 1.4f * dt, -PanLimit, PanLimit);
@@ -168,6 +197,24 @@ namespace LanesOfVietnam.View
 
         /// <summary>Zoom in (+) or out (-): 1 is the whole range.</summary>
         public void ZoomBy(float amount) => _targetDolly = Mathf.Clamp01(_targetDolly + amount);
+
+        private Vector3 _lastMouse = new Vector3(-1, -1, 0);
+
+        /// <summary>
+        /// Zoom, keeping what is under the pointer (viewport 0..1; -1, the middle) under it: the line pans as
+        /// the view narrows, and the aim tilts toward it.
+        /// </summary>
+        public void ZoomToward(float amount, float px, float py)
+        {
+            float before = _targetDolly;
+            ZoomBy(amount);
+            if (px < 0 || py < 0) return;
+            float aspect = Camera != null ? Camera.aspect : 16f / 9f;
+            float Width(float d) => 2f * (Coords.Camera.SimZ - d * DollyRange - (float)Tune.Lanes[0])
+                                    * Mathf.Tan(Mathf.Lerp(Coords.Camera.Fov, ZoomFov, d) * 0.5f * Mathf.Deg2Rad) * aspect;
+            _targetX = Mathf.Clamp(_targetX + (px - 0.5f) * (Width(before) - Width(_targetDolly)), -PanLimit, PanLimit);
+            _targetAimUp += (py - 0.5f) * (Mathf.Lerp(Coords.Camera.Fov, ZoomFov, before) - Mathf.Lerp(Coords.Camera.Fov, ZoomFov, _targetDolly));
+        }
 
         /// <summary>Start a drag at a screen point: the ground under it stays under it.</summary>
         public void BeginDrag(Vector2 screen)
@@ -234,7 +281,7 @@ namespace LanesOfVietnam.View
             float vHalf = Coords.Camera.Fov * 0.5f;
             float hHalf = Mathf.Atan(Mathf.Tan(vHalf * Mathf.Deg2Rad) * (cam != null ? cam.aspect : 16f / 9f)) * Mathf.Rad2Deg;
             float yaw = _glassesAim.x * 2f * hHalf * e, pitch = -_glassesAim.y * 2f * vHalf * e;
-            pitch += ZoomPitch(simZ, lens);
+            pitch += ZoomPitch(simZ, lens) - AimUp;
             var rot = Coords.Camera.Rotation * Quaternion.Euler(pitch, yaw, 0);
             var pos = Coords.World(X, simZ, Coords.Camera.Height);
             if (_trauma > 0.001f)

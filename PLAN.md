@@ -1709,6 +1709,111 @@ same frame was 6 ms):
 nothing since Senses; the two lanes as separate fights (§12.19).
 
 
+### 12.24 Playtest 8: the review build (owner, 2026-10-03)
+
+The owner played `f76b5e3` (the review and playtest 7's pace) and wrote, in
+his words:
+
+1. "Camera zooms only into 1 spot (when zooming), you should be able to zoom
+   into whatever you want by holding down a key (like cmd or alt and moving
+   the mouse to change zoom location)."
+2. "US soldiers all climb up exactly at the same time (from spawn, all climb
+   simultaneously). Change that so it's not so coordinated (give delay or
+   different animation to some)."
+3. "Biggest issue is still gunfights, sliding of both US and Viet forces. (No
+   grenades in hand when throwing, or air, or landing: add them.)"
+4. "Still too much flash of gunfire that goes up, down and sideways: make sure
+   shots count."
+5. "No reloads, this needs to be a feature that is strategic and needs to be
+   timed. For example the M60 or the Viet gunner just spams rounds non-stop.
+   Make them only full auto when necessary, do short bursts and do reloads
+   (count rounds, and assign each squad/gun/soldier their limited amount of
+   rounds per magazine). Same with grenades: can't be endless spam."
+6. "All speeds seem too fast now: running, walking and even gunfights."
+7. "Grenade throws create these rays in the sky; they look bad, remove them
+   (going after realism: show the grenade, not some flash)."
+8. "AI soldiers don't shoot each other across lanes even when directly across
+   one another. Make it so they respect the mountain range and can only shoot
+   when they see each other."
+
+Organised by what has to change, in the order it is worked:
+
+| | what | where | notes |
+|---|---|---|---|
+| A | **Sliding in gunfights** (3) | view | The biggest issue. Movement is no longer the suspect (the motion audit's 0.6%); what a gunfight is full of is men turning: to a new target, into their aim, out of it. The whole body is turned about its root with the feet planted, which reads as a slide. Measured first, with the motion audit and strips of frames, then fixed. |
+| B | **Grenades as things** (3, 7) | view | A grenade in the hand through the throw, a grenade in the air (no line behind it), a grenade on the ground until it goes off; an M79's round and a mortar bomb the same. |
+| C | **Ammunition and fire discipline** (4, 5) | simulation, a new rule behind its own `MatchOptions` flag | Rounds counted; magazines by weapon; a reload that takes its time, is seen, and is a moment the other side can use; machine guns in short bursts, long ones only when the enemy is close; launcher rounds and grenades carried in limited numbers. Fewer rounds in the air is most of note 4; the rest is where a miss is drawn (near its line, no ricochets climbing into the sky). |
+| D | **Across the lanes, by sight** (8) | simulation | Gunnery made the lanes two fights. A man fires across them when he can see his man over the ground between: the bank between the lanes stops a man down behind it, its gaps do not. Deterministic: the bank's own shape, in the simulation's arithmetic. |
+| E | **Pace** (6, 2) | simulation | Slower again, a fifth to a quarter; men set off one after another, not in step, and the climb out of a trench is not in unison; the gunfight's tempo comes down with C. Lengths and difficulty measured again. |
+| F | **Zoom where you point** (1) | view | The zoom goes toward what is under the pointer; Option held and the mouse moved steers it. |
+
+Each is checked the way its layer is: the simulation with `simcs` (hashes,
+determinism, the audit, `aware`, `player`), the view with the motion audit,
+strips and captures, all of it with the EditMode and PlayMode tests and a
+WebGL build measured at the owner's screen.
+
+**As built (2026-10-03).**
+
+- **A, sliding in gunfights.** Measured first: in a minute and a quarter of
+  fighting, men turned on the spot for 27 man-seconds, 6,000 degrees, the foot
+  on the ground sliding 41 m in all (five times what the movement slid before
+  §12.23 fixed it). Every new target, every raise and lowering of the rifle,
+  turned the whole man about his root at 240 degrees a second. Now his upper
+  body turns to his man, his spine taking a share a bone (`SoldierFigure.Twist`,
+  up to 70 degrees standing, 62 kneeling, 38 flat, the clip's own aim turn
+  included); his feet turn only when his man is further round than that, and
+  then he steps round (a slow walk, crouched walk or crawl while he turns); and
+  a man getting up turns with his first steps, not on his knees. 244 degrees,
+  3 m of foot slide, in the same fight. The motion audit measures it now.
+- **B, grenades.** `Ordnance`: an M26 for the Americans, a Chicom stick grenade
+  for the VC, an M79's round, a mortar bomb, turned from profiles in code and
+  coloured from the weapons' palette, drawn larger than life (2.2x). In the
+  thrower's hand until it leaves it (0.45 s into the toss), end over end
+  through the air, on its side on the ground until it goes off. No lines in
+  the sky.
+- **C, ammunition** (`MatchOptions.Ammo`, `Sim/Ammo.cs`, on in the game):
+  magazines (M16 20, AK 30, SKS 10, M60 and RPD 100, SMG 30, scoped rifles 5);
+  reloads of 2.5 to 7 s in which a man does not fire, seen as the reload clip;
+  a low magazine changed in a lull; machine guns and submachine guns in short
+  bursts (4 or 5 rounds, then 1.1 to 1.8 s), long ones (8 to 10, faster) only
+  with the enemy within ten metres or either side going in; an aimed rifle
+  round every 1.5 s, not every second; an M79 carries 12 rounds, an RPG 3, the
+  mortar 10; a squad throws one grenade at a time (3 s apart). `simcs aware`:
+  183 shots a minute where the same rules without it fired 289; 3.8 reloads a
+  minute. Misses land within 4 m past the man (it was 9) and closer to his
+  line; ricochets are one in twenty (one in six), low and onward; the pale
+  line every round drew is gone (tracers stay, one round in five from an
+  automatic weapon).
+- **D, across the lanes, by sight** (Gunnery). `Gunnery.Sightline`: the bank
+  between the lanes, its height and its gaps as the terrain has them,
+  computed in the simulation's own arithmetic. A man sees and fires across
+  when the line from his eyes to the top of the other man clears it: two men
+  on their feet do; a man down behind it is hidden, and so is everyone from
+  him; a gap hides nobody. A squad deals with its own lane's enemy first and
+  fires across only at one in sight with nobody in its own lane in reach: 18%
+  of shots in the six seeds.
+- **E, pace.** In contact 1.9 m/s (it was 2.4, and 4.0 before playtest 7),
+  the squad's anchor 1.75; on the march 0.95 (1.08), a man coming up to his
+  place 1.25. A squad at rest gets up and sets off a man at a time, the lead
+  man first, each about a fifth of a second after the man ahead
+  (`Gunnery.Stagger`); each man's climb into or out of a trench is his own,
+  up to a tenth of a second either side. Lengths measured again: will runs out
+  at 1.0, 0.8 and 0.9 (skirmish 95 to 130 s, standard 150 to 230, siege five
+  and a half to nine minutes); the three difficulties hold at 40, 29 and 22
+  (a line-squad buyer wins 23 and 22 of 24 against a Recruit, 18 and 19
+  against a Veteran, 11 and 12 against the Elite).
+- **F, zoom where you point.** The zoom keeps what is under the pointer under
+  it: the line pans as the view narrows and the aim tilts toward it (up to 7
+  degrees at full zoom, none at the authored view). Option or Cmd held, the
+  mouse steers it: along the line, and up and down.
+
+EditMode 64/64 (four new tests: ammunition, the bank, a squad's turns, a pin
+for the new rule; the Gunnery pins re-recorded, every other layer untouched),
+PlayMode 17/17, WebGL 25.08 MB, 4.4 to 4.6 ms a frame at 2592 x 1370. Seen by
+me in strips and captures, not yet by the owner: the grenades, the aiming,
+the pace, the reloads, the zoom (no capture reaches a pointer).
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

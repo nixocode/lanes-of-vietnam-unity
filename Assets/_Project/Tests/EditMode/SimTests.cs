@@ -782,7 +782,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 1; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.8;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 Assert.IsFalse(st.Men.Any(x => x.Seen), "somebody is seen before anyone has looked");
@@ -830,7 +830,7 @@ namespace LanesOfVietnam.Tests
             for (int seed = 3; seed <= 8; seed++)
             {
                 var o = Sensed(seed);
-                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6;      // as the game plays it
+                o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.8;      // as the game plays it
                 var m = new LiveMatch(o);
                 var st = m.State;
                 foreach (var man in st.Men.Where(x => x.Side == Side.Us && x.Place >= 0))
@@ -881,13 +881,13 @@ namespace LanesOfVietnam.Tests
         {
             var o = Sensed(seed, onMap);
             o.Gunnery = true;
-            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.6; }      // as the game plays it
+            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.8; }      // as the game plays it
             return o;
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery [map]`.</summary>
-        [TestCase(1, true, 3478, 3328910929u, 2449430004u, 515081853u, "vc morale broke")]
-        [TestCase(7, false, 1860, 3648839479u, 2208226111u, 3683317779u, "us morale broke")]
+        [TestCase(1, true, 2212, 2873463602u, 456925665u, 2240870933u, "vc morale broke")]
+        [TestCase(7, false, 2603, 193823866u, 2308654957u, 890381349u, "us morale broke")]
         public void With_gunnery_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -938,8 +938,9 @@ namespace LanesOfVietnam.Tests
                         // Where the man he fired at was when he fired (a man hit has not moved since: he is dead).
                         double tx = at.Id < before.Length ? before[at.Id].X : at.X, tz = at.Id < before.Length ? before[at.Id].Z : at.Z;
                         double dx = System.Math.Abs(by.X - tx), dz = System.Math.Abs(by.Z - tz);
-                        Assert.IsTrue(dz <= Tune.ArcSlope * dx + 0.5 || dx * dx + dz * dz <= (Tune.ChargeRange + 0.5) * (Tune.ChargeRange + 0.5),
-                                      $"seed {seed} tick {st.Tick}: a bullet fired {dz:F1} m across the lane for {dx:F1} m along it");
+                        // Down the lane, at arm's length, or across it at a man he can see over the bank (playtest 8).
+                        Assert.IsTrue(Gunnery.Sightline(by, at) || dx * dx + dz * dz <= (Tune.ChargeRange + 0.5) * (Tune.ChargeRange + 0.5),
+                                      $"seed {seed} tick {st.Tick}: a bullet fired through the bank, {dz:F1} m across the lane for {dx:F1} m along it");
                         if (hit) Assert.AreEqual(at.X, e.X.Value, 1e-9, "a hit that landed somewhere else");
                         if (by.Posture == Posture.Standing) { standing++; if (hit) standingHits++; }
                         else if (hit) downHits++;
@@ -968,6 +969,181 @@ namespace LanesOfVietnam.Tests
             Assert.Less(Tune.StandingHit, 0.5);
         }
 
+        // --- Part 2: ammunition, behind MatchOptions.Ammo; sight across the lanes and a squad's turns, Gunnery -----
+
+        private static MatchOptions Loaded(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Gunned(seed, onMap, tempo);
+            o.Ammo = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo [map]`.</summary>
+        [TestCase(1, true, 2725, 3635094490u, 2616258432u, 988759736u, "us morale broke")]
+        public void With_ammo_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Ammo, "ammunition must be off unless asked for");
+            var (a, m) = Played(Loaded(seed, asTheGame));
+            var (b, _) = Played(Loaded(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, playtest 8: "No reloads ... the M60 or the Viet gunner just spams rounds non-stop. Make
+        /// them only full auto when necessary, do short bursts and do reloads (count rounds ...). Same with
+        /// grenades: can't be endless spam." Rounds are counted and never go below nothing; nobody fires
+        /// while he reloads; a burst is a short one or, close in, a long one, and never more than the
+        /// magazine had; men reload; a launcher fires no more rounds than it carried; a squad throws one
+        /// grenade at a time.
+        /// </summary>
+        [Test]
+        public void With_ammo_rounds_are_counted_magazines_run_out_and_reloads_take_their_time()
+        {
+            int reloads = 0, bursts = 0, longBursts = 0, launched = 0;
+            for (int seed = 3; seed <= 6; seed++)
+            {
+                var m = new LiveMatch(Loaded(seed, tempo: true));
+                var st = m.State;
+                var fired = new Dictionary<int, int>();
+                var thrown = new Dictionary<int, int>();
+                while (!st.Over && st.Tick < 3600)
+                {
+                    var reloading = st.Men.Select(x => x.Reloading).ToArray();
+                    var held = st.Men.Select(x => x.Rounds).ToArray();
+                    int from = st.Events.Count;
+                    m.Step();
+                    foreach (var man in st.Men) Assert.GreaterOrEqual(man.Rounds, 0, "a man has fewer than no rounds");
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.Reload) reloads++;
+                        if (e.Kind == EventKind.GrenadeThrown)
+                        {
+                            int sq = st.Men[e.Id].Squad;
+                            if (thrown.TryGetValue(sq, out int at)) Assert.GreaterOrEqual(st.Tick - at, Tune.SquadThrowGap, $"seed {seed}: squad {sq} threw two grenades at once");
+                            thrown[sq] = st.Tick;
+                        }
+                        if (e.Kind == EventKind.Launch)
+                        {
+                            launched++;
+                            fired[e.Id] = fired.GetValueOrDefault(e.Id) + 1;
+                            Assert.LessOrEqual(fired[e.Id], Ammo.Of(st.Men[e.Id].Weapon).Magazine, $"seed {seed}: man {e.Id} fired more rounds than he carried");
+                        }
+                        if (e.Kind != EventKind.Fire) continue;
+                        Assert.Greater(e.Rounds, 0, "a shot that spent nothing");
+                        // (A reload with a tick left ends on this one, and he may fire on it.)
+                        if (e.Id < reloading.Length) Assert.LessOrEqual(reloading[e.Id], 1, $"seed {seed}: man {e.Id} fired while reloading");
+                        var load = Ammo.Of(st.Men[e.Id].Weapon);
+                        if (e.Id < held.Length)
+                            Assert.LessOrEqual(e.Rounds, reloading[e.Id] == 1 ? load.Magazine : held[e.Id], $"seed {seed}: man {e.Id} fired rounds he did not have");
+                        if (!load.Automatic) { Assert.AreEqual(1, e.Rounds); continue; }
+                        bursts++;
+                        Assert.LessOrEqual(e.Rounds, load.LongBurst);
+                        if (e.Rounds > load.Burst) longBursts++;
+                    }
+                }
+            }
+            Assert.Greater(reloads, 20, "hardly anyone reloaded");
+            Assert.Greater(bursts, 100, "hardly a burst was fired");
+            Assert.Greater(longBursts, 0, "no machine gun ever went to full automatic");
+            Assert.Less(longBursts * 2, bursts, "full automatic is the rule, not the exception");
+            Assert.Greater(launched, 0);
+            Assert.IsFalse(new LiveMatch(Gunned(3)).State.Men.Any(x => x.Rounds != 0), "rounds are issued without the rule");
+        }
+
+        /// <summary>
+        /// The owner, playtest 8: "AI soldiers don't shoot each other across lanes even when directly across one
+        /// another. Make it so they respect the mountain range and can only shoot when they see each other." The
+        /// bank between the lanes hides a man down behind it from the other lane and him from them; two men on
+        /// their feet see over it; a gap in it hides nobody; two men on one side of it always see each other.
+        /// </summary>
+        [Test]
+        public void With_gunnery_the_bank_between_the_lanes_hides_men_who_are_down_behind_it()
+        {
+            Man At(double x, double z, Posture p) => new Man { X = x, Z = z, Posture = p };
+            double crest = double.NaN, gap = double.NaN;
+            for (double x = -150; x <= 150 && (double.IsNaN(crest) || double.IsNaN(gap)); x += 0.25)
+            {
+                if (double.IsNaN(crest) && Gunnery.Bank(x) > 0.84) crest = x;
+                if (double.IsNaN(gap) && Gunnery.Bank(x) == 0) gap = x;
+            }
+            Assert.IsFalse(double.IsNaN(crest), "the bank never stands at its full height");
+            Assert.IsFalse(double.IsNaN(gap), "the bank has no gaps");
+            Assert.IsFalse(Gunnery.Sightline(At(crest, Tune.Lanes[0], Posture.Prone), At(crest, Tune.Lanes[1], Posture.Crouched)), "a man flat behind the bank is seen from the other lane");
+            Assert.IsFalse(Gunnery.Sightline(At(crest, Tune.Lanes[1], Posture.Crouched), At(crest, Tune.Lanes[0], Posture.Prone)), "he is seen the other way");
+            Assert.IsTrue(Gunnery.Sightline(At(crest, Tune.Lanes[0], Posture.Standing), At(crest, Tune.Lanes[1], Posture.Standing)), "two men on their feet do not see over the bank");
+            Assert.IsTrue(Gunnery.Sightline(At(gap, Tune.Lanes[0], Posture.Prone), At(gap, Tune.Lanes[1], Posture.Prone)), "a gap in the bank hides two men");
+            Assert.IsTrue(Gunnery.Sightline(At(crest, Tune.Lanes[1], Posture.Prone), At(crest + 10, Tune.Lanes[1], Posture.Prone)), "two men in one lane do not see each other");
+
+            // And in play: men fire across the lanes, and only at a man they can see.
+            int across = 0;
+            for (int seed = 3; seed <= 5; seed++)
+            {
+                var m = new LiveMatch(Loaded(seed, tempo: true));
+                var st = m.State;
+                while (!st.Over && st.Tick < 3000)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind != EventKind.Fire) continue;
+                        Man by = st.Men[e.Id], at = st.Men[e.Target.Value];
+                        if (st.Squads[by.Squad].Lane == st.Squads[at.Squad].Lane) continue;
+                        across++;
+                        Assert.IsTrue(Gunnery.Sightline(by, at) || Combat.Dist(by, at) <= Tune.ChargeRange + 0.5, $"seed {seed} tick {st.Tick}: a man fired through the bank");
+                    }
+                }
+            }
+            Assert.Greater(across, 0, "nobody ever fired across the lanes");
+        }
+
+        /// <summary>
+        /// The owner, playtest 8: "US soldiers all climb up exactly at the same time ... change that so it's not so
+        /// coordinated." When a squad that has been at rest goes, its men get up and set off one after another.
+        /// </summary>
+        [Test]
+        public void With_gunnery_a_squad_sets_off_a_man_at_a_time()
+        {
+            int squadsWatched = 0, together = 0, staggered = 0;
+            for (int seed = 3; seed <= 6; seed++)
+            {
+                var m = new LiveMatch(Loaded(seed, tempo: true));
+                var st = m.State;
+                var startedAt = new Dictionary<int, int>();
+                while (!st.Over && st.Tick < 2400)
+                {
+                    var rest = st.Men.Select(x => x.Rest).ToArray();
+                    var was = st.Men.Select(x => x.Posture).ToArray();
+                    m.Step();
+                    // Men who had been at rest a good while and set off, or got up, this tick, by squad.
+                    var went = new Dictionary<int, int>();
+                    for (int i = 0; i < rest.Length; i++)
+                    {
+                        var man = st.Men[i];
+                        if (!man.Alive || rest[i] < 40 || st.Squads[man.Squad].Order == Order.Fallback) continue;
+                        bool rose = was[i] != Posture.Standing && man.Posture == Posture.Standing;
+                        bool set = man.Rest == 0;
+                        if (rose || set) went[man.Squad] = went.GetValueOrDefault(man.Squad) + 1;
+                    }
+                    foreach (var kv in went)
+                    {
+                        squadsWatched++;
+                        if (kv.Value >= 3) together++; else staggered++;
+                    }
+                }
+            }
+            Assert.Greater(squadsWatched, 20);
+            Assert.Less(together * 10, squadsWatched, $"{together} of {squadsWatched} squads had three or more men go on the same tick");
+        }
+
         /// <summary>
         /// The start screen says a skirmish is about two minutes, a standard
         /// match about three and a half, a siege about eight. They had drifted
@@ -976,9 +1152,9 @@ namespace LanesOfVietnam.Tests
         /// the two plans left to fight it out run what the screen says, give
         /// or take a third, and the baseline's own rate is untouched.
         /// </summary>
-        [TestCase(MatchLength.Skirmish, 0.75, 85, 165)]
-        [TestCase(MatchLength.Standard, 0.6, 150, 270)]
-        [TestCase(MatchLength.Siege, 0.71, 330, 600)]
+        [TestCase(MatchLength.Skirmish, 1.0, 85, 165)]
+        [TestCase(MatchLength.Standard, 0.8, 150, 270)]
+        [TestCase(MatchLength.Siege, 0.9, 330, 600)]
         public void At_the_games_settings_a_match_runs_as_long_as_the_start_screen_says(MatchLength length, double rate, int atLeast, int atMost)
         {
             Assert.AreEqual(1.0, new MatchOptions().MoraleRate, "the baseline's morale rate moved");
@@ -986,7 +1162,7 @@ namespace LanesOfVietnam.Tests
             const int seeds = 12;
             for (int seed = 1; seed <= seeds; seed++)
             {
-                var o = Gunned(seed, tempo: true);
+                var o = Loaded(seed, tempo: true);
                 o.Length = length; o.MoraleRate = rate;
                 seconds += Match.Run(o).Seconds;
             }

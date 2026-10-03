@@ -154,6 +154,8 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static bool Launch(SimState st, Man a, Arm arm, Rng rng)
         {
+            // Ammo: the rounds it carried are all it has.
+            if (st.Ammo && a.Rounds <= 0) { a.Cooldown = Tune.ScanIdle * 4; return false; }
             Man target = null;
             double best = arm.Range * arm.Range, min2 = arm.MinRange * arm.MinRange;
             for (int i = 0; i < st.Men.Count; i++)
@@ -180,6 +182,7 @@ namespace LanesOfVietnam.Sim
                 Radius = arm.Blast, Kill = arm.Kill, CoverFactor = arm.CoverFactor, By = a.Weapon,
             };
             st.Grenades.Add(g);
+            if (st.Ammo) a.Rounds--;
             a.Cooldown = arm.Cooldown;
             a.Seen = true;
             a.FiredAt = st.Tick;

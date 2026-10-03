@@ -51,12 +51,59 @@ namespace LanesOfVietnam.Sim
     /// </summary>
     public static class Gunnery
     {
-        /// <summary>May <paramref name="a"/> put a bullet at <paramref name="b"/>: is he down the lane from him, or at arm's length?</summary>
-        public static bool InArc(Man a, Man b)
+        /// <summary>
+        /// May <paramref name="a"/> put a bullet at <paramref name="b"/>? At arm's length, always; else if he
+        /// can see him over the ground between them (<see cref="Sightline"/>). It was "down the lane only":
+        /// the lanes were two separate fights, and the owner, playtest 8: "AI soldiers don't shoot each other
+        /// across lanes even when directly across one another. Make it so they respect the mountain range and
+        /// can only shoot when they see each other."
+        /// </summary>
+        public static bool InArc(SimState st, Man a, Man b)
         {
             double dx = Math.Abs(a.X - b.X), dz = Math.Abs(a.Z - b.Z);
             if (dx * dx + dz * dz <= Tune.ChargeRange * Tune.ChargeRange) return true;
-            return dz <= Tune.ArcSlope * dx;
+            return Sightline(a, b);
+        }
+
+        // The bank between the lanes (Ground: BermZ, BermHeight, BermGate), in the simulation's own arithmetic:
+        // the same bank the terrain is built with, its gaps where the terrain has them.
+        private static readonly double BankZ = new GroundParams().BermZ, BankHeight = new GroundParams().BermHeight;
+        private static readonly double BankPhase = Phase();
+
+        private static double Phase()
+        {
+            // Ground's fixed offsets: the fifth draw of its own stream.
+            var rng = new Rng(new GroundParams().Seed);
+            double o = 0;
+            for (int i = 0; i < 5; i++) o = rng.Range(-800, 800);
+            return o;
+        }
+
+        /// <summary>How tall the bank stands at x: its full height, nothing in a gap (Ground.BermGate).</summary>
+        public static double Bank(double x)
+        {
+            double gaps = JsMath.Sin(x * 0.019 + BankPhase) * 0.5 + 0.5;
+            return BankHeight * Math.Max(0, Math.Min(1, (gaps - 0.34) * 3.2));
+        }
+
+        /// <summary>A man's eyes above the ground, and the top of him as another man sees him, by how he is.</summary>
+        public static double Eyes(Posture p) => p == Posture.Prone ? 0.35 : p == Posture.Crouched ? 1.0 : 1.6;
+        public static double Top(Posture p) => p == Posture.Prone ? 0.4 : p == Posture.Crouched ? 1.15 : 1.75;
+
+        /// <summary>
+        /// Can <paramref name="a"/> see <paramref name="b"/> over the bank between the lanes? Two men on one
+        /// side of it, always. Across it, if the line from his eyes to the top of the other man clears it where
+        /// it crosses: two men standing see over it; a man down behind it is out of sight of the other lane,
+        /// and so is everyone from him; in a gap it hides nobody.
+        /// </summary>
+        public static bool Sightline(Man a, Man b)
+        {
+            double za = a.Z - BankZ, zb = b.Z - BankZ;
+            if (za * zb >= 0) return true;
+            double t = za / (za - zb);
+            double x = a.X + (b.X - a.X) * t;
+            double line = Eyes(a.Posture) + (Top(b.Posture) - Eyes(a.Posture)) * t;
+            return line > Bank(x);
         }
 
         /// <summary>Has he been still long enough to fire?</summary>
@@ -71,9 +118,16 @@ namespace LanesOfVietnam.Sim
         /// <summary>How fast a man on his feet goes, m/s: at the double with his squad in contact, else at a walk.</summary>
         public static double Pace(Squad sq) => Rushing(sq) ? Tune.SpeedRush : Tune.SpeedWalk;
 
-        /// <summary>Ticks a climb into a trench, or out of one, takes: a quarter longer under this rule.</summary>
-        public static int VaultTicks(SimState st, bool into)
-            => st.Gunnery ? (into ? Tune.SlowVaultInTicks : Tune.SlowVaultOutTicks) : (into ? Tune.VaultInTicks : Tune.VaultOutTicks);
+        /// <summary>Ticks a climb into a trench, or out of one, takes: a quarter longer under this rule, and a man's own way of it.</summary>
+        public static int VaultTicks(SimState st, bool into, Man m)
+            => st.Gunnery ? (into ? Tune.SlowVaultInTicks : Tune.SlowVaultOutTicks) + m.Id % 5 - 2 : (into ? Tune.VaultInTicks : Tune.VaultOutTicks);
+
+        /// <summary>
+        /// Ticks a man waits his turn to get up or set off, when his squad goes: the lead man first, each
+        /// after the one ahead of him, give or take a tick. The owner, playtest 8: "US soldiers all climb up
+        /// exactly at the same time; change that so it's not so coordinated".
+        /// </summary>
+        public static int Stagger(Man m) => m.Rank * Tune.StaggerTicks + m.Id * 7 % 3;
 
         /// <summary>
         /// How he carries himself, given what the rules before this one wanted

@@ -137,7 +137,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Men[i];
                 if (!b.Alive || !b.Seen || b.Side == a.Side) continue;
-                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
+                if (st.Gunnery && !Gunnery.InArc(st, a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 if (d2 > bestD2) continue;
@@ -175,6 +175,9 @@ namespace LanesOfVietnam.Sim
                 return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
             }
 
+            // Ammo: reloading, he does nothing else; empty, he starts to.
+            if (st.Ammo && !Ammo.Ready(st, a)) return false;
+
             // Senses: only at a squad his own has in sight; a machine gun with nothing in sight keeps
             // bursts on the cover of one it knows was there.
             var target = st.Senses ? Senses.PickTarget(st, a) : PickTarget(st, a);
@@ -185,6 +188,8 @@ namespace LanesOfVietnam.Sim
                 // Nothing to shoot at: wait before looking again, or he rescans
                 // every living man every tick for ever (55% of the sim).
                 a.Cooldown = Tune.ScanIdle;
+                // Ammo: a quiet moment, and a magazine running low: he changes it now.
+                if (st.Ammo) Ammo.Lull(st, a);
                 return false;
             }
 
@@ -197,13 +202,18 @@ namespace LanesOfVietnam.Sim
             if (st.Gunnery && a.Posture == Posture.Standing && st.GunRng.Next() > Tune.StandingFire) { a.Cooldown = arm.Cooldown; return false; }
 
             a.Cooldown = arm.Cooldown;
+            // Ammo: a round, or a burst's worth, out of the magazine; an automatic weapon fires short bursts, long ones close in.
+            int rounds = st.Ammo ? Ammo.Spend(st, a, target, arm.Cooldown) : 0;
+            bool automatic = st.Ammo && Ammo.Of(st, a).Automatic;
             // Senses: at a man he cannot himself see, on his squad's word, a rifleman fires slower.
-            if (st.Senses && !blind && a.Weapon != Weapon.M60 && a.Weapon != Weapon.Rpd && !Senses.Sees(st, a, target))
+            if (st.Senses && !blind && a.Weapon != Weapon.M60 && a.Weapon != Weapon.Rpd && !automatic && !Senses.Sees(st, a, target))
                 a.Cooldown = (int)(arm.Cooldown * Tune.BlindCooldown);
             // Firing gives away concealment.
             a.Seen = true;
             a.FiredAt = st.Tick;
             double p = HitChance(st, a, target);
+            // Ammo: a long burst, close in, is likelier to find him than a short one.
+            if (automatic && rounds > Ammo.Of(st, a).Burst) p = Math.Min(0.9, p * Tune.LongBurstHit);
             bool hit = !blind && rng.Next() < p;
             // Gunnery: the round goes somewhere. A hit is on the man; a miss comes down past him.
             double? atX = null, atZ = null;
@@ -215,7 +225,7 @@ namespace LanesOfVietnam.Sim
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Fire, Tick = st.Tick, Side = a.Side,
-                Id = a.Id, Target = target.Id, Amount = blind ? 1 : (double?)null, X = atX, Z = atZ,
+                Id = a.Id, Target = target.Id, Amount = blind ? 1 : (double?)null, X = atX, Z = atZ, Rounds = rounds,
             });
 
             if (hit)
@@ -228,6 +238,8 @@ namespace LanesOfVietnam.Sim
             // The miss is the point: pin on the man it passed and everyone
             // near him, which is how fire suppresses a position.
             double near = Tune.PinPerNearMiss * arm.Pin * (blind ? Tune.SuppressPin : 1);
+            // Ammo: a burst's pin is by its rounds against a short one's.
+            if (automatic) near *= Math.Min(2.0, (double)rounds / Ammo.Of(st, a).Burst);
             ApplyPin(st, target, near);
             double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)

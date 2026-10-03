@@ -103,7 +103,12 @@ namespace LanesOfVietnam.Sim
                 }
             }
             if (st.Gunnery)
-                foreach (var m in st.Men) { h = MixI(h, m.Rest); h = MixI(h, (int)m.Before); }
+                foreach (var m in st.Men) { h = MixI(h, m.Rest); h = MixI(h, (int)m.Before); h = MixI(h, m.Wait); }
+            if (st.Ammo)
+            {
+                foreach (var m in st.Men) { h = MixI(h, m.Rounds); h = MixI(h, m.Reloading); }
+                foreach (var s in st.Squads) h = MixI(h, s.ThrewAt);
+            }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }
@@ -127,6 +132,7 @@ namespace LanesOfVietnam.Sim
                 h = e.X.HasValue ? MixD(h, e.X.Value) : MixI(h, -7);
                 h = e.Z.HasValue ? MixD(h, e.Z.Value) : MixI(h, -7);
                 h = e.Amount.HasValue ? MixD(h, e.Amount.Value) : MixI(h, -7);
+                if (st.Ammo) h = MixI(h, e.Rounds);
             }
             h = MixB(h, st.Over); h = MixI(h, st.Winner.HasValue ? (int)st.Winner.Value : -1);
             return h;

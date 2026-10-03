@@ -42,7 +42,7 @@ namespace LanesOfVietnam.Tests
     {
         private static GameRoot Root => GameRoot.Instance;
 
-        private struct Sample { public Vector3 Root, Left, Right, LeftToe, RightToe; public bool LeftDown; public float Yaw; public int Posture; }
+        private struct Sample { public Vector3 Root, Left, Right, LeftToe, RightToe; public bool LeftDown; public float Yaw, Body; public int Posture; }
 
         /// <summary>The match that is watched.</summary>
         public const int Seed = 3;
@@ -67,6 +67,9 @@ namespace LanesOfVietnam.Tests
             var moved = new Dictionary<string, float>(); var param = new Dictionary<string, float>();
             float manSeconds = 0, travelling = 0, gliding = 0, crabbing = 0, atRest = 0, onTheSpot = 0;
             float travelled = 0, carried = 0, climbing = 0;
+            // Turning where he stands (his body's yaw, his aim's turn in it): seconds of it, degrees of it, and how
+            // far the foot he has on the ground slides meanwhile; and drifting, travelling slower than a gait starts.
+            float turning = 0, turned = 0, turnSlide = 0, drifting = 0, drift = 0, stepped = 0;
             const float dt = 1f / 60f;
             for (int frame = 0; frame < 60 * 75 && !st.Over; frame++)
             {
@@ -83,7 +86,7 @@ namespace LanesOfVietnam.Tests
                     var now = new Sample
                     {
                         Root = f.transform.position, Left = lf.position, Right = rf.position, LeftToe = lt.position, RightToe = rt.position,
-                        LeftDown = lf.position.y <= rf.position.y, Yaw = f.transform.eulerAngles.y, Posture = (int)m.Posture,
+                        LeftDown = lf.position.y <= rf.position.y, Yaw = f.transform.eulerAngles.y, Body = a.transform.eulerAngles.y, Posture = (int)m.Posture,
                     };
                     if (prev.TryGetValue(i, out var p) && p.Posture == now.Posture)
                     {
@@ -119,12 +122,21 @@ namespace LanesOfVietnam.Tests
                                 prev[i] = now;
                                 continue;
                             }
+                            float spin = Mathf.Abs(Mathf.DeltaAngle(p.Body, now.Body)) / dt;
+                            // (Turning with his legs still is the slide; stepping round, his legs go with it.)
+                            if (speed < 0.1f && spin > 30f)
+                            {
+                                if (Mathf.Abs(a.GetFloat("Speed")) > 0.3f) stepped += dt;
+                                else { turning += dt; turned += spin * dt; turnSlide += slid; }
+                            }
+                            if (speed >= 0.05f && speed < 0.4f && Mathf.Abs(a.GetFloat("Speed")) < 0.05f) { drifting += dt; drift += speed * dt; }
                             // What his legs are doing: the gait's own speed as it is played, in a gait; nothing between postures.
                             bool gaited = info.IsName("Stand") || info.IsName("Crouch") || info.IsName("Prone");
                             float legs = gaited ? Mathf.Abs(a.GetFloat("Speed")) * a.GetFloat("SpeedScale") : 0f;
                             travelled += step.magnitude;
                             // (Past a quarter of a metre a second: a gait a little fast or slow for the ground is not a slide.)
-                            carried += Mathf.Max(0f, Mathf.Abs(speed - legs) - 0.25f) * dt;
+                            // (Not while he steps round to face his man: that is legs going with nothing to carry.)
+                            if (spin <= 30f) carried += Mathf.Max(0f, Mathf.Abs(speed - legs) - 0.25f) * dt;
                             if (speed >= 0.1f)
                             {
                                 travelling += dt;
@@ -135,7 +147,8 @@ namespace LanesOfVietnam.Tests
                             else if (state == "Stand" || state == "Crouch")
                             {
                                 atRest += dt;
-                                if (Mathf.Abs(a.GetFloat("Speed")) > 0.3f) onTheSpot += dt;
+                                // (Stepping round to face his man is not walking on the spot.)
+                                if (Mathf.Abs(a.GetFloat("Speed")) > 0.3f && spin <= 30f) onTheSpot += dt;
                             }
                         }
                     }
@@ -159,13 +172,16 @@ namespace LanesOfVietnam.Tests
                 $"  walking on the spot (at rest, legs going)     {onTheSpot:F1} man-seconds, {100 * onTheSpot / Mathf.Max(1, atRest):F1}% of standing or kneeling at rest",
                 $"  carried (ground covered without the legs)     {carried:F0} m of {travelled:F0} m travelled, {100 * carried / Mathf.Max(1, travelled):F1}%",
                 $"  climbing (into a trench or out of one)        {climbing:F1} man-seconds, not counted above",
+                $"  turned on his heels (over 30 deg/s, legs still) {turning:F1} man-seconds, {turned:F0} degrees, the planted foot sliding {100 * turnSlide:F0} cm",
+                $"  stepping round where he stands                {stepped:F1} man-seconds",
+                $"  drifting (0.05 to 0.4 m/s, legs still)        {drifting:F1} man-seconds, {drift * 100:F0} cm",
                 "  posture  gait     state                 man-seconds   moving m/s   planted foot cm/s   Speed",
             };
             foreach (var kv in seconds.OrderByDescending(k => k.Value))
                 lines.Add($"  {kv.Key,-40} {kv.Value,9:F0} {moved[kv.Key] / kv.Value,12:F2} {100 * skate[kv.Key] / kv.Value,14:F0} {param[kv.Key] / kv.Value,12:F2}");
             Directory.CreateDirectory("Logs");
             File.WriteAllLines("Logs/motion.txt", lines);
-            foreach (var l in lines.Take(6)) Debug.Log("[LOV] " + l);
+            foreach (var l in lines.Take(9)) Debug.Log("[LOV] " + l);
 
             Assert.Greater(manSeconds, 600, "hardly anyone was watched");
             Assert.Less(gliding / Mathf.Max(1, travelling), 0.02f, "men are travelling on a knee or flat (see Logs/motion.txt)");
