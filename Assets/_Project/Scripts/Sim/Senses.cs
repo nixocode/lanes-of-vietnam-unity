@@ -79,6 +79,8 @@ namespace LanesOfVietnam.Sim
             double r = Sight(st, observer, target);
             double dx = observer.X - target.X, dz = observer.Z - target.Z;
             if (dx * dx + dz * dz > r * r) return false;
+            // Gunnery: and not through the bank between the lanes.
+            if (st.Gunnery && !Gunnery.Sightline(observer, target)) return false;
             return !Combat.SmokeBlocks(st, observer.X, observer.Z, target.X, target.Z);
         }
 
@@ -177,8 +179,9 @@ namespace LanesOfVietnam.Sim
                 {
                     var sb = st.Squads[b];
                     if (sb.Side == sa.Side || rosters[b].Count == 0 || !Remembers(st, sa, b)) continue;
-                    // Gunnery: a squad deals with the enemy in its own lane.
-                    if (st.Gunnery && sb.Lane != sa.Lane) continue;
+                    // Gunnery: a squad deals with the enemy in its own lane; one in the other only while it has it in
+                    // sight (over the bank) and knows of nobody in its own (below).
+                    if (st.Gunnery && sb.Lane != sa.Lane && !Knows(st, sa, b)) continue;
                     double near = double.PositiveInfinity;
                     for (int i = 0; i < rosters[a].Count; i++)
                         for (int j = 0; j < rosters[b].Count; j++)
@@ -188,7 +191,7 @@ namespace LanesOfVietnam.Sim
                             if (d2 < near) near = d2;
                         }
                     near = Math.Sqrt(near);
-                    double score = near + (sb.Lane != sa.Lane ? Tune.LanePenalty : 0);
+                    double score = near + (sb.Lane != sa.Lane ? (st.Gunnery ? Tune.LaneShun : Tune.LanePenalty) : 0);
                     if (score < bestScore) { bestScore = score; best = b; bestGap = near; }
                 }
                 sa.Threat = best; sa.ThreatGap = bestGap; sa.ThreatSeen = best >= 0 && Knows(st, sa, best);
@@ -205,21 +208,25 @@ namespace LanesOfVietnam.Sim
         {
             var sq = st.Squads[a.Squad];
             double reach = Arms.Of(st, a).Range;
-            Man best = null, bestOther = null;
-            double bestD2 = reach * reach, otherD2 = reach * reach;
+            Man best = null, bestOther = null, across = null;
+            double bestD2 = reach * reach, otherD2 = reach * reach, acrossD2 = reach * reach;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var b = st.Men[i];
                 if (!b.Alive || b.Side == a.Side || !Knows(st, sq, b.Squad)) continue;
-                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
+                if (st.Gunnery && !Gunnery.InArc(st, a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
-                bool theirs = b.Squad == sq.Threat;
-                if (d2 > (theirs ? bestD2 : otherD2)) continue;
+                // Gunnery: a man in the other lane, seen over the bank, is shot at only when there is nobody in his own.
+                bool far = st.Gunnery && st.Squads[b.Squad].Lane != sq.Lane;
+                bool theirs = !far && b.Squad == sq.Threat;
+                if (d2 > (far ? acrossD2 : theirs ? bestD2 : otherD2)) continue;
                 if (Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
-                if (theirs) { bestD2 = d2; best = b; } else { otherD2 = d2; bestOther = b; }
+                if (far) { acrossD2 = d2; across = b; }
+                else if (theirs) { bestD2 = d2; best = b; }
+                else { otherD2 = d2; bestOther = b; }
             }
-            return best ?? bestOther;
+            return best ?? bestOther ?? across;
         }
 
         /// <summary>
@@ -237,7 +244,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Men[i];
                 if (!b.Alive || b.Side == a.Side || b.Cover < 0 || !Remembers(st, sq, b.Squad)) continue;
-                if (st.Gunnery && !Gunnery.InArc(a, b)) continue;
+                if (st.Gunnery && !Gunnery.InArc(st, a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 if (d2 > bestD2 || Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;

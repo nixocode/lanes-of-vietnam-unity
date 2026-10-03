@@ -7,12 +7,13 @@
 //   two fingers sideways      pan
 //   one finger, button down   drag the line
 //   pointer at an edge        C# pans (LovInput_Pointer says where it is)
+//   Option (or Cmd) held      moving the pointer steers where the zoom points
 // C# takes what has accumulated once a frame; nothing here knows the game.
 mergeInto(LibraryManager.library, {
 
   LovInput_Init: function () {
     if (typeof window === 'undefined' || window.LovInput) return;
-    var I = window.LovInput = { zoom: 0, pan: 0, drag: 0, x: 0.5, y: 0.5, inside: 0, down: false, moved: 0, dragging: false };
+    var I = window.LovInput = { zoom: 0, pan: 0, drag: 0, x: 0.5, y: 0.5, inside: 0, down: false, moved: 0, dragging: false, steerX: 0, steerY: 0, steering: false };
     var canvas = Module.canvas;
     canvas.addEventListener('wheel', function (e) {
       e.preventDefault();
@@ -32,6 +33,8 @@ mergeInto(LibraryManager.library, {
     });
     canvas.addEventListener('pointermove', function (e) {
       at(e); I.inside = 1;
+      I.steering = e.altKey || e.metaKey;
+      if (I.steering && !I.down) { I.steerX += e.movementX; I.steerY += e.movementY; return; }
       if (!I.down) return;
       I.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
       if (I.moved > 8) I.dragging = true;
@@ -55,5 +58,9 @@ mergeInto(LibraryManager.library, {
   LovInput_PointerX: function () { var I = window.LovInput; return I && I.inside ? I.x : -1; },
   LovInput_PointerY: function () { var I = window.LovInput; return I && I.inside ? I.y : -1; },
   LovInput_Dragging: function () { var I = window.LovInput; return I && I.dragging ? 1 : 0; },
+  // Pointer travel (CSS pixels, right and down) with Option or Cmd held, since the last call; and whether it is held.
+  LovInput_SteerX: function () { var I = window.LovInput; if (!I) return 0; var v = I.steerX; I.steerX = 0; return v; },
+  LovInput_SteerY: function () { var I = window.LovInput; if (!I) return 0; var v = I.steerY; I.steerY = 0; return v; },
+  LovInput_Steering: function () { var I = window.LovInput; return I && I.steering ? 1 : 0; },
   LovInput_CanvasWidth: function () { return Module.canvas.getBoundingClientRect().width; }
 });

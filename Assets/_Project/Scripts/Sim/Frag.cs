@@ -41,6 +41,8 @@ namespace LanesOfVietnam.Sim
                 if (!a.Alive) continue;
                 if (a.FragCooldown > 0) { a.FragCooldown--; continue; }
                 if (a.Grenades <= 0 || a.Pin >= Tune.PinStop || a.Posture == Posture.Prone) continue;
+                // Ammo: a squad throws one at a time.
+                if (st.Ammo && Ammo.SquadThrowing(st, a)) continue;
                 var target = PickTarget(st, a);
                 if (target == null) continue;
                 if (rng.Next() >= Tune.FragThrowChance) continue;
@@ -84,6 +86,7 @@ namespace LanesOfVietnam.Sim
             st.Grenades.Add(g);
             a.Grenades--;
             a.FragCooldown = Tune.FragInterval;
+            if (st.Ammo) st.Squads[a.Squad].ThrewAt = st.Tick;
             // Throwing exposes him, and his rifle waits while he does it.
             a.Seen = true;
             a.FiredAt = st.Tick;

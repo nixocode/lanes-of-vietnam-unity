@@ -94,6 +94,8 @@ namespace LanesOfVietnam.Sim
         public bool Senses;
         /// <summary>Part 2: fire down the lane, from a knee or flat, never on the move; rounds that land somewhere (Gunnery). False is the parity baseline.</summary>
         public bool Gunnery;
+        /// <summary>Part 2: rounds counted, magazines and reloads, bursts, launcher rounds carried (Ammo). False is the parity baseline.</summary>
+        public bool Ammo;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -203,6 +205,7 @@ namespace LanesOfVietnam.Sim
                     Rank = i,
                     Weapon = kit != null ? kit.Men[i] : Weapon.Rifle,
                 });
+                if (st.Ammo) Ammo.Issue(st, st.Men[st.Men.Count - 1]);
             }
             st.Events.Add(new SimEvent { Kind = EventKind.SquadSpawned, Tick = st.Tick, Side = side, Id = sq.Id });
             return sq;
@@ -222,6 +225,7 @@ namespace LanesOfVietnam.Sim
                 Arms = opts.Arms,
                 Senses = opts.Senses,
                 Gunnery = opts.Gunnery,
+                Ammo = opts.Ammo,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
@@ -386,9 +390,19 @@ namespace LanesOfVietnam.Sim
             if (st.Gunnery) want = Gunnery.Carry(st, m, sq, want, quarry != null, stalking, JsMath.Hypot(tx - m.X, tz - m.Z));
             if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
             {
-                m.Before = m.Posture;
-                m.Posture = want;
-                m.Dwell = 0;
+                // Gunnery: getting up to go, a man waits his turn, the lead man first: a squad does not rise as one.
+                bool turn = true;
+                if (st.Gunnery && want == Posture.Standing && quarry == null && sq.Order != Order.Fallback && m.Pin < Tune.PinDrop)
+                {
+                    if (m.Wait == 0) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
+                    if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; turn = false; }
+                }
+                if (turn)
+                {
+                    m.Before = m.Posture;
+                    m.Posture = want;
+                    m.Dwell = 0;
+                }
             }
 
             // Pinned men drop, shoot less and stop advancing. He still has to be
@@ -417,7 +431,14 @@ namespace LanesOfVietnam.Sim
                     m.Still = d <= slack;
                 }
                 else m.Still = false;
-                if (d > slack)
+                // Gunnery: on his feet and at rest, he sets off in his turn too (one already up waits no longer).
+                bool waiting = false;
+                if (st.Gunnery && d > slack && quarry == null && sq.Order != Order.Fallback)
+                {
+                    if (m.Wait == 0 && m.Rest >= Tune.RestToKneel) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
+                    if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; waiting = true; }
+                }
+                if (d > slack && !waiting)
                 {
                     double stepLen = Math.Min(d, speed * Tune.Dt);
                     // (Senses: men running to their places in the strongpoint behind go round each other too.)
@@ -440,6 +461,8 @@ namespace LanesOfVietnam.Sim
                 m.X = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, m.X));
             }
             m.Rest = m.X != wasX || m.Z != wasZ ? 0 : m.Rest + 1;
+            // (On his way: his turn is spent, and he waits again the next time his squad stops and goes.)
+            if (m.Rest == 0 && m.Wait < 0) m.Wait = 0;
             Squads.PushTrail(m);
 
             // Cover, for every man every tick, pinned or not. This once sat
@@ -463,7 +486,7 @@ namespace LanesOfVietnam.Sim
                 bool outOf = was >= 0 && Fieldcraft.Dug(st.Cover[was]);
                 if (into || outOf)
                 {
-                    m.Vault = Gunnery.VaultTicks(st, into);
+                    m.Vault = Gunnery.VaultTicks(st, into, m);
                     st.Events.Add(new SimEvent
                     {
                         Kind = into ? EventKind.VaultIn : EventKind.VaultOut,
@@ -607,6 +630,7 @@ namespace LanesOfVietnam.Sim
             {
                 var m = shooters[i];
                 if (m.Cooldown > 0) m.Cooldown--;
+                if (st.Ammo) Ammo.Tick(st, m);
                 // Nobody fires during the infiltration. That is the whole beat.
                 if (!opening) Combat.Fire(st, m, rng);
             }

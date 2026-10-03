@@ -46,7 +46,7 @@ namespace LanesOfVietnam.View
         public const int BurstRounds = 3;
         public const float BurstGap = 0.085f;
         /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
-        public const double RicochetShare = 0.18;
+        public const double RicochetShare = 0.05;
         private const double MaxAge = 11.0;
 
         // Hot enough to bloom, not so hot that the tonemapper bleaches the
@@ -54,8 +54,6 @@ namespace LanesOfVietnam.View
         private static readonly Color UsTracer = new Color(1.0f, 0.09f, 0.025f) * 3.2f;
         private static readonly Color VcTracer = new Color(0.14f, 1.0f, 0.16f) * 2.6f;
         private static readonly Color Flash = new Color(1.0f, 0.70f, 0.34f);
-        /// <summary>A round in the air that is not a tracer: pale and faint, a line and not a light.</summary>
-        private static readonly Color Trace = new Color(1.0f, 0.93f, 0.8f) * 0.55f;
 
         private GameRoot _root;
         private MeshFilter _glowMf, _smokeMf;
@@ -189,6 +187,8 @@ namespace LanesOfVietnam.View
             if (_markMesh != null) GroundMarks(st, now);
             Upload();
             Lights();
+            for (int k = _ordnanceShown; k < _ordnance.Count; k++)
+                if (_ordnance[k].gameObject.activeSelf) _ordnance[k].gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -241,8 +241,9 @@ namespace LanesOfVietnam.View
             // One sim shot is one round from a rifle, a short burst from an
             // automatic weapon (the same men AudioView gives the burst sounds).
             bool auto = AudioView.Automatic(shooter);
-            // A belt-fed gun's burst is longer than a rifleman's on automatic.
-            int rounds = !auto ? 1 : shooter.Weapon == Weapon.M60 || shooter.Weapon == Weapon.Rpd ? BurstRounds + 2 : BurstRounds;
+            // A belt-fed gun's burst is longer than a rifleman's on automatic. (Ammo: the rounds the shot spent, as the simulation counted them.)
+            int rounds = e.Rounds > 0 ? e.Rounds : !auto ? 1 : shooter.Weapon == Weapon.M60 || shooter.Weapon == Weapon.Rpd ? BurstRounds + 2 : BurstRounds;
+            auto |= rounds > 1;
             // Gunnery: the simulation says where a miss came down. What is there: the wall or the
             // parapet the man is behind, if he is behind one and the round was close; else the ground.
             var st = _root.Driver.State;
@@ -350,19 +351,16 @@ namespace LanesOfVietnam.View
                 AddPuff(muzzle + dir * (0.25f + 0.5f * age) + Vector3.up * (0.25f * age), 0.16f + 0.5f * age,
                         new Color(0.62f, 0.62f, 0.6f, 0.2f * f * f), (float)Hash(s, 9), 1f);
             }
-            // Its path: every round is seen going, as a thin pale line a couple of metres long that is
-            // gone before the eye can hold it (the owner: "see where bullets go"); one round in five from
-            // an automatic weapon is a tracer, lit all the way.
+            // Its path: one round in five from an automatic weapon is a tracer, lit all the way. The rest
+            // are seen where they land. (Every round was drawn going, as a pale line, and with the
+            // ricochets it was a sky full of lines: the owner, playtest 8, "too much flash of gunfire
+            // that goes up, down and sideways".)
+            if (auto && Hash(s, 5) < TracerShare)
             {
                 float head = TracerSpeed * age;
-                bool tracer = auto && Hash(s, 5) < TracerShare;
-                float tail = Mathf.Max(0, head - (tracer ? 3.5f : 2.2f));
+                float tail = Mathf.Max(0, head - 3.5f);
                 float h = Mathf.Min(head, dist);
-                if (h > tail)
-                {
-                    if (tracer) { AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, side == Side.Us ? UsTracer : VcTracer, (float)Hash(s, 6)); Tracers++; }
-                    else AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.016f, Trace, (float)Hash(s, 6));
-                }
+                if (h > tail) { AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, side == Side.Us ? UsTracer : VcTracer, (float)Hash(s, 6)); Tracers++; }
             }
             float ai = age - dist / TracerSpeed;
             if (ai < 0) return;
@@ -409,12 +407,12 @@ namespace LanesOfVietnam.View
                     AddPuff(end + Vector3.up * (0.1f + 0.6f * ai + 0.15f * k), 0.34f + (1.0f + 0.3f * k) * ai,
                             new Color(0.22f, 0.19f, 0.14f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
             }
-            // Now and then it glances off and goes on, lit: a ricochet.
+            // Now and then it glances off and goes on, lit, low and onward: a ricochet.
             if (Hash(s, 30) < RicochetShare && ai < 0.16f)
             {
                 var flat = new Vector3(dir.x, 0, dir.z).normalized;
-                var off = (flat * 0.8f + Vector3.up * (0.35f + 0.5f * (float)Hash(s, 31))
-                           + new Vector3(-flat.z, 0, flat.x) * (float)(Hash(s, 32) - 0.5)).normalized;
+                var off = (flat + Vector3.up * (0.08f + 0.17f * (float)Hash(s, 31))
+                           + new Vector3(-flat.z, 0, flat.x) * (float)((Hash(s, 32) - 0.5) * 0.4)).normalized;
                 float head = 190f * ai, tail = Mathf.Max(0, head - 2.2f);
                 AddStreak(end + off * tail, end + off * head, 0.018f, new Color(1f, 0.62f, 0.25f) * (1.8f * (1 - ai / 0.16f)), (float)Hash(s, 33));
                 if (ai < 0.05f) AddGlow(end + Vector3.up * 0.05f, 0.22f, Flash * (6f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
@@ -529,10 +527,12 @@ namespace LanesOfVietnam.View
             }
             else
             {
-                // An M79's round or a mortar bomb: the dark body, and the line it draws (GrenadeFlight).
-                float tw = Mathf.Max(0f, t - 0.07f / flight);
-                AddStreak(Vector3.Lerp(from, to, tw) + Vector3.up * (4f * apex * tw * (1 - tw)), p, 0.03f, Wake, (float)Hash(i, 63));
-                AddPuff(p, mortar ? 0.45f : 0.32f, Missile, 0.5f, 4f);
+                // An M79's round or a mortar bomb: the round itself, nose along its way.
+                float tn = Mathf.Min(1f, t + 0.02f);
+                var ahead = Vector3.Lerp(from, to, tn) + Vector3.up * (4f * apex * tn * (1 - tn));
+                var way = ahead - p;
+                Show(mortar ? Ordnance.Kind.Bomb : Ordnance.Kind.Round, p,
+                     way.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.up, way) : Quaternion.identity);
             }
         }
 
@@ -558,43 +558,72 @@ namespace LanesOfVietnam.View
 
         // --- grenades ---------------------------------------------------------------------
 
-        /// <summary>What is thrown or fired through the air is drawn as a dark body, denser than any smoke.</summary>
-        private static readonly Color Missile = new Color(0.03f, 0.035f, 0.025f, 1f);
-        /// <summary>And the line it leaves on the eye: pale, faint, where it has just been.</summary>
-        private static readonly Color Wake = new Color(0.80f, 0.82f, 0.72f) * 0.6f;
-
         /// <summary>
         /// A grenade from the thrower's hand to where it lands, on a lob, then
-        /// lying there until the blast event takes over.
-        ///
-        /// It was a dark speck 22 cm across, "all a grenade is at this distance",
-        /// drawn as a puff of smoke: thin at its edge and faded out wherever it
-        /// came near the ground. Nothing was seen to leave the hand (the owner,
-        /// playtest 7: "grenades still don't show properly when launched, only
-        /// animation is there"). It is larger than life now and dense, and it
-        /// draws its own arc: a pale line through where it was an eighth of a
-        /// second ago, which is what the eye follows.
+        /// lying there until the blast event takes over: the grenade itself
+        /// (<see cref="Ordnance"/>), an M26 for the Americans and a stick
+        /// grenade for the VC, tumbling end over end. It leaves the hand part
+        /// way through the throw (SoldierFigure holds it until then). It was a
+        /// puff of smoke with a pale line behind it, and the owner, playtest 8:
+        /// "these rays in the sky look bad, remove them; show the grenade".
         /// </summary>
         private void GrenadeFlight(SimEvent e, float age)
         {
-            const float flight = 1.1f, wake = 0.16f;
             float fuse = Tune.FragFuse * (float)Tune.Dt;
-            if (age > fuse || e.X == null) return;
+            if (age > fuse || e.X == null || age < Ordnance.ThrowRelease) return;
             var men = _root.Driver.State.Men;
             if (e.Id >= men.Count) return;
-            var from = Chest(men[e.Id]) + Vector3.up * 0.5f;
+            var thrower = men[e.Id];
+            var kind = thrower.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick;
+            // From where his hand lets it go: above his shoulder, toward where it is going.
             double lx = e.X.Value, lz = e.Z.Value;
-            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.08f);
-            float apex = 2.5f + 0.12f * Vector3.Distance(from, to);
-            Vector3 Arc(float t) => Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
-            if (age < flight)
+            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.06f);
+            var chest = Chest(thrower);
+            var flat = new Vector3(to.x - chest.x, 0, to.z - chest.z);
+            var from = chest + Vector3.up * 0.55f + (flat.sqrMagnitude > 1e-4f ? flat.normalized * 0.25f : Vector3.zero);
+            float t = (age - Ordnance.ThrowRelease) / Ordnance.ThrowFlight;
+            float seed = (float)Hash(e.Id * 31 + e.Tick, 47);
+            if (t < 1f)
             {
-                var p = Arc(age / flight);
-                AddStreak(Arc(Mathf.Max(0f, age - wake) / flight), p, 0.03f, Wake, (float)Hash(e.Id * 31 + e.Tick, 46));
-                AddPuff(p, 0.42f, Missile, 0.5f, 4f);
+                float apex = 2.2f + 0.12f * Vector3.Distance(from, to);
+                var p = Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
+                // End over end, about the line across its way.
+                var across = flat.sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, flat.normalized) : Vector3.right;
+                Show(kind, p, Quaternion.AngleAxis((age - Ordnance.ThrowRelease) * (540f + 240f * seed), across));
             }
-            // Lying where it came down, a hand's breadth clear of the ground it would fade into.
-            else AddPuff(to + Vector3.up * 0.12f, 0.3f, Missile, 0.5f, 4f);
+            // Down: on its side, a little turned, until it goes off.
+            else Show(kind, to, Quaternion.AngleAxis(seed * 360f, Vector3.up) * Quaternion.Euler(0, 0, 90f));
+        }
+
+        // --- what is in the air, as things --------------------------------------------------
+
+        private readonly List<MeshFilter> _ordnance = new List<MeshFilter>();
+        private int _ordnanceShown;
+        private Material _ordnanceMaterial;
+
+        /// <summary>A grenade, a round or a bomb at a place this frame (pooled; what is not shown again is hidden).</summary>
+        private void Show(Ordnance.Kind kind, Vector3 at, Quaternion turn)
+        {
+            if (_ordnanceMaterial == null)
+            {
+                var army = _root.ArmyView;
+                if (army == null || army.UsFigures.Length == 0 || army.UsFigures[0].ArmsMaterial == null) return;
+                _ordnanceMaterial = army.UsFigures[0].ArmsMaterial;
+            }
+            if (_ordnanceShown == _ordnance.Count)
+            {
+                var go = new GameObject("ordnance");
+                go.transform.SetParent(transform, false);
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = _ordnanceMaterial;
+                mr.shadowCastingMode = ShadowCastingMode.Off;
+                _ordnance.Add(go.AddComponent<MeshFilter>());
+            }
+            var mf = _ordnance[_ordnanceShown++];
+            var mesh = Ordnance.Get(kind);
+            if (mf.sharedMesh != mesh) mf.sharedMesh = mesh;
+            mf.transform.SetPositionAndRotation(at, turn);
+            if (!mf.gameObject.activeSelf) mf.gameObject.SetActive(true);
         }
 
         /// <summary>
@@ -937,6 +966,7 @@ namespace LanesOfVietnam.View
             _gp.Clear(); _gc.Clear(); _guv.Clear(); _gi.Clear();
             _puffs.Clear(); _flashes.Clear();
             Tracers = Flashes = Explosions = 0;
+            _ordnanceShown = 0;
         }
 
         private void AddGlow(Vector3 c, float size, Color col, float kind, float seed)

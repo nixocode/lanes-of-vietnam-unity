@@ -75,6 +75,7 @@ reference/TARGET.jpg             the specification for the look
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
 | Build | 25.07 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 | Frame | 4.5 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
+| Tests | EditMode 64/64, PlayMode 17/17 (2026-10-03, PLAN §12.24) |
 
 The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17 and the sections after it (the latest: §12.23).
 

@@ -45,6 +45,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
             System.Array.Clear(_rounds, 0, _rounds.Length);
             System.Array.Clear(_threw, 0, _threw.Length);
+            System.Array.Clear(_reload, 0, _reload.Length);
             System.Array.Clear(_fall, 0, _fall.Length);
             System.Array.Clear(_struck, 0, _struck.Length);
             System.Array.Clear(_climbUntil, 0, _climbUntil.Length);
@@ -56,6 +57,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_moving, 0, _moving.Length);
             System.Array.Clear(_pace, 0, _pace.Length);
             System.Array.Clear(_going, 0, _going.Length);
+            System.Array.Clear(_pivot, 0, _pivot.Length);
             System.Array.Clear(_drawn, 0, _drawn.Length);
             _speedTick = -1;
             for (int k = 0; k < _firedAt.Length; k++) _firedAt[k] = -1000;
@@ -72,6 +74,8 @@ namespace LanesOfVietnam.View
         private int[] _rounds = new int[0];
         /// <summary>Whether each man threw a grenade since the last frame, and how each man fell.</summary>
         private bool[] _threw = new bool[0];
+        /// <summary>Whether the simulation started a reload for each man since the last frame (MatchOptions.Ammo).</summary>
+        private bool[] _reload = new bool[0];
         private SoldierFigure.Fall[] _fall = new SoldierFigure.Fall[0];
         /// <summary>For a man shot or struck: how far along his facing the blow was travelling (1 from behind, -1 into his front).</summary>
         private float[] _push = new float[0];
@@ -111,6 +115,14 @@ namespace LanesOfVietnam.View
         /// </summary>
         private Vector2[] _pace = new Vector2[0];
         private bool[] _going = new bool[0];
+        /// <summary>Whether each man's feet are turning to where his upper body cannot reach.</summary>
+        private bool[] _pivot = new bool[0];
+        /// <summary>
+        /// How fast his feet turn at rest (degrees a second), and the gait he turns with: a walk, a crouched
+        /// walk or a crawl, played slowly (m/s), so he steps round rather than being turned on his heels.
+        /// </summary>
+        public const float PivotRate = 170f;
+        private static readonly float[] PivotStep = { 0.75f, 0.6f, 0.2f };
         /// <summary>
         /// Seconds the drawn man is behind the simulation's (a sprint is half a metre behind; a
         /// march a hand's breadth); the fastest he is drawn, catching up (the run clip plays at up
@@ -162,6 +174,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _pinnedAt, n);
                 System.Array.Resize(ref _rounds, n);
                 System.Array.Resize(ref _threw, n);
+                System.Array.Resize(ref _reload, n);
                 System.Array.Resize(ref _fall, n);
                 System.Array.Resize(ref _push, n);
                 System.Array.Resize(ref _front, n);
@@ -174,6 +187,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _drawn, n);
                 System.Array.Resize(ref _pace, n);
                 System.Array.Resize(ref _going, n);
+                System.Array.Resize(ref _pivot, n);
                 System.Array.Resize(ref _height, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
@@ -186,9 +200,10 @@ namespace LanesOfVietnam.View
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
+                if (e.Kind == EventKind.Reload && e.Id < _reload.Length) { _reload[e.Id] = true; continue; }
                 if ((e.Kind == EventKind.VaultIn || e.Kind == EventKind.VaultOut) && e.Id < _climbUntil.Length)
                 {
-                    _climbTicks[e.Id] = Gunnery.VaultTicks(st, e.Kind == EventKind.VaultIn);
+                    _climbTicks[e.Id] = Gunnery.VaultTicks(st, e.Kind == EventKind.VaultIn, st.Men[e.Id]);
                     _climbUntil[e.Id] = e.Tick + _climbTicks[e.Id];
                     _climbStart[e.Id] = e.Kind == EventKind.VaultIn ? 1 : -1;
                     _climbFrom[e.Id] = _drawn[e.Id];
@@ -375,8 +390,9 @@ namespace LanesOfVietnam.View
                 var way = going ? _pace[i] : new Vector2(_vx[i], _vz[i]);
                 // (Gunnery: nobody fires on the move, and nobody walks with his rifle in his shoulder either.)
                 bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (st.Gunnery ? !away : !away || pace < RunAbove);
-                // Where he faces, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
+                // Where he looks and points his rifle, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
                 float yaw = _yaw[i];
+                int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
                 if (m.Alive)
                 {
                     int tg = _target[i];
@@ -416,9 +432,26 @@ namespace LanesOfVietnam.View
                     f.transform.localScale = Vector3.one * (0.97f + 0.05f * Hash(m.Id, 2));
                     _yaw[i] = yaw;
                 }
-                // Turned at most TurnRate degrees a second of match time: a man pivots, he does not snap.
-                // (A man setting off turns to where he is going at once, not over the first three paces of it.)
-                _yaw[i] = jump ? yaw : Mathf.MoveTowardsAngle(_yaw[i], yaw, (st.Gunnery && away ? RunTurnRate : TurnRate) * dt);
+                // His feet. Going somewhere, they face it: turned at most TurnRate degrees a second of match
+                // time (a man setting off turns to where he is going at once, not over the first three paces
+                // of it). At rest they stay where they are while his upper body turns to his man (SoldierFigure
+                // .Twist); only when his man is further round than that do his feet turn, and he steps round.
+                float feet = yaw;
+                // (Set off by the simulation and still getting up, he is at rest too: he turns to where he is
+                // going with his first steps, not on his knees.)
+                bool atRest = m.Alive && !going && !fresh && !jump;
+                if (atRest)
+                {
+                    float off = Mathf.DeltaAngle(_yaw[i], yaw);
+                    if (Mathf.Abs(off) > f.TwistRoom(posture)) _pivot[i] = true;
+                    else if (Mathf.Abs(off) < 4f) _pivot[i] = false;
+                    feet = _pivot[i] ? yaw : _yaw[i];
+                }
+                else _pivot[i] = false;
+                float wasYaw = _yaw[i];
+                _yaw[i] = jump ? feet : Mathf.MoveTowardsAngle(_yaw[i], feet, (atRest ? PivotRate : st.Gunnery && going ? RunTurnRate : TurnRate) * dt);
+                bool stepping = atRest && Mathf.Abs(Mathf.DeltaAngle(wasYaw, _yaw[i])) > PivotRate * dt * 0.25f;
+                f.Twist(atRest ? Mathf.Clamp(Mathf.DeltaAngle(_yaw[i], yaw), -f.TwistRoom(posture), f.TwistRoom(posture)) : 0f);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
                 float ground = (float)g.HeightAt(x, z);
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
@@ -443,7 +476,6 @@ namespace LanesOfVietnam.View
                 // other, his body went on without his legs and the foot he had on the ground slid
                 // forward and was put back, twenty-five times a second.
                 if (step) f.transform.SetPositionAndRotation(at, Quaternion.Euler(0, _yaw[i], 0));
-                int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
                 // Climbing into a trench or out of it: the clip, or without one, down on the parapet.
                 bool climbing = m.Alive && st.Tick < _climbUntil[i];
                 if (_climbStart[i] != 0)
@@ -455,8 +487,8 @@ namespace LanesOfVietnam.View
                     _climbStart[i] = 0;
                 }
                 if (climbing && _climbTicks[i] < 0 && posture == 0) posture = 1;
-                // His gait, at the speed he is drawn moving at.
-                float speed = going ? pace : 0f;
+                // His gait, at the speed he is drawn moving at; and turning where he stands, a few steps round.
+                float speed = going ? pace : stepping ? PivotStep[Mathf.Clamp(posture, 0, 2)] : 0f;
                 // Stepping back or across while he faces the enemy: the backward clips, not a moonwalk.
                 if (going)
                 {
@@ -485,14 +517,16 @@ namespace LanesOfVietnam.View
                 if (_shot[i]) { f.Fire(); _shot[i] = false; }
                 // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
                 if (_pinnedAt[i]) { if (!away && !jump) f.React(); _pinnedAt[i] = false; }
-                // A lull after shooting: he changes magazines (cosmetic; cut if the sim has him fire).
-                if (m.Alive && !away && _rounds[i] >= ReloadAfter && st.Tick - _firedAt[i] >= LullTicks)
+                // His reload. With the ammunition rule it is the simulation's: his magazine is empty, or low in a
+                // lull, and he does not fire until it is done. Without it, a lull after shooting, for the look of it.
+                if (st.Ammo) { if (_reload[i]) { if (m.Alive && !jump) f.Reload(); _reload[i] = false; } }
+                else if (m.Alive && !away && _rounds[i] >= ReloadAfter && st.Tick - _firedAt[i] >= LullTicks)
                 {
                     f.Reload();
                     _rounds[i] = 0;
                 }
                 Drawn++;
-                if (_threw[i]) { if (!jump) f.Throw(); _threw[i] = false; }
+                if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
                 if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]); _pending[i] = 0; Stepped++; continue; }
                 _pending[i] += dt;

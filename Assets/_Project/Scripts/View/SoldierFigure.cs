@@ -89,6 +89,13 @@ namespace LanesOfVietnam.View
         public bool MixamoStand, MixamoCrouch, MixamoProne;
         /// <summary>Degrees he turns into his aim, standing, kneeling, prone (measured by SoldierBuilder), so the rifle points where he faces.</summary>
         public Vector3 AimTurn;
+        /// <summary>
+        /// The most his upper body turns from where his feet point, degrees: standing, kneeling, prone.
+        /// The turn into his aim and the turn to his man together; past it, his feet turn too.
+        /// </summary>
+        public static readonly Vector3 MaxTwist = new Vector3(70f, 62f, 38f);
+        /// <summary>How fast his upper body turns, degrees a second.</summary>
+        public const float TwistRate = 300f;
         private int _posture;
         private float _speed;
         /// <summary>Each gait clip's own speed, m/s: the Animator plays it faster or slower to match the man's.</summary>
@@ -147,6 +154,24 @@ namespace LanesOfVietnam.View
         private int _aimLayer = -1;
         private bool _baked;
         private Mesh _fallen;
+        /// <summary>His spine, hips up: the upper body turns on these, a share each.</summary>
+        private Transform[] _spine = new Transform[0];
+        private float _twist, _twistWant;
+
+        /// <summary>
+        /// Turn his upper body this far from where his feet point (degrees, as the world's yaw), toward
+        /// the man he is aiming at. His feet stay planted: turned whole about his root, a man changing
+        /// targets, raising his rifle or lowering it slid on the spot (the motion audit, playtest 8:
+        /// 6,000 degrees in a minute and a quarter of fighting, the planted foot sliding 41 m).
+        /// </summary>
+        public void Twist(float degrees) => _twistWant = degrees;
+
+        /// <summary>The most his upper body may be turned toward his man now, besides the turn into his aim.</summary>
+        public float TwistRoom(int posture)
+        {
+            int k = Mathf.Clamp(posture, 0, 2);
+            return Mathf.Max(8f, MaxTwist[k] - Mathf.Abs(AimTurn[k]));
+        }
 
         /// <summary>Fallen, still, and a plain mesh: nothing more is to be done for him.</summary>
         public bool Baked => _baked;
@@ -171,6 +196,14 @@ namespace LanesOfVietnam.View
             Animator.enabled = false;
             _aimLayer = Animator.GetLayerIndex("Aim");
             _reactLayer = Animator.GetLayerIndex("React");
+            var spine = new System.Collections.Generic.List<Transform>(3);
+            foreach (var b in new[] { HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.UpperChest })
+            {
+                var t = Animator.isHuman ? Animator.GetBoneTransform(b) : null;
+                if (t != null) spine.Add(t);
+            }
+            if (spine.Count == 0 && Chest != null) spine.Add(Chest);
+            _spine = spine.ToArray();
         }
 
         /// <summary>
@@ -221,7 +254,9 @@ namespace LanesOfVietnam.View
             _speed = speed;
             _aim = Mathf.MoveTowards(_aim, aiming && !dead ? 1f : 0f, dt / 0.2f);
             if (_aimLayer >= 0) Animator.SetLayerWeight(_aimLayer, _aim);
-            Animator.transform.localRotation = Quaternion.Euler(0, AimTurn[Mathf.Clamp(posture, 0, 2)] * _aim, 0);
+            // (The turn into his aim is his upper body's now, with the turn to his man: PostPose.)
+            Animator.transform.localRotation = Quaternion.identity;
+            _twist = dt <= 0 ? _twistWant : Mathf.MoveTowardsAngle(_twist, dead ? 0f : _twistWant, TwistRate * dt);
             // The blow: his whole body goes in behind the rifle and comes back.
             _lunge = Mathf.MoveTowards(_lunge, 0f, dt / LungeSeconds);
             // Not through a reload, a throw, a blow or a climb: those clips have his eyes on what his hands are doing.
@@ -234,6 +269,13 @@ namespace LanesOfVietnam.View
             if (Hips != null) Centre = Hips.position;
             _recoil *= Mathf.Exp(-dt / 0.06f);
             if (_deadFor < 0) PostPose();
+            // (After his upper body has turned: the grenade is where his hand is drawn.)
+            if (_inHand != null && _inHand.activeSelf)
+            {
+                _holding -= dt;
+                if (_holding <= 0f || dead) _inHand.SetActive(false);
+                else Hold();
+            }
         }
 
         /// <summary>
@@ -290,10 +332,40 @@ namespace LanesOfVietnam.View
             return r;
         }
 
-        /// <summary>A grenade: the toss (the React layer).</summary>
-        public void Throw()
+        /// <summary>
+        /// A grenade: the toss (the React layer), with the grenade in his hand until it leaves it
+        /// (<see cref="Ordnance.ThrowRelease"/>); CombatView has it from there.
+        /// </summary>
+        public void Throw(Mesh grenade = null)
         {
-            if (_deadFor < 0 && !_baked) Animator.SetTrigger(ThrowId);
+            if (_deadFor >= 0 || _baked) return;
+            Animator.SetTrigger(ThrowId);
+            if (grenade == null || HandR == null || ArmsMaterial == null) return;
+            if (_inHand == null)
+            {
+                var go = new GameObject("grenade in hand");
+                go.transform.SetParent(transform, false);
+                go.AddComponent<MeshFilter>();
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = ArmsMaterial;
+                mr.shadowCastingMode = ShadowCastingMode.Off;
+                _inHand = go;
+            }
+            _inHand.GetComponent<MeshFilter>().sharedMesh = grenade;
+            _inHand.SetActive(true);
+            _holding = Ordnance.ThrowRelease;
+            Hold();
+        }
+
+        private GameObject _inHand;
+        private float _holding;
+
+        /// <summary>The grenade in his palm: past the wrist, along the forearm, as the hand turns.</summary>
+        private void Hold()
+        {
+            if (_inHand == null || !_inHand.activeSelf) return;
+            var along = LowerArmR != null ? (HandR.position - LowerArmR.position).normalized : transform.forward;
+            _inHand.transform.SetPositionAndRotation(HandR.position + along * 0.07f, HandR.rotation);
         }
 
         /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
@@ -373,6 +445,15 @@ namespace LanesOfVietnam.View
 
         private void PostPose()
         {
+            // His upper body: toward his man, and into the aim the clip holds the rifle in, his spine turning
+            // a share a bone; his hips and his feet stay where they are.
+            int k = Mathf.Clamp(_posture, 0, 2);
+            float turn = Mathf.Clamp(_twist + AimTurn[k] * _aim, -MaxTwist[k], MaxTwist[k]);
+            if (Mathf.Abs(turn) > 0.05f && _spine.Length > 0)
+            {
+                var share = Quaternion.AngleAxis(turn / _spine.Length, Vector3.up);
+                for (int i = 0; i < _spine.Length; i++) _spine[i].rotation = share * _spine[i].rotation;
+            }
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
             if (_look > 0.01f && Head != null)

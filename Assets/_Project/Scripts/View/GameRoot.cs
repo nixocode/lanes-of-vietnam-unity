@@ -116,9 +116,10 @@ namespace LanesOfVietnam.View
 
         /// <summary>
         /// How hard the computer is: what a squad costs it (40, 29, 22). Measured with
-        /// `tools/simcs/run.sh player 24 N rate=0.6`, against a player who only ever buys line squads
+        /// `tools/simcs/run.sh player 24 N rate=0.8`, against a player who only ever buys line squads
         /// when he can afford one and never uses a call-in or a lever: against a Recruit he wins 23 of
-        /// 24 as the Americans and 24 as the VC; against a Veteran 17 and 20; against the Elite 9 and 13.
+        /// 24 as the Americans and 22 as the VC; against a Veteran 18 and 19; against the Elite 11 and 12
+        /// (with ammunition and the pace of playtest 8, PLAN §12.24).
         /// (They were 30, 25 and 21 until the men were slowed, PLAN §12.22: at those he won 15, 14 and 5
         /// as the Americans, whose squads now take longer to come up from their end of the lane.)
         /// </summary>
@@ -131,11 +132,12 @@ namespace LanesOfVietnam.View
         /// when a standard match ran 204 s; with the game's tempo and the rules since, the three ran 91,
         /// 127 and 306 s against the start screen's 2, 3½ and 8 minutes. At these rates (`simcs player
         /// 24 29 [skirmish|siege] rate=N`: a player who buys, and the two plans left to themselves) a
-        /// skirmish runs 110 to 130 s, a standard match 170 to 250, a siege six to eight and a half
-        /// minutes. (0.68, 0.55 and 0.6 until the men were slowed, PLAN §12.22: a slower fight is a
-        /// longer one, and at those the three ran to 136, 241 and 590 s.)
+        /// skirmish runs 95 to 130 s, a standard match 150 to 230, a siege five and a half to nine
+        /// minutes. (0.68, 0.55 and 0.6 until the men were slowed, PLAN §12.22; then 0.75, 0.6 and 0.71;
+        /// with ammunition and the slower pace of §12.24 a fight takes longer again, and at those the
+        /// three ran to 176, 315 and 641 s.)
         /// </summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 0.75 : l == MatchLength.Siege ? 0.71 : 0.6;
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.0 : l == MatchLength.Siege ? 0.9 : 0.8;
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 
@@ -168,6 +170,9 @@ namespace LanesOfVietnam.View
                 // Gunnery (Part 2): fire down the lane only, from a knee or flat and never on the move; a
                 // man gets up to move and runs; every round lands somewhere. On in the game.
                 Gunnery = CaptureSettings.Active?.Gunnery ?? true,
+                // Ammo (Part 2): rounds counted, magazines and reloads, machine guns in bursts, launcher rounds
+                // carried, a squad's grenades one at a time. On in the game.
+                Ammo = CaptureSettings.Active?.Ammo ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

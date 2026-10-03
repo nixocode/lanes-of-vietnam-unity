@@ -97,6 +97,8 @@ namespace LanesOfVietnam.View
         public double ArmX;
         /// <summary>Fire down the lane, from a knee or flat, never on the move (MatchOptions.Gunnery); the game's default (on) if not given.</summary>
         public bool? Gunnery;
+        /// <summary>Rounds counted, magazines and reloads, bursts (MatchOptions.Ammo); the game's default (on) if not given.</summary>
+        public bool? Ammo;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -153,6 +155,7 @@ namespace LanesOfVietnam.View
                         c.ArmX = arm.Length > 2 ? double.Parse(arm[2], inv) : 0;
                         break;
                     case "gunnery": c.Gunnery = v == "1" || v == "true"; break;
+                    case "ammo": c.Ammo = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

@@ -150,6 +150,12 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>The tick he last fired, threw or struck: a muzzle flash is seen from a long way off (<see cref="Senses.Sight"/>).</summary>
         public int FiredAt = -100000;
+
+        /// <summary>Rounds left in his magazine (a launcher's: rounds carried), and ticks left of a reload (MatchOptions.Ammo).</summary>
+        public int Rounds, Reloading;
+
+        /// <summary>Ticks he still waits before he sets off, after the man ahead of him has (MatchOptions.Gunnery).</summary>
+        public int Wait;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -229,6 +235,9 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>The cover the squad is making for, or -1.</summary>
         public int Target = -1;
+
+        /// <summary>The tick a man of it last threw a grenade (MatchOptions.Ammo: one at a time).</summary>
+        public int ThrewAt = Senses.Never;
 
         public bool Bounding;
 
@@ -353,6 +362,8 @@ namespace LanesOfVietnam.Sim
         // sight of the enemy, squad Target, at X, Z; Amount 1 if it learned of
         // him by being fired on.
         Contact,
+        // Reload (MatchOptions.Ammo): man Id has started a reload of Amount ticks.
+        Reload,
     }
 
     public struct SimEvent
@@ -377,6 +388,9 @@ namespace LanesOfVietnam.Sim
         /// <summary>Where it happened, for the events that are about a place.</summary>
         public double? X;
         public double? Z;
+
+        /// <summary>Fire (MatchOptions.Ammo): the rounds the shot spent, one or a burst's worth; 0 without the rule.</summary>
+        public int Rounds;
     }
 
     public sealed class SimState
@@ -421,6 +435,8 @@ namespace LanesOfVietnam.Sim
         public bool Senses;
         /// <summary>Part 2 rule: fire down the lane, from a knee or flat, never on the move, and every round lands somewhere (<see cref="Sim.Gunnery"/>). Off is the baseline.</summary>
         public bool Gunnery;
+        /// <summary>Part 2 rule: rounds counted, magazines, reloads, bursts, launcher rounds carried (<see cref="Sim.Ammo"/>). Off is the baseline.</summary>
+        public bool Ammo;
         /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>
         public double Sight = 1;
         /// <summary>Gunnery's own random stream: the standing man's chance, and where a miss lands.</summary>
