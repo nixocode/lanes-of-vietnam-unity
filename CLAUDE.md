@@ -82,3 +82,9 @@ The Mac has to finish what a cloud session starts, so leave it what it needs:
   needs to show the rule, what to look at in a playtest).
 - A new `EventKind` goes at the end of the enum, and anything the view will
   have to draw is listed in that section rather than guessed at in `View/`.
+- A new `.cs` file comes without its `.meta`; Unity on the Mac makes it. Name
+  the new files in the section so they are not missed.
+
+The briefs for cloud work are in `Docs/cloud/`, one a session. From the
+project folder, in a terminal of its own: `claude --cloud "Do the work in
+Docs/cloud/m1-sim.md"`.
