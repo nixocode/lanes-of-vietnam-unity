@@ -77,7 +77,7 @@ reference/TARGET.jpg             the specification for the look
 | Frame | 4.5 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
 | Tests | EditMode 64/64, PlayMode 17/17 (2026-10-03, PLAN §12.24) |
 
-The measured detail, step by step, is in PLAN §10a; where it stands and what is next, in PLAN §12.17 and the sections after it (the latest: §12.23).
+The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.25, the plan from here (milestones M0 to M3).
 
 ## Direction
 
