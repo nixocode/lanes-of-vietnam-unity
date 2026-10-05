@@ -1272,6 +1272,8 @@ the M79 and the squad lists adjusted, 51.0% over 96 seeds (§10a).
 
 ### 12.17 Where it stands, and what is next (2026-10-01, after playtest 4)
 
+*Its "next" list is superseded by §12.25 (2026-10-05).*
+
 **In the build** (commit `90a256f`, local; WebGL 29.85 MB; EditMode 50/50,
 PlayMode 14/14; real Chrome about 6.5 ms a frame):
 
@@ -1324,6 +1326,8 @@ http://127.0.0.1:8065. Nothing is left running between sessions.
 
 
 ### 12.18 Playtest 5 and the order after it (2026-10-02)
+
+*Its phase order is superseded by §12.25 (2026-10-05).*
 
 The owner's eight notes, and where each goes:
 
@@ -1812,6 +1816,125 @@ for the new rule; the Gunnery pins re-recorded, every other layer untouched),
 PlayMode 17/17, WebGL 25.08 MB, 4.4 to 4.6 ms a frame at 2592 x 1370. Seen by
 me in strips and captures, not yet by the owner: the grenades, the aiming,
 the pace, the reloads, the zoom (no capture reaches a pointer).
+
+
+### 12.25 The plan from here (2026-10-05)
+
+The owner asked for a new plan: the targets and objectives from here. It
+supersedes the "next" lists of §12.17 and §12.18, which playtests 5 to 8,
+the code review and three new rules (Senses, Gunnery, Ammo) have overtaken.
+
+**Where it stands.** The build is `6bdf5d8` (playtest 8, §12.24): local, not
+yet played by the owner; GitHub is at `3998aeb`. EditMode 64/64, PlayMode
+17/17, a 25.08 MB download, 4.4 to 4.6 ms a frame at the owner's 2592 x 1370.
+
+- **Part 1, the slice**, is nearly whole. It still lacks:
+  - music;
+  - the immersion layer: call-ins you watch arrive, and the radio operator;
+  - the launchers' own firing sounds;
+  - weapon-model detail;
+  - a jog, a reload and a throw for a kneeling man;
+  - two loose ends of the AI;
+  - a host.
+- **Part 2**, the content that has to beat the 2D game (§12.8), has not
+  begun.
+
+The bar is still §12.1's three gates: look, against `TARGET.jpg`; content,
+every row of §12.8's matrix matched or beaten; and it runs in a normal
+browser. The milestones below are in order, and each ends in a build the
+owner can play.
+
+**How every milestone runs.**
+
+1. Build.
+2. Measure:
+   - frame time at 2592 x 1370 in WebGL (`?perf=1` and its `off=` switches);
+   - the EditMode and PlayMode tests;
+   - `simcs` for anything in the simulation.
+3. Commit locally.
+4. The owner plays it.
+5. A quick-fix pass on what he finds.
+
+Anything that downloads (a Mixamo clip, a recording, a model) asks first. A
+push waits for his word.
+
+#### M0. Playtest 9 (now)
+
+The owner plays `6bdf5d8`. He checks, in this order:
+
+1. the sliding: aiming with the upper body, stepping round to turn;
+2. the pace;
+3. the grenades;
+4. rounds and reloads;
+5. fire across the lanes by sight;
+6. the zoom, with Option or Cmd.
+
+A quick-fix pass follows on what he finds, then a push when he says.
+
+**Gate:** he calls the sliding and the gunfights fixed.
+
+#### M1. Finish the slice (§12.12 steps 9a to 10)
+
+| | what | gate |
+|---|---|---|
+| 1a | **The AI's loose ends** (§12.18 phase 1): men pinned in the open three metres in front of a wall they had walked past; squads stringing out at the map's edge when they come on | `simcs aware` and `muddle` before and after ("idle in the open by cover", "waiting behind cover") |
+| 1b | **One Mixamo batch** (the owner's yes; he signs in, the agent drives Chrome): a rifle jog, a kneeling reload, a kneeling toss, rifle turns left and right, a prone throw if there is one. Through `SoldierBuilder`; the jog is the 1.9 m/s pace in contact, which today plays the walk at its own pace | the motion audit (no new gliding, carrying or turning on the heels); the clips seen in strips |
+| 1c | **The guns** (phase 3): model detail in `tools/blender/weapons.py`; the M79's, the RPG-7's and the mortar's own firing sounds (a download: his yes); a launcher's burst the size of its round | captures at full zoom; the audio distance table |
+| 1d | **Every class its job** (phase 4): the mortar set up on the ground when its team halts; sappers' satchel charges against a position; the computer pulling hold and go on its own side's strongpoints | each behind its own `MatchOptions` flag; a balance block (`simcs player`); the event audit |
+| 1e | **The immersion layer** (§12.7): call-ins you watch arrive (the artillery's whistle and rounds walking in, an aircraft over the air strike, a Huey for the medevac with its downwash in the grass), and the radio operator on one knee at every call. Each switchable | flicker and the frame budget hold with all of it on |
+| 1f | **Music**: a free licensed score, logged with its attribution (decided 2026-09-30). The MUS button exists; nothing is behind it yet | the mix: no clipping with sixty men |
+| 1g | **Publish**: a host that sends the Brotli headers (§12.11), the owner's choice; then the stranger test on the slice | someone who has never seen the game plays a match cold and finishes it without help |
+
+#### M2. Part 2, the systems first (§12.12 steps 11 and 12)
+
+| | what |
+|---|---|
+| 2a | **Weather** (phase 5): a schedule from the seed; sight scaled through `SimState.Sight`; rain, wet ground and its sound; fog |
+| 2b | **Night**: illumination flares as the night's light; muzzle flashes as lights, from a small pool. The groundwork for Khe Sanh |
+| 2c | **Units**: the ARVN squad, the LRRP team (it spots), the RPD team; the M113, which small arms do not kill and a rocket or a satchel does (a kit and an armour rule) |
+| 2d | **Call-ins**: napalm, which burns away concealment where it lands; Air Cav, Hueys putting a squad down; Arc Light, a line of B-52 bombs on the longest cooldown |
+| 2e | **Snipers and ground**: the scope's glint, from the simulation's aim; duels; firing downhill reaches further (it lands with Hill 937) |
+
+Each behind its own flag, with the baseline and every older pin untouched;
+its events reachable in the audit; a balance block of 24 to 48 seeds; a
+UIAudit row for any new card.
+
+#### M3. The operations (§12.12 steps 13 to 15)
+
+- **Order:**
+  1. Khe Sanh: the firebase set, at night;
+  2. Cu Chi: the jungle, and tunnels;
+  3. Ia Drang: grassland, the golden hour, the Chu Pong massif;
+  4. Hill 937: the slope, bunkers, rain;
+  5. the Mekong: paddies and water.
+- **Before each map's art:** its reference frame, from the owner (§12.14 Q4).
+- **After the maps:** siege and assault; the campaign, with the 2D game's
+  briefings; perks; field orders for every operation.
+- **Budget:** 45 MB initial; each further operation about 40 MB more,
+  streamed when chosen; the heap checked for leaks after three changes of
+  operation.
+- **Gates for each map:** look, flicker and frame budget; both sides winnable
+  at every difficulty (48 seeds, headless); the stranger test.
+
+#### What holds throughout
+
+- **Frame:** 6 ms or less on average, and 8.3 ms or less at the 95th
+  percentile, at 2592 x 1370 in WebGL, so a 120 Hz screen keeps up.
+- **Tests:** EditMode and PlayMode green; the motion audit's gates hold.
+- **Simulation:** the parity baseline untouched, and every new rule behind
+  its own flag.
+- **Licensed files:** never in git; checked before every push.
+
+#### For the owner to decide
+
+1. **The Mixamo batch** (1b): yes or no, and when he can sign in.
+2. **Downloads:** the launchers' sounds (1c) and the music (1f).
+3. **The bound order (key 3):** it has done nothing a march does not since
+   Senses. Take it out, or give it a meaning.
+4. **The host** for publishing (1g).
+5. **Reference frames** for the four new operations (M3).
+6. **Order:** M2 before 1e and 1f, if he would rather see new content than
+   polish.
 
 
 ### 12.13 Corrections to earlier sections
