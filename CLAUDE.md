@@ -2,8 +2,8 @@
 
 A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
-owner's playtests in order and what was built for each. The latest is the
-code review, §12.23 and `Docs/CODE-REVIEW-2026-10-02.md`.
+owner's playtests in order and what was built for each. The plan from here is
+§12.25: its milestones, their gates, and what the owner still has to decide.
 
 ## What runs where
 
@@ -30,10 +30,19 @@ compiles and plays it; say so in the commit message.
 dotnet build tools/simcs/SimCs.csproj -c Release
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll determinism
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll audit
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery map
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 24 29 rate=0.6
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery ammo map
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 24 29 rate=0.8
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery ammo tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll muddle 3 2400 6 fieldcraft arms senses gunnery ammo tempo
 ```
+
+Before changing anything, a build of `main` gives these; if it does not, stop
+and say so:
+
+- `determinism`: ok.
+- `hash 1` (the parity baseline, every flag off): 4390 ticks, final `2256114725u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo map` (the game):
+  2725 ticks, final `988759736u`.
 
 ## Rules this project keeps
 
@@ -41,7 +50,7 @@ dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms s
   TypeScript original. It owns no engine objects, reads no clock, and draws
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
-  Drill, Fieldcraft, Arms, Senses, Gunnery). With a flag off the match is
+  Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo). With a flag off the match is
   what it was to the bit: check with `simcs hash` that only the layers you
   meant to change have moved.
 - **Pinned hashes** in `Assets/_Project/Tests/EditMode/SimTests.cs` are
@@ -59,3 +68,17 @@ dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms s
 - **Comments and docs** are plain prose in the owner's terms; write in the
   style of the surrounding code.
 - Work on a branch; the owner decides what reaches `main`.
+
+## A cloud session's hand-over
+
+The Mac has to finish what a cloud session starts, so leave it what it needs:
+
+- A branch named `cloud/<what it is>`, pushed, never merged into `main`.
+- New pins recorded in `SimTests.cs`, with the `simcs hash` line that gave each
+  one in the commit message, and a test for each new rule beside the others.
+- A new section at the end of `PLAN.md` §12 in the style of §12.24: what was
+  asked, what was built, the measurements before and after and the command
+  that gave each, and what is left for the Mac (tests to run, what the view
+  needs to show the rule, what to look at in a playtest).
+- A new `EventKind` goes at the end of the enum, and anything the view will
+  have to draw is listed in that section rather than guessed at in `View/`.
