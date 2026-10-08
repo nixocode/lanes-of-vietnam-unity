@@ -207,9 +207,10 @@ namespace LanesOfVietnam.Sim
         public static Man PickTarget(SimState st, Man a)
         {
             var sq = st.Squads[a.Squad];
-            double reach = Arms.Of(st, a).Range;
-            Man best = null, bestOther = null, across = null;
-            double bestD2 = reach * reach, otherD2 = reach * reach, acrossD2 = reach * reach;
+            // (Tactics: and a long shot beyond his weapon's own distance.)
+            double reach = Tactics.Reach(st, a);
+            Man best = null, bestOther = null, across = null, sniper = null;
+            double bestD2 = reach * reach, otherD2 = reach * reach, acrossD2 = reach * reach, sniperD2 = reach * reach;
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var b = st.Men[i];
@@ -222,11 +223,14 @@ namespace LanesOfVietnam.Sim
                 bool theirs = !far && b.Squad == sq.Threat;
                 if (d2 > (far ? acrossD2 : theirs ? bestD2 : otherD2)) continue;
                 if (Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
+                // Tactics: a sniper who has just fired has told everyone where he is.
+                if (st.Tactics && b.Weapon == Weapon.Sniper && st.Tick - b.FiredAt <= Tune.SniperMarked && d2 <= sniperD2) { sniperD2 = d2; sniper = b; }
                 if (far) { acrossD2 = d2; across = b; }
                 else if (theirs) { bestD2 = d2; best = b; }
                 else { otherD2 = d2; bestOther = b; }
             }
-            return best ?? bestOther ?? across;
+            var pick = best ?? bestOther ?? across;
+            return sniper != null && Tactics.GoesForSniper(st, a, pick) ? sniper : pick;
         }
 
         /// <summary>
@@ -331,6 +335,12 @@ namespace LanesOfVietnam.Sim
 
             // The order to fall back is obeyed at once, as it always was.
             if (plan.Withdraw && broken && !sq.Rallied && task != SquadTask.Withdraw) task = SquadTask.Withdraw;
+            // Tactics: a team that fights from a long way off keeps its distance. With the enemy inside it, and
+            // cover behind to go to, it goes (and comes on again, to its own distance, when it has its breath).
+            else if (Tactics.Pressed(st, sq) && held >= Tune.FirefightMin && pin < Tune.PinStop
+                     && (task == SquadTask.Firefight || task == SquadTask.Regroup)
+                     && Ground(st, sq, live, Combat.Advance(sq.Side), Tune.WithdrawReach, double.NegativeInfinity, -Tune.GroundClear) >= 0)
+                task = SquadTask.Withdraw;
             else switch (task)
             {
                 case SquadTask.March:

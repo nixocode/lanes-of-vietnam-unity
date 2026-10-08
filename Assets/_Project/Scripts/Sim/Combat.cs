@@ -72,6 +72,10 @@ namespace LanesOfVietnam.Sim
             double t = Math.Min(1, d / arm.Range);
             double p = Tune.HitBase * (1 - t * (1 - arm.AtRange));
             if (st.Arms) p *= arm.Hit;
+            // Tactics: beyond his weapon's own distance a round seldom finds its man.
+            if (st.Tactics && d > arm.Range) p *= Tune.LongHit;
+            // Fortune: and some men shoot better than others.
+            if (st.Fortune) p *= a.Aim;
 
             // A suppressed man shoots worse. Veterancy steadies the aim but
             // never raises the ceiling — steadier, not stronger.
@@ -208,6 +212,11 @@ namespace LanesOfVietnam.Sim
             // Senses: at a man he cannot himself see, on his squad's word, a rifleman fires slower.
             if (st.Senses && !blind && a.Weapon != Weapon.M60 && a.Weapon != Weapon.Rpd && !automatic && !Senses.Sees(st, a, target))
                 a.Cooldown = (int)(arm.Cooldown * Tune.BlindCooldown);
+            // Tactics: a long shot is a deliberate one, and pins less (below). Not at a sniper: him they mean to keep down.
+            bool longShot = Tactics.Long(st, a, target) && target.Weapon != Weapon.Sniper;
+            if (longShot) a.Cooldown = (int)(a.Cooldown * Tune.LongCooldown);
+            // Fortune: his next shot comes when it comes.
+            if (st.Fortune) a.Cooldown = Fortune.Pause(st, a, a.Cooldown);
             // Firing gives away concealment.
             a.Seen = true;
             a.FiredAt = st.Tick;
@@ -215,6 +224,8 @@ namespace LanesOfVietnam.Sim
             // Ammo: a long burst, close in, is likelier to find him than a short one.
             if (automatic && rounds > Ammo.Of(st, a).Burst) p = Math.Min(0.9, p * Tune.LongBurstHit);
             bool hit = !blind && rng.Next() < p;
+            // Fortune: the long shot that had no business hitting.
+            if (st.Fortune && !blind && !hit && Fortune.Lucky(st, a, target)) hit = true;
             // Gunnery: the round goes somewhere. A hit is on the man; a miss comes down past him.
             double? atX = null, atZ = null;
             if (st.Gunnery)
@@ -240,6 +251,7 @@ namespace LanesOfVietnam.Sim
             double near = Tune.PinPerNearMiss * arm.Pin * (blind ? Tune.SuppressPin : 1);
             // Ammo: a burst's pin is by its rounds against a short one's.
             if (automatic) near *= Math.Min(2.0, (double)rounds / Ammo.Of(st, a).Burst);
+            if (longShot) near *= Tune.LongPin;
             ApplyPin(st, target, near);
             double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)
@@ -276,6 +288,8 @@ namespace LanesOfVietnam.Sim
         {
             double before = m.Pin;
             double resist = 1 - Tune.VetPinResist * m.Veterancy;
+            // Fortune: and some men's heads go down sooner than others'.
+            if (st.Fortune) amount = Fortune.Shaken(m, amount);
             m.Pin = Math.Min(1, m.Pin + amount * resist);
             if (before < Tune.PinDrop && m.Pin >= Tune.PinDrop)
             {

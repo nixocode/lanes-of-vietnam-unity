@@ -881,7 +881,7 @@ namespace LanesOfVietnam.Tests
         {
             var o = Sensed(seed, onMap);
             o.Gunnery = true;
-            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.8; }      // as the game plays it
+            if (tempo) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = 0.9; }      // as the game plays it
             return o;
         }
 
@@ -1332,6 +1332,243 @@ namespace LanesOfVietnam.Tests
                 Assert.IsTrue(m.State.Squads.All(q => q.Smoke >= 0 && q.Smoke <= Tune.SquadSmokeCarried), "a squad threw more than it carried");
             }
             Assert.Greater(smokes, 0, "no squad ever popped smoke");
+        }
+
+        // --- Part 2: tactics, behind MatchOptions.Tactics; fortune, behind MatchOptions.Fortune (playtest 9) -----
+
+        private static MatchOptions Drilled(int seed, bool onMap = true, bool tempo = false, bool fortune = false)
+        {
+            var o = Loaded(seed, onMap, tempo);
+            o.Tactics = true;
+            o.Fortune = fortune;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics [map]`.</summary>
+        [TestCase(1, true, 3566, 674558516u, 1701773530u, 733854862u, "vc morale broke")]
+        [TestCase(7, false, 3341, 1916778477u, 3459103997u, 2175602128u, "us morale broke")]
+        public void With_tactics_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Tactics, "tactics must be off unless asked for");
+            var (a, m) = Played(Drilled(seed, asTheGame));
+            var (b, _) = Played(Drilled(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune [map]`.</summary>
+        [TestCase(1, true, 4240, 1213913555u, 3971222224u, 1266985859u, "us morale broke")]
+        [TestCase(7, false, 2166, 4141358090u, 1407521725u, 1832804816u, "vc morale broke")]
+        public void With_fortune_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Fortune, "fortune must be off unless asked for");
+            var (a, m) = Played(Drilled(seed, asTheGame, fortune: true));
+            var (b, _) = Played(Drilled(seed, asTheGame, fortune: true));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, playtest 9: "AI brain needs work: sometimes they still do weird circles, don't fight each
+        /// other, weird non-logical positions when fighting", and "too many grenades". A squad fires at an
+        /// enemy it has in sight from beyond its weapons' own distance, never from beyond a long shot, and a
+        /// long shot all but never kills; in contact a squad moves by halves, so most of its movement is by the
+        /// half whose turn it is; a man throws no more grenades than the one he carries (a sapper's or an
+        /// engineer's two), a squad waits fifteen seconds between them, and far fewer are thrown.
+        /// </summary>
+        [Test]
+        public void With_tactics_squads_fire_at_sight_move_by_halves_and_throw_fewer_grenades()
+        {
+            int shots = 0, longShots = 0, longKills = 0, inTurn = 0, outOfTurn = 0, thrownWith = 0, thrownWithout = 0;
+            for (int seed = 3; seed <= 6; seed++)
+            {
+                var plain = new LiveMatch(Loaded(seed, tempo: true));
+                while (!plain.State.Over && plain.State.Tick < 3600) plain.Step();
+                thrownWithout += plain.State.Events.Count(e => e.Kind == EventKind.GrenadeThrown);
+
+                var m = new LiveMatch(Drilled(seed, tempo: true));
+                var st = m.State;
+                var threw = new Dictionary<int, int>(); var squadThrew = new Dictionary<int, int>();
+                while (!st.Over && st.Tick < 3600)
+                {
+                    var was = st.Men.Select(x => (x.X, x.Z)).ToArray();
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind == EventKind.GrenadeThrown)
+                        {
+                            thrownWith++;
+                            var by = st.Men[e.Id];
+                            threw[e.Id] = threw.GetValueOrDefault(e.Id) + 1;
+                            Assert.LessOrEqual(threw[e.Id], by.Weapon == Weapon.Smg ? Tune.TacticsGrenadesClose : Tune.TacticsGrenades, $"seed {seed}: man {e.Id} threw more grenades than he carried");
+                            if (squadThrew.TryGetValue(by.Squad, out int at)) Assert.GreaterOrEqual(st.Tick - at, Tune.TacticsThrowGap, $"seed {seed}: squad {by.Squad} threw again too soon");
+                            squadThrew[by.Squad] = st.Tick;
+                        }
+                        if (e.Kind != EventKind.Fire) continue;
+                        var a = st.Men[e.Id]; var b = st.Men[e.Target.Value];
+                        double d = Combat.Dist(a, b);
+                        // (A machine gun's burst on cover it has lost sight of is Senses' own, at its own distance.)
+                        Assert.LessOrEqual(d, Tactics.Reach(st, a) + 1e-9, $"seed {seed} tick {st.Tick}: man {e.Id} fired from beyond a long shot");
+                        shots++;
+                        if (d <= Arms.Of(st, a).Range) continue;
+                        longShots++;
+                        if (i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == b.Id) longKills++;
+                    }
+                    foreach (var p in st.Men)
+                    {
+                        if (!p.Alive || p.Id >= was.Length || !Tactics.Bounds(st, st.Squads[p.Squad])) continue;
+                        if (Math.Abs(p.X - was[p.Id].X) + Math.Abs(p.Z - was[p.Id].Z) <= 0.01) continue;
+                        if (Tactics.Turn(st, st.Squads[p.Squad], p)) inTurn++; else outOfTurn++;
+                    }
+                }
+            }
+            Assert.Greater(longShots, 100, "hardly a long shot was fired: squads are not opening fire at sight");
+            Assert.Less(longShots, shots, "every shot was a long one");
+            Assert.Less(longKills * 20, longShots, "a long shot kills too often to be a long shot");
+            Assert.Greater(inTurn, 1000, "hardly anyone moved in a bound");
+            Assert.Less(outOfTurn * 3, inTurn, "men move when it is the other half's turn");
+            Assert.Greater(thrownWith, 0, "nobody threw a grenade");
+            Assert.Less(thrownWith * 5, thrownWithout * 3, "grenades are not much fewer");
+
+            // A long shot is the same shot at the weapon's own distance, less often on its man; a sniper's rifle has none.
+            var fresh = Match.Create(Drilled(3));
+            var rifle = fresh.Men.First(x => x.Side == Side.Us && x.Weapon == Weapon.M16); var foe = fresh.Men.First(x => x.Side == Side.Vc);
+            rifle.Posture = Posture.Crouched; foe.Z = rifle.Z; foe.Cover = -1;
+            foe.X = rifle.X + Arms.Of(Weapon.M16).Range;
+            double own = Combat.HitChance(fresh, rifle, foe);
+            foe.X = rifle.X + Arms.Of(Weapon.M16).Range + 5;
+            Assert.AreEqual(Tune.LongHit * own, Combat.HitChance(fresh, rifle, foe), 1e-12);
+            Assert.AreEqual(Arms.Of(Weapon.M16).Range + Tune.LongMost, Tactics.Reach(fresh, rifle), 1e-12);
+            rifle.Weapon = Weapon.Sniper;
+            Assert.AreEqual(Arms.Of(Weapon.Sniper).Range, Tactics.Reach(fresh, rifle), 1e-12);
+            Assert.AreEqual(Arms.Of(Weapon.M16).Range, Tactics.Reach(Match.Create(Loaded(3)), fresh.Men.First(x => x.Weapon == Weapon.M16)), 1e-12, "a long shot without the rule");
+        }
+
+        /// <summary>
+        /// The owner, playtest 9: "distances for snipers need tailoring: they should be able to be safe but prone
+        /// to suppression from the gunner/squads and other snipers". A sniper team fights from 26 m, inside a
+        /// rifle's long shot and outside its own distance; a machine gun and another sniper leave whoever they
+        /// would have fired at for a sniper who has just fired, and a rifleman does when he has nobody nearer.
+        /// And a man passing through cover goes for an enemy four metres off; one with a place in it waits.
+        /// </summary>
+        [Test]
+        public void With_tactics_a_sniper_keeps_his_distance_and_draws_fire_and_a_man_in_cover_knows_what_to_do()
+        {
+            var lm = new LiveMatch(Drilled(3, tempo: true));
+            lm.Issue(Command.Buy(Side.Us, "us-sniper", 0, 0));
+            lm.Step();
+            var team = lm.State.Squads.Single(q => q.Card == "us-sniper");
+            Assert.AreEqual(Tune.SniperReach, team.Reach);
+            Assert.Less(Arms.Of(Weapon.M16).Range, team.Reach, "a sniper inside a rifle's own distance");
+            Assert.Less(team.Reach, Arms.Of(Weapon.M16).Range + Tune.LongMost, "a sniper beyond a rifle's long shot");
+            Assert.IsTrue(Tactics.FarTeam(lm.State, team));
+            Assert.IsFalse(Tactics.FarTeam(lm.State, lm.State.Squads.First(q => q.Card == "us-rifle")));
+            team.Threat = lm.State.Squads.First(q => q.Side == Side.Vc).Id; team.ThreatSeen = true;
+            team.ThreatGap = team.Reach - Tune.KeepOff - 1;
+            Assert.IsTrue(Tactics.Pressed(lm.State, team), "an enemy inside its distance does not press it");
+            team.ThreatGap = team.Reach;
+            Assert.IsFalse(Tactics.Pressed(lm.State, team));
+
+            var st = Match.Create(Drilled(3));
+            var gun = new Man { Weapon = Weapon.M60 }; var man = new Man { Weapon = Weapon.M16 };
+            var nearby = new Man { X = 10 }; var far = new Man { X = 25 };
+            Assert.IsTrue(Tactics.GoesForSniper(st, gun, nearby), "a machine gun does not go for the sniper");
+            Assert.IsFalse(Tactics.GoesForSniper(st, man, nearby), "a rifleman leaves a man he can hit for a sniper he cannot");
+            Assert.IsTrue(Tactics.GoesForSniper(st, man, far));
+            Assert.IsTrue(Tactics.GoesForSniper(st, man, null));
+
+            foreach (bool rule in new[] { true, false })
+            {
+                var s2 = Match.Create(rule ? Drilled(3) : Loaded(3));
+                var sq = s2.Squads.First(q => q.Side == Side.Us);
+                var p = s2.Men.First(x => x.Squad == sq.Id); var e = s2.Men.First(x => x.Side == Side.Vc);
+                var c = s2.Cover[0];
+                sq.Order = Order.Hold;
+                p.X = c.X; p.Z = c.Z; p.Cover = c.Id; p.Pin = 0;
+                e.X = p.X + 4; e.Z = p.Z; e.Seen = true;
+                foreach (var o in s2.Men) if (o != e && o.Side == Side.Vc) o.X = 44;
+                p.Place = -1; p.PlaceCover = -1;
+                Assert.AreEqual(rule ? e : null, Fieldcraft.Quarry(s2, p, sq), rule ? "passing through cover, he waited for a man four metres off" : "the baseline's rule changed");
+                p.Place = 0; p.PlaceCover = c.Id;
+                Assert.IsNull(Fieldcraft.Quarry(s2, p, sq), "a man with a place in cover left it for a man four metres off");
+            }
+        }
+
+        /// <summary>
+        /// The owner, playtest 9: "add randomness", and of snipers killed by squads, "add luck element to it".
+        /// Men are drawn as they are raised, the same men for the same seed, each within his spread of the
+        /// ordinary man, and all the ordinary man without the rule; a pause is a third longer or shorter, by
+        /// chance and by the man; only a long shot is ever lucky, about six in a thousand; the match opens in
+        /// either lane, both sides in the same one; and the computer does not raise the same squads in the
+        /// same order every time.
+        /// </summary>
+        [Test]
+        public void With_fortune_men_differ_pauses_vary_a_long_shot_may_be_lucky_and_the_opening_is_drawn()
+        {
+            var plain = Match.Create(Drilled(3));
+            Assert.IsTrue(plain.Men.All(x => x.Aim == 1 && x.Nerve == 1 && x.Quick == 1), "men differ without the rule");
+            Assert.IsNull(plain.LuckRng, "luck has a stream without the rule");
+
+            var a = Match.Create(Drilled(3, fortune: true)); var b = Match.Create(Drilled(3, fortune: true));
+            CollectionAssert.AreEqual(a.Men.Select(x => (x.Aim, x.Nerve, x.Quick)).ToList(), b.Men.Select(x => (x.Aim, x.Nerve, x.Quick)).ToList(), "the same seed raised different men");
+            Assert.Greater(a.Men.Select(x => x.Aim).Distinct().Count(), a.Men.Count / 2, "the men are all one man");
+            foreach (var x in a.Men)
+            {
+                Assert.That(x.Aim, Is.InRange(1 - Tune.AimSpread, 1 + Tune.AimSpread));
+                Assert.That(x.Nerve, Is.InRange(1 - Tune.NerveSpread, 1 + Tune.NerveSpread));
+                Assert.That(x.Quick, Is.InRange(1 - Tune.QuickSpread, 1 + Tune.QuickSpread));
+            }
+            // A steady man takes less of a burst than a nervous one; a good shot hits oftener than a poor one.
+            var steady = new Man { Nerve = 1.2 }; var nervous = new Man { Nerve = 0.8 };
+            Assert.Less(Fortune.Shaken(steady, 0.2), Fortune.Shaken(nervous, 0.2));
+            var shot = a.Men.First(x => x.Side == Side.Us); var at = a.Men.First(x => x.Side == Side.Vc);
+            at.X = shot.X + 10; at.Z = shot.Z; at.Cover = -1; shot.Posture = Posture.Crouched;
+            shot.Aim = 1; double ordinary = Combat.HitChance(a, shot, at);
+            shot.Aim = 1.25; Assert.AreEqual(1.25 * ordinary, Combat.HitChance(a, shot, at), 1e-12);
+
+            var pauses = new HashSet<int>();
+            for (int i = 0; i < 40; i++)
+            {
+                int t = Fortune.Pause(a, a.Men[i % a.Men.Count], 100);
+                Assert.That(t, Is.InRange((int)(100 * (1 - Tune.PauseSpread) / (1 + Tune.QuickSpread)), (int)(100 * (1 + Tune.PauseSpread) / (1 - Tune.QuickSpread)) + 1));
+                pauses.Add(t);
+            }
+            Assert.Greater(pauses.Count, 10, "every pause is the same pause");
+
+            // Luck is a long shot's: never inside the weapon's own distance, and seldom beyond it.
+            int lucky = 0;
+            at.X = shot.X + Arms.Of(a, shot).Range - 1;
+            for (int i = 0; i < 2000; i++) Assert.IsFalse(Fortune.Lucky(a, shot, at), "a lucky shot inside the weapon's own distance");
+            at.X = shot.X + Arms.Of(a, shot).Range + 5;
+            for (int i = 0; i < 20000; i++) if (Fortune.Lucky(a, shot, at)) lucky++;
+            Assert.That(lucky, Is.InRange(20000 * Tune.LuckyHit * 0.6, 20000 * Tune.LuckyHit * 1.5), "luck is not what its number says");
+
+            // The opening: both sides in one lane, and not the same lane every match. And what the computer raises next is drawn.
+            var lanes = new HashSet<int>(); var raised = new HashSet<string>();
+            for (int seed = 1; seed <= 16; seed++)
+            {
+                var m = new LiveMatch(Drilled(seed, tempo: true, fortune: true));
+                Assert.AreEqual(1, m.State.Squads.Select(q => q.Lane).Distinct().Count(), $"seed {seed}: the two sides opened in different lanes");
+                lanes.Add(m.State.Squads[0].Lane);
+                Assert.AreEqual("us-rifle", m.State.Squads.First(q => q.Side == Side.Us).Card, "a side's first squad is not its line squad");
+                while (!m.State.Over && m.State.Tick < 1200) m.Step();
+                raised.Add(string.Join(",", m.State.Squads.Where(q => q.Side == Side.Vc).Take(4).Select(q => q.Card)));
+            }
+            Assert.AreEqual(2, lanes.Count, "every match opened in the same lane");
+            Assert.Greater(raised.Count, 3, "the computer raises the same squads in the same order every match");
+            Assert.AreEqual(0, new LiveMatch(Drilled(5, tempo: true)).State.Squads[0].Lane, "without the rule a match opens in the near lane");
         }
 
         [Test]

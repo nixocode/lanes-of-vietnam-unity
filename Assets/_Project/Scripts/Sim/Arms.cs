@@ -145,7 +145,8 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Squads.Count; i++) if (st.Squads[i].Side == side) n++;
             // (Gunnery: with nobody firing across the lanes or on the move, the first list again.)
             var list = side == Side.Us ? UsRaised : st.Senses && !st.Gunnery ? VcRaisedSenses : VcRaised;
-            return For(list[n % list.Length]);
+            // (Fortune: after its first, drawn from the list, not taken in its order.)
+            return For(list[Fortune.Raised(st, n, list.Length)]);
         }
 
         /// <summary>

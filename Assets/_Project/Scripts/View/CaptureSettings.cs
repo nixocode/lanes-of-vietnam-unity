@@ -99,6 +99,10 @@ namespace LanesOfVietnam.View
         public bool? Gunnery;
         /// <summary>Rounds counted, magazines and reloads, bursts (MatchOptions.Ammo); the game's default (on) if not given.</summary>
         public bool? Ammo;
+        /// <summary>Fire at sight, bounds by halves, a sniper's distance, fewer grenades (MatchOptions.Tactics); the game's default (on) if not given.</summary>
+        public bool? Tactics;
+        /// <summary>Men who differ, and luck (MatchOptions.Fortune); the game's default (on) if not given.</summary>
+        public bool? Fortune;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -156,6 +160,8 @@ namespace LanesOfVietnam.View
                         break;
                     case "gunnery": c.Gunnery = v == "1" || v == "true"; break;
                     case "ammo": c.Ammo = v == "1" || v == "true"; break;
+                    case "tactics": c.Tactics = v == "1" || v == "true"; break;
+                    case "fortune": c.Fortune = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

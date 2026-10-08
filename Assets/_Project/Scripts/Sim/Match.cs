@@ -186,6 +186,8 @@ namespace LanesOfVietnam.Sim
             };
             st.Squads.Add(sq);
             if (kit != null) { sq.Reach = kit.Reach; sq.Assaults = kit.Assaults; sq.Card = kit.Card; }
+            // Tactics: a sniper fights from inside a rifle's long shot, where he can be kept down, not from beyond everything.
+            if (st.Tactics && kit != null && !kit.Assaults && kit.Men[0] == Weapon.Sniper) sq.Reach = Tune.SniperReach;
             if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             int n = size ?? rng.Int(Tune.SquadMin, Tune.SquadMax + 1);
             double dir = Combat.Advance(side);
@@ -208,9 +210,15 @@ namespace LanesOfVietnam.Sim
                     Veterancy = 0, DiedAt = -1,
                     Rank = i,
                     Weapon = kit != null ? kit.Men[i] : Weapon.Rifle,
+                    Grenades = Tactics.Grenades(st, kit != null ? kit.Men[i] : Weapon.Rifle),
                 });
                 if (st.Ammo) Ammo.Issue(st, st.Men[st.Men.Count - 1]);
+                if (st.Fortune) Fortune.Issue(st, st.Men[st.Men.Count - 1]);
             }
+            // Tactics: the anchor a leash ahead of the lead man. (At the lead man, the file closed up at half its
+            // marching distance, every man behind him waited for his place to come past: the last of five stood
+            // five and a half seconds at the map's edge.)
+            if (st.Tactics && st.Fieldcraft) sq.AnchorX = Fieldcraft.SpawnX(x, dir, 0, n) + dir * Tune.AnchorLeash;
             st.Events.Add(new SimEvent { Kind = EventKind.SquadSpawned, Tick = st.Tick, Side = side, Id = sq.Id });
             return sq;
         }
@@ -251,9 +259,11 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < cover.Count; i++) cover[i].Id = i;
             st.Cover.AddRange(cover);
 
+            // Fortune: the lane the match opens in is drawn, the same for both sides, so that they meet in it.
+            int opens = Fortune.OpeningLane(st);
             foreach (var side in Sides)
             {
-                int placed = 0, lane = 0;
+                int placed = 0, lane = opens;
                 while (placed < opts.OpeningStrength)
                 {
                     double x = st.Front[(int)side] + Combat.Advance(side) * rng.Range(-6, 6);
@@ -354,8 +364,12 @@ namespace LanesOfVietnam.Sim
             {
                 // His place is a few paces behind him: the file comes up to him.
                 double behind = (m.X - tx) * dir;
-                if (behind > 0 && behind < Tune.FileWait) tx = m.X;
+                // (Tactics: and waiting, he stands where he is. Following his file's line across the lane while
+                // it came up to him, he shuffled a pace to one side and back.)
+                if (behind > 0 && behind < Tune.FileWait) { tx = m.X; if (st.Tactics) tz = m.Z; }
             }
+            // Tactics: in contact a squad moves by halves. It is the other half's turn: he stays where he is, down, and fires.
+            if (st.Tactics && quarry == null && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; }
 
             var want = Posture.Standing;
             if (m.Pin >= Tune.PinStop) want = Posture.Prone;
