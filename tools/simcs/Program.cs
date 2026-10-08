@@ -38,6 +38,7 @@ namespace LanesOfVietnam.SimCs
                     "wander" => Wander(args),
                     "muddle" => Muddle(args),
                     "aware" => Aware(args),
+                    "brain" => Brain(args),
                     "watch" => Watch(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
@@ -413,6 +414,17 @@ namespace LanesOfVietnam.SimCs
                         if (e.Kind == EventKind.Contact || e.Kind == EventKind.SquadBroke || e.Kind == EventKind.SquadSpawned || e.Kind == EventKind.Kill)
                             Console.WriteLine($"      t{e.Tick} {e.Kind} {e.Side} {e.Id}{(e.Target.HasValue ? " -> " + e.Target : "")}");
                     }
+                // One man, tick by tick: `man=12`.
+                foreach (var arg in a)
+                {
+                    if (!arg.StartsWith("man=")) continue;
+                    var p = st.Men[int.Parse(arg.Substring(4))];
+                    var q = st.Squads[p.Squad];
+                    var foe = st.Men.Where(e => e.Alive && e.Side != p.Side).OrderBy(e => Combat.Dist(p, e)).FirstOrDefault();
+                    var quarry = p.Alive && st.Fieldcraft ? Fieldcraft.Quarry(st, p, q) : null;
+                    Console.WriteLine($"  t{st.Tick} man {p.Id} {(p.Alive ? "" : "DEAD ")}{p.X,6:F2},{p.Z,6:F2} {p.Posture,-8} pin {p.Pin:F2} rest {p.Rest,3} cd {p.Cooldown,2} cover {p.Cover,2} place {p.Place}@{p.PlaceCover} rank {p.Rank}{(p.Vault > 0 ? " vault" : "")}{(p.Reloading > 0 ? " reload" : "")} | sq{q.Id} {q.Order} {q.Task} tgt {q.Target} anchor {q.AnchorX:F1},{q.AnchorZ:F1} {(q.Halted ? "halt" : "go")} threat {q.Threat} | quarry {(quarry == null ? "-" : quarry.Id.ToString())} nearest {(foe == null ? "-" : $"{foe.Id} at {foe.X:F1},{foe.Z:F1} {Combat.Dist(p, foe):F1} m")}");
+                }
+                if (a.Any(x => x.StartsWith("man="))) continue;
                 if ((st.Tick - from) % every != 0) continue;
                 Console.WriteLine($"  t{st.Tick} {st.Phase} morale {st.Morale[0]:F2}/{st.Morale[1]:F2} smoke {st.Areas.Count(x => x.Kind == AreaKind.Smoke)}");
                 foreach (var sq in st.Squads)
@@ -812,6 +824,211 @@ namespace LanesOfVietnam.SimCs
             Console.WriteLine("  posture changes a man, a minute, by kind:");
             foreach (var kv in kinds.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-36} {kv.Value / manSeconds * 60:F2}");
             foreach (var kv in turned.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-24} {kv.Value / minutes:F1}");
+            return 0;
+        }
+
+        /// <summary>
+        /// The three things the owner saw in playtest 9: "sometimes they still
+        /// do weird circles, don't fight each other, weird non-logical
+        /// positions when fighting". `brain [seed] [ticks] [seeds] [flags]`,
+        /// with the Senses rule on.
+        ///   round and back  a man walks five metres or more in eight seconds and ends within a metre and a half of where he began
+        ///   full turn       his direction of travel turns through a whole circle in eight seconds
+        ///   to and fro      a squad's anchor travels four metres or more along the lane in eight seconds and ends within one of where it began
+        ///   not fighting    a man with a target (the rule's own choice: a squad his has in sight, in reach, in his arc, no smoke between),
+        ///                   not pinned flat, climbing or reloading, who has not fired for four seconds
+        ///   lanes quiet     two enemy squads in one lane within 30 m, neither having fired on the other for four seconds
+        ///   out of place    a man at rest in the open within four metres of cover in his lane that has a place free
+        ///   strung out      a squad whose men are spread over more than its file's length and half again
+        /// </summary>
+        private static int Brain(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 2400, seeds = nums.Length > 2 ? nums[2] : 6;
+            const int Window = 160, Quiet = 80;
+            double minutes = 0, manSeconds = 0, squadSeconds = 0;
+            double loops = 0, turns = 0, fro = 0, silent = 0, armed = 0, laneQuiet = 0, laneFight = 0, beside = 0, besideFight = 0, strung = 0;
+            var loopBy = new Dictionary<string, double>(); var turnBy = new Dictionary<string, double>(); var froBy = new Dictionary<string, double>();
+            var silentBy = new Dictionary<string, double>(); var quietBy = new Dictionary<string, double>(); var besideBy = new Dictionary<string, double>(); var strungBy = new Dictionary<string, double>();
+            int shown = 0;
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var m = new LiveMatch(Game(seed, a));
+                var st = m.State;
+                var path = new Dictionary<int, List<(double x, double z)>>();
+                var anchors = new Dictionary<int, List<double>>();
+                var tasks = new Dictionary<int, List<(int tick, SquadTask task)>>();
+                var shotAt = new Dictionary<(int, int), int>();
+                // The tasks a squad has had in the window, in order: what it was doing while its man went round.
+                string Tasks(int sq)
+                {
+                    if (!tasks.TryGetValue(sq, out var l)) return "";
+                    var seen = new List<string>();
+                    for (int i = 0; i < l.Count; i++)
+                        if (i == l.Count - 1 || l[i + 1].tick > st.Tick - Window) seen.Add(l[i].task.ToString());
+                    return string.Join(">", seen.Skip(Math.Max(0, seen.Count - 5)));
+                }
+                for (int t = 0; t < ticks && !st.Over; t++)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind != EventKind.Fire && e.Kind != EventKind.Launch && e.Kind != EventKind.Melee) continue;
+                        shotAt[(st.Men[e.Id].Squad, st.Men[e.Target.Value].Squad)] = st.Tick;
+                    }
+                    var rosters = st.Squads.Select(q => Squads.Roster(st, q.Id)).ToArray();
+                    var alive = Enumerable.Range(0, rosters.Length).Where(i => rosters[i].Count > 0).ToArray();
+                    bool fight = st.Phase == Phase.Fight;
+
+                    foreach (int si in alive)
+                    {
+                        var sq = st.Squads[si];
+                        squadSeconds += Tune.Dt;
+                        if (!tasks.TryGetValue(si, out var tl)) tasks[si] = tl = new List<(int, SquadTask)>();
+                        if (tl.Count == 0 || tl[^1].task != sq.Task) tl.Add((st.Tick, sq.Task));
+
+                        // To and fro: the squad itself going up the lane and back.
+                        if (!anchors.TryGetValue(si, out var al)) anchors[si] = al = new List<double>();
+                        al.Add(sq.AnchorX);
+                        if (al.Count > Window + 1) al.RemoveAt(0);
+                        double went = 0;
+                        for (int i = 1; i < al.Count; i++) went += Math.Abs(al[i] - al[i - 1]);
+                        if (went >= 4 && Math.Abs(al[^1] - al[0]) <= 1)
+                        {
+                            fro++;
+                            string k = $"{sq.Side} {Tasks(si)}";
+                            froBy[k] = froBy.GetValueOrDefault(k) + 1;
+                            if (a.Contains("why3") && shown++ < 16) Console.WriteLine($"    seed {seed} t{st.Tick} sq{si} {sq.Side} L{sq.Lane} {Tasks(si)} anchor {al[0]:F1} -> {al.Min():F1}..{al.Max():F1} -> {al[^1]:F1}");
+                            al.Clear();
+                        }
+
+                        // Strung out.
+                        double lo = rosters[si].Min(p => p.X), hi = rosters[si].Max(p => p.X);
+                        if (rosters[si].Count > 1 && hi - lo > (rosters[si].Count - 1) * Tune.SlotGap * 1.5 + 2)
+                        {
+                            strung += Tune.Dt;
+                            string k = $"{sq.Side} {sq.Task,-9} {(Math.Abs(sq.AnchorX) > Tune.HalfLength - 12 ? "at its own end" : "up the lane")}";
+                            strungBy[k] = strungBy.GetValueOrDefault(k) + Tune.Dt;
+                        }
+
+                        foreach (var p in rosters[si])
+                        {
+                            manSeconds += Tune.Dt;
+                            if (!path.TryGetValue(p.Id, out var pl)) path[p.Id] = pl = new List<(double, double)>();
+                            pl.Add((p.X, p.Z));
+                            if (pl.Count > Window + 1) pl.RemoveAt(0);
+                            if (st.Tick % 5 == 0 && pl.Count > 20)
+                            {
+                                double walked = 0, wound = 0, hx = 0, hz = 0;
+                                bool heading = false;
+                                for (int i = 1; i < pl.Count; i++)
+                                {
+                                    double vx = pl[i].x - pl[i - 1].x, vz = pl[i].z - pl[i - 1].z, v = Math.Sqrt(vx * vx + vz * vz);
+                                    walked += v;
+                                    if (v < 0.02) continue;
+                                    if (heading) wound += Math.Abs(Math.Atan2(hx * vz - hz * vx, hx * vx + hz * vz));
+                                    hx = vx; hz = vz; heading = true;
+                                }
+                                double net = Math.Sqrt((pl[^1].x - pl[0].x) * (pl[^1].x - pl[0].x) + (pl[^1].z - pl[0].z) * (pl[^1].z - pl[0].z));
+                                string what = sq.Order == Order.Fallback ? "falling back"
+                                    : st.Men.Any(e => e.Alive && e.Side != p.Side && Combat.Dist(p, e) < 7) ? "in a close fight"
+                                    : Tasks(si);
+                                bool loop = walked >= 5 && net <= 1.5, turn = !loop && walked >= 3 && wound >= 2 * Math.PI;
+                                if (loop) { loops++; loopBy[$"{sq.Side} {what}"] = loopBy.GetValueOrDefault($"{sq.Side} {what}") + 1; }
+                                if (turn) { turns++; turnBy[$"{sq.Side} {what}"] = turnBy.GetValueOrDefault($"{sq.Side} {what}") + 1; }
+                                if ((loop && a.Contains("why") || turn && a.Contains("why2")) && shown++ < 16)
+                                    Console.WriteLine($"    seed {seed} t{st.Tick - pl.Count + 1}..{st.Tick} man {p.Id} sq{si} {sq.Side} L{sq.Lane} {what}: walked {walked:F1} m, turned {wound * 180 / Math.PI:F0} deg, ends {net:F1} m from where he began ({pl[0].x:F1},{pl[0].z:F1} -> {pl[^1].x:F1},{pl[^1].z:F1}) rank {p.Rank} place {p.Place}@{p.PlaceCover}");
+                                if (loop || turn) pl.Clear();
+                            }
+
+                            if (!fight) continue;
+
+                            // Not fighting: he has somebody to shoot at, and has not for four seconds.
+                            bool bullets = !Arms.Of(st, p).Bursts;
+                            var target = st.Senses && bullets ? Senses.PickTarget(st, p) : null;
+                            bool can = target != null && p.Vault == 0 && p.Pin < Tune.PinStop && p.Reloading == 0;
+                            if (can)
+                            {
+                                armed += Tune.Dt;
+                                if (st.Tick - p.FiredAt > Quiet)
+                                {
+                                    silent += Tune.Dt;
+                                    string doing = p.Rest == 0 ? "moving" : p.Posture == Posture.Standing ? "on his feet, at rest" : "down, at rest";
+                                    string k = $"{doing,-21} {sq.Side} {sq.Task,-9} {(sq.Halted ? "halted" : "going ")} {(p.Cover >= 0 ? "in cover" : "open")}";
+                                    silentBy[k] = silentBy.GetValueOrDefault(k) + Tune.Dt;
+                                    if (a.Contains("why4") && doing.StartsWith(a.Contains("down") ? "down" : "moving") && st.Tick % 20 == 0 && shown++ < 20)
+                                        Console.WriteLine($"    seed {seed} t{st.Tick} man {p.Id} sq{si} {sq.Side} L{sq.Lane} {sq.Task} {sq.Order} {(sq.Halted ? "halted" : "going")} tgt {sq.Target} anchor {sq.AnchorX:F1} | at {p.X:F1},{p.Z:F1} {p.Posture} rest {p.Rest} pin {p.Pin:F2} cd {p.Cooldown} place {p.Place}@{p.PlaceCover} cover {p.Cover} | target man {target.Id} at {target.X:F1},{target.Z:F1} {Combat.Dist(p, target):F1} m, last fired {(st.Tick - p.FiredAt) * Tune.Dt:F0} s ago");
+                                }
+                            }
+
+                            // Out of place: at rest in the open, beside cover with a place free in it.
+                            if (p.Cover < 0 && p.Pin < Tune.PinDrop && p.Rest >= 20)
+                            {
+                                Cover by = null;
+                                foreach (var c in st.Cover)
+                                {
+                                    if (Math.Abs(c.Z - Tune.Lanes[sq.Lane]) > 4.5) continue;
+                                    if (Math.Max(0, Math.Abs(p.X - c.X) - c.Length * 0.5) > 4) continue;
+                                    if (st.Men.Count(o => o.Alive && o.Cover == c.Id) >= c.Capacity) continue;
+                                    if (st.Men.Any(o => o.Alive && o.Side != p.Side && o.Cover == c.Id)) continue;
+                                    by = c; break;
+                                }
+                                if (by != null)
+                                {
+                                    beside += Tune.Dt;
+                                    if (target != null) besideFight += Tune.Dt;
+                                    double ahead = (p.X - by.X) * Combat.Advance(p.Side);
+                                    string where = Math.Abs(p.X - by.X) <= by.Length * 0.5 ? "alongside it" : ahead > 0 ? "in front of it" : "behind it";
+                                    string k = $"{sq.Side} {sq.Task,-9} {(sq.Halted ? "halted" : "going ")} {p.Posture,-8} {where,-14} {(sq.Target == by.Id ? "its squad's cover" : sq.Target >= 0 ? "squad has other cover" : "squad has no cover")}{(target != null ? ", enemy in range" : "")}";
+                                    besideBy[k] = besideBy.GetValueOrDefault(k) + Tune.Dt;
+                                    if (a.Contains("why5") && sq.Task != SquadTask.March && st.Tick % 20 == 0 && shown++ < 20)
+                                        Console.WriteLine($"    seed {seed} t{st.Tick} man {p.Id} sq{si} {sq.Side} L{sq.Lane} {sq.Task} {sq.Order} {(sq.Halted ? "halted" : "going")} tgt {sq.Target} anchor {sq.AnchorX:F1},{sq.AnchorZ:F1} | at {p.X:F1},{p.Z:F1} {p.Posture} rank {p.Rank} place {p.Place}@{p.PlaceCover} | cover {by.Id} {by.Kind} x {by.X:F1} z {by.Z:F1} len {by.Length:F0} cap {by.Capacity} in it {st.Men.Count(o => o.Alive && o.Cover == by.Id)} | squad at " + string.Join(" ", rosters[si].Select(o => $"{o.X:F0},{o.Z:F0}{(o.Cover >= 0 ? "c" : "")}")));
+                                }
+                            }
+                        }
+                    }
+
+                    // Lanes quiet: two enemy squads in one lane, near enough for a rifle and more, and no fire between them.
+                    if (fight)
+                        for (int x = 0; x < alive.Length; x++) for (int y = x + 1; y < alive.Length; y++)
+                        {
+                            int ai = alive[x], bi = alive[y];
+                            var qa = st.Squads[ai]; var qb = st.Squads[bi];
+                            if (qa.Side == qb.Side || qa.Lane != qb.Lane) continue;
+                            double near = double.PositiveInfinity;
+                            foreach (var p in rosters[ai]) foreach (var q in rosters[bi]) near = Math.Min(near, Combat.Dist(p, q));
+                            if (near > 30) continue;
+                            bool fought = (shotAt.TryGetValue((ai, bi), out int f0) && st.Tick - f0 <= Quiet) || (shotAt.TryGetValue((bi, ai), out int f1) && st.Tick - f1 <= Quiet);
+                            if (fought) { laneFight += Tune.Dt; continue; }
+                            laneQuiet += Tune.Dt;
+                            bool ka = Senses.Knows(st, qa, bi), kb = Senses.Knows(st, qb, ai);
+                            string band = near <= 10 ? "under 10 m" : near <= 20 ? "10 to 20 m" : "20 to 30 m";
+                            string k = $"{band}  {(ka && kb ? "each has the other in sight" : ka || kb ? "one has the other in sight" : "neither has the other in sight"),-30} {(qa.Side == Side.Us ? qa.Task : qb.Task)}/{(qa.Side == Side.Us ? qb.Task : qa.Task)}";
+                            quietBy[k] = quietBy.GetValueOrDefault(k) + Tune.Dt;
+                            if (a.Contains("why6") && (ka || kb) && st.Tick % 20 == 0 && shown++ < 20)
+                                Console.WriteLine($"    seed {seed} t{st.Tick} {near:F1} m: " + string.Join(" | ", new[] { ai, bi }.Select(q => $"sq{q} {st.Squads[q].Side} {st.Squads[q].Task} {st.Squads[q].Order} x {st.Squads[q].AnchorX:F0} reach {st.Squads[q].Reach:F0} threat {st.Squads[q].Threat} " + string.Join(" ", rosters[q].Select(p => $"{p.Weapon}/{p.Posture.ToString()[0]}{(p.Cover >= 0 ? "c" : "")}/{p.X:F0}/pin{p.Pin:F2}/rest{p.Rest}{(p.Reloading > 0 ? "/reload" : "")}")))));
+                        }
+                }
+                minutes += st.Tick * Tune.Dt / 60;
+            }
+            void Top(Dictionary<string, double> d, int n = 8) { foreach (var kv in d.OrderByDescending(k => k.Value).Take(n)) Console.WriteLine($"      {kv.Key,-78} {kv.Value / minutes:F1}"); }
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}, {minutes:F1} minutes of fighting; a minute:");
+            Console.WriteLine($"  round and back            {loops / minutes:F1} (a man walks 5 m or more in 8 s and ends within 1.5 m of where he began)");
+            Top(loopBy);
+            Console.WriteLine($"  full turn                 {turns / minutes:F1} (his direction of travel turns through a whole circle in 8 s)");
+            Top(turnBy, 5);
+            Console.WriteLine($"  squads to and fro         {fro / minutes:F1} (the anchor goes 4 m or more in 8 s and ends within 1 m)");
+            Top(froBy, 5);
+            Console.WriteLine($"  not fighting              {silent / minutes:F1} man-seconds of {armed / minutes:F0} with a target and able to fire ({100 * silent / Math.Max(1e-9, armed):F0}%): no shot for 4 s");
+            Top(silentBy, 10);
+            Console.WriteLine($"  lanes quiet               {laneQuiet / minutes:F1} squad-seconds of two enemy squads within 30 m in one lane with no fire between them for 4 s; {laneFight / minutes:F1} fighting");
+            Top(quietBy, 10);
+            Console.WriteLine($"  out of place              {beside / minutes:F1} man-seconds at rest in the open within 4 m of cover with a place free ({100 * beside / Math.Max(1e-9, manSeconds):F0}% of all), {besideFight / minutes:F1} of them with a target");
+            Top(besideBy, 12);
+            Console.WriteLine($"  strung out                {strung / minutes:F1} squad-seconds ({100 * strung / Math.Max(1e-9, squadSeconds):F0}% of all)");
+            Top(strungBy, 6);
             return 0;
         }
 

@@ -96,6 +96,10 @@ namespace LanesOfVietnam.Sim
         public bool Gunnery;
         /// <summary>Part 2: rounds counted, magazines and reloads, bursts, launcher rounds carried (Ammo). False is the parity baseline.</summary>
         public bool Ammo;
+        /// <summary>Part 2: fire at first sight, bounds with half a squad firing, the cover a squad is standing in, a sniper's distance, fewer grenades (Tactics). False is the parity baseline.</summary>
+        public bool Tactics;
+        /// <summary>Part 2: men who differ, and luck in a firefight (Fortune). False is the parity baseline.</summary>
+        public bool Fortune;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -226,12 +230,15 @@ namespace LanesOfVietnam.Sim
                 Senses = opts.Senses,
                 Gunnery = opts.Gunnery,
                 Ammo = opts.Ammo,
+                Tactics = opts.Tactics,
+                Fortune = opts.Fortune,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
+            if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
