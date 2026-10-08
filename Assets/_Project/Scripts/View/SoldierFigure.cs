@@ -115,6 +115,32 @@ namespace LanesOfVietnam.View
         /// <summary>How a man died, as the view can tell: shot, shot while running, or by a blast.</summary>
         public enum Fall { Shot, Running, Blast }
         public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103;
+        /// <summary>Added to one of those codes: the same death, left for right (SoldierBuilder makes the states).</summary>
+        public const int MirroredCode = 10;
+        public bool MirroredDeaths;
+
+        /// <summary>A part of him a burst can take off: the bone it hangs from, and its skin as a plain mesh in that bone's space (SoldierBuilder.Limb).</summary>
+        [System.Serializable]
+        public struct Limb
+        {
+            public Transform Bone;
+            public Mesh Mesh;
+        }
+        public Limb[] Limbs = new Limb[0];
+
+        /// <summary>
+        /// How fast a death plays against its clip. Thrown by a burst, a man is down in a second, not three
+        /// (the owner, playtest 9: "some are too slow, should be sped up when it's an explosion"); shot, each
+        /// man falls at his own pace, a little quicker than Mixamo's.
+        /// </summary>
+        public const float BlastPace = 1.8f, FallPace = 1.05f, FallPaceSpread = 0.3f;
+        /// <summary>Seconds a burst carries him for.</summary>
+        public const float ThrownFor = 0.55f;
+        private float _deathPace = 1f, _hop;
+        private Vector3 _blown;
+        private Transform _severed, _limb;
+        private Vector3 _limbPace, _limbSpin;
+        private bool _limbFlying;
 
         private static readonly int SpeedId = Animator.StringToHash("Speed");
         private static readonly int ScaleId = Animator.StringToHash("SpeedScale");
@@ -219,6 +245,7 @@ namespace LanesOfVietnam.View
                 _deadFor = 0;
                 Animator.SetInteger(DeathId, DeathCode(deathIndex, posture, how, push));
                 Animator.SetBool(DeadId, true);
+                _deathPace = how == Fall.Blast ? BlastPace : FallPace + FallPaceSpread * (deathIndex % 8) / 7f;
             }
             if (_deadFor >= 0)
             {
@@ -227,8 +254,8 @@ namespace LanesOfVietnam.View
                 var fall = Animator.GetCurrentAnimatorStateInfo(0);
                 float through = Animator.IsInTransition(0) ? 0f : fall.normalizedTime;
                 if ((through > 0.6f || _deadFor > 3f) && Rifle != null && Rifle.transform.parent != transform) DropRifle(deathIndex);
-                // Fallen and still: freeze him as a plain mesh.
-                if ((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) { Bake(); return; }
+                // Fallen and still (and what a burst took off him landed): freeze him as a plain mesh.
+                if (((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) && !_limbFlying) { Bake(); return; }
             }
             // One gait at a time, played at the rate that puts his feet down where he is going: the walk
             // or the run, the crouched walk, the crawl; never a blend of two, whose feet agree with
@@ -263,8 +290,31 @@ namespace LanesOfVietnam.View
             bool busy = _reactLayer >= 0 && !Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Calm");
             _look = Mathf.MoveTowards(_look, dead || busy ? 0f : _lookWant, dt / 0.3f);
             Animator.transform.localPosition = dead ? Vector3.zero : Vector3.forward * (LungeReach * Mathf.Sin(Mathf.PI * (1f - _lunge)) * (_lunge > 0 ? 1f : 0f));
-            // (A climb is played at the pace the simulation climbs at.)
-            Animator.Update(_climbPace != 1f && !dead && Climbing ? dt * _climbPace : dt);
+            // Thrown by a burst: carried away from it, up and over, in the first half second of his fall.
+            if (_deadFor >= 0 && _blown != default)
+            {
+                float t = Mathf.Clamp01(_deadFor / ThrownFor);
+                Animator.transform.position = transform.position + _blown * (1f - (1f - t) * (1f - t)) + Vector3.up * (_hop * 4f * t * (1f - t));
+            }
+            // (A climb is played at the pace the simulation climbs at; a death at its own.)
+            Animator.Update(_deadFor >= 0 ? dt * _deathPace : _climbPace != 1f && !dead && Climbing ? dt * _climbPace : dt);
+            if (_severed != null)
+            {
+                // The clip does not know his arm is gone: drawn down to nothing again after every pose.
+                _severed.localScale = Vector3.one * 0.001f;
+                if (_limbFlying)
+                {
+                    _limbPace += Vector3.down * (9.8f * dt);
+                    _limb.position += _limbPace * dt;
+                    _limb.Rotate(_limbSpin, 620f * dt, Space.World);
+                    float ground = transform.position.y + 0.07f;
+                    if (_limb.position.y <= ground && _limbPace.y < 0)
+                    {
+                        _limb.position = new Vector3(_limb.position.x, ground, _limb.position.z);
+                        _limbFlying = false;
+                    }
+                }
+            }
 
             if (Hips != null) Centre = Hips.position;
             _recoil *= Mathf.Exp(-dt / 0.06f);
@@ -288,10 +338,12 @@ namespace LanesOfVietnam.View
         /// </summary>
         public int DeathCode(int seed, int posture, Fall how, float push = 0f)
         {
-            if (posture == 2 && ProneDeath) return ProneCode;
-            if (how == Fall.Blast && BlastDeath) return BlastCode;
-            if (posture == 1 && CrouchDeath) return CrouchCode;
-            if (how == Fall.Running && RunDeath) return RunCode;
+            // (Each of these left for right too, for every other man.)
+            int other = MirroredDeaths && seed % 2 == 1 ? MirroredCode : 0;
+            if (posture == 2 && ProneDeath) return ProneCode + other;
+            if (how == Fall.Blast && BlastDeath) return BlastCode + other;
+            if (posture == 1 && CrouchDeath) return CrouchCode + other;
+            if (how == Fall.Running && RunDeath) return RunCode + other;
             int n = Mathf.Max(1, Deaths);
             if (Mathf.Abs(push) > 0.35f && Falls != null && Falls.Length >= n)
             {
@@ -367,6 +419,65 @@ namespace LanesOfVietnam.View
             var along = LowerArmR != null ? (HandR.position - LowerArmR.position).normalized : transform.forward;
             _inHand.transform.SetPositionAndRotation(HandR.position + along * 0.07f, HandR.rotation);
         }
+
+        /// <summary>
+        /// A burst has killed him: it carries him <paramref name="away"/> (metres, in the world, along the
+        /// ground) and <paramref name="hop"/> metres off it at the top. Before his first frame dead.
+        /// </summary>
+        public void Blown(Vector3 away, float hop)
+        {
+            if (_baked) return;
+            _blown = new Vector3(away.x, 0, away.z);
+            _hop = hop;
+        }
+
+        /// <summary>Where what a burst took off him lies, once it has landed.</summary>
+        public bool TryLimb(out Vector3 at)
+        {
+            at = _limb != null ? _limb.position : default;
+            return _limb != null && !_limbFlying;
+        }
+
+        /// <summary>
+        /// A burst takes a limb off him (the owner, playtest 9: "body dismemberment"): one of
+        /// <see cref="Limbs"/> by <paramref name="which"/>, flung at <paramref name="pace"/> (m/s, in the
+        /// world). On his body the bone is drawn down to nothing; the limb is a plain mesh from where it was.
+        /// </summary>
+        public bool Sever(int which, Vector3 pace)
+        {
+            if (_baked || _severed != null || Limbs == null || Limbs.Length == 0) return false;
+            var limb = Limbs[Mathf.Abs(which) % Limbs.Length];
+            if (limb.Bone == null || limb.Mesh == null) return false;
+            // The hand his rifle is in: it falls with him, not with the hand.
+            if (Rifle != null && Rifle.transform.IsChildOf(limb.Bone)) DropRifle(which);
+            var go = new GameObject("limb");
+            go.transform.SetParent(transform, false);
+            go.transform.SetPositionAndRotation(limb.Bone.position, limb.Bone.rotation);
+            var s = go.transform.lossyScale; var want = limb.Bone.lossyScale;
+            go.transform.localScale = new Vector3(want.x / s.x, want.y / s.y, want.z / s.z);
+            go.AddComponent<MeshFilter>().sharedMesh = limb.Mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = Body.sharedMaterial;
+            mr.shadowCastingMode = ShadowCastingMode.On;
+            _severed = limb.Bone; _limb = go.transform;
+            _limbPace = pace;
+            _limbSpin = Vector3.Cross(Vector3.up, pace).sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, pace).normalized : transform.right;
+            _limbFlying = true;
+            _severed.localScale = Vector3.one * 0.001f;
+            return true;
+        }
+
+        /// <summary>
+        /// Put him somewhere in his stride, his breath, his idle: a part of a second, his own. A squad raised
+        /// together otherwise idles, breathes and steps as one man (the owner, playtest 9: "need more walk variations").
+        /// </summary>
+        public void Offbeat(float seconds)
+        {
+            if (!_baked && _deadFor < 0) Animator.Update(Mathf.Max(0f, seconds));
+        }
+
+        /// <summary>How he carries himself on the march, his own: degrees his chest leans forward, and rolls to one side.</summary>
+        public Vector2 Carriage;
 
         /// <summary>Settle the Animator at once (a new man, or a capture's first frame); a dead man all the way down.</summary>
         public void Settle(float speed, int posture, bool aiming, bool dead, int deathIndex, Fall how = Fall.Shot, float push = 0f)
@@ -456,6 +567,12 @@ namespace LanesOfVietnam.View
             }
             if (_recoil > 0.01f && Chest != null)
                 Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
+            // On his feet and walking, rifle down: each man carries himself his own way, a little.
+            if (_posture == 0 && _speed > 0.05f && _aim < 0.5f && Chest != null && Carriage != default)
+            {
+                float much = Mathf.Clamp01(_speed / 0.6f) * (1f - 2f * _aim);
+                Chest.rotation = Quaternion.AngleAxis(Carriage.x * much, transform.right) * Quaternion.AngleAxis(Carriage.y * much, transform.forward) * Chest.rotation;
+            }
             if (_look > 0.01f && Head != null)
             {
                 // The neck takes two fifths of the turn and the head the rest, each about its own axis to the point.

@@ -90,6 +90,8 @@ namespace LanesOfVietnam.View
     {
         public const int ShotsPerTick = 3;
         public const float MinShotGap = 0.055f;
+        /// <summary>How loud a sniper's shot comes back off the treeline, against a rifle's 0.9 and his own 1.2: no shot is played at it, so a test can tell the echo from one.</summary>
+        public const float SniperEcho = 0.5f;
 
         public ISoundOut Out { get; private set; }
         private readonly Dictionary<string, List<string>> _sets = new Dictionary<string, List<string>>();
@@ -266,7 +268,7 @@ namespace LanesOfVietnam.View
                             // than they are, and with its slap back off the treeline a third of a second on.
                             string report = Shot(m);
                             if (report != null && Out.Play(report, (float)m.X, (float)m.Z, 1.2f, Range(0.9f, 0.96f), 0f, false)) Played++;
-                            _later.Add((Time.unscaledTime + Range(0.3f, 0.38f), report, (float)m.X + Range(-25, 25), (float)m.Z - 45f, 0.5f));
+                            _later.Add((Time.unscaledTime + Range(0.3f, 0.38f), report, (float)m.X + Range(-25, 25), (float)m.Z - 45f, SniperEcho));
                         }
                         else shots.Add((m, Dist(m.X, m.Z, lx, lz)));
                         // A miss near the listener: the round into the earth by its target.

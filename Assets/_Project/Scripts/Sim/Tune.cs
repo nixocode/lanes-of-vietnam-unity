@@ -491,6 +491,8 @@ namespace LanesOfVietnam.Sim
         public const double SniperReach = 26;
         /// <summary>Ticks after his shot that a sniper is the man a machine gun, another sniper, or a rifleman with nobody nearer fires at (6 s).</summary>
         public const int SniperMarked = 120;
+        /// <summary>How much more a near miss pins a sniper than another man.</summary>
+        public const double SniperShaken = 2.5;
 
         // --- fortune (MatchOptions.Fortune) -------------------------------------------
 

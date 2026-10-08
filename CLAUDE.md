@@ -3,7 +3,8 @@
 A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
 owner's playtests in order and what was built for each. The plan from here is
-§12.25: its milestones, their gates, and what the owner still has to decide.
+§12.27: polish, then scenarios on the firebase map, then maps one at a time,
+and what the owner still has to decide.
 
 ## What runs where
 
@@ -30,10 +31,11 @@ compiles and plays it; say so in the commit message.
 dotnet build tools/simcs/SimCs.csproj -c Release
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll determinism
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll audit
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery ammo map
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 24 29 rate=0.8
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery ammo tempo
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll muddle 3 2400 6 fieldcraft arms senses gunnery ammo tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune map
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 48 29 rate=0.9 tactics fortune
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll muddle 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll brain 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune tempo
 ```
 
 Before changing anything, a build of `main` gives these; if it does not, stop
@@ -41,8 +43,10 @@ and say so:
 
 - `determinism`: ok.
 - `hash 1` (the parity baseline, every flag off): 4390 ticks, final `2256114725u`.
-- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo map` (the game):
-  2725 ticks, final `988759736u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo map` (every rule
+  up to playtest 8): 2725 ticks, final `988759736u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune map`
+  (the game): 2719 ticks, final `4215652832u`.
 
 ## Rules this project keeps
 
@@ -50,9 +54,9 @@ and say so:
   TypeScript original. It owns no engine objects, reads no clock, and draws
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
-  Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo). With a flag off the match is
-  what it was to the bit: check with `simcs hash` that only the layers you
-  meant to change have moved.
+  Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune). With a
+  flag off the match is what it was to the bit: check with `simcs hash` that
+  only the layers you meant to change have moved.
 - **Pinned hashes** in `Assets/_Project/Tests/EditMode/SimTests.cs` are
   recorded with `simcs hash`. When a change is meant to move a layer, record
   the new values and say why in the commit; the Mac runs the tests.

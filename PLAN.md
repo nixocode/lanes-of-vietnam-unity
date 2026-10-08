@@ -1820,6 +1820,9 @@ the pace, the reloads, the zoom (no capture reaches a pointer).
 
 ### 12.25 The plan from here (2026-10-05)
 
+*Its order is superseded by §12.27 (2026-10-08): polish, then scenarios, then
+maps, each system arriving with the map that needs it.*
+
 The owner asked for a new plan: the targets and objectives from here. It
 supersedes the "next" lists of §12.17 and §12.18, which playtests 5 to 8,
 the code review and three new rules (Senses, Gunnery, Ammo) have overtaken.
@@ -1935,6 +1938,307 @@ UIAudit row for any new card.
 5. **Reference frames** for the four new operations (M3).
 6. **Order:** M2 before 1e and 1f, if he would rather see new content than
    polish.
+
+
+### 12.26 Playtest 9: the playtest 8 build (owner, 2026-10-08)
+
+The owner played `6bdf5d8` and wrote, in his words:
+
+1. "Too many grenades."
+2. "Need more walk variations."
+3. "Distances for snipers need tailoring: they should be able to be safe but
+   prone to suppression from the gunner/squads and other snipers."
+4. "Sometimes snipers will get killed by squads by 'lucky shots': add luck
+   element to it."
+5. "Add randomness."
+6. "More gore, blood and death animations. Some are too slow, should be sped
+   up when it's an explosion + body dismemberment etc."
+7. "AI brain needs work: sometimes they still do weird circles, don't fight
+   each other, weird non-logical positions when fighting."
+
+And: "game is looking much better, great progress." He did not mention the
+sliding, which had led every playtest since the fifth.
+
+Organised by what has to change:
+
+| | what | where | notes |
+|---|---|---|---|
+| A | **The AI's brain** (7) | simulation, a new rule behind `MatchOptions.Tactics` | Measured first, a number for each thing he saw, then traced to single men. |
+| B | **Fewer grenades** (1) | the same rule | A man carried two and a squad threw one every three seconds: 13.7 a minute, and 47% of all deaths. |
+| C | **A sniper's distance** (3) | the same rule | He fought from 32 m, where no rifle could answer him, until a rifle squad walked up to its own 13. |
+| D | **Luck, and randomness** (4, 5) | simulation, a new rule behind `MatchOptions.Fortune` | Two readings of mine, not his words: that a rifle's long shot should still kill a sniper now and then; and that fights should not play out the same way twice. |
+| E | **Deaths, blood, bodies** (6) | view | |
+| F | **Walks that differ** (2) | view | As far as it goes without new clips. |
+
+**What he saw, measured** (`simcs brain`, a new command; six seeds, a
+minute of fighting, on `6bdf5d8`):
+
+- two enemy squads within 30 m of each other in one lane: 129.6
+  squad-seconds with no fire between them, against 127.8 fighting;
+- a man with a target and able to fire who had not fired for four seconds:
+  172.9 man-seconds of 483, 36% of his time, most of it running;
+- a man whose direction of travel turned through a whole circle in eight
+  seconds: 7.9; one who walked five metres and ended where he began: 2.6.
+
+Traced (`simcs watch <seed> <from> <to> ... man=N`, new):
+
+- A squad sees the enemy at 28 m and its rifles reach 20. Both sides lie and
+  look at each other, then both get up and run to 12 m, and nobody fires on
+  the move.
+- A squad going in runs the last 24 m in silence.
+- A man passing through cover with an enemy four metres off goes for him
+  out of it and waits for him in it, and at its edge does each on alternate
+  ticks: 1,611 degrees of turning in 1.7 s.
+
+**As built.**
+
+- **A, tactics** (`MatchOptions.Tactics`, `Sim/Tactics.cs`, on in the game):
+  - *Long fire.* A rifle, a machine gun or a submachine gun fires at an enemy
+    its squad has in sight out to half as far again as its own distance, 8 m
+    more at most (a rifle to 28 m). Beyond its own distance a round hits
+    0.15 as often, pins 0.35 as much, and is fired three and a half times
+    slower. A squad opens fire when it sees the enemy.
+  - *Bounds.* In contact, with the enemy in sight, a squad moves by halves:
+    the even ranks go while the odd ones kneel and fire, four seconds at a
+    time. A man nearly at his place finishes his run. Falling back, everybody
+    runs.
+  - *The rush.* A squad going in comes on by bounds and rushes only the last
+    10 m.
+  - *At hand.* A man waits in cover for an enemy at arm's length only if he
+    has a place in it.
+  - *The file.* A new squad's anchor starts a leash ahead of its lead man, so
+    most of the file sets off at once (the last of five stood five and a half
+    seconds at the map's edge); and a man waiting for his file stands where
+    he is.
+- **B, grenades** (Tactics). A man carries one, a sapper or an engineer two;
+  a squad that has thrown waits fifteen seconds.
+- **C, snipers** (Tactics). A sniper team fights from 26 m: inside a rifle's
+  long shot, outside its own distance. It gives ground, to cover behind it,
+  when an enemy it knows of comes inside 21 m (the mortar team does the
+  same). For six seconds after he fires a sniper is the man a machine gun
+  and another sniper shoot at, and a rifleman with nobody nearer; at him a
+  long shot is fired as fast as any, and a near miss pins him two and a half
+  times as much as another man.
+- **D, fortune** (`MatchOptions.Fortune`, `Sim/Fortune.cs`, its own random
+  stream, on in the game). Each man's aim, nerve and quickness are drawn as
+  he is raised (within 30%, 30% and 20% of the ordinary man, most near him).
+  The time to his next shot, and a reload, are up to 35% longer or shorter,
+  every time. A long shot that missed kills after all six times in a
+  thousand. The lane the match opens in is drawn, the same for both sides.
+  The computer's squads after its first are drawn from its list, not taken
+  in its order.
+- **E, deaths.** A man a burst kills is thrown by it (up to three metres,
+  by how near it was) and his death plays 1.8 times as fast: down and still
+  in 1.80 s, where a man shot takes 2.65 (the PlayMode test). Within 2.6 m
+  it may take a limb off him, seven times in ten: a forearm or a lower leg,
+  flung, with blood where it lands; on his body the bone is drawn down to
+  nothing. Every death clip is also played left for right, which makes
+  sixteen standing deaths of eight, and each man falls at his own pace.
+  More blood from every hit, larger pools, and what a burst throws out of a
+  man lies on the ground away from it. A GORE switch in the settings: off,
+  two fifths of the blood and whole bodies.
+- **F, walks.** There is still one walk clip. Each man is now put a part of
+  a second into his stride and his idle when he is raised (a squad raised
+  together stepped as one man), is his own height (0.95 to 1.04), leans and
+  rolls his shoulders his own way on the march, and looks about him in his
+  own time.
+
+**Built, measured and left out.** Three more rules were written for A:
+choosing a squad's cover from its lead man instead of its anchor; a man
+with no place in his squad's cover taking one in cover nearby; and a man
+ahead of his place in cover walking back to it. Each was measured by itself
+on twenty seeds the rule was not tuned on. Each sent men back the way they
+had come and out again four seconds later: men turning about went from 7.0
+a minute without them to between 7.3 and 39 with. They are not in the build.
+
+**Before and after** (`simcs brain`, `muddle` and `aware`, each with
+`N 2400 S fieldcraft arms senses gunnery ammo tempo`, then the same with
+`tactics fortune`; a minute of fighting):
+
+| | seeds 3 to 8, tuned on | | seeds 20 to 39, not tuned on | |
+|---|---|---|---|---|
+| | before | after | before | after |
+| direction of travel turns a whole circle | 7.9 | 3.0 | 7.2 | 3.8 |
+| walks 5 m and ends where he began | 2.6 | 2.0 | 2.5 | 1.4 |
+| turns about (`muddle`) | 13.4 | 7.8 | 12.9 | 7.1 |
+| hops under a second, a man (`muddle`) | 1.7 | 1.1 | 1.6 | 1.1 |
+| a squad goes up the lane and back | 2.5 | 3.4 | 2.9 | 2.7 |
+| a man with a target, not fired for 4 s | 36% | 20% | 36% | 22% |
+| squads within 30 m: silent, fighting (squad-seconds) | 129.6, 127.8 | 77.6, 205.5 | 119.0, 124.0 | 76.8, 220.7 |
+| sight to the first shot, median (`aware`) | 4.0 s | 1.9 s | 4.0 s | 1.7 s |
+| the same, nine in ten within | 8.1 s | 14.0 s | 10.4 s | 11.3 s |
+| grenades thrown | 13.7 | 4.8 | 15.4 | 5.5 |
+| deaths from a burst | 47% | 20% | 51% | 26% |
+| shots; rounds | 181; 368 | 257; 494 | 204; 410 | 279; 547 |
+| men killed; by a long shot | 15.6; 0 | 11.2; 0.58 | 15.1; 0 | 11.3; 0.50 |
+| at rest in the open by cover with a place free (man-seconds) | 125.4 | 221.9 | 135.8 | 196.4 |
+| of them, the half covering a bound | 0 | 115.4 | 0 | 107.2 |
+
+What the table says against the build, plainly:
+
+- A squad going up the lane and back is no rarer.
+- More men are at rest in the open beside cover. Half of them are the half
+  of a squad that kneels and fires while the other half moves, which is the
+  rule working; the other half is no better than it was.
+- The slowest tenth of contacts take longer to their first shot.
+- There is more shooting again: two fifths more shots, a third more rounds.
+  Playtest 8's cut (289 shots to 183) is half undone, on purpose, by squads
+  that fire when they see each other.
+
+**Snipers** (`simcs brain 3 2400 12 fieldcraft arms senses gunnery ammo
+tempo snipers`, both sides buying a team whenever they can; then with
+`tactics fortune`): pinned 1% of their time, 14% after; an enemy inside
+20 m in their own lane 5% of it, 2% after; they kill 1.01 men a
+sniper-minute, 0.80 after. Killed by another sniper 1.71 times a minute and
+1.83; by a rifle 0.08 and 0.12; by a rifle's long shot never, and 0.12.
+
+**Balance.** Men killed a minute fell by a quarter, so the lengths were
+measured again and `GameRoot.RateFor` moved from 1.0, 0.8 and 0.9 to 1.15,
+0.9 and 1.0 (`simcs player N 29 [skirmish|siege] rate=R tactics fortune`):
+a skirmish 109 to 142 s, a standard match 167 to 242, a siege six to ten
+minutes. The costs hold at 40, 29 and 22 (`player 48 N rate=0.9 tactics
+fortune`): a line-squad buyer wins 46 and 48 of 48 against a Recruit, 40
+and 37 against a Veteran, 21 and 24 against the Elite; the two plans left
+to themselves at Veteran, 23 and 25.
+
+**Checks.** With both flags off a match is what it was: determinism ok;
+`hash 1` 4390 ticks, final `2256114725u`; `hash 1 frag smoke drill
+fieldcraft arms senses gunnery ammo map` 2725 ticks, final `988759736u`. No
+pin of an older layer moved. New pins, each from `simcs hash`:
+
+- `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics map`:
+  3538 ticks, `674558516u`, `1701773530u`, `2103794046u`;
+- `7 drill fieldcraft arms senses gunnery ammo tactics`: 3341 ticks,
+  `1916778477u`, `3459103997u`, `2175602128u`;
+- `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+  map` (the game): 2719 ticks, `1213913555u`, `4008188405u`, `4215652832u`;
+- `7 drill fieldcraft arms senses gunnery ammo tactics fortune`: 2166
+  ticks, `4141358090u`, `1407521725u`, `535311614u`.
+
+EditMode 71/71 (three new tests and the four pins). PlayMode 18/18 (one new
+test: a burst throws a man, fast, and takes a limb off him). Two PlayMode
+tests, which play a different seed every run, assumed things Fortune no
+longer keeps and were corrected: that the match opens in the near lane, and
+that every sniper's report comes from where a man stands (his shot's echo
+off the treeline does not, and a marksman may now be the second squad the
+VC raise, not the eighth). Each was then run four times over, on four seeds:
+18/18 every time. WebGL 25.59 MB initial, 28.30 MB in all; 4.2 to 4.7 ms a
+frame, 5 to 6 ms at the 95th percentile, at 2592 x 1370. (Taken with the
+display awake. With the Mac idle and its display asleep the same build read
+8 to 9 ms: the first five seconds of one run read 4.4, then the display
+slept and it doubled.)
+
+No new `EventKind`. New files: `Sim/Tactics.cs`, `Sim/Fortune.cs`, and
+twenty-four limb meshes beside the bodies in `Art/Soldiers3D/` (made by
+`SoldierBuilder`, which was run again; the soldier prefabs and their
+controller changed with it).
+
+**Not done, or not known.**
+
+- Nothing here has been played by the owner. Seen by me in strips: a
+  grenade's two dead thrown and down within a second, and their blood. Not
+  seen by me: a limb coming off (the test holds it; no capture caught one).
+- Notes 4 and 5 are built to my readings of them.
+- More walks and more deaths than these need new Mixamo clips, and so his
+  yes. A kneeling reload and a kneeling throw are still missing, and with
+  bounds more men kneel in the open than did.
+- `simcs audit` plays the baseline only, as it always has, so it lists the
+  ten Part 2 event kinds as never fired; the EditMode tests are what hold
+  those.
+
+
+### 12.27 The plan from here (2026-10-08)
+
+The owner: "work out next objectives, lets polish the game and its
+mechanics and then make more maps and scenarios." Asked, he chose scenarios
+before new maps, and Ia Drang as the first new map. This supersedes §12.25's
+order, which built every Part 2 system on the firebase before any new map:
+each system now arrives with the map that needs it.
+
+It also adds a step §12.25 did not have. The game has one hard-coded map
+(`Sim/Map.cs` is a static class) and no idea of a scenario (the start screen
+offers side, length and difficulty, and `GameRoot.NewMatch` builds the match
+options inline). Both become data before there is a second of either.
+
+Every step runs as before: build; measure (`simcs` for the simulation, the
+EditMode and PlayMode tests, a WebGL build timed with `?perf=1` at
+2592 x 1370 for anything drawn); commit on the phase's branch; he plays it;
+a quick-fix pass. He decides what reaches `main`. A download asks first.
+
+#### Phase P. Polish the slice and its mechanics (branch `polish`)
+
+| | what | gate |
+|---|---|---|
+| P0 | **Playtest 9** (§12.26): built, on `polish` | playtest 10: he calls the AI, the grenades and the snipers right, or says what is not |
+| P2 | **Every class its job**, three rules, each behind its own flag: the computer pulls hold and go on its own strongpoints; the mortar fires only once halted and set up; sappers carry satchel charges and use them on an occupied position. Then the view for each | flag off, every pin unchanged; a pin and tests a rule; `player 48 29 rate=0.9 tactics fortune` off and on |
+| P3 | **The bound order (key 3).** Squads now bound by themselves (§12.26). Recommended: take the order out, leaving advance, hold and fall back, with the levers | his decision first; UIAudit |
+| P4 | **The guns:** model detail in `tools/blender/weapons.py`; a launcher's burst the size of its round | captures at full zoom |
+| P5 | **Call-ins you watch arrive:** the artillery's whistle and rounds walking in, an aircraft over the air strike, a Huey for the medevac, the radio operator on one knee at every call. Each switchable | each lands on the simulation's event tick; flicker and the frame budget hold |
+| P6 | *His yes:* **one Mixamo batch.** A rifle jog, a kneeling reload, a kneeling throw, rifle turns, two or three more walks, more deaths | the motion audit; the clips seen in strips |
+| P7 | *His yes:* **launcher sounds** (M79, RPG-7, mortar) and **music** | the audio distance table; no clipping with sixty men |
+| P8 | *His choice of host:* **publish, and the stranger test** | someone who has never seen the game finishes a match without help |
+
+P6 to P8 do not hold up the next phase.
+
+#### Phase S. Scenarios, on the firebase map first (branch `scenarios`)
+
+No new art: the machinery, proved on ground that already looks right, and
+three new things to play.
+
+- **S1. The map as data.** `Map` becomes a `MapDef` (cover, ground, crater
+  bands, the bank between the lanes) with `Maps.Firebase` and `Maps.ById`;
+  `Gunnery.Bank` reads the match's own ground. The lanes' positions and the
+  45 m half-length stay shared until a map needs its own (Hill 937 at the
+  earliest). *Gate:* every pin unchanged.
+- **S2. The scenario as data.** A `Scenario`: title, date line, briefing,
+  objectives; its map; its mode and clock; the player's side; each side's
+  opening strength, points and income (today one value for both); each
+  side's deck; weather and time of day, empty until those rules exist.
+- **S3. Two modes**, each behind its option, their endings with the others
+  in `Match.CheckOver`: **siege** (a clock; the defender wins when it runs
+  out) and **assault** (a clock; the attacker wins by holding the defender's
+  last position in both lanes at once, or by breaking him). The start
+  screen's length called SIEGE is renamed LONG.
+- **S4. Both sides winnable, measured:** `simcs` takes `scenario=<id>`; a
+  self-test of every scenario, side and difficulty. *Gate:* 48 seeds a cell.
+- **S5. The view:** an operations list on the start screen with each
+  scenario's briefing; a clock on the HUD for the timed modes; field orders
+  by scenario.
+- **S6. Three scenarios on the firebase** (working titles): The Wire (siege,
+  as the Americans), First Light (assault, as the Americans), The Earth
+  Fights (standard, as the VC).
+
+#### Phase M. Maps, one at a time, each bringing its systems
+
+- **M0. The world from a map and a theatre:** `GameRoot.Awake` builds one
+  world once; it becomes `BuildWorld(map)` with a teardown, the art that is
+  the firebase's alone moves into a theatre a map names, and Addressables
+  streams each further map when chosen. *Gate:* the firebase renders the
+  same; 45 MB initial; the heap after three changes of operation.
+- **M1. Ia Drang: LZ X-Ray, 14 November 1965** (branch `ia-drang`). Its
+  reference frame first (§12.14 Q4). A clearing in elephant grass under the
+  Chu Pong massif, the dry creek bed as its trench, termite mounds as small
+  hard cover. Its rules: **Air Cav** and **napalm**. Scenarios: LZ X-Ray,
+  The Creek Bed, Broken Arrow. *Gates:* look against its frame, flicker,
+  frame time, download, every scenario winnable by both sides.
+- **After it,** each with what it brings: Khe Sanh (fog, night and flares,
+  Arc Light, the RPD team; siege); Cu Chi (the thick jungle, tunnels in the
+  map, sniper glint and duels; as the VC); Hill 937 (elevation, rain,
+  bunkers; assault); the Mekong (paddies, dikes, water; the ARVN squad, the
+  LRRP team, the M113). Then the campaign and perks.
+
+#### For the owner to decide
+
+1. **Downloads:** the Mixamo batch (P6); launcher sounds and music (P7); a
+   golden-hour sky for Ia Drang.
+2. **The bound order:** take it out (recommended), or give it a meaning.
+3. **The host** for publishing (P8).
+4. **The Huey and the aircraft:** built by script here, or a CC-BY model.
+5. **Ia Drang's reference frame:** a board assembled from public-domain
+   photographs and the 2D game's palette, or one of his own.
+6. **Here or cloud sessions** for the simulation work (P2's rules, S1 to S4,
+   Ia Drang's call-ins). The briefs in `Docs/cloud/` say what has changed
+   under them.
 
 
 ### 12.13 Corrections to earlier sections

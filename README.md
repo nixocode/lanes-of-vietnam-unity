@@ -73,11 +73,12 @@ reference/TARGET.jpg             the specification for the look
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
-| Build | 25.07 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
-| Frame | 4.5 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
-| Tests | EditMode 64/64, PlayMode 17/17 (2026-10-03, PLAN §12.24) |
+| Playtest 9 | squads that open fire when they see each other and close by bounds, fewer grenades, a sniper's distance (Tactics); men who differ, and luck (Fortune); bodies thrown by a burst, limbs taken off, more blood, twice the deaths (PLAN §12.26) |
+| Build | 25.59 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
+| Frame | 4.2 to 4.7 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
+| Tests | EditMode 71/71, PlayMode 18/18 (2026-10-08, PLAN §12.26) |
 
-The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.25, the plan from here (milestones M0 to M3).
+The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first).
 
 ## Direction
 

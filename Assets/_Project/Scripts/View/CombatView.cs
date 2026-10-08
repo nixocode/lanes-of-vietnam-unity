@@ -171,6 +171,7 @@ namespace LanesOfVietnam.View
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
                     case EventKind.Launch: Launched(e, i, (float)age); break;
                     case EventKind.Through: Passed(e, i, (float)age); break;
+                    case EventKind.Kill: Blasted(ev, i, (float)age); break;
                 }
             }
             // A blast is felt: the camera shakes with every new shell and grenade, by how near it is.
@@ -202,7 +203,7 @@ namespace LanesOfVietnam.View
             switch (kind)
             {
                 case EventKind.Fire: return 2.6f;
-                case EventKind.Melee: case EventKind.Through: return 1.3f;
+                case EventKind.Melee: case EventKind.Through: case EventKind.Kill: return 1.3f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
                 case EventKind.GrenadeBlast: return 6f;
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
@@ -428,6 +429,7 @@ namespace LanesOfVietnam.View
         /// </summary>
         private void Blood(int s, float ai, Vector3 at, Vector3 dir, float amount)
         {
+            amount *= Gore;
             var flat = new Vector3(dir.x, 0, dir.z).normalized;
             var across = new Vector3(-flat.z, 0, flat.x);
             if (ai < 0.09f)
@@ -435,7 +437,7 @@ namespace LanesOfVietnam.View
             if (ai < 0.75f)
             {
                 float f = 1 - ai / 0.75f;
-                int drops = Mathf.RoundToInt(7 * amount);
+                int drops = Mathf.RoundToInt(10 * amount);
                 for (int k = 0; k < drops; k++)
                 {
                     // Out of the far side of him: fast, in a narrow cone, and down.
@@ -448,6 +450,42 @@ namespace LanesOfVietnam.View
                     AddPuff(at + flat * (0.2f + 0.7f * ai) + Vector3.up * (0.08f * k - 0.25f * ai * ai),
                             0.22f + (0.6f + 0.25f * k) * ai, new Color(0.22f, 0.025f, 0.02f, 0.55f * f * amount), (float)Hash(s, 7 + k), 1f);
             }
+        }
+
+        /// <summary>How much blood there is, against the game's own: all of it, or with the setting off two fifths.</summary>
+        private float Gore => _root != null && _root.Settings != null && !_root.Settings.Gore ? 0.4f : 1f;
+
+        /// <summary>The burst that made a kill: the shell, the grenade or the trap whose event comes before it in its tick.</summary>
+        private static bool Burst(IReadOnlyList<SimEvent> ev, int kill, out double x, out double z)
+        {
+            x = z = 0;
+            var e = ev[kill];
+            if (kill > 0 && ev[kill - 1].Tick == e.Tick && ev[kill - 1].Target == e.Id
+                && (ev[kill - 1].Kind == EventKind.Fire || ev[kill - 1].Kind == EventKind.Through || ev[kill - 1].Kind == EventKind.Melee)) return false;
+            for (int k = kill - 1; k >= 0 && ev[k].Tick == e.Tick; k--)
+            {
+                var b = ev[k];
+                if ((b.Kind != EventKind.GrenadeBlast && b.Kind != EventKind.Shell && b.Kind != EventKind.TrapSprung) || b.X == null) continue;
+                x = b.X.Value; z = b.Z.Value;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>A man killed by a burst: the blood it throws out of him, away from it, and a good deal of it.</summary>
+        private void Blasted(IReadOnlyList<SimEvent> ev, int i, float age)
+        {
+            var e = ev[i];
+            var st = _root.Driver.State;
+            if (e.Id >= st.Men.Count || !Burst(ev, i, out double bx, out double bz)) return;
+            var man = st.Men[e.Id];
+            var (x, z) = At(man.Id);
+            var from = Coords.World(bx, bz, (float)_root.Ground.HeightAt(bx, bz));
+            var at = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + 0.9f);
+            var away = at - from; away.y = 0;
+            if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
+            Blood(i * 8 + 6, age, at, away, 2.2f);
+            Blood(i * 8 + 7, age, at + Vector3.up * 0.3f, Quaternion.Euler(0, 55f, 0) * away, 1.2f);
         }
 
         /// <summary>A blow hand to hand: the scuffle's dust at their feet, and blood if it killed.</summary>
@@ -813,7 +851,7 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>A kill or a blast whose marks are still coming in: its place in the log, and whether a round made the kill.</summary>
-        private struct Fresh { public int Event; public bool Shot; }
+        private struct Fresh { public int Event; public bool Shot, Burst; public double FromX, FromZ; }
 
         /// <summary>Seconds after which a dead man's marks, and a blast's, have stopped changing: he has fallen and lies still, his blood has soaked out, the scorch has darkened in.</summary>
         private const float KillSettles = 6.6f, BlastSettles = 1.6f;
@@ -858,7 +896,8 @@ namespace LanesOfVietnam.View
                     // The simulation writes a kill straight after the shot, or the round through another man, that made it.
                     bool shot = i > 0 && ev[i - 1].Tick == e.Tick && ev[i - 1].Target == e.Id
                                 && (ev[i - 1].Kind == EventKind.Fire || ev[i - 1].Kind == EventKind.Through);
-                    _fresh.Add(new Fresh { Event = i, Shot = shot });
+                    bool burst = Burst(ev, i, out double fx, out double fz);
+                    _fresh.Add(new Fresh { Event = i, Shot = shot, Burst = burst, FromX = fx, FromZ = fz });
                 }
                 else if ((e.Kind == EventKind.Shell || e.Kind == EventKind.GrenadeBlast) && e.X != null) _fresh.Add(new Fresh { Event = i });
             }
@@ -878,13 +917,13 @@ namespace LanesOfVietnam.View
                 bool kill = e.Kind == EventKind.Kill;
                 if (age < (kill ? KillSettles : BlastSettles))
                 {
-                    if (kill) Bled(_live, st, e, f.Shot, age); else Scorch(_live, e, f.Event, age);
+                    if (kill) Bled(_live, st, e, f, age); else Scorch(_live, e, f.Event, age);
                     continue;
                 }
                 if (kill)
                 {
                     Shadow(_settled, st.Men[e.Id]);
-                    Bled(_settled, st, e, f.Shot, age);
+                    Bled(_settled, st, e, f, age);
                     _lies[e.Id] = true;
                 }
                 else Scorch(_settled, e, f.Event, age);
@@ -904,8 +943,30 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>A dead man's blood: what the round threw out of him, and the pool where he lies.</summary>
-        private void Bled(MarkQuads into, SimState st, SimEvent e, bool shot, float since)
+        private void Bled(MarkQuads into, SimState st, SimEvent e, Fresh how, float since)
         {
+            bool shot = how.Shot;
+            float gore = Gore;
+            if (since >= 0.2f && how.Burst)
+            {
+                // A burst: flung out of him away from it, from where he stood to past where it threw him.
+                var man = st.Men[e.Id];
+                double ax = man.X - how.FromX, az = man.Z - how.FromZ, far = System.Math.Sqrt(ax * ax + az * az);
+                if (far < 0.05) { ax = 1; az = 0; far = 1; }
+                ax /= far; az /= far;
+                float show = Mathf.Clamp01((since - 0.2f) / 0.3f);
+                int stains = Mathf.RoundToInt(6 * gore);
+                for (int k = 0; k < stains; k++)
+                {
+                    double reach = 0.4 + 0.75 * k + 0.6 * Hash(e.Id, 130 + k), wide = (Hash(e.Id, 137 + k) - 0.5) * (0.5 + 0.45 * k);
+                    float spot = 0.75f - 0.07f * k + 0.3f * (float)Hash(e.Id, 144 + k);
+                    Flat(into, man.X + ax * reach - az * wide, man.Z + az * reach + ax * wide, spot, spot * 0.7f,
+                         new Color(0.31f, 0.04f, 0.03f, 0.85f * show), (float)Hash(e.Id, 151 + k), 1f);
+                }
+                // And where what it took off him came down.
+                if (_root.ArmyView != null && _root.ArmyView.TryLimb(e.Id, out var limb))
+                    Flat(into, limb.x, Coords.SimZ(limb.z), 0.7f, 0.55f, new Color(0.33f, 0.04f, 0.03f, 0.9f * Mathf.Clamp01((since - 1.2f) / 1.5f)), (float)Hash(e.Id, 158), 1f);
+            }
             if (since >= 0.25f && shot)
             {
                 // Shot: what the round threw out of him lies on the ground beyond
@@ -913,7 +974,7 @@ namespace LanesOfVietnam.View
                 var man = st.Men[e.Id];
                 double go = Combat.Advance(Combat.Other(man.Side));
                 float show = Mathf.Clamp01((since - 0.25f) / 0.3f);
-                for (int k = 0; k < 3; k++)
+                for (int k = 0; k < (gore < 1f ? 2 : 4); k++)
                 {
                     double reach = 0.8 + 1.1 * k + 0.9 * Hash(e.Id, 110 + k);
                     float spot = 0.55f - 0.12f * k + 0.2f * (float)Hash(e.Id, 113 + k);
@@ -927,7 +988,8 @@ namespace LanesOfVietnam.View
             var (bx, bz) = At(e.Id);
             if (_root.ArmyView != null && _root.ArmyView.TryBody(e.Id, out var body)) { bx = body.x; bz = Coords.SimZ(body.z); }
             float soak = Mathf.SmoothStep(0, 1, (since - 0.6f) / 5f);
-            float pool = 0.45f + 0.75f * soak + 0.3f * (float)Hash(e.Id, 95);
+            // (More of it, the owner, playtest 9; and more again under a man a burst killed.)
+            float pool = (0.55f + 1.0f * soak + 0.35f * (float)Hash(e.Id, 95)) * (how.Burst ? 1.35f : 1f) * (0.5f + 0.5f * gore);
             Flat(into, bx + (Hash(e.Id, 96) - 0.5) * 0.3, bz + (Hash(e.Id, 97) - 0.5) * 0.3, pool, pool * 0.8f,
                  new Color(0.34f, 0.045f, 0.035f, 0.9f * Mathf.Clamp01((since - 0.6f) / 1.2f)), (float)Hash(e.Id, 98), 1f);
         }

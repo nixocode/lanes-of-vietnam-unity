@@ -1,5 +1,7 @@
 # Cloud brief: M2, the rules of Part 2
 
+> **Read first (2026-10-08).** This brief was written against `PLAN.md` §12.25. The order has changed (§12.27): Part 2's rules now arrive with the map that needs them. Napalm and Air Cav (Task 2, items 1 and 2) come first, with Ia Drang; weather, Arc Light and the RPD team with Khe Sanh; the rest later. The game now runs with `tactics fortune` on as well: measure with `... ammo tactics fortune tempo` and `player 48 29 rate=0.9 tactics fortune`, and write up as the next free section after §12.27.
+
 Simulation work for milestone M2 of `PLAN.md` §12.25 (rows 2a, 2c and 2d), written on 2026-10-05 against `main` at `9941454`. You are a cloud session: no Unity, no GPU, no licensed assets. Read CLAUDE.md first (it says what you can run and the rules the project keeps), then README.md, then PLAN.md §12.8 (what the 2D game has and what Part 2 owes it, and the policy for new mechanics), and §12.15 to §12.25 (the rules that exist and how each was built and measured). Work on a new branch `cloud/m2-sim` from `main`; push it after every task; never merge into `main` and never push to `main`.
 
 Start by installing the .NET 8 SDK, building `tools/simcs` and checking that a clean `main` gives the numbers CLAUDE.md lists. If it does not, stop and report that instead of going on.

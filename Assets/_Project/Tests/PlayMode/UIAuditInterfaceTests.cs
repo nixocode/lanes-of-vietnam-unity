@@ -72,8 +72,11 @@ namespace LanesOfVietnam.Tests
                 int before = rec.Played.Count;
                 Root.Driver.FastForward(2);
                 yield return new WaitForSecondsRealtime(0.06f);   // past the 55 ms ration
-                var fresh = rec.Played.Skip(before).Where(p => p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")
-                                                               || p.name.StartsWith("mg_") || p.name.StartsWith("smg_") || p.name.StartsWith("bolt")).ToList();
+                // (Not a sniper's shot coming back off the treeline a third of a second later: that is from no man, on
+                // purpose. It went unnoticed while a marksman was the eighth squad the VC raised; with Fortune he may be the second.)
+                var fresh = rec.Played.Skip(before).Where(p => p.gain != AudioView.SniperEcho
+                                                               && (p.name.StartsWith("m16") || p.name.StartsWith("ak") || p.name.StartsWith("sks")
+                                                                   || p.name.StartsWith("mg_") || p.name.StartsWith("smg_") || p.name.StartsWith("bolt"))).ToList();
                 Assert.LessOrEqual(fresh.Count, AudioView.ShotsPerTick, $"frame {f}: {fresh.Count} new shots");
                 foreach (var shot in fresh)
                 {
@@ -286,8 +289,10 @@ namespace LanesOfVietnam.Tests
             // Held, a position fills with men and they stay; the plate counts them. (With Senses the
             // squad opens the match in a position, and the lever pulled to Go above may have sent it on:
             // the one held here is the first at or ahead of its lead man with room for three.)
+            // (Fortune: the match opens in either lane, so the position is one in the lane his men are in.)
             double lead = st.Men.Where(m => m.Alive && m.Side == Side.Us).Max(m => m.X);
-            var trench = positions.Where(c => c.Z > 0 && c.Capacity >= 3 && c.X + c.Length * 0.5 >= lead - 1).OrderBy(c => c.X).First();
+            int lane = st.Squads[st.Men.First(m => m.Alive && m.Side == Side.Us).Squad].Lane;
+            var trench = positions.Where(c => System.Math.Abs(c.Z - Tune.Lanes[lane]) < 4.5 && c.Capacity >= 3 && c.X + c.Length * 0.5 >= lead - 1).OrderBy(c => c.X).First();
             hud.Positions.Pull(trench.Id, Lever.Hold);
             yield return null;
             Root.Driver.FastForward(300);

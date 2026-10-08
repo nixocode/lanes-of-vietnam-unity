@@ -17,6 +17,17 @@ namespace LanesOfVietnam.SimCs
     ///   determinism                    same seed twice, identical hashes
     ///   audit                          every event kind and every ending reachable
     ///   bench                          wall clock per match
+    ///   hash N [flags] [map]           a match's hash at ticks 100 and 1000 and at its end, for a pin
+    ///   player N cost [flags]          the balance table: a player who buys line squads, and the plans left alone
+    ///   aware, muddle, brain [seed] [ticks] [seeds] [flags]
+    ///                                  what the squads know and do; how much a match looks like a muddle;
+    ///                                  circles, men not fighting, men out of place, grenades, snipers
+    ///   watch seed from to [every] [flags] [man=N]
+    ///                                  the squads tick by tick, or one man
+    ///   blasts seed [flags]            where and when a burst kills a man: something to point a capture at
+    ///
+    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune), and
+    /// `tempo` for the game's own economy.
     /// </summary>
     public static class Program
     {
@@ -39,6 +50,7 @@ namespace LanesOfVietnam.SimCs
                     "muddle" => Muddle(args),
                     "aware" => Aware(args),
                     "brain" => Brain(args),
+                    "blasts" => Blasts(args),
                     "watch" => Watch(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
@@ -1102,6 +1114,35 @@ namespace LanesOfVietnam.SimCs
             foreach (var kv in sniperBy.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-40} {kv.Value / minutes:F2}");
             double mean = lengths.Average(), sd = Math.Sqrt(lengths.Sum(x => (x - mean) * (x - mean)) / lengths.Count);
             Console.WriteLine($"  matches                   mean {mean:F0} s, shortest {lengths.Min():F0}, longest {lengths.Max():F0}, spread (sd) {sd:F0}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Where and when a burst kills a man, as the game plays the seed: something to point a capture at.
+        /// `blasts seed [flags]`; the game's own match is `fieldcraft arms senses gunnery ammo tactics fortune tempo`.
+        /// </summary>
+        private static int Blasts(string[] a)
+        {
+            int seed = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).DefaultIfEmpty(3).First();
+            var m = new LiveMatch(Game(seed, a));
+            var st = m.State;
+            while (!st.Over && st.Tick < m.Cap)
+            {
+                int from = st.Events.Count;
+                m.Step();
+                SimEvent? burst = null;
+                for (int i = from; i < st.Events.Count; i++)
+                {
+                    var e = st.Events[i];
+                    if (e.Kind == EventKind.GrenadeBlast || e.Kind == EventKind.Shell || e.Kind == EventKind.TrapSprung) { burst = e; continue; }
+                    if (e.Kind == EventKind.Fire || e.Kind == EventKind.Melee || e.Kind == EventKind.Through) { burst = null; continue; }
+                    if (e.Kind != EventKind.Kill || burst == null || burst.Value.X == null) continue;
+                    var man = st.Men[e.Id];
+                    double d = Combat.Dist(man.X, man.Z, burst.Value.X.Value, burst.Value.Z.Value);
+                    Console.WriteLine($"  t{st.Tick} {burst.Value.Kind} at {burst.Value.X:F1},{burst.Value.Z:F1} kills man {man.Id} ({man.Side}, {man.Weapon}, {man.Posture}) at {man.X:F1},{man.Z:F1}: {d:F1} m off");
+                }
+            }
+            Console.WriteLine($"  seed {seed}: {st.Tick} ticks, {st.Reason}");
             return 0;
         }
 

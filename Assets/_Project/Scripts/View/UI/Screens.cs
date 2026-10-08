@@ -158,6 +158,7 @@ namespace LanesOfVietnam.View.UI
             var toggles = new VisualElement(); toggles.AddToClassList("choice-row"); SettingsPanel.Add(toggles);
             Btn(toggles, "subtitles", "SUBTITLES", () => { Root.Settings.Subtitles = !Root.Settings.Subtitles; Save(); }, "choice");
             Btn(toggles, "shake", "CAMERA SHAKE", () => { Root.Settings.CameraShake = !Root.Settings.CameraShake; Save(); }, "choice");
+            Btn(toggles, "gore", "GORE", () => { Root.Settings.Gore = !Root.Settings.Gore; Save(); }, "choice");
             Btn(toggles, "hidehud", "HIDE HUD", () => { Root.Settings.HideHud = !Root.Settings.HideHud; Save(); }, "choice");
 
             Text(SettingsPanel,
@@ -318,6 +319,7 @@ namespace LanesOfVietnam.View.UI
             On("q-high", st.Quality == QualityTier.High);
             On("subtitles", st.Subtitles);
             On("shake", st.CameraShake);
+            On("gore", st.Gore);
             On("hidehud", st.HideHud);
         }
 
