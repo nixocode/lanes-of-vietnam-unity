@@ -108,8 +108,9 @@ namespace LanesOfVietnam.Sim
 
         private static void Begin(SimState st, Man m, Load load)
         {
-            m.Reloading = load.Reload;
-            st.Events.Add(new SimEvent { Kind = EventKind.Reload, Tick = st.Tick, Side = m.Side, Id = m.Id, Amount = load.Reload });
+            // (Fortune: this man, this time.)
+            m.Reloading = st.Fortune ? Fortune.Pause(st, m, load.Reload) : load.Reload;
+            st.Events.Add(new SimEvent { Kind = EventKind.Reload, Tick = st.Tick, Side = m.Side, Id = m.Id, Amount = m.Reloading });
         }
 
         /// <summary>
@@ -153,6 +154,6 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>A squad throws one grenade at a time: has a man of it thrown in the last few seconds?</summary>
-        public static bool SquadThrowing(SimState st, Man a) => st.Tick - st.Squads[a.Squad].ThrewAt < Tune.SquadThrowGap;
+        public static bool SquadThrowing(SimState st, Man a) => st.Tick - st.Squads[a.Squad].ThrewAt < Tactics.ThrowGap(st);
     }
 }

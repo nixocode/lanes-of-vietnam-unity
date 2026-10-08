@@ -470,37 +470,38 @@ namespace LanesOfVietnam.Sim
         /// with rifles that reached 20: both sides lay and looked at each other, then got up and ran to
         /// 12 m without a shot.
         /// </summary>
-        public const double LongFire = 1.5, LongMost = 10;
+        public const double LongFire = 1.5, LongMost = 8;
         /// <summary>A long shot's chance against the same shot at the weapon's own distance; what its near miss pins; how much slower a man fires them.</summary>
-        public const double LongHit = 0.4, LongPin = 0.6, LongCooldown = 1.5;
-        /// <summary>Ticks one half of a squad in contact moves for, while the other half fires (4 s); and how near his place a man already running finishes his run.</summary>
+        public const double LongHit = 0.15, LongPin = 0.35, LongCooldown = 3.5;
+        /// <summary>Ticks one half of a squad in contact moves for, while the other half fires (4 s); and how near his place a man already running finishes his run, in the open and when it is a place in cover.</summary>
         public const int BoundTicks = 80;
-        public const double BoundFinish = 2.5;
+        public const double BoundFinish = 2.5, BoundFinishCover = 6;
         /// <summary>A squad going in rushes the last of it, each man for his enemy, from this far. Further off it comes on by bounds.</summary>
         public const double RushFrom = 10;
         /// <summary>Grenades a man carries; and a sapper or an engineer, whose trade they are.</summary>
         public const int TacticsGrenades = 1, TacticsGrenadesClose = 2;
-        /// <summary>Ticks before a squad that has thrown throws again (10 s).</summary>
-        public const int TacticsThrowGap = 200;
+        /// <summary>Ticks before a squad that has thrown throws again (15 s).</summary>
+        public const int TacticsThrowGap = 300;
         /// <summary>
         /// A team that fights from a long way off and does not go in (a sniper, the mortar: a distance
         /// of this or more) gives ground when an enemy it knows of is this much nearer than that.
         /// </summary>
-        public const double FarTeam = 26, KeepOff = 6;
+        public const double FarTeam = 26, KeepOff = 5;
         /// <summary>Where a sniper team fights from, under this rule: inside a rifle's long shot, outside its own distance.</summary>
-        public const double SniperReach = 28;
+        public const double SniperReach = 26;
+        /// <summary>Ticks after his shot that a sniper is the man a machine gun, another sniper, or a rifleman with nobody nearer fires at (6 s).</summary>
+        public const int SniperMarked = 120;
 
         // --- fortune (MatchOptions.Fortune) -------------------------------------------
 
         /// <summary>How far a man's aim, his nerve and his quickness lie either side of the ordinary man's.</summary>
         public const double AimSpread = 0.3, NerveSpread = 0.3, QuickSpread = 0.2;
         /// <summary>
-        /// Luck in one shot: a round that would have missed finds him after all, and one that would have
-        /// hit goes by (each this often). The first is what kills a sniper at a distance no rifle has
-        /// any business hitting at.
+        /// Luck in a long shot: one that would have missed finds its man after all, this often. It is
+        /// what kills a sniper at a distance no rifle has any business hitting at.
         /// </summary>
-        public const double LuckyHit = 0.012, LuckyMiss = 0.12;
-        /// <summary>How much longer or shorter than its own time a pause between shots, a reload or a burst's gap may be.</summary>
+        public const double LuckyHit = 0.006;
+        /// <summary>How much longer or shorter than its own time a pause between shots, or a reload, may be.</summary>
         public const double PauseSpread = 0.35;
 
         public const double VetPerSecond = 0.010;

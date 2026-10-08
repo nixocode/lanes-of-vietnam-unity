@@ -3,7 +3,12 @@ using System.Collections.Generic;
 
 namespace LanesOfVietnam.Sim
 {
-    public struct Slot { public double X; public double Z; }
+    public struct Slot
+    {
+        public double X; public double Z;
+        /// <summary>It is a place in cover, not a place in the file (MatchOptions.Tactics reads it).</summary>
+        public bool InCover;
+    }
 
     /// <summary>
     /// Squads: who is in one, where each man should stand, and the anchor that

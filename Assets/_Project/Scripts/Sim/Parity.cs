@@ -109,6 +109,8 @@ namespace LanesOfVietnam.Sim
                 foreach (var m in st.Men) { h = MixI(h, m.Rounds); h = MixI(h, m.Reloading); }
                 foreach (var s in st.Squads) h = MixI(h, s.ThrewAt);
             }
+            if (st.Fortune)
+                foreach (var m in st.Men) { h = MixD(h, m.Aim); h = MixD(h, m.Nerve); h = MixD(h, m.Quick); }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }

@@ -600,7 +600,9 @@ namespace LanesOfVietnam.Sim
                 double side = SideOf(m.Id - first);
                 if (near && m.PlaceCover == tc.Id && m.Place >= 0)
                 {
-                    into.Add(PlaceOf(tc, m.Place, dir, side));
+                    var at = PlaceOf(tc, m.Place, dir, side);
+                    at.InCover = true;
+                    into.Add(at);
                     continue;
                 }
                 if (near)
@@ -629,12 +631,16 @@ namespace LanesOfVietnam.Sim
         {
             if (sq.Order == Order.Fallback || m.Pin >= Tune.PinDrop) return null;
             bool waits = m.Cover >= 0 && sq.Order == Order.Hold;
+            // Tactics: only a man with a place in it. One passing through went for his man out of the
+            // cover and waited for him in it, and at its edge did each on alternate ticks.
+            if (st.Tactics && waits && !(m.Place >= 0 && m.PlaceCover == m.Cover)) waits = false;
             double reach = waits ? Tune.ChargeRange * 0.5 : Tune.ChargeRange;
             // Senses: a squad that is going in goes in man by man, each for the nearest enemy in
             // front of it that it knows of. (Marching its anchor up, it stood behind its lead man
             // the moment he was pinned.)
             bool goingIn = st.Senses && sq.Task == SquadTask.Assault && sq.Order != Order.Hold;
-            if (goingIn) reach = Tune.AssaultReach + Tune.ChargeRange;
+            // (Tactics: the last ten metres. Further off the squad comes on by bounds, half of it firing.)
+            if (goingIn) reach = st.Tactics ? Tune.RushFrom : Tune.AssaultReach + Tune.ChargeRange;
             Man best = null;
             double best2 = reach * reach;
             for (int i = 0; i < st.Men.Count; i++)
