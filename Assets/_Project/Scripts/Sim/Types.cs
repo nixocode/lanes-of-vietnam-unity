@@ -156,6 +156,12 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks he still waits before he sets off, after the man ahead of him has (MatchOptions.Gunnery).</summary>
         public int Wait;
+
+        /// <summary>
+        /// What he is like, against the ordinary man's 1 (MatchOptions.Fortune): how well he shoots, how
+        /// much fire it takes to put his head down, and how quick he is to fire again.
+        /// </summary>
+        public double Aim = 1, Nerve = 1, Quick = 1;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -437,6 +443,12 @@ namespace LanesOfVietnam.Sim
         public bool Gunnery;
         /// <summary>Part 2 rule: rounds counted, magazines, reloads, bursts, launcher rounds carried (<see cref="Sim.Ammo"/>). Off is the baseline.</summary>
         public bool Ammo;
+        /// <summary>Part 2 rule: fire at first sight, bounds with half a squad firing, the cover a squad stands in, a sniper's distance, fewer grenades (<see cref="Sim.Tactics"/>). Off is the baseline.</summary>
+        public bool Tactics;
+        /// <summary>Part 2 rule: men who differ, and luck in a firefight (<see cref="Sim.Fortune"/>). Off is the baseline.</summary>
+        public bool Fortune;
+        /// <summary>Fortune's own random stream: what each man is like, and every stroke of luck.</summary>
+        public Rng LuckRng;
         /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>
         public double Sight = 1;
         /// <summary>Gunnery's own random stream: the standing man's chance, and where a miss lands.</summary>
