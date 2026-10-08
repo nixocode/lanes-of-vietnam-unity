@@ -53,8 +53,10 @@ namespace LanesOfVietnam.Sim
     ///              which pins him and all but never kills him, and a machine
     ///              gun's and another sniper's proper reach. For six seconds
     ///              after he fires he is the man a machine gun and another
-    ///              sniper shoot at, and a rifleman with nobody nearer, and
-    ///              at him a long shot is fired as fast and pins as much as any
+    ///              sniper shoot at, and a rifleman with nobody nearer; at
+    ///              him a long shot is fired as fast as any, and a near miss
+    ///              puts him off his scope two and a half times as much as
+    ///              it would another man
     ///   grenades   a man carries one, a sapper or an engineer two, and a
     ///              squad that has thrown waits fifteen seconds before it throws
     ///              again

@@ -1,5 +1,7 @@
 # Cloud brief: M1, the simulation's share
 
+> **Read first (2026-10-08).** This brief was written against `PLAN.md` §12.25. Since then playtest 9 (§12.26) has done Task 1's work another way, behind two new flags (`Tactics`, `Fortune`): do not do Task 1. Task 2's three rules are still wanted (§12.27, row P2), measured with those two flags on (`... ammo tactics fortune tempo`, `player 48 29 rate=0.9 tactics fortune`) and written up as the next free section after §12.27. Bring the numbers below up to date before starting.
+
 Simulation work for milestone M1 of `PLAN.md` §12.25 (rows 1a and 1d), written on 2026-10-05 against `main` at `9941454`. You are a cloud session: no Unity, no GPU, no licensed assets. Read CLAUDE.md first (it says what you can run and the rules the project keeps), then README.md, then PLAN.md §12.18 to §12.25. Work on a new branch `cloud/m1-sim` from `main`; push it after every task; never merge into `main` and never push to `main`.
 
 Start by installing the .NET 8 SDK, building `tools/simcs` and checking that a clean `main` gives the numbers CLAUDE.md lists. If it does not, stop and report that instead of going on.

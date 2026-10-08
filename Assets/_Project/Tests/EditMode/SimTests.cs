@@ -1345,7 +1345,7 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics [map]`.</summary>
-        [TestCase(1, true, 3566, 674558516u, 1701773530u, 733854862u, "vc morale broke")]
+        [TestCase(1, true, 3538, 674558516u, 1701773530u, 2103794046u, "vc morale broke")]
         [TestCase(7, false, 3341, 1916778477u, 3459103997u, 2175602128u, "us morale broke")]
         public void With_tactics_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
@@ -1362,8 +1362,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune [map]`.</summary>
-        [TestCase(1, true, 4240, 1213913555u, 3971222224u, 1266985859u, "us morale broke")]
-        [TestCase(7, false, 2166, 4141358090u, 1407521725u, 1832804816u, "vc morale broke")]
+        [TestCase(1, true, 2719, 1213913555u, 4008188405u, 4215652832u, "us morale broke")]
+        [TestCase(7, false, 2166, 4141358090u, 1407521725u, 535311614u, "vc morale broke")]
         public void With_fortune_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {

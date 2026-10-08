@@ -255,6 +255,54 @@ namespace LanesOfVietnam.Tools
             ("melee_stab", false, true), ("melee_slash", false, true), ("trench_in", false, true), ("trench_out", false, true),
         };
 
+        /// <summary>
+        /// A limb as a thing by itself: the part of his skin that follows this bone and the bones below it, as
+        /// a plain mesh in the bone's own space, saved beside him. When a burst takes it off, the bone is drawn
+        /// down to nothing on his body and this mesh is flung from where it was (SoldierFigure.Sever).
+        /// </summary>
+        private static SoldierFigure.Limb Limb(string man, SkinnedMeshRenderer smr, Dictionary<string, Transform> t, string bone)
+        {
+            if (!t.TryGetValue(bone, out var root)) return default;
+            var src = smr.sharedMesh;
+            var bones = smr.bones;
+            int at = System.Array.IndexOf(bones, root);
+            if (at < 0) return default;
+            var part = bones.Select(b => b != null && (b == root || b.IsChildOf(root))).ToArray();
+            var weights = src.boneWeights;
+            Vector3[] verts = src.vertices, normals = src.normals;
+            var uv = src.uv; var tangents = src.tangents;
+            var bind = src.bindposes[at];
+            var map = new int[verts.Length];
+            var v2 = new List<Vector3>(); var n2 = new List<Vector3>(); var uv2 = new List<Vector2>(); var t2 = new List<Vector4>();
+            for (int i = 0; i < verts.Length; i++)
+            {
+                map[i] = -1;
+                // His heaviest bone decides whose the vertex is (Unity lists a vertex's bones heaviest first).
+                if (!part[weights[i].boneIndex0]) continue;
+                map[i] = v2.Count;
+                v2.Add(bind.MultiplyPoint3x4(verts[i]));
+                n2.Add(bind.MultiplyVector(normals[i]).normalized);
+                if (uv.Length == verts.Length) uv2.Add(uv[i]);
+                if (tangents.Length == verts.Length) { var tv = bind.MultiplyVector(tangents[i]).normalized; t2.Add(new Vector4(tv.x, tv.y, tv.z, tangents[i].w)); }
+            }
+            var tris = new List<int>();
+            var all = src.triangles;
+            for (int i = 0; i < all.Length; i += 3)
+                if (map[all[i]] >= 0 && map[all[i + 1]] >= 0 && map[all[i + 2]] >= 0) { tris.Add(map[all[i]]); tris.Add(map[all[i + 1]]); tris.Add(map[all[i + 2]]); }
+            if (tris.Count < 36) return default;
+            var mesh = new Mesh { name = $"{man}_{bone}" };
+            mesh.SetVertices(v2); mesh.SetNormals(n2);
+            if (uv2.Count == v2.Count) mesh.SetUVs(0, uv2);
+            if (t2.Count == v2.Count) mesh.SetTangents(t2);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            string path = $"{Dir}/{man}_{bone}.asset";
+            AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(mesh, path);
+            Debug.Log($"[LOV] {man}: {bone} as a limb, {v2.Count} vertices, {tris.Count / 3} triangles");
+            return new SoldierFigure.Limb { Bone = root, Mesh = mesh };
+        }
+
         private static readonly List<string> ImportedMixamo = new List<string>();
 
         /// <summary>The deaths standing or kneeling, in the order a man's death index picks them.</summary>
@@ -479,10 +527,11 @@ namespace LanesOfVietnam.Tools
             // --- deaths: chosen by how he died (SoldierFigure.DeathCode) ---
             var mixDeaths = MixamoDeaths.Where(clips.ContainsKey).ToArray();
             var deaths = mixDeaths.Length > 0 ? mixDeaths : new[] { "dead0", "dead1" }.Where(clips.ContainsKey).ToArray();
-            void Death(string name, string clip, int code)
+            void Death(string name, string clip, int code, bool mirrored = false)
             {
                 var st = sm.AddState(name);
                 st.motion = C(clip);
+                st.mirror = mirrored;
                 var tr = sm.AddAnyStateTransition(st);
                 tr.hasExitTime = false; tr.hasFixedDuration = true; tr.duration = 0.15f;
                 tr.canTransitionToSelf = false;
@@ -490,10 +539,17 @@ namespace LanesOfVietnam.Tools
                 tr.AddCondition(AnimatorConditionMode.Equals, code, "DeathIndex");
             }
             for (int k = 0; k < deaths.Length; k++) Death("Dead " + k, deaths[k], k);
+            // Each of them again, left for right: twice the deaths from the same clips (the owner, playtest 9:
+            // "more ... death animations"). A man falls to his other side, his other arm goes out.
+            for (int k = 0; k < deaths.Length; k++) Death("Dead " + (deaths.Length + k), deaths[k], deaths.Length + k, true);
             var special = new (string clip, int code)[] { ("death_run", RunDeath), ("death_blast", BlastDeath),
                                                           ("death_crouch_head", CrouchDeath), ("prone_death", ProneDeath) };
-            foreach (var (clip, code) in special.Where(x => clips.ContainsKey(x.clip))) Death("Dead " + clip, clip, code);
-            log.Add($"{deaths.Length} deaths + {string.Join(", ", special.Where(x => clips.ContainsKey(x.clip)).Select(x => x.clip))}");
+            foreach (var (clip, code) in special.Where(x => clips.ContainsKey(x.clip)))
+            {
+                Death("Dead " + clip, clip, code);
+                Death("Dead " + clip + " mirrored", clip, code + SoldierFigure.MirroredCode, true);
+            }
+            log.Add($"{deaths.Length} deaths and their mirrors + {string.Join(", ", special.Where(x => clips.ContainsKey(x.clip)).Select(x => x.clip))} and theirs");
 
             // --- aim: the upper body to the shoulder, over whatever the legs are doing ---
             var mask = UpperBody();
@@ -870,6 +926,9 @@ namespace LanesOfVietnam.Tools
                 fig.BlastDeath = states.Contains("Dead death_blast");
                 fig.CrouchDeath = states.Contains("Dead death_crouch_head");
                 fig.ProneDeath = states.Contains("Dead prone_death");
+                fig.MirroredDeaths = states.Contains("Dead death_blast mirrored");
+                // What a burst can take off him: a forearm and hand, a lower leg and foot, either side.
+                fig.Limbs = new[] { "lowerarm_l", "calf_r", "lowerarm_r", "calf_l" }.Select(b => Limb(name, smr, t, b)).Where(l => l.Mesh != null).ToArray();
 
                 Grip(t);
                 // The weapons (tools/blender/weapons.py), in place of the one rifle the body came with:

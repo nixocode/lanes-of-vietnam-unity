@@ -694,7 +694,7 @@ MonoBehaviour:
   RunSpeed: 4.5027556
   CrouchSpeed: 1.9532301
   CrawlSpeed: 0.2200115
-  Deaths: 8
+  Deaths: 16
   RunDeath: 1
   BlastDeath: 1
   CrouchDeath: 1
@@ -708,9 +708,28 @@ MonoBehaviour:
   - 1.0034925
   - -0.9558536
   - -0.9340354
+  - -0.25035048
+  - -0.57711905
+  - 1.0183972
+  - 1.1669528
+  - 1.0815178
+  - 1.0013821
+  - -0.953462
+  - -0.933033
   Blows: 2
   BlowFirst: 0
   Climbs: 1
+  MirroredDeaths: 1
+  Limbs:
+  - Bone: {fileID: 4512477298446856068}
+    Mesh: {fileID: 4300000, guid: dc8caa9d8494a412aa8f871ff138c1d5, type: 2}
+  - Bone: {fileID: 8852220243197541751}
+    Mesh: {fileID: 4300000, guid: d3be2dd730feb4bbd83e4e811ee50c0e, type: 2}
+  - Bone: {fileID: 2777696430350226259}
+    Mesh: {fileID: 4300000, guid: dc5734d2473c04cc0b336f8c572d7baa, type: 2}
+  - Bone: {fileID: 3484914434078812910}
+    Mesh: {fileID: 4300000, guid: bfc36ff9daae2404d8f5d10838940083, type: 2}
+  Carriage: {x: 0, y: 0}
 --- !u!1 &2643592834357570592
 GameObject:
   m_ObjectHideFlags: 0

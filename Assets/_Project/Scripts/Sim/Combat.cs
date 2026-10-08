@@ -252,6 +252,8 @@ namespace LanesOfVietnam.Sim
             // Ammo: a burst's pin is by its rounds against a short one's.
             if (automatic) near *= Math.Min(2.0, (double)rounds / Ammo.Of(st, a).Burst);
             if (longShot) near *= Tune.LongPin;
+            // Tactics: a sniper is one man with his eye in a scope: fire that comes near him puts him off it.
+            if (st.Tactics && target.Weapon == Weapon.Sniper) near *= Tune.SniperShaken;
             ApplyPin(st, target, near);
             double r2 = Tune.PinSplash * Tune.PinSplash;
             for (int i = 0; i < st.Men.Count; i++)

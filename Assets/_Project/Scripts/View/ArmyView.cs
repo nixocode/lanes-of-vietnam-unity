@@ -47,6 +47,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_threw, 0, _threw.Length);
             System.Array.Clear(_reload, 0, _reload.Length);
             System.Array.Clear(_fall, 0, _fall.Length);
+            System.Array.Clear(_blown, 0, _blown.Length);
             System.Array.Clear(_struck, 0, _struck.Length);
             System.Array.Clear(_climbUntil, 0, _climbUntil.Length);
             System.Array.Clear(_climbStart, 0, _climbStart.Length);
@@ -79,6 +80,14 @@ namespace LanesOfVietnam.View
         private SoldierFigure.Fall[] _fall = new SoldierFigure.Fall[0];
         /// <summary>For a man shot or struck: how far along his facing the blow was travelling (1 from behind, -1 into his front).</summary>
         private float[] _push = new float[0];
+        /// <summary>For a man a burst killed: where it went off (the simulation's x and z), until his body has been told.</summary>
+        private Vector2[] _burst = new Vector2[0];
+        private bool[] _blown = new bool[0];
+        /// <summary>
+        /// A burst within this many metres throws a man it kills (further, he falls where he stood); within
+        /// <see cref="SeverWithin"/> it may take a limb off him, this often.
+        /// </summary>
+        public const float ThrowWithin = 7f, SeverWithin = 2.6f, SeverChance = 0.7f;
         /// <summary>A man reloads after this many shots, once he has not fired for LullTicks.</summary>
         public const int ReloadAfter = 6, LullTicks = 50;
         private readonly List<SoldierFigure> _figures = new List<SoldierFigure>();
@@ -177,6 +186,8 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _reload, n);
                 System.Array.Resize(ref _fall, n);
                 System.Array.Resize(ref _push, n);
+                System.Array.Resize(ref _burst, n);
+                System.Array.Resize(ref _blown, n);
                 System.Array.Resize(ref _front, n);
                 System.Array.Resize(ref _turned, n);
                 System.Array.Resize(ref _struck, n);
@@ -237,6 +248,16 @@ namespace LanesOfVietnam.View
                     }
                     _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
                                 : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
+                    // A burst: where it went off (the shell or the grenade whose event comes before its kills, this tick).
+                    if (!shot)
+                        for (int k = _eventCursor - 1; k >= 0 && st.Events[k].Tick == e.Tick; k--)
+                        {
+                            var b = st.Events[k];
+                            if ((b.Kind != EventKind.GrenadeBlast && b.Kind != EventKind.Shell && b.Kind != EventKind.TrapSprung) || b.X == null) continue;
+                            _burst[e.Id] = new Vector2((float)b.X.Value, (float)b.Z.Value);
+                            _blown[e.Id] = true;
+                            break;
+                        }
                     continue;
                 }
                 if (e.Kind != EventKind.Fire || e.Id >= _firedAt.Length) continue;
@@ -321,6 +342,14 @@ namespace LanesOfVietnam.View
             var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
             p = f != null ? f.Centre : default;
             return f != null && p != default;
+        }
+
+        /// <summary>Where what a burst took off a man lies, once it has landed.</summary>
+        public bool TryLimb(int id, out Vector3 p)
+        {
+            p = default;
+            var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
+            return f != null && f.TryLimb(out p);
         }
 
         private void DrawFigures(MatchDriver d, Ground g)
@@ -429,7 +458,9 @@ namespace LanesOfVietnam.View
                     f = _figures[i] = Instantiate(bodies[(int)(Hash(m.Id, 5) * bodies.Length) % bodies.Length], transform);
                     f.name = $"man {i}";
                     f.Carry(AudioView.Model(m));
-                    f.transform.localScale = Vector3.one * (0.97f + 0.05f * Hash(m.Id, 2));
+                    // His own height (and with it his stride), his own carriage on the march.
+                    f.transform.localScale = Vector3.one * (0.95f + 0.09f * Hash(m.Id, 2));
+                    f.Carriage = new Vector2(-2f + 8f * Hash(m.Id, 11), -3f + 6f * Hash(m.Id, 12));
                     _yaw[i] = yaw;
                 }
                 // His feet. Going somewhere, they face it: turned at most TurnRate degrees a second of match
@@ -503,7 +534,9 @@ namespace LanesOfVietnam.View
                     // His eyes: on the man he is shooting at, else along his front. Not when he is flat and
                     // hiding from fire, nor at a run (he looks where he is going).
                     Vector3 eyes = at + Vector3.up * (posture == 2 ? 0.35f : posture == 1 ? 1.0f : 1.6f);
-                    Vector3 look = eyes + Quaternion.Euler(0, _front[i], 0) * Vector3.forward * 20f;
+                    // (Along his front, and about: each man looks a little to one side and the other, in his own time.)
+                    float about = 28f * Mathf.Sin(now * (0.5f + 0.5f * Hash(m.Id, 20)) + 6.28f * Hash(m.Id, 21));
+                    Vector3 look = eyes + Quaternion.Euler(0, _front[i] + about, 0) * Vector3.forward * 20f;
                     int tg = _target[i];
                     if (aiming && tg >= 0 && tg < st.Men.Count)
                     {
@@ -528,7 +561,31 @@ namespace LanesOfVietnam.View
                 Drawn++;
                 if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
-                if (fresh || jump) { f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]); _pending[i] = 0; Stepped++; continue; }
+                // A burst killed him: it throws him, and close enough may take a limb off him.
+                if (_blown[i] && !m.Alive)
+                {
+                    _blown[i] = false;
+                    var from = Coords.World(_burst[i].x, _burst[i].y, at.y);
+                    var flung = at - from; flung.y = 0;
+                    float far = flung.magnitude;
+                    if (!jump && far < ThrowWithin)
+                    {
+                        flung = far > 0.05f ? flung / far : Quaternion.Euler(0, 360f * Hash(m.Id, 13), 0) * Vector3.forward;
+                        float near = 1f - far / ThrowWithin;
+                        bool gore = GameRoot.Instance == null || GameRoot.Instance.Settings == null || GameRoot.Instance.Settings.Gore;
+                        f.Blown(flung * (0.5f + 2.6f * near * (0.7f + 0.6f * Hash(m.Id, 14))), 0.2f + 0.8f * near);
+                        if (gore && far < SeverWithin && Hash(m.Id, 15) < SeverChance)
+                            f.Sever((int)(Hash(m.Id, 16) * 97), flung * (2.5f + 3f * Hash(m.Id, 17)) + Vector3.up * (3.5f + 2.5f * Hash(m.Id, 18))
+                                                               + Vector3.Cross(Vector3.up, flung) * (2f * Hash(m.Id, 19) - 1f));
+                    }
+                }
+                if (fresh || jump)
+                {
+                    f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]);
+                    // (Not all in step: each man a part of a second into his idle and his stride.)
+                    if (fresh) f.Offbeat(1.7f * Hash(m.Id, 10));
+                    _pending[i] = 0; Stepped++; continue;
+                }
                 _pending[i] += dt;
                 if (!step) continue;
                 f.Step(_pending[i], speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]);

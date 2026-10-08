@@ -24,6 +24,8 @@ namespace LanesOfVietnam.View
         [Range(0, 1)] public float Voice = 1f;
         public bool Subtitles = true;
         public bool CameraShake = true;
+        /// <summary>Blood in quantity, and limbs taken off by a burst. Off: a little blood, and whole bodies.</summary>
+        public bool Gore = true;
         public bool HideHud;
 
         private const string Key = "lov_settings";

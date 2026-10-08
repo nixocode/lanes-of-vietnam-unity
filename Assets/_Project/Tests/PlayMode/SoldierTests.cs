@@ -59,6 +59,60 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(up, 0);
         }
 
+        /// <summary>
+        /// The owner, playtest 9: "more gore, blood and death animations. Some are too slow, should be sped up
+        /// when it's an explosion + body dismemberment". Every man has each death and its mirror; a man a burst
+        /// kills is thrown by it and is down well before one who is shot; and a limb it takes off him leaves
+        /// his body, flies, lands and lies there, and he is not frozen until it has.
+        /// </summary>
+        [UnityTest, Category("Soldiers")]
+        public IEnumerator A_burst_throws_a_man_fast_and_can_take_a_limb_off_him()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var army = Root.ArmyView;
+            Root.Paused = true;
+            foreach (var proto in army.UsFigures.Concat(army.VcFigures))
+            {
+                Assert.AreEqual(16, proto.Deaths, $"{proto.name}: eight deaths and their mirrors");
+                Assert.IsTrue(proto.MirroredDeaths, $"{proto.name}: the deaths by circumstance have no mirrors");
+                Assert.AreEqual(SoldierFigure.BlastCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Blast));
+                Assert.AreEqual(SoldierFigure.BlastCode + SoldierFigure.MirroredCode, proto.DeathCode(3, 0, SoldierFigure.Fall.Blast));
+                Assert.AreEqual(4, proto.Limbs.Length, $"{proto.name}: a forearm and a lower leg, each side");
+                Assert.IsTrue(proto.Limbs.All(l => l.Bone != null && l.Mesh != null && l.Mesh.vertexCount > 100), $"{proto.name}: a limb with no mesh to it");
+            }
+
+            (float seconds, SoldierFigure f, Vector3 stood) Dies(SoldierFigure.Fall how, bool burst)
+            {
+                var f = Object.Instantiate(army.UsFigures[0], new Vector3(0, 50, 0), Quaternion.identity);
+                f.Settle(0f, 0, false, false, 3);
+                var stood = f.Hips.position;
+                if (burst)
+                {
+                    f.Blown(Vector3.right * 2.5f, 0.8f);
+                    Assert.IsTrue(f.Sever(0, new Vector3(3f, 4f, 0.5f)), "nothing came off him");
+                    Assert.IsFalse(f.Sever(1, Vector3.up), "a second limb off the same man");
+                }
+                float t = 0;
+                while (!f.Baked && t < 12f) { f.Step(0.05f, 0f, 0, false, true, 3, how); t += 0.05f; }
+                Assert.IsTrue(f.Baked, "he never came to rest");
+                return (t, f, stood);
+            }
+            var (shotFor, shot, _) = Dies(SoldierFigure.Fall.Shot, false);
+            var (burstFor, blown, stood) = Dies(SoldierFigure.Fall.Blast, true);
+            Debug.Log($"[LOV] deaths: shot, down and still in {shotFor:F2} s; thrown by a burst, in {burstFor:F2} s");
+            Assert.Less(burstFor, 2.6f, "a man thrown by a burst takes too long to come down");
+            Assert.Less(burstFor, shotFor, "a burst's death is no quicker than a round's");
+            Assert.Greater(blown.Centre.x - stood.x, 1.5f, "the burst did not throw him");
+            Assert.Less(Mathf.Abs(shot.Centre.x), 1.6f, "a man who was shot was thrown");
+            Assert.IsFalse(shot.TryLimb(out _), "a man who was shot lost a limb");
+            Assert.IsTrue(blown.TryLimb(out var limb), "his limb never landed");
+            Assert.AreEqual(50.07f, limb.y, 0.02f, "his limb is not on the ground");
+            Assert.Greater(new Vector2(limb.x - stood.x, limb.z - stood.z).magnitude, 1f, "his limb lies where he stood");
+            Assert.Less(blown.Limbs[0].Bone.lossyScale.x, 0.01f, "the limb is still on his body");
+            Object.Destroy(shot.gameObject);
+            Object.Destroy(blown.gameObject);
+        }
+
         [UnityTest, Category("Soldiers")]
         public IEnumerator Paused_men_are_still_and_the_match_moves_them()
         {

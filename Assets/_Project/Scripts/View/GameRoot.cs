@@ -123,8 +123,8 @@ namespace LanesOfVietnam.View
         /// (They were 30, 25 and 21 until the men were slowed, PLAN §12.22: at those he won 15, 14 and 5
         /// as the Americans, whose squads now take longer to come up from their end of the lane.)
         /// With Tactics and Fortune (PLAN §12.26) the same costs hold, measured over 48 seeds with
-        /// `player 48 N rate=0.9 tactics fortune`: 45 and 47 of 48 against a Recruit, 40 and 36 against a
-        /// Veteran, 24 and 22 against the Elite.
+        /// `player 48 N rate=0.9 tactics fortune`: 46 and 48 of 48 against a Recruit, 40 and 37 against a
+        /// Veteran, 21 and 24 against the Elite.
         /// </summary>
         public enum Difficulty { Recruit, Veteran, Elite }
 
@@ -140,7 +140,8 @@ namespace LanesOfVietnam.View
         /// with ammunition and the slower pace of §12.24 a fight takes longer again, and at those the
         /// three ran to 176, 315 and 641 s. Then 1.0, 0.8 and 0.9 until Tactics, PLAN §12.26: a squad that
         /// closes by bounds, with fewer grenades, kills a quarter fewer men a minute, and at those a
-        /// standard match with nobody playing ran 256 s.)
+        /// standard match with nobody playing ran 256 s. At these a skirmish runs 109 to 142 s, a standard
+        /// match 167 to 242, a siege six to ten minutes.)
         /// </summary>
         public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.0 : 0.9;
 
