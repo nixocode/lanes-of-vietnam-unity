@@ -100,6 +100,16 @@ namespace LanesOfVietnam.View.UI
             "MUSIC   \"Drums of the Deep\" and \"Crypto\", Kevin MacLeod (incompetech.com)\n" +
             "Licensed under Creative Commons: By Attribution 4.0 · https://creativecommons.org/licenses/by/4.0/";
 
+        /// <summary>
+        /// What else the game is made from (ASSETS.md has each item, its licence and its hash). The motion
+        /// capture's line is in the words its database asks for; the fonts' licence asks to be named.
+        /// </summary>
+        public const string Credits =
+            "ANIMATION Adobe Mixamo; mocap.cs.cmu.edu (created with funding from NSF EIA-0196217) · " +
+            "SOUND Sonniss #GameAudioGDC, The Free Firearm Sound Library (CC0), US armed forces footage (public domain)\n" +
+            "GROUND, PLANTS, SKY Poly Haven and ambientCG (CC0) · TERRAIN SRTM (NASA/USGS) via AWS Terrain Tiles · " +
+            "BODIES MakeHuman (CC0) · TYPE Black Ops One, Bebas Neue, Courier Prime, Stardos Stencil (SIL Open Font License 1.1)";
+
         private void BuildStart(VisualElement root)
         {
             StartPanel = new VisualElement { name = "start" };
@@ -171,8 +181,10 @@ namespace LanesOfVietnam.View.UI
                 "1 advance · 2 hold · 3 fall back · 0 auto · Q W E R: call-ins · Z X C V B: units\n" +
                 "P: pause · Esc: cancel / deselect / this menu",
                 "keys");
-            // The credit its licence asks for, where its author asks for it: with the settings.
+            // The credit its licence asks for, where its author asks for it: with the settings. And the rest
+            // of what the game is made from: nothing else in it requires a credit, and all of it is owed one.
             Text(SettingsPanel, MusicCredit, "keys");
+            Text(SettingsPanel, Credits, "keys");
 
             var row2 = new VisualElement(); row2.AddToClassList("choice-row"); SettingsPanel.Add(row2);
             Btn(row2, "resume", "RESUME", Resume, "deploy");
