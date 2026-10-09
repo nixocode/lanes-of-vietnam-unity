@@ -256,6 +256,14 @@ namespace LanesOfVietnam.View
                             if ((b.Kind != EventKind.GrenadeBlast && b.Kind != EventKind.Shell && b.Kind != EventKind.TrapSprung) || b.X == null) continue;
                             _burst[e.Id] = new Vector2((float)b.X.Value, (float)b.Z.Value);
                             _blown[e.Id] = true;
+                            // (And which way it throws him across his own facing: a burst behind him, forward.)
+                            if (e.Id < _yaw.Length)
+                            {
+                                var man = st.Men[e.Id];
+                                var from = new Vector2((float)(man.X - b.X.Value), (float)-(man.Z - b.Z.Value));
+                                float facing = _yaw[e.Id] * Mathf.Deg2Rad;
+                                if (from.sqrMagnitude > 0.01f) _push[e.Id] = Vector2.Dot(from.normalized, new Vector2(Mathf.Sin(facing), Mathf.Cos(facing)));
+                            }
                             break;
                         }
                     continue;
@@ -461,7 +469,13 @@ namespace LanesOfVietnam.View
                     // His own height (and with it his stride), his own carriage on the march.
                     f.transform.localScale = Vector3.one * (0.95f + 0.09f * Hash(m.Id, 2));
                     f.Carriage = new Vector2(-2f + 8f * Hash(m.Id, 11), -3f + 6f * Hash(m.Id, 12));
-                    _yaw[i] = yaw;
+                    // His own walk, on the march and at the double, of those there are. The last of the marches is a
+                    // man walking with his rifle up: the first man raised of each squad, its point man, has that
+                    // one, and nobody else.
+                    int marches = f.MarchSpeeds.Length, others = marches >= 3 ? marches - 1 : marches;
+                    bool point = m.Id == 0 || st.Men[m.Id - 1].Squad != m.Squad;
+                    f.Gait = marches == 0 ? 0 : point && marches >= 3 ? marches - 1 : (int)(Hash(m.Id, 30) * others) % others;
+                    f.Pace = f.DoubleSpeeds.Length == 0 ? 0 : (int)(Hash(m.Id, 31) * f.DoubleSpeeds.Length) % f.DoubleSpeeds.Length;
                 }
                 // His feet. Going somewhere, they face it: turned at most TurnRate degrees a second of match
                 // time (a man setting off turns to where he is going at once, not over the first three paces

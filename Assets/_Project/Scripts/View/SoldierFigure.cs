@@ -35,7 +35,9 @@ namespace LanesOfVietnam.View
         public SkinnedMeshRenderer Body;
         public Renderer Rifle;
         public Transform GripL, Muzzle;
-        public Transform HandR, HandL, Chest, LowerArmR, Hips;
+        public Transform HandR, HandL, Chest, LowerArmR, LowerArmL, Hips;
+        /// <summary>From a knee he throws with his left hand (the clip is played left for right, so his rifle hand keeps the rifle): the grenade is drawn in that one.</summary>
+        public bool KneelThrowLeft;
         /// <summary>His head and neck, and which way his face points in the head's own space (SoldierBuilder, from the bind pose).</summary>
         public Transform Head, Neck;
         public Vector3 HeadForward = Vector3.forward;
@@ -102,9 +104,25 @@ namespace LanesOfVietnam.View
         public float WalkSpeed = 1f, RunSpeed = 2.3f, CrouchSpeed = 0.8f, CrawlSpeed = 0.4f;
         /// <summary>Above this he runs; at it and below he walks (the sim's men march at 1.35, catch up at 2 and rush at 4 m/s; the clips walk at 1.8 and run at 4.5).</summary>
         public const float RunFrom = 2.6f;
+        /// <summary>
+        /// Each man his own walk (the owner, playtest 9: "need more walk variations"). The walks there are for the
+        /// march and for the double, each at its own speed (SoldierBuilder.Marches, Doubles; none: the one walk for
+        /// both), and which of each is this man's (ArmyView gives them by his number).
+        /// </summary>
+        public float[] MarchSpeeds = new float[0], DoubleSpeeds = new float[0];
+        public int Gait, Pace;
+        /// <summary>The ground his legs are covering now, m/s: his gait's own speed as it is being played (the motion audit holds it to the ground he covers).</summary>
+        public float Legs { get; private set; }
+        /// <summary>
+        /// Below this he is on the march, from it at the double (the simulation's men march at 0.95 to 1.25 m/s and
+        /// go at 1.9 in contact); and where the march sits in the Animator's blend, below the walk.
+        /// </summary>
+        public const float MarchBelow = 1.5f, MarchKey = 1.0f;
         public int Deaths = 2;
         /// <summary>Deaths for circumstances, where Mixamo's clips exist for them.</summary>
         public bool RunDeath, BlastDeath, CrouchDeath, ProneDeath;
+        /// <summary>A second death for three of those: hit from behind at a run, thrown forward by a burst behind him, another from a knee.</summary>
+        public bool RunFlatDeath, BlastForwardDeath, CrouchDeath2;
         /// <summary>Where each standing death leaves his hips along his facing, metres (SoldierBuilder.LearnFalls): which way it throws him.</summary>
         public float[] Falls = new float[0];
         /// <summary>How many clips the Animator has for a blow hand to hand (states "Melee n" from BlowFirst), and whether it has the climb into and out of a trench.</summary>
@@ -114,7 +132,7 @@ namespace LanesOfVietnam.View
         public const float BlowFrom = 0.18f;
         /// <summary>How a man died, as the view can tell: shot, shot while running, or by a blast.</summary>
         public enum Fall { Shot, Running, Blast }
-        public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103;
+        public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103, RunFlatCode = 104, BlastForwardCode = 105, Crouch2Code = 106;
         /// <summary>Added to one of those codes: the same death, left for right (SoldierBuilder makes the states).</summary>
         public const int MirroredCode = 10;
         public bool MirroredDeaths;
@@ -144,6 +162,8 @@ namespace LanesOfVietnam.View
 
         private static readonly int SpeedId = Animator.StringToHash("Speed");
         private static readonly int ScaleId = Animator.StringToHash("SpeedScale");
+        private static readonly int GaitId = Animator.StringToHash("Gait");
+        private static readonly int PaceId = Animator.StringToHash("Pace");
         private static readonly int PostureId = Animator.StringToHash("Posture");
         private static readonly int DeadId = Animator.StringToHash("Dead");
         private static readonly int DeathId = Animator.StringToHash("DeathIndex");
@@ -264,18 +284,29 @@ namespace LanesOfVietnam.View
             // Backwards he has his own clips (standing and crouched); a crawl has none.
             bool back = speed < 0 && posture != 2;
             speed = Mathf.Abs(speed);
-            float key = 0f, scale = 1f;
+            float key = 0f, scale = 1f, legs = 0f;
             if (speed >= 0.05f)
             {
                 bool run = posture == 0 && speed > RunFrom;
                 key = posture == 2 ? CrawlSpeed : posture == 1 ? CrouchSpeed : run ? RunSpeed : WalkSpeed;
+                // Walking forward: his own walk for the march or for the double, played at its own stride.
+                float own = key;
+                if (posture == 0 && !run && !back)
+                {
+                    if (MarchSpeeds.Length > 0 && speed < MarchBelow) { key = MarchKey; own = MarchSpeeds[Mathf.Clamp(Gait, 0, MarchSpeeds.Length - 1)]; }
+                    else if (DoubleSpeeds.Length > 0) own = DoubleSpeeds[Mathf.Clamp(Pace, 0, DoubleSpeeds.Length - 1)];
+                }
                 // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
-                scale = Mathf.Clamp(speed / Mathf.Max(0.05f, key), 0.5f, posture == 2 ? 2.4f : 1.8f);
+                scale = Mathf.Clamp(speed / Mathf.Max(0.05f, own), 0.5f, posture == 2 ? 2.4f : 1.8f);
+                legs = own * scale;
             }
+            Legs = speed >= 0.05f ? legs : 0f;
             // Eased over a tenth of a second, so he goes from standing to walking and from a walk to a run, not snaps.
             float now = Animator.GetFloat(SpeedId), want = back ? -key : key;
             Animator.SetFloat(SpeedId, dt <= 0 ? want : Mathf.MoveTowards(now, want, Mathf.Max(Mathf.Abs(want - now), RunSpeed) * dt / 0.1f));
             Animator.SetFloat(ScaleId, scale);
+            Animator.SetFloat(GaitId, Mathf.Clamp(Gait, 0, Mathf.Max(0, MarchSpeeds.Length - 1)));
+            Animator.SetFloat(PaceId, Mathf.Clamp(Pace, 0, Mathf.Max(0, DoubleSpeeds.Length - 1)));
             Animator.SetInteger(PostureId, posture);
             _posture = posture;
             _speed = speed;
@@ -341,9 +372,12 @@ namespace LanesOfVietnam.View
             // (Each of these left for right too, for every other man.)
             int other = MirroredDeaths && seed % 2 == 1 ? MirroredCode : 0;
             if (posture == 2 && ProneDeath) return ProneCode + other;
-            if (how == Fall.Blast && BlastDeath) return BlastCode + other;
-            if (posture == 1 && CrouchDeath) return CrouchCode + other;
-            if (how == Fall.Running && RunDeath) return RunCode + other;
+            // (A burst behind him throws him forward; one in front, or one nobody placed, back. Of two deaths from a
+            // knee, each man has his own. At a run, hit from behind he goes down on his face; from in front or the
+            // side he stumbles on and falls.)
+            if (how == Fall.Blast && BlastDeath) return (BlastForwardDeath && push > 0.2f ? BlastForwardCode : BlastCode) + other;
+            if (posture == 1 && CrouchDeath) return (CrouchDeath2 && seed / 2 % 2 == 1 ? Crouch2Code : CrouchCode) + other;
+            if (how == Fall.Running && RunDeath) return (RunFlatDeath && (push > 0.35f || (push > -0.35f && seed / 2 % 2 == 1)) ? RunFlatCode : RunCode) + other;
             int n = Mathf.Max(1, Deaths);
             if (Mathf.Abs(push) > 0.35f && Falls != null && Falls.Length >= n)
             {
@@ -406,18 +440,21 @@ namespace LanesOfVietnam.View
             _inHand.GetComponent<MeshFilter>().sharedMesh = grenade;
             _inHand.SetActive(true);
             _holding = Ordnance.ThrowRelease;
+            _holdLeft = KneelThrowLeft && _posture == 1 && HandL != null;
             Hold();
         }
 
         private GameObject _inHand;
         private float _holding;
+        private bool _holdLeft;
 
         /// <summary>The grenade in his palm: past the wrist, along the forearm, as the hand turns.</summary>
         private void Hold()
         {
             if (_inHand == null || !_inHand.activeSelf) return;
-            var along = LowerArmR != null ? (HandR.position - LowerArmR.position).normalized : transform.forward;
-            _inHand.transform.SetPositionAndRotation(HandR.position + along * 0.07f, HandR.rotation);
+            Transform hand = _holdLeft ? HandL : HandR, arm = _holdLeft ? LowerArmL : LowerArmR;
+            var along = arm != null ? (hand.position - arm.position).normalized : transform.forward;
+            _inHand.transform.SetPositionAndRotation(hand.position + along * 0.07f, hand.rotation);
         }
 
         /// <summary>

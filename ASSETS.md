@@ -392,9 +392,10 @@ be redistributed, so they live in the ignored `Assets/_Licensed/` (their
 primary character (Remy: Mixamo's standard skeleton, retargeted by Humanoid
 onto our soldiers). Each file is named by its role in `SoldierBuilder.Mixamo`.
 
-All 44 clips the game uses are downloaded (2026-09-30 and 2026-10-01): 27
-singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
-(the pack's own export fails; its turns, jumps and strafes were left).
+All 61 clips the game uses are downloaded: 44 on 2026-09-30 and 2026-10-01
+(27 singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip:
+the pack's own export fails; its turns, jumps and strafes were left), four
+for Fieldcraft on 2026-10-01, and thirteen on 2026-10-09 for playtest 9.
 
 | group | roles (Mixamo clip) |
 |---|---|
@@ -406,6 +407,7 @@ singles, and 17 of the Pro Rifle Pack's 49 motions, exported clip by clip
 | reactions | `flinch` (Rifle Shielding Face), `hit_back` (Rifle Hit To Back), `kneel_hit` (Rifle Kneel Hit To Back), `prone_hit` (Rifle Prone Hit Reaction), `reload` (Reloading), `grenade` (Toss Grenade) |
 | deaths | `death_front_head`, `death_right`, `death_back_head`, `death_back`, `death_front`, `death_crouch_head` (Pack); `death_rifle` (Rifle Death), `death_fall_back` (Falling Back Death), `death_backwards` (Dying Backwards), `death_blast` (Flying Back Death), `death_run` (Rifle Run To Dying), `prone_death` |
 | fieldcraft (fetched 2026-10-01, owner's OK the same day) | `melee_stab` (Bayonet Stab), `melee_slash` (Slash Advance), `trench_in` (Jump Down: "Rifle Jump Down"), `trench_out` (Climbing Up Wall). sha256 starts: `melee_stab` 8658dde2e4dce16d, `melee_slash` d394a05e0836035a, `trench_in` de5a087ff1037816, `trench_out` f653a1d3d89b6ecd |
+| playtest 9 (fetched 2026-10-09, on the owner's word the same day: "do the mixamo batch next") | walks for the march, each man his own: `walk_waist` (Walk With Rifle: "Walking With Rifle At Waist Level", 1.19 m/s on our man), `walk_waist_b` (the same clip's "3 Cycle", 1.17), `walk_aim` (Walking: "Walking While Aiming Rifle", 0.91; a squad's point man). Walks for the double: `walk_quick` (Walk With Rifle: "Quickly Walk Forward With Rifle", 2.37), `crouch_run` (Crouched Run: "Running Crouched With Rifle", 2.65), beside `rifle_walk` (1.80). From a knee: `kneel_reload` (Reload: "Reload Rifle While In Crouch Position"), `kneel_grenade` (Throw Grenade: "Throwing Grenade While Crouched"; imported left for right, so the free hand throws, and started past the pin). Deaths: `death_fall_forward` (Falling Forward Death), `death_left` (Standing React Death Left), `death_knees` (Dying: "Dying Shot To The Chest Falling On Two Knees"), `death_blast_fwd` (Dying: "Explosion From Behind"), `death_run_flat` (Fall Flat: "Falling Flat On Face From A Hit To The Back While Running"), `death_crouch` (Crouch Death). Not fetched: rifle turns (a man turning where he stands steps round with his walk; nothing in the game would play a turn clip yet). sha256 starts: `walk_waist` 7282faf31b3e8ff9, `walk_waist_b` 04708f380760ba5d, `walk_aim` b95cd46534770c98, `walk_quick` 01e469c3d3334c56, `crouch_run` 4b29f8ecbc8cc7fe, `kneel_reload` 66cde47e15fd80be, `kneel_grenade` 15b0b3b7d606be7f, `death_fall_forward` 6a6ecada9b058b5c, `death_left` e5122fda61c5cbca, `death_knees` 94e10fe760f01e22, `death_blast_fwd` 048820e5a35e018f, `death_run_flat` 02672426580e9c94, `death_crouch` fc0e560b0836cd3c |
 
 ### Weapons — `Assets/_Project/Art/Weapons/`
 

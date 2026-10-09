@@ -253,6 +253,12 @@ namespace LanesOfVietnam.Tools
             // Fieldcraft (PLAN §12.15): the blow hand to hand, and into and out of a trench. Their
             // travel stays in the root, where the game leaves it: the simulation says where a man is.
             ("melee_stab", false, true), ("melee_slash", false, true), ("trench_in", false, true), ("trench_out", false, true),
+            // Playtest 9 (the owner: "need more walk variations", "more ... death animations"; fetched 2026-10-09 on
+            // his word). Three more walks and a quick one; a kneeling reload and a kneeling throw; six more deaths.
+            ("walk_waist", true, true), ("walk_waist_b", true, true), ("walk_quick", true, true), ("walk_aim", true, true),
+            ("crouch_run", true, true), ("kneel_reload", false, false), ("kneel_grenade", false, false),
+            ("death_blast_fwd", false, false), ("death_fall_forward", false, false), ("death_left", false, false),
+            ("death_knees", false, false), ("death_crouch", false, false), ("death_run_flat", false, false),
         };
 
         /// <summary>
@@ -307,10 +313,22 @@ namespace LanesOfVietnam.Tools
 
         /// <summary>The deaths standing or kneeling, in the order a man's death index picks them.</summary>
         private static readonly string[] MixamoDeaths =
-            { "death_front_head", "death_right", "death_back_head", "death_back", "death_front", "death_rifle", "death_fall_back", "death_backwards" };
+            { "death_front_head", "death_right", "death_back_head", "death_back", "death_front", "death_rifle", "death_fall_back", "death_backwards",
+              "death_fall_forward", "death_left", "death_knees" };
+        /// <summary>
+        /// The walks a man may have for his own. On the march (the simulation's men go at 0.95 to 1.25 m/s) the
+        /// slow ones, the last of them a man walking with his rifle up; at the double (1.9 m/s) the quick ones, the
+        /// first the walk every man had for both. SoldierFigure.Gait and Pace are indices into those there are.
+        /// </summary>
+        public static readonly string[] Marches = { "walk_waist", "walk_waist_b", "walk_aim" };
+        public static readonly string[] Doubles = { "rifle_walk", "walk_quick", "crouch_run" };
         /// <summary>DeathIndex codes for the deaths chosen by circumstance (SoldierFigure.DeathCode picks).</summary>
         public const int RunDeath = 100, BlastDeath = 101, CrouchDeath = 102, ProneDeath = 103;
+        /// <summary>And a second of three of them: running, hit from behind and down on his face; thrown forward by a burst behind him; another from a knee.</summary>
+        public const int RunFlatDeath = 104, BlastForwardDeath = 105, CrouchDeath2 = 106;
 
+        /// <summary>A clip imported left for right: its blade's offset against the same clip's as made (+1 or -1): set by looking (-1 turned him to face the camera).</summary>
+        private const float MirroredBlade = 1f;
         /// <summary>Which way Unity's rotation offset turns (+1 or -1): set by measurement.</summary>
         private const float OrientationSign = -1f;      // +1 turned the hips 57 degrees the wrong way (measured)
 
@@ -338,6 +356,29 @@ namespace LanesOfVietnam.Tools
             }
             return Mathf.Atan2(sum.x, sum.y) * Mathf.Rad2Deg;
         }
+
+        /// <summary>
+        /// When a death clip starts to take him down, seconds in: his body's middle a tenth of its height lower
+        /// than it began (the clip's own root curve). 0 if it cannot be told.
+        /// </summary>
+        public static float FallsAt(AnimationClip clip)
+        {
+            var b = AnimationUtility.GetCurveBindings(clip).FirstOrDefault(x => x.propertyName == "RootT.y");
+            if (b.propertyName == null) return 0f;
+            var y = AnimationUtility.GetEditorCurve(clip, b);
+            for (float t = 0; t <= clip.length; t += 1f / 30f)
+                if (y.Evaluate(t) < y.Evaluate(0) * 0.9f) return t;
+            return 0f;
+        }
+
+        /// <summary>
+        /// Seconds a death may stand before it starts to fall: shot, and thrown by a burst. Mixamo's deaths stand
+        /// from half a second to a second and a half first (the owner, playtest 9: "some are too slow, should be
+        /// sped up when it's an explosion"); each is started that much before its own fall, no sooner.
+        /// </summary>
+        public const float DeathLead = 0.6f, BlastLead = 0.25f;
+        /// <summary>Where the kneeling throw is started, seconds in: past the pin, so the grenade leaves his hand when the standing one's does (Ordnance.ThrowRelease).</summary>
+        public const float KneelThrowFrom = 1.48f;
 
         private static float RootTravel(AnimationClip clip)
         {
@@ -383,8 +424,16 @@ namespace LanesOfVietnam.Tools
                 // by the clip's own measured blade, gives back the stance as
                 // authored: the rifle along the clip's forward, the hips ~57 degrees
                 // to its right. Prone clips read true as they are.
+                // (A clip that is imported left for right is measured as Mixamo made it: put back first.)
+                bool mirrored = role == "kneel_grenade";
+                if (mirrored && c.mirror) { c.mirror = false; mi.clipAnimations = new[] { c }; mi.SaveAndReimport(); }
                 var blade = AuthoredYaw(path);
                 if (blade.HasValue) { c.keepOriginalOrientation = false; c.rotationOffset = blade.Value * OrientationSign; }
+                // The kneeling throw is Mixamo's right-handed, and our man's rifle is in his right hand: imported left
+                // for right, his free hand throws and his rifle hand keeps the rifle. (Mirrored here, with its blade
+                // the other way, and not by the Animator's state: that turned his back to the enemy.)
+                c.mirror = mirrored;
+                if (c.mirror && blade.HasValue) c.rotationOffset = blade.Value * OrientationSign * MirroredBlade;
                 c.lockRootHeightY = true; c.keepOriginalPositionY = true; c.heightFromFeet = false;
                 // "Climbing Up Wall" goes up a wall twice a man's height. Its rise is left in the
                 // root with its travel: a trench's own depth is the climb, and ArmyView gives it.
@@ -443,6 +492,8 @@ namespace LanesOfVietnam.Tools
             ctrl.AddParameter("Speed", AnimatorControllerParameterType.Float);
             ctrl.AddParameter(new AnimatorControllerParameter { name = "SpeedScale", type = AnimatorControllerParameterType.Float, defaultFloat = 1f });
             ctrl.AddParameter("Posture", AnimatorControllerParameterType.Int);
+            ctrl.AddParameter("Gait", AnimatorControllerParameterType.Float);
+            ctrl.AddParameter("Pace", AnimatorControllerParameterType.Float);
             ctrl.AddParameter("Dead", AnimatorControllerParameterType.Bool);
             ctrl.AddParameter("DeathIndex", AnimatorControllerParameterType.Int);
             foreach (var t in new[] { "Hit", "Reload", "Throw" }) ctrl.AddParameter(t, AnimatorControllerParameterType.Trigger);
@@ -472,6 +523,27 @@ namespace LanesOfVietnam.Tools
             // Backwards (a negative Speed): a man giving ground a few paces keeps his front to the enemy.
             string walkBack = R("rifle_walk_back"), runBack = R("rifle_run_back"), cback = R("rifle_crouch_walk_back");
             var stand = Tree("Stand", (runBack, -S(runBack)), (walkBack, -S(walkBack)), (R("rifle_idle", "idle"), 0f), (walk, S(walk)), (run, S(run)));
+            // Each man his own walk (the owner, playtest 9: "need more walk variations"). Below the walk there was, a
+            // march: the slow walks, picked by his Gait. Where the walk was, the quick ones, picked by his Pace. Each
+            // plays at its own stride (SoldierFigure.MarchSpeeds, DoubleSpeeds).
+            BlendTree Own(string name, string by, string[] of)
+            {
+                var own = new BlendTree { name = name, blendType = BlendTreeType.Simple1D, blendParameter = by, useAutomaticThresholds = false, hideFlags = HideFlags.HideInHierarchy };
+                AssetDatabase.AddObjectToAsset(own, ctrl);
+                for (int g = 0; g < of.Length; g++) own.AddChild(C(of[g]), g);
+                log.Add($"{name} ({string.Join(", ", of.Select(g => $"{g} {S(g):F2} m/s"))})");
+                return own;
+            }
+            {
+                var tree = (BlendTree)stand.motion;
+                var marches = Marches.Where(clips.ContainsKey).ToArray();
+                if (marches.Length > 0 && S(walk) > SoldierFigure.MarchKey + 0.2f) tree.AddChild(Own("March", "Gait", marches), SoldierFigure.MarchKey);
+                var doubles = Doubles.Where(clips.ContainsKey).ToArray();
+                var kids = tree.children;
+                int at = System.Array.FindIndex(kids, k => k.motion == C(walk));
+                if (doubles.Length > 1 && doubles[0] == walk && at >= 0) kids[at].motion = Own("Double", "Pace", doubles);
+                tree.children = kids.OrderBy(k => k.threshold).ToArray();
+            }
             var crouch = Tree("Crouch", (cback, -S(cback)), (R("kneel_idle", "kneel"), 0f), (cwalk, S(cwalk)));
             var prone = Tree("Prone", (R("prone_idle", "prone"), 0f), (R("crawl"), S("crawl")));
             sm.defaultState = stand;
@@ -526,6 +598,7 @@ namespace LanesOfVietnam.Tools
 
             // --- deaths: chosen by how he died (SoldierFigure.DeathCode) ---
             var mixDeaths = MixamoDeaths.Where(clips.ContainsKey).ToArray();
+            var starts = new List<string>();
             var deaths = mixDeaths.Length > 0 ? mixDeaths : new[] { "dead0", "dead1" }.Where(clips.ContainsKey).ToArray();
             void Death(string name, string clip, int code, bool mirrored = false)
             {
@@ -537,19 +610,26 @@ namespace LanesOfVietnam.Tools
                 tr.canTransitionToSelf = false;
                 tr.AddCondition(AnimatorConditionMode.If, 0, "Dead");
                 tr.AddCondition(AnimatorConditionMode.Equals, code, "DeathIndex");
+                // Started a moment before its own fall, not a second and a half before it.
+                float lead = clip == "death_blast" || clip == "death_blast_fwd" ? BlastLead : DeathLead;
+                float from = Mathf.Max(0f, FallsAt(C(clip)) - lead);
+                tr.offset = from / Mathf.Max(0.1f, C(clip).length);
+                if (!mirrored && from > 0.01f) starts.Add($"{clip} {from:F2} s in");
             }
             for (int k = 0; k < deaths.Length; k++) Death("Dead " + k, deaths[k], k);
             // Each of them again, left for right: twice the deaths from the same clips (the owner, playtest 9:
             // "more ... death animations"). A man falls to his other side, his other arm goes out.
             for (int k = 0; k < deaths.Length; k++) Death("Dead " + (deaths.Length + k), deaths[k], deaths.Length + k, true);
             var special = new (string clip, int code)[] { ("death_run", RunDeath), ("death_blast", BlastDeath),
-                                                          ("death_crouch_head", CrouchDeath), ("prone_death", ProneDeath) };
+                                                          ("death_crouch_head", CrouchDeath), ("prone_death", ProneDeath),
+                                                          ("death_run_flat", RunFlatDeath), ("death_blast_fwd", BlastForwardDeath), ("death_crouch", CrouchDeath2) };
             foreach (var (clip, code) in special.Where(x => clips.ContainsKey(x.clip)))
             {
                 Death("Dead " + clip, clip, code);
                 Death("Dead " + clip + " mirrored", clip, code + SoldierFigure.MirroredCode, true);
             }
             log.Add($"{deaths.Length} deaths and their mirrors + {string.Join(", ", special.Where(x => clips.ContainsKey(x.clip)).Select(x => x.clip))} and theirs");
+            if (starts.Count > 0) log.Add("deaths started part way (" + string.Join(", ", starts) + ")");
 
             // --- aim: the upper body to the shoulder, over whatever the legs are doing ---
             var mask = UpperBody();
@@ -577,8 +657,8 @@ namespace LanesOfVietnam.Tools
             var acts = new (string clip, int posture, string trigger)[]
             {
                 (R("flinch", "hit_back"), 0, "Hit"), (R("kneel_hit"), 1, "Hit"), (R("prone_hit"), 2, "Hit"),
-                (R("reload"), 0, "Reload"), (R("prone_reload"), 2, "Reload"),
-                (R("grenade"), 0, "Throw"), (R("grenade"), 1, "Throw"),
+                (R("reload"), 0, "Reload"), (R("kneel_reload"), 1, "Reload"), (R("prone_reload"), 2, "Reload"),
+                (R("grenade"), 0, "Throw"), (R("kneel_grenade", "grenade"), 1, "Throw"),
             }.Where(x => x.clip != null).ToArray();
             if (acts.Length > 0)
             {
@@ -596,6 +676,8 @@ namespace LanesOfVietnam.Tools
                     st.motion = C(clip);
                     var into = calm.AddTransition(st);
                     into.hasExitTime = false; into.hasFixedDuration = true; into.duration = 0.1f;
+                    // The kneeling throw from past the pin (and left-handed: ImportMixamo).
+                    if (clip == "kneel_grenade") into.offset = KneelThrowFrom / C(clip).length;
                     into.AddCondition(AnimatorConditionMode.If, 0, trigger);
                     into.AddCondition(AnimatorConditionMode.Equals, p, "Posture");
                     into.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
@@ -897,7 +979,7 @@ namespace LanesOfVietnam.Tools
                 fig.Rifle = rifle;
                 fig.GripL = t["grip_l"];
                 fig.Muzzle = t["muzzle"];
-                fig.HandR = t["hand_r"]; fig.HandL = t["hand_l"]; fig.LowerArmR = t["lowerarm_r"];
+                fig.HandR = t["hand_r"]; fig.HandL = t["hand_l"]; fig.LowerArmR = t["lowerarm_r"]; fig.LowerArmL = t["lowerarm_l"];
                 fig.Chest = t["spine_03"];
                 fig.Hips = t["pelvis"];
                 // His face, in the head bone's own space: the bind pose looks along the body's forward.
@@ -913,12 +995,17 @@ namespace LanesOfVietnam.Tools
                     speed.TryGetValue(mixamo, out var a) ? a : speed.TryGetValue(interim, out var b) ? b : otherwise;
                 fig.WalkSpeed = Sp("rifle_walk", "walk", 1f); fig.RunSpeed = Sp("rifle_run", "run", 2.3f);
                 fig.CrouchSpeed = Sp("rifle_crouch_walk", "crouch", 0.8f); fig.CrawlSpeed = Sp("crawl", "crawl", 0.4f);
+                // His walks, each at its own stride: on the march, and at the double.
+                float[] Strides(string[] of) => of.Where(w => speed.ContainsKey(w) && ImportedMixamo.Contains(w)).Select(w => speed[w]).ToArray();
+                fig.MarchSpeeds = fig.WalkSpeed > SoldierFigure.MarchKey + 0.2f ? Strides(Marches) : new float[0];
+                fig.DoubleSpeeds = Strides(Doubles) is { Length: > 1 } d && ImportedMixamo.Contains(Doubles[0]) ? d : new float[0];
                 var have = new HashSet<string>(ImportedMixamo);
                 fig.MixamoStand = have.Contains("rifle_idle");
                 fig.Blows = (have.Contains("melee_stab") ? 1 : 0) + (have.Contains("melee_slash") ? 1 : 0);
                 fig.BlowFirst = have.Contains("melee_stab") ? 0 : 1;
                 fig.Climbs = have.Contains("trench_in") && have.Contains("trench_out");
                 fig.MixamoCrouch = have.Contains("kneel_idle");
+                fig.KneelThrowLeft = have.Contains("kneel_grenade");
                 fig.MixamoProne = have.Contains("prone_idle");
                 var states = ctrl.layers[0].stateMachine.states.Select(x => x.state.name).ToArray();
                 fig.Deaths = states.Count(n => n.StartsWith("Dead ") && char.IsDigit(n[5]));
@@ -926,6 +1013,9 @@ namespace LanesOfVietnam.Tools
                 fig.BlastDeath = states.Contains("Dead death_blast");
                 fig.CrouchDeath = states.Contains("Dead death_crouch_head");
                 fig.ProneDeath = states.Contains("Dead prone_death");
+                fig.RunFlatDeath = states.Contains("Dead death_run_flat");
+                fig.BlastForwardDeath = states.Contains("Dead death_blast_fwd");
+                fig.CrouchDeath2 = states.Contains("Dead death_crouch");
                 fig.MirroredDeaths = states.Contains("Dead death_blast mirrored");
                 // What a burst can take off him: a forearm and hand, a lower leg and foot, either side.
                 fig.Limbs = new[] { "lowerarm_l", "calf_r", "lowerarm_r", "calf_l" }.Select(b => Limb(name, smr, t, b)).Where(l => l.Mesh != null).ToArray();

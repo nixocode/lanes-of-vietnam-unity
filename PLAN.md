@@ -2175,7 +2175,7 @@ a quick-fix pass. He decides what reaches `main`. A download asks first.
 | P3 | **The bound order (key 3): taken out** (2026-10-09, his word). Squads bound by themselves (§12.26); the keys are 1 advance, 2 hold, 3 fall back (4 still falls back), 0 auto; the tutor says what a closing squad is doing | done: PlayMode 19/19 |
 | P4 | **The guns:** model detail in `tools/blender/weapons.py`; a launcher's burst the size of its round | captures at full zoom |
 | P5 | **Call-ins you watch arrive:** the artillery's whistle and rounds walking in, an aircraft over the air strike, a Huey for the medevac, the radio operator on one knee at every call. Each switchable | each lands on the simulation's event tick; flicker and the frame budget hold |
-| P6 | *His yes:* **one Mixamo batch.** A rifle jog, a kneeling reload, a kneeling throw, rifle turns, two or three more walks, more deaths | the motion audit; the clips seen in strips |
+| P6 | **The Mixamo batch: fetched and in** (2026-10-09, his word; §12.30). Three walks for the march and two more for the double, a reload and a throw from a knee, six more deaths, and every death started close to its fall. Rifle turns were left | done: the motion audit 0.2%, PlayMode 20/20, the clips seen in sheets and a strip |
 | P7 | **Launcher sounds and music: in** (2026-10-09, his word). An M203's, an RPG-7's and an 81 mm mortar's reports from public-domain US military footage; two pieces by Kevin MacLeod (CC BY 4.0) behind the MUS button, credited in the settings (`ASSETS.md`, "Audio") | built and tested; **not listened to by anyone yet**: the reports were picked from spectrograms, the music from its catalogue's descriptions |
 | P8 | **Published** (2026-10-09, his word: Vercel), after a security check (§12.28). The **stranger test** is still to do | someone who has never seen the game finishes a match without help |
 
@@ -2587,6 +2587,74 @@ also lists what each assault cost by how it began.
 - **The demo is still the build before this one.** A deploy is on his
   word, and the Vercel CLI is signed out at his word; `Builds/web` here is
   this build, for `python3 tools/serve.py Builds/web --port 8065`.
+
+
+### 12.30 The Mixamo batch: walks, deaths, a reload and a throw from a knee (2026-10-09)
+
+The owner, with Chrome signed in to Mixamo: "do the mixamo batch next".
+It is §12.27's P6, and playtest 9's "need more walk variations" and "more
+... death animations" as far as new clips take them.
+
+**Fetched:** thirteen clips, through his browser, by the method of
+2026-09-30 (`ASSETS.md`, "Mixamo", has each by Mixamo's own name and its
+hash). The files are in the ignored `Assets/_Licensed/Mixamo/`; only their
+`.meta` files are committed.
+
+**What they are for, and what was found on the way.**
+
+- *Walks.* Each clip's own speed on our man is measured when it is
+  imported. The one walk there was is 1.80 m/s, and the simulation's men
+  march at 0.95 to 1.25: **every man on the march had been walking at half
+  to two thirds of his clip's pace**, a walk in slow motion. Three of the
+  new walks are slow ones (1.19, 1.17 and 0.91 m/s) and are now the
+  march: two with the rifle at the waist, which the men of a squad have
+  between them, and one with the rifle up and aimed, which its point man
+  has and nobody else. At the double (1.9 m/s, a squad in contact) a man
+  has one of three: the walk there was (1.80), a quick walk with the
+  rifle up (2.37), or a run bent double (2.65). Each plays at its own
+  stride for the ground he covers.
+- *From a knee.* A reload, where a kneeling man had none. And a throw: the
+  standing toss was played on a kneeling man. Mixamo's is right-handed
+  and our men's rifle is fixed to the right hand, so as made he swung the
+  rifle over his head; it is imported left for right (his free hand
+  throws, his rifle hand keeps the rifle on the enemy) and started past
+  the pin, so the grenade leaves his hand when the standing one's does.
+- *Deaths.* Three more that any man may fall by (forward, to his left,
+  down onto his knees): eleven, and their mirrors, twenty-two. And a
+  second for three circumstances: thrown forward by a burst behind him
+  (a burst in front still throws him back; the view now works out which),
+  down on his face when hit from behind at a run, and another from a
+  knee.
+- *Deaths that stood about.* Measured from each clip's own curves, Mixamo's
+  deaths stand from half a second to a second and a half before they begin
+  to fall (the new "explosion from behind": 1.6 s). The owner, playtest
+  9: "some are too slow, should be sped up when it's an explosion". Every
+  death is now started 0.6 s before its own fall, a burst's 0.25 s before,
+  no sooner. A man shot is down and still in 2.15 s where he took 2.65; one
+  thrown by a burst in 1.55 s where he took 1.80 (the PlayMode test).
+
+**Not fetched:** rifle turns, which the batch as listed had. A man turning
+where he stands steps round with his walk, and nothing in the view would
+play a turn clip without a change to how it turns him; the sliding that
+turns were wanted for has not been reported since playtest 8.
+
+**Looked at:** each new walk through its stride at the march's pace and the
+double's, the reload and the throw from a knee, and each new death through
+its fall, as contact sheets (`SoldierPreview.RenderBatch`, new); and a
+squad on the march in the game (`tools/strip.sh seed=3,tick=420,x=26`):
+the point man with his rifle up, the men behind him at the waist, out of
+step with each other.
+
+**Checks.** PlayMode 20/20 (one new test: the walks, the point man, the
+deaths by how he died). The motion audit holds: 0.2% of the ground men
+cover is covered without their legs (the limit is 2%). It now asks each
+figure what its legs are covering (`SoldierFigure.Legs`), where it had
+worked it out from the Animator's blend, which no longer says. The
+simulation is untouched, so no pin moved.
+
+**Not done.** No WebGL build of this yet, and no frame time (six more
+clips in a blend should cost nothing that can be measured; it is not
+measured). Not seen by the owner.
 
 
 ### 12.13 Corrections to earlier sections

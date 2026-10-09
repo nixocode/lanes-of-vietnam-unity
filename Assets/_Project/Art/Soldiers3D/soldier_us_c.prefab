@@ -1236,7 +1236,9 @@ MonoBehaviour:
   HandL: {fileID: 1053525983311675778}
   Chest: {fileID: 5350813722946897662}
   LowerArmR: {fileID: 4249264321049220051}
+  LowerArmL: {fileID: 1695294029692662558}
   Hips: {fileID: 3976229052322475047}
+  KneelThrowLeft: 1
   Head: {fileID: 8692061422253173720}
   Neck: {fileID: 4991960335114148369}
   HeadForward: {x: 0.00000012336359, y: 0.018760871, z: 0.999824}
@@ -1351,11 +1353,24 @@ MonoBehaviour:
   RunSpeed: 4.5027556
   CrouchSpeed: 1.9532301
   CrawlSpeed: 0.2200115
-  Deaths: 16
+  MarchSpeeds:
+  - 1.1903824
+  - 1.165577
+  - 0.90953416
+  DoubleSpeeds:
+  - 1.8008937
+  - 2.3664424
+  - 2.6523118
+  Gait: 0
+  Pace: 0
+  Deaths: 22
   RunDeath: 1
   BlastDeath: 1
   CrouchDeath: 1
   ProneDeath: 1
+  RunFlatDeath: 1
+  BlastForwardDeath: 1
+  CrouchDeath2: 1
   Falls:
   - -0.22240925
   - -0.51090413
@@ -1365,6 +1380,9 @@ MonoBehaviour:
   - 0.8877475
   - -0.8453844
   - -0.82658154
+  - 0.29633272
+  - -0.123390436
+  - 0.98462564
   - -0.22148949
   - -0.5108108
   - 0.9002897
@@ -1373,6 +1391,9 @@ MonoBehaviour:
   - 0.88588846
   - -0.84326303
   - -0.82571584
+  - 0.29541093
+  - -0.12630355
+  - 0.98434037
   Blows: 2
   BlowFirst: 0
   Climbs: 1

@@ -72,7 +72,7 @@ reference/TARGET.jpg             the specification for the look
 | Step 3 — grey-box map | lanes readable; the map's layout rules kept under the art |
 | Step 5/5a — command and interface | selection, orders, field glasses, the HUD to TARGET.jpg, a hold/go lever over every strongpoint; UIAudit 11/11 |
 | Step 6a/6b — art | photographed sky that lights the scene; scanned ground; 13 baked plant species; palms, bamboo, grass; the real Chu Pong massif (SRTM); sandbags, tower, trucks; cloud shadows; a measured grade |
-| Soldiers | six rebuilt bodies (three a side) on a Humanoid avatar, 48 Mixamo clips, stepped by match time (~0.35 ms a frame in WebGL); twelve built weapon models, one for every class |
+| Soldiers | six rebuilt bodies (three a side) on a Humanoid avatar, 61 Mixamo clips (each man his own walk; PLAN §12.30), stepped by match time (~0.35 ms a frame in WebGL); twelve built weapon models, one for every class |
 | Step 7 — the fighting | tracers, flashes, dust, shells, smoke, scorch marks, all from the sim's events |
 | Step 9 — audio | sourced recordings through a Web Audio port of the measured distance model |
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
@@ -81,9 +81,9 @@ reference/TARGET.jpg             the specification for the look
 | Build | 25.58 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 | Frame | 4.2 to 4.7 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
 | Demo | on Vercel since 2026-10-09, after a security check: only the build goes up, under a content policy that lets it call nobody (PLAN §12.28) |
-| Tests | EditMode 76/76, PlayMode 19/19 (2026-10-09, PLAN §12.29) |
+| Tests | EditMode 76/76 (PLAN §12.29), PlayMode 20/20 (PLAN §12.30), 2026-10-09 |
 
-The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.29 (fire control).
+The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.29 (fire control) and §12.30 (the Mixamo batch).
 
 ## Direction
 

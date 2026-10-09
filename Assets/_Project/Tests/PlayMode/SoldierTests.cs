@@ -73,7 +73,7 @@ namespace LanesOfVietnam.Tests
             Root.Paused = true;
             foreach (var proto in army.UsFigures.Concat(army.VcFigures))
             {
-                Assert.AreEqual(16, proto.Deaths, $"{proto.name}: eight deaths and their mirrors");
+                Assert.AreEqual(22, proto.Deaths, $"{proto.name}: eleven deaths and their mirrors");
                 Assert.IsTrue(proto.MirroredDeaths, $"{proto.name}: the deaths by circumstance have no mirrors");
                 Assert.AreEqual(SoldierFigure.BlastCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Blast));
                 Assert.AreEqual(SoldierFigure.BlastCode + SoldierFigure.MirroredCode, proto.DeathCode(3, 0, SoldierFigure.Fall.Blast));
@@ -111,6 +111,69 @@ namespace LanesOfVietnam.Tests
             Assert.Less(blown.Limbs[0].Bone.lossyScale.x, 0.01f, "the limb is still on his body");
             Object.Destroy(shot.gameObject);
             Object.Destroy(blown.gameObject);
+        }
+
+        /// <summary>
+        /// The owner, playtest 9: "need more walk variations", and more deaths. Every body has three walks for the
+        /// march and three for the double, each near enough the simulation's pace to be played at its own stride,
+        /// and a man's legs cover the ground he covers whichever is his; in a squad the point man walks with his
+        /// rifle up and the rest do not; and a man dies by how he was killed: thrown forward by a burst behind
+        /// him, down on his face when hit from behind at a run, one of two ways from a knee.
+        /// </summary>
+        [UnityTest, Category("Soldiers")]
+        public IEnumerator Each_man_has_his_own_walk_and_dies_by_how_he_was_killed()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var army = Root.ArmyView;
+            Root.Paused = true;
+            foreach (var proto in army.UsFigures.Concat(army.VcFigures))
+            {
+                Assert.AreEqual(3, proto.MarchSpeeds.Length, $"{proto.name}: the walks for the march");
+                Assert.AreEqual(3, proto.DoubleSpeeds.Length, $"{proto.name}: the walks for the double");
+                foreach (float own in proto.MarchSpeeds) Assert.That(0.95f / own, Is.InRange(0.75f, 1.3f), $"{proto.name}: a march walk far off the pace of the march");
+                foreach (float own in proto.DoubleSpeeds) Assert.That(1.9f / own, Is.InRange(0.7f, 1.3f), $"{proto.name}: a quick walk far off the pace of the double");
+                Assert.IsTrue(proto.KneelThrowLeft, $"{proto.name}: no throw from a knee");
+                Assert.AreEqual(SoldierFigure.BlastForwardCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Blast, 1f), "a burst behind him does not throw him forward");
+                Assert.AreEqual(SoldierFigure.BlastCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Blast, -1f));
+                Assert.AreEqual(SoldierFigure.RunFlatCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Running, 1f), "hit from behind at a run");
+                Assert.AreEqual(SoldierFigure.RunCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Running, -1f));
+                Assert.AreEqual(SoldierFigure.CrouchCode, proto.DeathCode(0, 1, SoldierFigure.Fall.Shot));
+                Assert.AreEqual(SoldierFigure.Crouch2Code, proto.DeathCode(2, 1, SoldierFigure.Fall.Shot), "one death from a knee for every man");
+            }
+
+            var f = Object.Instantiate(army.UsFigures[0], new Vector3(0, 50, 0), Quaternion.identity);
+            for (int g = 0; g < f.MarchSpeeds.Length; g++)
+            {
+                f.Gait = g;
+                f.Settle(0.95f, 0, false, false, 0);
+                for (int k = 0; k < 20; k++) f.Step(0.05f, 0.95f, 0, false, false, 0);
+                Assert.AreEqual(0.95f, f.Legs, 0.02f, $"march walk {g}: his legs do not cover the ground he covers");
+                Assert.AreEqual(SoldierFigure.MarchKey, f.Animator.GetFloat("Speed"), 0.01f, "on the march he is not in the march's walks");
+            }
+            for (int p = 0; p < f.DoubleSpeeds.Length; p++)
+            {
+                f.Pace = p;
+                f.Settle(1.9f, 0, false, false, 0);
+                for (int k = 0; k < 20; k++) f.Step(0.05f, 1.9f, 0, false, false, 0);
+                Assert.AreEqual(1.9f, f.Legs, 0.02f, $"quick walk {p}: his legs do not cover the ground he covers");
+            }
+            Object.Destroy(f.gameObject);
+
+            // In the match: a squad's first man has the walk with the rifle up, and nobody else in it has.
+            Root.Driver.FastForward(40);
+            yield return null;
+            yield return null;
+            var st = Root.Driver.State;
+            int seen = 0;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var fig = army.FigureOf(i);
+                if (fig == null) continue;
+                bool point = i == 0 || st.Men[i - 1].Squad != st.Men[i].Squad;
+                Assert.AreEqual(point, fig.Gait == fig.MarchSpeeds.Length - 1, $"man {i}: {(point ? "the point man has not his rifle up" : "a man behind the point man has")}");
+                seen++;
+            }
+            Assert.Greater(seen, 3);
         }
 
         [UnityTest, Category("Soldiers")]

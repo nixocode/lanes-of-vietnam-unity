@@ -106,8 +106,81 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
+        /// <summary>
+        /// When each death clip starts to take him down: its length, when his body's middle has dropped a tenth of its
+        /// height, and when it has gone 30 cm along the ground (the clips' own root curves). A clip that stands a
+        /// second first is a slow death; SoldierBuilder starts those part way in.
+        /// </summary>
+        public static void DeathTimes()
+        {
+            foreach (var (role, _, _) in SoldierBuilder.Mixamo.Where(m => m.role.Contains("death") || m.role == "kneel_grenade" || m.role == "grenade"))
+            {
+                var clip = AssetDatabase.LoadAllAssetsAtPath($"{SoldierBuilder.MixamoDir}/{role}.fbx").OfType<AnimationClip>().FirstOrDefault(x => !x.name.StartsWith("__"));
+                if (clip == null) continue;
+                AnimationCurve Curve(string prop)
+                {
+                    var b = AnimationUtility.GetCurveBindings(clip).FirstOrDefault(x => x.propertyName == prop);
+                    return b.propertyName == null ? null : AnimationUtility.GetEditorCurve(clip, b);
+                }
+                var y = Curve("RootT.y"); var x = Curve("RootT.x"); var z = Curve("RootT.z");
+                // (The right hand's reach, for the throws: its muscle curves are not a position, so the root only.)
+                float drop = -1, gone = -1;
+                if (y != null)
+                    for (float t = 0; t <= clip.length; t += 1f / 30f)
+                    {
+                        if (drop < 0 && y.Evaluate(t) < y.Evaluate(0) * 0.9f) drop = t;
+                        if (gone < 0 && x != null && z != null && new Vector2(x.Evaluate(t) - x.Evaluate(0), z.Evaluate(t) - z.Evaluate(0)).magnitude > 0.3f) gone = t;
+                    }
+                Debug.Log($"[LOV] {role}: {clip.length:F2} s; down a tenth at {drop:F2} s; 30 cm along at {gone:F2} s");
+            }
+        }
+
         /// <summary>For RenderArms: the weapon each column's man is given.</summary>
         private static string[] Carry;
+
+        /// <summary>For RenderBatch: each column's walk on the march and at the double, and which way what killed him threw him.</summary>
+        private static (int gait, int pace, float push)[] Own;
+
+        /// <summary>
+        /// The clips fetched on 2026-10-09, as the game plays them: each walk on the march and at the double
+        /// through its stride, the kneeling reload and throw, and the new deaths: captures/soldiers/us_a_walks.png,
+        /// _kneel.png and _deaths.png.
+        /// </summary>
+        public static void RenderBatch()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            var states = new System.Collections.Generic.List<(string, float, int, bool, bool, int, float)>();
+            var own = new System.Collections.Generic.List<(int, int, float)>();
+            for (int g = 0; g < SoldierBuilder.Marches.Length; g++)
+                foreach (float t in new[] { 0.35f, 0.65f, 0.95f }) { states.Add(($"{SoldierBuilder.Marches[g]} 0.95 m/s", 0.95f, 0, false, false, 0, t)); own.Add((g, 0, 0f)); }
+            for (int p = 0; p < SoldierBuilder.Doubles.Length; p++)
+                foreach (float t in new[] { 0.3f, 0.5f, 0.7f }) { states.Add(($"{SoldierBuilder.Doubles[p]} 1.9 m/s", 1.9f, 0, false, false, 0, t)); own.Add((0, p, 0f)); }
+            States = states.ToArray(); Own = own.ToArray();
+            Sheet("us_a", 1.6f, "_walks", 1.15f);
+
+            // The kneeling reload, and the kneeling throw through its length (to see where the grenade leaves his hand).
+            states.Clear();
+            foreach (float t in new[] { 0.5f, 1.2f, 2.0f }) states.Add(($"kneel reload {t:F1}", 0f, 1, false, false, -2, t));
+            foreach (float t in new[] { 0.1f, 0.25f, 0.4f, 0.5f, 0.6f, 0.8f, 1.1f, 1.5f }) states.Add(($"kneel throw {t:F2}", 0f, 1, false, false, -3, t));
+            States = states.ToArray(); Own = null;
+            Sheet("us_a", 1.6f, "_kneel", 1.15f);
+
+            // Each death through its fall, framed wide: some carry a man three metres. Seeds 8, 9, 10 are the three new
+            // ones any man may fall by; the rest are by how he died: a burst behind him and in front of him, hit from
+            // behind at a run, and the second from a knee.
+            states.Clear(); own.Clear();
+            void Dead(string name, int posture, int death, float push, float speed = 0f)
+            {
+                foreach (float t in new[] { 0.3f, 0.6f, 1.0f, 5f }) { states.Add((name, speed, posture, false, true, death, t)); own.Add((0, 0, push)); }
+            }
+            Dead("fall forward", 0, 8, 0f); Dead("left", 0, 9, 0f); Dead("knees", 0, 10, 0f);
+            Dead("blast from behind", 0, -1, 1f); Dead("blast from in front", 0, -1, -1f);
+            Dead("run, from behind", 0, -2, 1f, 1.9f); Dead("kneeling, second", 1, 2, 0f);
+            States = states.ToArray(); Own = own.ToArray();
+            Sheet("us_a", 1.2f, "_deaths", 2.6f);
+            States = orig; Own = null;
+        }
 
         private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
@@ -150,6 +223,7 @@ namespace LanesOfVietnam.Tools
                 go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, 90, 0));
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
                 if (Carry != null && !f.Carry(Carry[c])) Debug.LogWarning($"[LOV] {side} cannot carry {Carry[c]}");
+                if (Own != null) { f.Gait = Own[c].gait; f.Pace = Own[c].pace; }
                 if (s.name == "bind") goto shoot;          // as rigged: no Animator at all
                 var how = s.dead && s.death == -1 ? SoldierFigure.Fall.Blast : s.dead && s.death == -2 ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                 int seed = System.Math.Max(0, s.death);
@@ -164,7 +238,7 @@ namespace LanesOfVietnam.Tools
                 if (!s.dead && s.death == -5) f.Strike(1);
                 if (!s.dead && s.death == -6) f.Climb(true);
                 if (!s.dead && s.death == -7) f.Climb(false);
-                for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, seed, how);
+                for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, seed, how, Own != null ? Own[c].push : 0f);
                 shoot:
                 for (int row = 0; row < 3; row++)
                 {

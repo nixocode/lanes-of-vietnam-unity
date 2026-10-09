@@ -132,7 +132,9 @@ namespace LanesOfVietnam.Tests
                             if (speed >= 0.05f && speed < 0.4f && Mathf.Abs(a.GetFloat("Speed")) < 0.05f) { drifting += dt; drift += speed * dt; }
                             // What his legs are doing: the gait's own speed as it is played, in a gait; nothing between postures.
                             bool gaited = info.IsName("Stand") || info.IsName("Crouch") || info.IsName("Prone");
-                            float legs = gaited ? Mathf.Abs(a.GetFloat("Speed")) * a.GetFloat("SpeedScale") : 0f;
+                            // (The figure says it: each man has his own walk now, at its own stride, and the Animator's Speed is
+                            // only where that walk sits in the blend.)
+                            float legs = gaited ? f.Legs : 0f;
                             travelled += step.magnitude;
                             // (Past a quarter of a metre a second: a gait a little fast or slow for the ground is not a slide.)
                             // (Not while he steps round to face his man: that is legs going with nothing to carry.)
