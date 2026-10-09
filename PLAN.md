@@ -2443,6 +2443,17 @@ from chance. And "kept down" for a second instead of 0.6: 37% down and 8.2
 men killed a minute against 30% and 9.8, more of the same thing; the
 shorter was kept.
 
+And, after the rest was in, for the last ten metres of an assault: a man
+flat on his face (pin past `PinStop`) losing Gunnery's leave to fire and
+aim at three fifths inside ten metres. On the forty seeds not tuned on an
+assault then cost the squad going in 0.31 men where it had cost 0.38, and
+ended with the enemy dead or running 25% of the time where it had 25%; on
+the forty tuned on, 0.37 for 0.32 and 24% for 19%. Nothing that could be
+told from chance, so it is not in the build. What stops two assaults in
+three is the squad's own heads going down on the way in, from the third
+of the enemy that was never down and from his other squads; that is the
+thing to work on, not the defender's aim.
+
 **Before and after** (`simcs gunplay`, `brain`, `muddle` and `aware`, each
 with `N 2400 40 fieldcraft arms senses gunnery ammo tactics fortune tempo`,
 then the same with `firecontrol`; a minute of fighting):
@@ -2565,8 +2576,11 @@ also lists what each assault cost by how it began.
   its squads. That is the largest thing left in "AI smartness", and it is
   wider than P2's "the computer pulls hold and go": proposed as the next
   rule, the computer's commander, with its own flag and balance.
-- The last ten metres of an assault (above) is the next thing in the
-  gunplay itself.
+- An assault still fails two times in three, at a third of a man each
+  time (above, under what was left out). What would carry it is something
+  that keeps the whole of the enemy's line down while it goes in: smoke
+  thrown ahead of it (squad smoke is not thrown at an enemy nearer than
+  12 m), or a second squad as its base of fire.
 - **One match in forty opens with 42 seconds of nothing** (above), and
   one in ten has no shot in its first 31 s (the first shot: median 18 s).
   Not touched here.
