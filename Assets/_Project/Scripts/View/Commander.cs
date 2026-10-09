@@ -86,8 +86,9 @@ namespace LanesOfVietnam.View
             if (Input.GetKeyDown(KeyCode.Escape) && !cardInHand) Clear();
             if (Input.GetKeyDown(KeyCode.Alpha1)) Give(Order.Advance);
             if (Input.GetKeyDown(KeyCode.Alpha2)) Give(Order.Hold);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) Give(Order.Bound);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) Give(Order.Fallback);
+            // Three orders. (Bound was the third until playtest 9: since Senses it did nothing a march did not, and
+            // with Tactics a squad in contact moves by bounds by itself. 4 was fall back then, and still is.)
+            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Alpha4)) Give(Order.Fallback);
             if (Input.GetKeyDown(KeyCode.Alpha0)) Give(null);
             // Press and release, not "is the key down": assigning the key's state
             // every frame overwrote any other source of the glasses (UIAudit

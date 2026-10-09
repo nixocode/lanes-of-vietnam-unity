@@ -2171,11 +2171,11 @@ a quick-fix pass. He decides what reaches `main`. A download asks first.
 |---|---|---|
 | P0 | **Playtest 9** (§12.26): built, on `polish` | playtest 10: he calls the AI, the grenades and the snipers right, or says what is not |
 | P2 | **Every class its job**, three rules, each behind its own flag: the computer pulls hold and go on its own strongpoints; the mortar fires only once halted and set up; sappers carry satchel charges and use them on an occupied position. Then the view for each | flag off, every pin unchanged; a pin and tests a rule; `player 48 29 rate=0.9 tactics fortune` off and on |
-| P3 | **The bound order (key 3).** Squads now bound by themselves (§12.26). Recommended: take the order out, leaving advance, hold and fall back, with the levers | his decision first; UIAudit |
+| P3 | **The bound order (key 3): taken out** (2026-10-09, his word). Squads bound by themselves (§12.26); the keys are 1 advance, 2 hold, 3 fall back (4 still falls back), 0 auto; the tutor says what a closing squad is doing | done: PlayMode 19/19 |
 | P4 | **The guns:** model detail in `tools/blender/weapons.py`; a launcher's burst the size of its round | captures at full zoom |
 | P5 | **Call-ins you watch arrive:** the artillery's whistle and rounds walking in, an aircraft over the air strike, a Huey for the medevac, the radio operator on one knee at every call. Each switchable | each lands on the simulation's event tick; flicker and the frame budget hold |
 | P6 | *His yes:* **one Mixamo batch.** A rifle jog, a kneeling reload, a kneeling throw, rifle turns, two or three more walks, more deaths | the motion audit; the clips seen in strips |
-| P7 | *His yes:* **launcher sounds** (M79, RPG-7, mortar) and **music** | the audio distance table; no clipping with sixty men |
+| P7 | **Launcher sounds and music: in** (2026-10-09, his word). An M203's, an RPG-7's and an 81 mm mortar's reports from public-domain US military footage; two pieces by Kevin MacLeod (CC BY 4.0) behind the MUS button, credited in the settings (`ASSETS.md`, "Audio") | built and tested; **not listened to by anyone yet**: the reports were picked from spectrograms, the music from its catalogue's descriptions |
 | P8 | *His choice of host:* **publish, and the stranger test** | someone who has never seen the game finishes a match without help |
 
 P6 to P8 do not hold up the next phase.

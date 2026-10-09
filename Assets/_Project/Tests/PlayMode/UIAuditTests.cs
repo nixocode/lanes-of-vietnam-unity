@@ -105,7 +105,8 @@ namespace LanesOfVietnam.Tests
 
             // Each order, then auto — and each one read back from the sim's
             // own squad after the tick that applies it.
-            foreach (Order? o in new Order?[] { Order.Hold, Order.Advance, Order.Bound, Order.Fallback, null, Order.Hold })
+            // (Three orders and auto. Bound was a fourth until playtest 9: squads in contact bound by themselves now.)
+            foreach (Order? o in new Order?[] { Order.Hold, Order.Advance, Order.Fallback, null, Order.Hold })
             {
                 Assert.IsTrue(cmd.Give(o));
                 Ticks(1);

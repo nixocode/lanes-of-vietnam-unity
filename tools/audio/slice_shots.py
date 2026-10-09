@@ -74,6 +74,24 @@ WHOLE = {
 # the forest of this war, recorded in Southeast Asia. A 60 s loop.
 AMBIENCE = ("Jungle quiet insects and birds wide _120407_11.wav", 30.0, 60.0)
 
+# The launchers' and the mortar's own reports (the owner, 2026-10-09; until then the battery's howitzer,
+# pitched up, stood in for all three). Cut from the soundtracks of three videos of US forces firing, which
+# are works of the US government and so in the public domain (Wikimedia Commons; ASSETS.md has each
+# file's page). Chosen by looking at their spectrograms for reports with no voice or music over them.
+# These are free to pass on, so they are committed, beside the CC0 gunfire.
+# name: [(file under SourceArt/audio/commons, from s, to s)]
+PUBLIC = {
+    # An M203 firing: the M79's own 40 mm round, and its hollow thump.
+    "m79": [("m203_ifs.wav", 29.575, 30.15), ("m203_ifs.wav", 32.245, 32.9)],
+    # An RPG-7 leaving the tube, and its rocket going away.
+    "rpg": [("paratroopers_rpg.wav", 29.315, 31.4), ("paratroopers_rpg.wav", 32.365, 33.15)],
+    # An 81 mm mortar: the round going down the tube is not heard, the charge is.
+    "mortar": [("kw26_mortar_lfx.wav", 26.9, 27.75), ("kw26_mortar_lfx.wav", 33.7, 34.65)],
+}
+# The music: two pieces by Kevin MacLeod (incompetech.com), Creative Commons Attribution 4.0, credited in
+# the game's settings and in ASSETS.md. Re-encoded whole; committed (CC BY allows it, with the credit).
+MUSIC = ["Drums of the Deep.mp3", "Crypto.mp3"]
+
 # name: (folder, files, how many shots to keep). The M16 is the AR-15 — the
 # same rifle, semi-automatic — and the VC's AK-47 is the AK; the SKS joins
 # the AK so a VC volley is not one rifle.
@@ -300,6 +318,36 @@ def main():
     else:
         print("[audio] no SourceArt/audio/sonniss2017: explosions, cracks and the jungle bed are left out "
               "(tools/audio/fetch_sonniss.sh fetches them)", flush=True)
+
+    # --- the public-domain reports and the CC BY music (tools/audio/fetch_free.sh fetches their sources) ---
+    commons = os.path.join(ART, "commons")
+    if os.path.isdir(commons):
+        for name, cuts in PUBLIC.items():
+            listing[name] = []
+            for i, (f, a_s, b_s) in enumerate(cuts):
+                x, sr = read_stereo(os.path.join(commons, f))
+                m = x.mean(1)
+                seg = m[int(a_s * sr):int(b_s * sr)].copy()
+                rise = min(len(seg), int(sr * 0.003))
+                seg[:rise] *= np.linspace(0, 1, rise)             # the cut is just before the report: no click
+                wav = os.path.join(tmp, f"{name}_{i}.wav")
+                write_wav(wav, finish(seg, sr, 0.12), sr)
+                encode(wav, os.path.join(OUT, f"{name}_{i}.m4a"), 1, 128)
+                listing[name].append(dict(file=f"{name}_{i}.m4a", source=f"commons/{f} {a_s:.2f}-{b_s:.2f} s", seconds=round(len(seg) / sr, 3)))
+            print(f"[audio] {name}: {len(cuts)} public domain: {', '.join(str(e['seconds']) for e in listing[name])} s", flush=True)
+    else:
+        print("[audio] no SourceArt/audio/commons: the launchers and the mortar keep the howitzer's report (tools/audio/fetch_free.sh)", flush=True)
+    music = os.path.join(ART, "music")
+    if all(os.path.isfile(os.path.join(music, f)) for f in MUSIC):
+        listing["music"] = []
+        for i, f in enumerate(MUSIC):
+            out_m4a = os.path.join(OUT, f"music_{i}.m4a")
+            subprocess.run(["afconvert", "-f", "m4af", "-d", "aac@44100", "-b", "96000", "-c", "2", os.path.join(music, f), out_m4a], check=True)
+            secs = float(subprocess.run(["afinfo", "-b", out_m4a], capture_output=True, text=True).stdout.split(" sec")[0].split()[-1])
+            listing["music"].append(dict(file=f"music_{i}.m4a", source=f"music/{f} (Kevin MacLeod, incompetech.com, CC BY 4.0)", seconds=round(secs, 1)))
+        print(f"[audio] music: {', '.join(str(e['seconds']) for e in listing['music'])} s", flush=True)
+    else:
+        print("[audio] no SourceArt/audio/music: no music (tools/audio/fetch_free.sh)", flush=True)
 
     # A list of named sets, which Unity's JsonUtility can read (it cannot read a dict).
     with open(os.path.join(OUT, "audio.json"), "w") as f:

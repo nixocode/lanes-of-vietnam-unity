@@ -634,7 +634,49 @@ Fetched but not used yet: `warfare_t1b_cannon_firing_forest_distant_...wav`
 `Asia_Echoes_Tam Coc_Forest_Day.wav` (2020, Spectravelers: Asia Echoes, Laos -
 Vietnam; a Vietnamese forest for the bed, to be listened to before use).
 
-Still to source: the UH-1, voices and music.
+**The launchers and the mortar: US government footage, public domain**
+(added 2026-10-09, on the owner's word; until then the battery's howitzer,
+pitched up, stood in for all three). Neither the Sonniss mirror nor the
+firearm library has a launcher or a mortar. These are the soundtracks of
+three videos on Wikimedia Commons, each marked there as public domain because
+it is a work of the US armed forces. Fetched and hashed by
+`tools/audio/fetch_free.sh`; the reports were chosen by looking at each
+soundtrack's spectrogram for ones with no voice or music over them, and cut by
+`slice_shots.py` (`PUBLIC`) at the times given. They are free to pass on, so
+the cut files are committed.
+
+| set | source on Commons (credit) | sha256 of the video | cut, s |
+|---|---|---|---|
+| `m79_0`, `m79_1` | `File:M203 Grenade Launcher IFS.ogv` (Office of Naval Research; an M203 firing the M79's own 40 mm round) | `04f4d7f1…` | 29.58 to 30.15, 32.25 to 32.90 |
+| `rpg_0`, `rpg_1` | `File:U.S. Paratroopers Fire Polish RPGs.ogv` (DVIDS 355172, Lloyd Harger; RPG-7s) | `87f47300…` | 29.32 to 31.40, 32.37 to 33.15 |
+| `mortar_0`, `mortar_1` | `File:KW26 Mortar LFX, Baturaja Combat Training Center, Indonesia 2026 (NO GRAPHIC) (1022331).webm` (US Marine Corps, Lance Cpl. Andrew Knight; an 81 mm mortar) | `0e19a534…` | 26.90 to 27.75, 33.70 to 34.65 |
+
+They were picked by eye and have not been listened to by anyone: the owner's
+ear is the check.
+
+**Music: Kevin MacLeod, Creative Commons Attribution 4.0** (added 2026-10-09;
+the owner's decision of 2026-09-30 was "a free licensed score, logged with its
+attribution"). Two pieces from `incompetech.com/music/royalty-free/`, whose
+FAQ gives the licence and the form of the credit. Chosen from the catalogue's
+own descriptions (dark, suspenseful; percussion and strings; flute and
+percussion) and for a level that stays even under gunfire (`Crypto` varies
+3 dB from its quietest tenth to its loudest twentieth, `Drums of the Deep`
+10 dB). Re-encoded whole to AAC 96 kbit/s stereo; streamed, not decoded,
+behind the MUS button, one piece a match.
+
+| file | piece | ISRC | sha256 of the source MP3 |
+|---|---|---|---|
+| `music_0.m4a` | Drums of the Deep (2:54) | USUAN1400021 | `da4aa574…` |
+| `music_1.m4a` | Crypto (3:24) | USUAN1600013 | `f09ba8bf…` |
+
+The credit, which the licence requires and the game shows in its settings
+(`Screens.MusicCredit`):
+
+> "Drums of the Deep" and "Crypto", Kevin MacLeod (incompetech.com).
+> Licensed under Creative Commons: By Attribution 4.0.
+> https://creativecommons.org/licenses/by/4.0/
+
+Still to source: the UH-1 and voices.
 
 | committed file | sha256 |
 |---|---|
@@ -642,3 +684,7 @@ Still to source: the UH-1, voices and music.
 | `m16_0.m4a` … `m16_3.m4a` | `f948d7bf…`, `c0fd1868…`, `a08c0fb8…`, `47efe7e3…` |
 | `sks_0.m4a` … `sks_3.m4a` | `e26df6db…`, `343d3ad1…`, `e0574d50…`, `a3ef3dd8…` |
 | `bolt_0.m4a` … `bolt_3.m4a` | `85f95523…`, `c473188b…`, `82189ccd…`, `ddd49e7a…` |
+| `m79_0.m4a`, `m79_1.m4a` | `47e99090…`, `62d701f4…` |
+| `rpg_0.m4a`, `rpg_1.m4a` | `1055c7a1…`, `ad79d20c…` |
+| `mortar_0.m4a`, `mortar_1.m4a` | `794a73fc…`, `44893c60…` |
+| `music_0.m4a`, `music_1.m4a` | `5a3767f9…`, `0c9f7e60…` |
