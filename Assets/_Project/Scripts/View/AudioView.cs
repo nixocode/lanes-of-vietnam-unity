@@ -17,6 +17,8 @@ namespace LanesOfVietnam.View
         void Listener(float x, float z);
         void Volume(float master, float effects, float ambience);
         void Ambience(string name, float level);
+        /// <summary>The music: the piece at this address, at this level (0 stops it). One piece at a time.</summary>
+        void Music(string url, float level);
     }
 
     /// <summary>The Web Audio engine, in a browser build.</summary>
@@ -30,6 +32,7 @@ namespace LanesOfVietnam.View
         [DllImport("__Internal")] private static extern void LovAudio_Listener(float x, float z);
         [DllImport("__Internal")] private static extern void LovAudio_Volume(float master, float effects, float ambience);
         [DllImport("__Internal")] private static extern void LovAudio_Ambience(string name, float level);
+        [DllImport("__Internal")] private static extern void LovAudio_Music(string url, float level);
         public WebSoundOut() => LovAudio_Init(20260929);
         public void Load(string name, string url) => LovAudio_Load(name, url);
         public bool Loaded(string name) => LovAudio_Loaded(name) != 0;
@@ -38,6 +41,7 @@ namespace LanesOfVietnam.View
         public void Listener(float x, float z) => LovAudio_Listener(x, z);
         public void Volume(float master, float effects, float ambience) => LovAudio_Volume(master, effects, ambience);
         public void Ambience(string name, float level) => LovAudio_Ambience(name, level);
+        public void Music(string url, float level) => LovAudio_Music(url, level);
 #else
         public void Load(string name, string url) { }
         public bool Loaded(string name) => false;
@@ -45,6 +49,7 @@ namespace LanesOfVietnam.View
         public void Listener(float x, float z) { }
         public void Volume(float master, float effects, float ambience) { }
         public void Ambience(string name, float level) { }
+        public void Music(string url, float level) { }
 #endif
     }
 
@@ -52,7 +57,8 @@ namespace LanesOfVietnam.View
     public sealed class RecordingSoundOut : ISoundOut
     {
         public readonly List<(string name, float x, float z, float gain, bool immediate)> Played = new List<(string, float, float, float, bool)>();
-        public float ListenerX, ListenerZ, AmbienceLevel;
+        public float ListenerX, ListenerZ, AmbienceLevel, MusicLevel;
+        public string MusicUrl;
         public void Load(string name, string url) { }
         public bool Loaded(string name) => true;
         public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate)
@@ -63,6 +69,7 @@ namespace LanesOfVietnam.View
         public void Listener(float x, float z) { ListenerX = x; ListenerZ = z; }
         public void Volume(float master, float effects, float ambience) { }
         public void Ambience(string name, float level) => AmbienceLevel = level;
+        public void Music(string url, float level) { MusicUrl = url; MusicLevel = level; }
     }
 
     /// <summary>
@@ -189,6 +196,8 @@ namespace LanesOfVietnam.View
             if (json == null) { Debug.LogWarning("[LOV] audio: no listing; the game is silent"); yield break; }
             foreach (var set in JsonUtility.FromJson<Listing>(json).sets)
             {
+                // The music is streamed when it plays, not fetched and decoded now with the shots.
+                if (set.name == "music") { foreach (var f in set.files) _music.Add(dir + f.file); continue; }
                 var names = new List<string>();
                 foreach (var f in set.files)
                 {
@@ -228,6 +237,10 @@ namespace LanesOfVietnam.View
 
         private UI.Hud _hud;
         private readonly List<(Man m, float d)> _shots = new List<(Man, float)>();
+        /// <summary>The pieces of music, by address (audio.json's "music" set). A match plays one of them, by its seed.</summary>
+        private readonly List<string> _music = new List<string>();
+        /// <summary>How loud the music is against everything else, with its slider all the way up: under the fighting, not over it.</summary>
+        public const float MusicGain = 0.32f;
 
         private void LateUpdate()
         {
@@ -243,6 +256,9 @@ namespace LanesOfVietnam.View
             bool on = _hud == null || _hud.Sound;
             var s = _root.Settings;
             Out.Volume(on ? (s?.Master ?? 0.9f) : 0f, s?.Effects ?? 1f, s?.Ambience ?? 0.8f);
+            // The music, while its button is on: one piece a match, the next match the other.
+            if (_music.Count > 0)
+                Out.Music(_music[Mathf.Abs(_root.Seed) % _music.Count], on && (_hud == null || _hud.Music) ? MusicGain * (s?.Music ?? 0.7f) : 0f);
 
             if (st.Tick < _lastTick) ResetView();
             _lastTick = st.Tick;
@@ -285,11 +301,14 @@ namespace LanesOfVietnam.View
                         }
                         break;
                     case EventKind.Launch:
-                        // A launcher or a mortar firing: its thump, from the battery's recordings, pitched up to its size.
+                        // A launcher or a mortar firing: its own report (an M203's 40 mm thump for the M79, an RPG-7, an
+                        // 81 mm mortar). Without those recordings, the battery's howitzer pitched up to its size, as before.
                         if (e.Id < st.Men.Count)
                         {
                             var by = st.Men[e.Id];
-                            Play(Pick("howitzer"), by.X, by.Z, by.Weapon == Weapon.Mortar ? 0.7f : 0.5f, by.Weapon == Weapon.Mortar ? Range(1.5f, 1.7f) : Range(2.0f, 2.3f), false);
+                            string own = Pick(by.Weapon == Weapon.Mortar ? "mortar" : by.Weapon == Weapon.Rpg ? "rpg" : "m79");
+                            if (own != null) Play(own, by.X, by.Z, by.Weapon == Weapon.M79 ? 0.8f : 1f, Range(0.94f, 1.06f), false);
+                            else Play(Pick("howitzer"), by.X, by.Z, by.Weapon == Weapon.Mortar ? 0.7f : 0.5f, by.Weapon == Weapon.Mortar ? Range(1.5f, 1.7f) : Range(2.0f, 2.3f), false);
                         }
                         break;
                     case EventKind.Melee:

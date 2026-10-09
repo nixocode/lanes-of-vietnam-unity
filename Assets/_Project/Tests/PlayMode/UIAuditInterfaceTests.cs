@@ -98,6 +98,46 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The music (the owner, 2026-10-09: "launcher sounds and music"): one piece a match, streamed while
+        /// the MUS button is on, at its slider's level and under the fighting; silent with MUS or SND off.
+        /// Its credit is in the settings, in the words its licence asks for. And a launcher and the mortar
+        /// have reports of their own to play.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_music_plays_while_its_button_is_on_and_is_credited()
+        {
+            yield return LoadAndDeploy();
+            var audio = Object.FindAnyObjectByType<AudioView>();
+            var rec = audio.Out as RecordingSoundOut;
+            Assert.IsNotNull(rec, "outside a browser the recorder should be listening");
+            var hud = HudOf;
+            yield return null; yield return null; yield return null;
+            Assert.IsTrue(hud.Music, "the music is off to begin with");
+            StringAssert.Contains("music_", rec.MusicUrl ?? "", "no piece of music was asked for");
+            Assert.AreEqual(AudioView.MusicGain * Root.Settings.Music, rec.MusicLevel, 1e-4f, "the music is not at its slider's level");
+            Assert.Less(rec.MusicLevel, 0.5f, "the music is as loud as the fighting");
+            hud.Music = false;
+            yield return null; yield return null;
+            Assert.AreEqual(0f, rec.MusicLevel, "the MUS button did not stop the music");
+            hud.Music = true; hud.Sound = false;
+            yield return null; yield return null;
+            Assert.AreEqual(0f, rec.MusicLevel, "the SND button did not stop the music");
+            hud.Sound = true;
+
+            StringAssert.Contains("Kevin MacLeod (incompetech.com)", Screens.MusicCredit);
+            StringAssert.Contains("Creative Commons: By Attribution 4.0", Screens.MusicCredit);
+            StringAssert.Contains("https://creativecommons.org/licenses/by/4.0/", Screens.MusicCredit);
+            var screens = Object.FindAnyObjectByType<Screens>();
+            Assert.IsTrue(UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.Label>(screens.SettingsPanel).ToList().Any(l => l.text == Screens.MusicCredit),
+                          "the music's credit is not in the settings");
+
+            // The launchers' and the mortar's own recordings are in the listing the game loads.
+            string listing = System.IO.File.ReadAllText(Application.streamingAssetsPath + "/Audio/audio.json");
+            foreach (var set in new[] { "m79", "rpg", "mortar", "music" })
+                StringAssert.Contains($"\"name\": \"{set}\"", listing, $"no {set} recordings");
+        }
+
+        /// <summary>
         /// The owner: "need to be able to move side to side with mouse as well
         /// as zoom". Zooming narrows the lens and brings the camera in, and
         /// back out again; panning and dragging move it along the line, the

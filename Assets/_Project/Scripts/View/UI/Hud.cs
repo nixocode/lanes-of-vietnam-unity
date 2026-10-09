@@ -440,13 +440,16 @@ namespace LanesOfVietnam.View.UI
                     case EventKind.Pinned when e.Side == me: Tutor.Teach("pinned"); break;
                     case EventKind.RangedIn when e.Side != me: Tutor.Teach("ranged"); break;
                     case EventKind.SquadBroke when e.Side == me: Tutor.Teach("broken"); break;
-                    case EventKind.BoundStart when e.Side == me: Tutor.Teach("bound"); break;
                     case EventKind.Contact when e.Side == me: Tutor.Teach("contact"); break;
                     case EventKind.Fire when e.Side == me: Tutor.Teach("lanes"); break;
                     case EventKind.TrapSprung: Tutor.Teach("trap"); break;
                     case EventKind.FirstContact: Tutor.Teach("concealed"); Tutor.Teach("glasses"); break;
                 }
             }
+            // A squad of his closing with the enemy, by bounds (Tactics): no event says so, its task does.
+            if (st.Tactics)
+                for (int i = 0; i < st.Squads.Count; i++)
+                    if (st.Squads[i].Side == me && st.Squads[i].Task == SquadTask.Close && Squads.AnyAlive(st, i)) { Tutor.Teach("bound"); break; }
         }
 
         /// <summary>A vertical gradient texture: USS has no gradients, a 1 x 64 texture does.</summary>

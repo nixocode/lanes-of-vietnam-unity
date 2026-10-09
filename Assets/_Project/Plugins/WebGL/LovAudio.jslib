@@ -149,6 +149,34 @@ mergeInto(LibraryManager.library, {
     if (A.ambienceGain) A.ambienceGain.gain.setTargetAtTime(Math.max(0, Math.min(1, level)), A.ctx.currentTime, 0.6);
   },
 
+  // The music: one piece at a time, streamed through an <audio> element into its own gain. Not a decoded
+  // buffer like the rest: three minutes of stereo, decoded, is sixty megabytes. A new url replaces the piece
+  // that was playing; level 0 fades it out and then stops it. A browser that will not start it yet (no
+  // gesture) is asked again the next time the player does anything.
+  LovAudio_Music: function (urlPtr, level) {
+    var A = window.LovAudio; if (!A) return;
+    var url = UTF8ToString(urlPtr);
+    level = Math.max(0, Math.min(1, level));
+    if (!A.musicGain) {
+      A.musicGain = A.ctx.createGain(); A.musicGain.gain.value = 0; A.musicGain.connect(A.master);
+      var again = function () { if (A.musicEl && A.musicWanted && A.musicEl.paused) A.musicEl.play().catch(function () {}); };
+      ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) { window.addEventListener(ev, again, { capture: true }); });
+    }
+    if (url && A.musicUrl !== url) {
+      if (A.musicEl) { try { A.musicEl.pause(); A.musicEl.removeAttribute('src'); A.musicEl.load(); } catch (e) {} }
+      var el = new Audio(); el.loop = true; el.preload = 'auto'; el.src = url;
+      try { A.ctx.createMediaElementSource(el).connect(A.musicGain); } catch (e) { console.warn('[LOV] audio: no music: ' + e); }
+      A.musicEl = el; A.musicUrl = url;
+      A.musicGain.gain.cancelScheduledValues(A.ctx.currentTime); A.musicGain.gain.value = 0;
+    }
+    A.musicWanted = level > 0;
+    if (A.musicEl) {
+      if (level > 0 && A.musicEl.paused && A.ctx.state === 'running') A.musicEl.play().catch(function () {});
+      if (level <= 0 && !A.musicEl.paused && A.musicGain.gain.value < 0.003) A.musicEl.pause();
+    }
+    A.musicGain.gain.setTargetAtTime(level, A.ctx.currentTime, 0.8);
+  },
+
   LovAudio_Voices: function () {
     var A = window.LovAudio; return A ? A.voices : 0;
   }

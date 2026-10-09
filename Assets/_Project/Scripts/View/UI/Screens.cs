@@ -95,6 +95,11 @@ namespace LanesOfVietnam.View.UI
             return l;
         }
 
+        /// <summary>The music's credit, in the form its author gives (incompetech.com, "Licenses": CC BY 4.0).</summary>
+        public const string MusicCredit =
+            "MUSIC   \"Drums of the Deep\" and \"Crypto\", Kevin MacLeod (incompetech.com)\n" +
+            "Licensed under Creative Commons: By Attribution 4.0 · https://creativecommons.org/licenses/by/4.0/";
+
         private void BuildStart(VisualElement root)
         {
             StartPanel = new VisualElement { name = "start" };
@@ -163,9 +168,11 @@ namespace LanesOfVietnam.View.UI
 
             Text(SettingsPanel,
                 "KEYS   A/D or drag: pan · wheel: dolly · F: field glasses · click: select · Tab: next squad\n" +
-                "1 advance · 2 hold · 3 bound · 4 fall back · 0 auto · Q W E R: call-ins · Z X C V B: units\n" +
+                "1 advance · 2 hold · 3 fall back · 0 auto · Q W E R: call-ins · Z X C V B: units\n" +
                 "P: pause · Esc: cancel / deselect / this menu",
                 "keys");
+            // The credit its licence asks for, where its author asks for it: with the settings.
+            Text(SettingsPanel, MusicCredit, "keys");
 
             var row2 = new VisualElement(); row2.AddToClassList("choice-row"); SettingsPanel.Add(row2);
             Btn(row2, "resume", "RESUME", Resume, "deploy");
