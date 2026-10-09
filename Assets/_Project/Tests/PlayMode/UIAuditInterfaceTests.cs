@@ -130,6 +130,10 @@ namespace LanesOfVietnam.Tests
             var screens = Object.FindAnyObjectByType<Screens>();
             Assert.IsTrue(UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.Label>(screens.SettingsPanel).ToList().Any(l => l.text == Screens.MusicCredit),
                           "the music's credit is not in the settings");
+            Assert.IsTrue(UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.Label>(screens.SettingsPanel).ToList().Any(l => l.text == Screens.Credits),
+                          "the credits are not in the settings");
+            foreach (var owed in new[] { "Mixamo", "mocap.cs.cmu.edu", "NSF EIA-0196217", "Sonniss", "Poly Haven", "ambientCG", "SRTM", "MakeHuman", "SIL Open Font License" })
+                StringAssert.Contains(owed, Screens.Credits);
 
             // The launchers' and the mortar's own recordings are in the listing the game loads.
             string listing = System.IO.File.ReadAllText(Application.streamingAssetsPath + "/Audio/audio.json");

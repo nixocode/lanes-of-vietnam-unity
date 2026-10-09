@@ -2176,7 +2176,7 @@ a quick-fix pass. He decides what reaches `main`. A download asks first.
 | P5 | **Call-ins you watch arrive:** the artillery's whistle and rounds walking in, an aircraft over the air strike, a Huey for the medevac, the radio operator on one knee at every call. Each switchable | each lands on the simulation's event tick; flicker and the frame budget hold |
 | P6 | *His yes:* **one Mixamo batch.** A rifle jog, a kneeling reload, a kneeling throw, rifle turns, two or three more walks, more deaths | the motion audit; the clips seen in strips |
 | P7 | **Launcher sounds and music: in** (2026-10-09, his word). An M203's, an RPG-7's and an 81 mm mortar's reports from public-domain US military footage; two pieces by Kevin MacLeod (CC BY 4.0) behind the MUS button, credited in the settings (`ASSETS.md`, "Audio") | built and tested; **not listened to by anyone yet**: the reports were picked from spectrograms, the music from its catalogue's descriptions |
-| P8 | *His choice of host:* **publish, and the stranger test** | someone who has never seen the game finishes a match without help |
+| P8 | **Published** (2026-10-09, his word: Vercel), after a security check (§12.28). The **stranger test** is still to do | someone who has never seen the game finishes a match without help |
 
 P6 to P8 do not hold up the next phase.
 
@@ -2232,13 +2232,126 @@ three new things to play.
 1. **Downloads:** the Mixamo batch (P6); launcher sounds and music (P7); a
    golden-hour sky for Ia Drang.
 2. **The bound order:** take it out (recommended), or give it a meaning.
-3. **The host** for publishing (P8).
+3. **The host** for publishing (P8): Vercel, decided 2026-10-09 (§12.28).
 4. **The Huey and the aircraft:** built by script here, or a CC-BY model.
 5. **Ia Drang's reference frame:** a board assembled from public-domain
    photographs and the 2D game's palette, or one of his own.
 6. **Here or cloud sessions** for the simulation work (P2's rules, S1 to S4,
    Ia Drang's call-ins). The briefs in `Docs/cloud/` say what has changed
    under them.
+
+
+### 12.28 The four decisions, the security check and the demo (2026-10-09)
+
+The owner: "Get to work on all 4 objectives, then run a security check and
+let's deploy a demo on (I was thinking Vercel) or whatever is free and
+performs well (run an extensive security check, covering for common AI
+mistakes when launching a demo)." The four were the decisions left open at
+the end of §12.27's work.
+
+| | | |
+|---|---|---|
+| 1 | The Mixamo batch (P6) | **not done.** It needs the owner signed in at mixamo.com and the Chrome extension connected; twice it was not. Nothing was downloaded |
+| 2 | Launcher sounds and music (P7) | done, `2053651` |
+| 3 | The bound order out (P3) | done, `2053651` |
+| 4 | `polish` pushed to GitHub | done with this commit, after the check below |
+
+#### The security check
+
+What a demo put up in a hurry usually gets wrong, each looked for, and what
+was found. Each line is a command's output, except the two about the
+page's switches and what the game keeps in the browser, which are a
+reading of the code.
+
+| looked for | how | found |
+|---|---|---|
+| keys, tokens or passwords in the repository | `git grep` for the shapes of AWS, GitHub, Slack, Google, `sk-` and Vercel keys and of private keys, over every tracked text file; `git log --all -p -G` for AWS, GitHub and `sk-` keys and private keys in every commit's diff | none, in the files or in the history |
+| key or environment files | `git ls-files` for `.env`, `.pem`, `.key`, `.npmrc`, `auth.json`, `.vercel/` | none |
+| licensed files in a public repository | `git ls-files \| grep -E "Assets/_Licensed/\|StreamingAssets/Audio/licensed/" \| grep -v "\.meta$"` | none. The nine `.fbx` files that are tracked are the project's own (the bodies, the poses, the sandbags, the weapons: `ASSETS.md`) |
+| a home folder or an address in a tracked file | `git grep -E "/Users/[a-z]+\|@gmail\.com"` | none. **The commits' author addresses are in the public history** (two addresses, 62 commits); that cannot be taken back without rewriting it |
+| a development build | `ProjectSettings.asset`: no development build, no debug symbols, exceptions "explicitly thrown only"; `Build.WebGL` builds release | a release build |
+| the game calling anybody | the three build files unpacked (`brotli`) and searched for every `http(s)://` host; the package list | no host but those named in licence and documentation text. No analytics, ads or services package; Unity's cloud project id is empty and its services off |
+| what the page can be made to do | the URL's switches (`seed`, `perf`, `ff`, `off`, `card`) and the page's script read | each is parsed as a number or matched against a fixed list; nothing from the address reaches `eval`, the page's markup or a request. They change only what that visitor sees |
+| what the game keeps in the browser | `PlayerPrefs` uses | the settings and which of the tutor's lines have been shown. Nothing about the person |
+| more than the build going up | `tools/deploy.sh` stages `Builds/web` alone and checks every staged file against a list of what a build is made of; after deploying, the deployment's own file list | 77 files and `vercel.json`. `size.json` (the build's report) left out. Asked of the live site: `/size.json`, `/vercel.json`, `/.vercel/project.json`, `/.git/config`, `/.env` all 404; the folders 404 (no listings) |
+| owed credits missing | the licences in `ASSETS.md` against what the game shows | **missing, now added:** the settings name Mixamo, the CMU motion-capture database (with the grant line it asks for), Sonniss, the Free Firearm Sound Library, the US forces' footage, Poly Haven, ambientCG, SRTM, MakeHuman and the four fonts, under the music's credit (`Screens.Credits`; the PlayMode test checks each name) |
+| a bill | the team's plan, from Vercel's API | Hobby: nothing is charged; past its allowance a project is paused, not billed. No functions, no environment variables, no database: nothing to run up or to leak |
+
+#### The demo
+
+**https://lanes-of-vietnam-65.vercel.app** : a new Vercel project,
+`lanes-of-vietnam-65`, in the owner's team. His earlier project `vietnam-65`
+was not touched. `tools/deploy.sh` (new) stages the build, writes
+`vercel.json`, checks what is staged and deploys: `tools/deploy.sh` stages
+only, `preview` and `prod` deploy. The Vercel CLI was signed in by the owner
+in his browser.
+
+What the host is told to send, and why:
+
+- **the Brotli headers** the build cannot start without (PLAN §6):
+  `Content-Encoding: br` and each file's own type;
+- **a content policy:** scripts from the site itself, WebAssembly, and the
+  page's one inline script by its hash (written at deploy time, because it
+  changes when the template does). No `eval` of strings. Requests, images,
+  sounds and fonts from the site itself only, so the game could not call
+  anybody even if a later change tried to;
+- **no framing by other sites** (`frame-ancestors`, `X-Frame-Options`), no
+  sniffing of types, no referrer sent, no use of the camera, microphone or
+  location, HTTPS only for two years;
+- **other sites may not use the build's files:** `Cross-Origin-Resource-Policy:
+  same-origin`, and `Access-Control-Allow-Origin` set to the site's own
+  address. Vercel answers every static file with `Access-Control-Allow-Origin:
+  *` unless told otherwise; the first deployment did, and the second does
+  not. This stops another site's page embedding the sounds; it does not stop
+  a person downloading them, which nothing on a public web game can;
+- **`X-Robots-Tag: noindex, nofollow`:** search engines are asked to leave
+  the demo out. This one is a choice made for him, not asked of him: a demo
+  is handed out by its link. One line of `tools/deploy.sh` to take out;
+- **nothing kept without asking again** (`max-age=0, must-revalidate`) for
+  the build and the sounds, whose names do not change from build to build.
+
+Checked before it went up, with the staged folder served on this Mac under
+the same headers, and again live (`curl`, then headless Chrome for 60 to 75
+seconds with `?perf=1&seed=3`):
+
+- every header above present on the page;
+- the three build files arrive byte for byte as built, `Content-Encoding: br`
+  with the right type (Vercel does not compress them a second time); the
+  loader and `audio.json`, which Vercel compresses itself, decode to the
+  local files;
+- the game loads, builds its world and plays a match: **no refusal by the
+  policy, no cross-origin refusal, no error on the console**;
+- asked from another origin, a build file answers with the site's own
+  address, not `*`;
+- a deployment's own long address redirects to Vercel's sign-in (302); only
+  the project's address is public.
+
+Numbers: 78 files staged, 32.8 MB; a first visit fetches the loader, the
+framework, the code and the data, 26,801,385 bytes (25.6 MB), then the
+sounds as they are wanted. From this Mac the data file (21.9 MB) came in
+0.95 s and the code (4.8 MB) in 0.25 s (`curl`, one run): that is this
+connection, not anybody else's. The frame time was not measured again: the
+build is §12.26's with a label added, and the headless runs above were held
+to the display's 60 a second.
+
+Tests with the credits in: EditMode 71/71, PlayMode 19/19 (one skipped, the
+capture).
+
+#### Left
+
+- **The Mixamo batch** (above).
+- **Nobody has listened** to the launchers' reports or the music (§12.27,
+  P7), and the owner has not played anything since playtest 9: the demo is
+  the build for playtest 10.
+- **The stranger test** (P8) is now possible, and not done.
+- **His to decide:** whether the demo should be findable (the `noindex`
+  line, and a link in `README.md`, which has none); whether future commits
+  should carry GitHub's no-reply address instead of his own.
+- The Vercel CLI stays signed in on this Mac (`vercel logout` ends it).
+  `Builds/deploy/` and its `.vercel/` are inside the ignored `Builds/`.
+- Vercel's Hobby plan is for personal, non-commercial use, and its monthly
+  transfer allowance is the limit on visitors: at 33 MB a full visit, the
+  usage page in the dashboard is where to watch it.
 
 
 ### 12.13 Corrections to earlier sections

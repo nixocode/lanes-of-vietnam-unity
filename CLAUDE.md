@@ -66,6 +66,10 @@ and say so:
   and Sonniss audio stay in ignored folders; only their `.meta` files are
   committed. Check before every push.
 - **No new downloads** (Mixamo clips, audio, models) without the owner's yes.
+- **The demo goes up with `tools/deploy.sh` and nothing else** (PLAN §12.28),
+  on the owner's word each time. It stages the build alone, checks every file
+  against what a build is made of, and writes the headers. Never run `vercel`
+  from the project folder: that uploads the project.
 - **Measure, then say what was measured.** Numbers in `PLAN.md` come from a
   tool and say which. Frame times are taken in the WebGL build at the owner's
   screen (2592 x 1370), on the Mac.
