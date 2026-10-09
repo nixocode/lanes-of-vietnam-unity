@@ -1571,6 +1571,258 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(0, new LiveMatch(Drilled(5, tempo: true)).State.Squads[0].Lane, "without the rule a match opens in the near lane");
         }
 
+        // --- Part 2: fire control, behind MatchOptions.FireControl (the owner, 2026-10-09: gunplay and AI smartness) -----
+
+        private static MatchOptions Directed(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Drilled(seed, onMap, tempo, fortune: true);
+            o.FireControl = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol [map]`.</summary>
+        [TestCase(1, true, 5070, 4188068015u, 3040016184u, 1731903378u, "us morale broke")]
+        [TestCase(7, false, 4220, 2037419726u, 1865812131u, 1248060381u, "vc morale broke")]
+        public void With_fire_control_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).FireControl, "fire control must be off unless asked for");
+            var (a, m) = Played(Directed(seed, asTheGame));
+            var (b, _) = Played(Directed(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>A squad has an enemy squad in sight, as of now (what <see cref="Senses.Look"/> would have written).</summary>
+        private static void Know(SimState st, Squad sq, int enemy)
+        {
+            while (sq.KnownAt.Count <= enemy) sq.KnownAt.Add(Senses.Never);
+            sq.KnownAt[enemy] = st.Tick;
+        }
+
+        /// <summary>
+        /// A state to put a shot together in: an American rifle squad at x -10 in the near lane with every
+        /// VC squad in sight, and every VC man off at the far end until the test brings him up.
+        /// </summary>
+        private static (SimState st, Squad sq, List<Man> own, List<Man> foes) Range(bool rule)
+        {
+            var st = Match.Create(rule ? Directed(3) : Drilled(3, fortune: true));
+            var sq = st.Squads.First(q => q.Side == Side.Us && q.Card == "us-rifle");
+            var own = Squads.Roster(st, sq.Id);
+            double z = Tune.Lanes[sq.Lane];
+            for (int i = 0; i < own.Count; i++) { own[i].X = -10 - i; own[i].Z = z; own[i].Posture = Posture.Crouched; own[i].Cover = -1; own[i].Pin = 0; }
+            sq.AnchorX = -10; sq.AnchorZ = z;
+            foreach (var o in st.Men.Where(x => x.Side == Side.Us && x.Squad != sq.Id)) o.X = -44;
+            var foes = st.Men.Where(x => x.Side == Side.Vc).ToList();
+            foreach (var e in foes) { e.X = 44; e.Z = z; e.Cover = -1; e.Posture = Posture.Crouched; e.Pin = 0; e.Weapon = Weapon.Ak; e.Seen = true; }
+            foreach (var q in st.Squads.Where(q => q.Side == Side.Vc)) Know(st, sq, q.Id);
+            sq.ThreatSeen = true;
+            return (st, sq, own, foes);
+        }
+
+        /// <summary>
+        /// The owner, 2026-10-09: "focus on firing/gunplay mechanics and AI smartness". A man fires at the
+        /// enemy he is likeliest to hit, not the nearest; at one his squad is not already on; he stays on his
+        /// man; a machine gun moves on from the man it has just fired at; a sniper looks for a crew. Without
+        /// the rule he fires at the nearest, as he did.
+        /// </summary>
+        [Test]
+        public void With_fire_control_a_man_fires_at_the_man_worth_most_and_a_squad_spreads_its_fire()
+        {
+            foreach (bool rule in new[] { true, false })
+            {
+                var (st, sq, own, foes) = Range(rule);
+                Man a = own[0], mate = own[1], near = foes[0], far = foes[1];
+                // The nearer man flat behind a wall, the further one on his feet in the open.
+                var wall = st.Cover.First(c => c.Kind == CoverKind.Sandbag);
+                near.X = 2; near.Posture = Posture.Prone; near.Cover = wall.Id;
+                far.X = 5; far.Posture = Posture.Standing;
+                Assert.Greater(Combat.HitChance(st, a, far), 2 * Combat.HitChance(st, a, near));
+                Assert.AreEqual(rule ? far : near, Senses.PickTarget(st, a), rule ? "he fired at the nearest man, flat behind a wall, with one on his feet in the open" : "without the rule he no longer fires at the nearest");
+                if (!rule) continue;
+
+                // Two men alike, a pace apart: the one nobody of his squad is on; with nobody on either, the one he is on.
+                near.Posture = far.Posture = Posture.Crouched; near.Cover = -1;
+                near.X = far.X = 2; far.Z = near.Z + 1;
+                Assert.AreEqual(near, Senses.PickTarget(st, a));
+                mate.Mark = near.Id; mate.FiredAt = st.Tick;
+                Assert.AreEqual(far, Senses.PickTarget(st, a), "the whole squad fires at one man");
+                mate.Mark = far.Id;
+                Assert.AreEqual(near, Senses.PickTarget(st, a));
+                mate.FiredAt = st.Tick - Tune.MarkTicks - 1;
+                a.Mark = far.Id;
+                Assert.AreEqual(far, Senses.PickTarget(st, a), "he changes his man with every shot");
+                // A machine gun traverses: on from the man it has just fired at.
+                a.Weapon = Weapon.M60;
+                Assert.AreEqual(near, Senses.PickTarget(st, a), "a machine gun stays on one man");
+                // A sniper looks for the crews.
+                a.Weapon = Weapon.Sniper; a.Mark = -1;
+                far.X = 6; far.Weapon = Weapon.Rpd;
+                Assert.AreEqual(far, Senses.PickTarget(st, a), "a sniper fires at a rifleman with a machine gun to fire at");
+
+                // Covering fire: a rifleman's round with next to no chance, fired slowly unless somebody of his is moving under it.
+                a.Weapon = Weapon.M16;
+                Assert.IsTrue(FireControl.Covering(st, a, Tune.AimedFloor * 0.5));
+                Assert.IsFalse(FireControl.Covering(st, a, Tune.AimedFloor * 2), "an aimed shot is covering fire");
+                Assert.IsFalse(FireControl.Covering(st, new Man { Weapon = Weapon.M60 }, 0), "a machine gun's burst is slowed");
+                Assert.IsFalse(FireControl.Covering(st, new Man { Weapon = Weapon.Sniper }, 0), "a sniper fires covering fire");
+                sq.Task = SquadTask.Firefight; sq.Prep = false;
+                foreach (var q in st.Squads) if (q != sq) q.Task = SquadTask.March;
+                Assert.IsFalse(FireControl.Wanted(st, a), "covering fire is wanted with nobody moving");
+                sq.Prep = true;
+                Assert.IsTrue(FireControl.Wanted(st, a), "a squad working up to going in does not pour it on");
+                sq.Prep = false; sq.Task = SquadTask.Close;
+                Assert.IsTrue(FireControl.Wanted(st, a));
+                sq.Task = SquadTask.Firefight;
+                var beside = st.Squads.First(q => q.Side == Side.Us && q != sq);
+                beside.Lane = sq.Lane; beside.AnchorX = sq.AnchorX - 5; beside.Task = SquadTask.Assault;
+                Assert.IsTrue(FireControl.Wanted(st, a), "a squad going in beside it gets no covering fire");
+                foreach (var o in st.Men.Where(x => x.Squad == beside.Id)) o.Alive = false;
+                Assert.IsFalse(FireControl.Wanted(st, a), "a dead squad's assault is still being covered");
+            }
+
+            // Kept down: a man does not begin to get over fire while it is still landing by him.
+            var held = Match.Create(Directed(3));
+            var man = held.Men[0];
+            Combat.ApplyPin(held, man, 0.5);
+            double pinned = man.Pin;
+            Assert.AreEqual(held.Tick, man.UnderAt);
+            Combat.Relax(held, man);
+            Assert.AreEqual(pinned, man.Pin, "his head came up with the rounds still landing");
+            held.Tick += Tune.PinHold + 1;
+            Combat.Relax(held, man);
+            Assert.Less(man.Pin, pinned, "he never gets over it");
+            var loose = Match.Create(Drilled(3, fortune: true));
+            Combat.ApplyPin(loose, loose.Men[0], 0.5);
+            pinned = loose.Men[0].Pin;
+            Combat.Relax(loose, loose.Men[0]);
+            Assert.Less(loose.Men[0].Pin, pinned, "without the rule a man is held down");
+        }
+
+        /// <summary>
+        /// A squad goes in when the enemy in front of it is beaten down man by man, never onto a machine gun
+        /// that is still up and never outnumbered, or when it has him three to one; going in, it keeps going
+        /// unless it is stopped; stopped, it waits before it tries again. A rocket is not fired at one rifleman
+        /// by himself, nor anything that bursts where it would catch its own side.
+        /// </summary>
+        [Test]
+        public void With_fire_control_a_squad_goes_in_on_a_beaten_enemy_and_a_burst_is_for_a_group()
+        {
+            var (st, sq, own, foes) = Range(true);
+            for (int i = 0; i < 3; i++) foes[i].X = 2 + i;
+            Assert.AreEqual(5, own.Count);
+            FireControl.Front(st, sq, out int enemies, out int down, out bool gunUp);
+            Assert.AreEqual((3, 0, false), (enemies, down, gunUp));
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, 0), "it went in on three men with their heads up");
+            foes[0].Pin = 0.5;
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, 0), "one man down in three is not a beaten enemy");
+            foes[1].Pin = 0.5;
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own, 0), "two in three down, and it did not go in");
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, Tune.PinDrop), "it went in with its own heads down");
+            foes[2].Weapon = Weapon.Rpd;
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, 0), "it went in onto a machine gun that was still up");
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, 0, committed: true), "going in, it did not stop for a machine gun");
+            foes[2].Reloading = 20;
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own, 0), "a machine gun changing its belt stopped it");
+            foes[2].Weapon = Weapon.Ak; foes[2].Reloading = 0;
+            // Going in already, it does not stop because their heads have come up; outnumbered, it never starts.
+            foes[0].Pin = foes[1].Pin = 0;
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own, 0, committed: true), "half way in, it stopped because a head came up");
+            foes[0].Pin = foes[1].Pin = foes[2].Pin = 0.5;
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own.Take(2).ToList(), 0), "two men went in on three");
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own.Take(2).ToList(), 0, committed: true), "two men half way in on three stopped");
+            // Stopped once, it waits.
+            sq.StalledAt = st.Tick;
+            Assert.IsFalse(FireControl.GoesIn(st, sq, own, 0), "stopped a moment ago, it went in again");
+            sq.StalledAt = st.Tick - Tune.AssaultAgain;
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own, 0));
+            // Three to one, it goes in whatever their heads are doing.
+            foes[1].X = foes[2].X = 44; foes[0].Pin = 0; sq.StalledAt = st.Tick;
+            Assert.IsTrue(FireControl.GoesIn(st, sq, own, 0), "five men did not go in on one");
+            // And it means to go in, and works up to it, only when it is not outnumbered and has had its breath.
+            sq.Task = SquadTask.Firefight; sq.StalledAt = Senses.Never;
+            Assert.IsTrue(FireControl.MeansTo(st, sq, own, 0, Tune.FirefightMin));
+            Assert.IsFalse(FireControl.MeansTo(st, sq, own, 0, Tune.FirefightMin - 1));
+            Assert.IsFalse(FireControl.MeansTo(st, sq, own, Tune.PinDrop, Tune.FirefightMin));
+            foes[1].X = 3; foes[2].X = 4;
+            Assert.IsFalse(FireControl.MeansTo(st, sq, own.Take(2).ToList(), 0, Tune.FirefightMin), "outnumbered, it works up to an assault");
+
+            // Bursts. A rocket: not at one rifleman by himself; at two; at a machine gun by itself; never where it would catch its own.
+            var (bt, bsq, mine, theirs) = Range(true);
+            var rocket = theirs[0]; rocket.Weapon = Weapon.Rpg; rocket.X = 10;
+            foreach (var o in mine) { o.X = -44; o.Seen = true; }
+            var rpg = Arms.Of(Weapon.Rpg);
+            mine[0].X = -5;
+            Assert.IsNull(FireControl.Burst(bt, rocket, rpg), "a rocket at one rifleman by himself");
+            mine[1].X = -6;
+            Assert.IsNotNull(FireControl.Burst(bt, rocket, rpg), "two men together are not worth a rocket");
+            mine[1].X = -44; mine[0].Weapon = Weapon.M60;
+            Assert.AreEqual(mine[0], FireControl.Burst(bt, rocket, rpg), "a machine gun by itself is not worth a rocket");
+            theirs[1].X = -3;
+            Assert.IsNull(FireControl.Burst(bt, rocket, rpg), "a rocket onto its own side");
+            // An M79: also at a man by himself whom bullets cannot reach, behind his cover.
+            var m79 = Arms.Of(Weapon.M79);
+            var grenadier = mine[2]; grenadier.Weapon = Weapon.M79; grenadier.X = -10;
+            // (The rocket man himself is a crew, and worth a round: he goes back out of reach.)
+            rocket.X = 44; theirs[1].X = 44; theirs[2].X = 5;
+            Assert.IsNull(FireControl.Burst(bt, grenadier, m79), "an M79 round at one rifleman in the open");
+            theirs[2].Cover = bt.Cover[0].Id;
+            Assert.AreEqual(theirs[2], FireControl.Burst(bt, grenadier, m79), "an M79 does not dig a man out of his cover");
+            // A grenade: at a man in cover, and never where it would catch the thrower's own side.
+            mine[3].X = -3;
+            Assert.AreEqual(theirs[2], FireControl.Throw(bt, mine[3]));
+            mine[4].X = 3;
+            Assert.IsNull(FireControl.Throw(bt, mine[3]), "a grenade thrown onto his own side");
+        }
+
+        /// <summary>
+        /// And in whole matches, as the game plays them: with the rule a squad's fire is spread (fewer of its
+        /// shots go at a man one of its own has just fired at), and fire that is kept up keeps heads down
+        /// (men spend more of a fight down).
+        /// </summary>
+        [Test]
+        public void With_fire_control_fire_is_spread_and_men_are_kept_down()
+        {
+            double[] piled = new double[2], shots = new double[2], down = new double[2], seconds = new double[2];
+            for (int rule = 0; rule < 2; rule++)
+                for (int seed = 3; seed <= 6; seed++)
+                {
+                    var m = new LiveMatch(rule == 1 ? Directed(seed, tempo: true) : Drilled(seed, tempo: true, fortune: true));
+                    var st = m.State;
+                    var last = new Dictionary<(int, int), int>();
+                    while (!st.Over && st.Tick < 2400)
+                    {
+                        int from = st.Events.Count;
+                        m.Step();
+                        for (int i = from; i < st.Events.Count; i++)
+                        {
+                            var e = st.Events[i];
+                            if (e.Kind != EventKind.Fire) continue;
+                            var key = (st.Men[e.Id].Squad, e.Target.Value);
+                            shots[rule]++;
+                            if (last.TryGetValue(key, out int at) && st.Tick - at <= 40) piled[rule]++;
+                            last[key] = st.Tick;
+                        }
+                        if (st.Phase != Phase.Fight) continue;
+                        foreach (var p in st.Men)
+                        {
+                            if (!p.Alive) continue;
+                            var q = st.Squads[p.Squad];
+                            if (!q.ThreatSeen || (q.Task != SquadTask.Firefight && q.Task != SquadTask.Close && q.Task != SquadTask.Assault)) continue;
+                            seconds[rule]++;
+                            if (p.Pin >= Tune.PinDrop) down[rule]++;
+                        }
+                    }
+                }
+            Assert.Greater(shots[1], 1000);
+            Assert.Less(piled[1] / shots[1], 0.8 * piled[0] / shots[0], "a squad's fire is no more spread than it was");
+            Assert.Greater(down[1] / seconds[1], 1.3 * down[0] / seconds[0], "men are kept down no more than they were");
+        }
+
         [Test]
         public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
         {

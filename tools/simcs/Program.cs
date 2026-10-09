@@ -25,8 +25,11 @@ namespace LanesOfVietnam.SimCs
     ///   watch seed from to [every] [flags] [man=N]
     ///                                  the squads tick by tick, or one man
     ///   blasts seed [flags]            where and when a burst kills a man: something to point a capture at
+    ///   gunplay [seed] [ticks] [seeds] [flags]
+    ///                                  the firing itself: each weapon's shots and what they do, the chance a shot had,
+    ///                                  the man it was fired at and the men it could have been, where men die, assaults
     ///
-    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune), and
+    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol), and
     /// `tempo` for the game's own economy.
     /// </summary>
     public static class Program
@@ -51,6 +54,7 @@ namespace LanesOfVietnam.SimCs
                     "aware" => Aware(args),
                     "brain" => Brain(args),
                     "blasts" => Blasts(args),
+                    "gunplay" => Gunplay(args),
                     "watch" => Watch(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
@@ -160,7 +164,7 @@ namespace LanesOfVietnam.SimCs
             var usPlan = Plan.ByName(a.Length > 2 && a[2] != "game" ? a[2] : "ceiling");
             // "game": the match as the game (and a capture of it) plays it, every rule on and its own economy.
             var m = a.Contains("game")
-                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune")).ToArray()))
+                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol")).ToArray()))
                 : new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
@@ -196,10 +200,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -281,7 +285,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune")).ToArray()));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol")).ToArray()));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -344,7 +348,7 @@ namespace LanesOfVietnam.SimCs
                 var each = new List<double>();
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x.StartsWith("rate="))).ToArray());
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -400,7 +404,7 @@ namespace LanesOfVietnam.SimCs
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
                 Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
                 Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"), Ammo = a.Contains("ammo"),
-                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"),
+                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
@@ -1117,6 +1121,289 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        private static string Class(Weapon w)
+            => w == Weapon.M60 || w == Weapon.Rpd ? "machine gun" : w == Weapon.Sniper ? "sniper" : w == Weapon.Smg ? "submachine gun"
+             : w == Weapon.M79 || w == Weapon.Rpg ? "launcher" : w == Weapon.Mortar ? "mortar" : "rifle";
+
+        /// <summary>
+        /// The firing itself, as the game plays it (the owner, 2026-10-09: "focus on firing/gunplay mechanics and
+        /// AI smartness"). `gunplay [seed] [ticks] [seeds] [flags]`; the game's own match is
+        /// `fieldcraft arms senses gunnery ammo tactics fortune tempo`.
+        ///   by weapon        man-seconds in the fight, shots, rounds, men killed, a shot's mean distance and chance
+        ///   a shot's chance  <see cref="Combat.HitChance"/> as the tick began, for the man fired at and for every man the
+        ///                    firer could have fired at instead (one his squad has in sight, in reach, in his own lane)
+        ///   a better target  one of those with twice the chance or more, and two in a hundred at least
+        ///   the same man     a shot at a man one of the firer's own squad fired at within the last two seconds, while
+        ///                    another he could have fired at had nobody of his squad on him
+        ///   bursts           a launcher's, a mortar's or a grenade's: the enemy inside its radius as it went off
+        ///   where men die    what the man was doing when he was killed, and his squad
+        ///   assaults         a squad going in: what it came to, and what it cost each side
+        ///   reloading        squad-seconds in a fight with half its rifles and guns or more out of it at once
+        /// </summary>
+        private static int Gunplay(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 2400, seeds = nums.Length > 2 ? nums[2] : 6;
+            double minutes = 0;
+            var classes = new[] { "rifle", "machine gun", "submachine gun", "sniper", "launcher", "mortar" };
+            var seconds = classes.ToDictionary(c => c, c => 0.0); var shotsBy = classes.ToDictionary(c => c, c => 0.0);
+            var roundsBy = classes.ToDictionary(c => c, c => 0.0); var killsBy = classes.ToDictionary(c => c, c => 0.0);
+            var distBy = classes.ToDictionary(c => c, c => 0.0); var chanceBy = classes.ToDictionary(c => c, c => 0.0); var knownBy = classes.ToDictionary(c => c, c => 0.0);
+            var blindBy = classes.ToDictionary(c => c, c => 0.0); var pinnedBy = classes.ToDictionary(c => c, c => 0.0);
+            string[] bands = { "under 1 in 100", "1 to 3", "3 to 6", "6 to 12", "12 in 100 or more" };
+            var band = new double[bands.Length]; var bandKills = new double[bands.Length];
+            double shots = 0, known = 0, better = 0, same = 0, sameSpare = 0, kills = 0;
+            var atWhat = new Dictionary<string, double>(); var betterWhat = new Dictionary<string, double>();
+            var diedHow = new Dictionary<string, double>(); var diedTask = new Dictionary<string, double>(); var diedBy = new Dictionary<string, double>();
+            var burstRounds = new Dictionary<string, double>(); var burstEmpty = new Dictionary<string, double>(); var burstMen = new Dictionary<string, double>();
+            var burstKills = new Dictionary<string, double>(); var burstOwn = new Dictionary<string, double>(); var burstLone = new Dictionary<string, double>(); var burstCover = new Dictionary<string, double>();
+            double assaults = 0, assaultOwn = 0, assaultTheirs = 0, assaultTicks = 0; var assaultEnd = new Dictionary<string, double>();
+            var assaultOwnBy = new Dictionary<string, double>(); var assaultTheirsBy = new Dictionary<string, double>();
+            var beganN = new Dictionary<string, double>(); var beganOwn = new Dictionary<string, double>(); var beganTheirs = new Dictionary<string, double>();
+            double fightSeconds = 0, reloadSeconds = 0, downSeconds = 0, flatSeconds = 0, contactSeconds = 0;
+            var sniperAt = new Dictionary<string, double>();
+
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var m = new LiveMatch(Game(seed, a));
+                var st = m.State;
+                var chance = new Dictionary<long, double>();
+                var could = new Dictionary<int, List<int>>();
+                var lastAt = new Dictionary<(int squad, int target), int>();
+                var grenadeBy = new Dictionary<int, string>();
+                var going = new Dictionary<int, (int tick, int own, int threat, int theirs)>();
+                var began = new Dictionary<int, string>();
+                var was = new List<(Posture posture, int cover, bool moving, double x, double z)>();
+                var tasks = new List<SquadTask>();
+                int Alive(int squad) => squad < 0 ? 0 : st.Men.Count(p => p.Alive && p.Squad == squad);
+                // (A man who came on during the tick was not there when it began: as he is now.)
+                (Posture posture, int cover, bool moving, double x, double z) Was(int id) => id < was.Count ? was[id] : (st.Men[id].Posture, st.Men[id].Cover, false, st.Men[id].X, st.Men[id].Z);
+                for (int t = 0; t < ticks && !st.Over; t++)
+                {
+                    // As the tick begins: how every man is, and for each man about to fire, the men he could fire at and his chance at each.
+                    was.Clear(); tasks.Clear(); chance.Clear(); could.Clear();
+                    foreach (var p in st.Men) was.Add((p.Posture, p.Cover, Squads.IsMoving(p), p.X, p.Z));
+                    foreach (var q in st.Squads) tasks.Add(q.Task);
+                    if (st.Senses && st.Phase == Phase.Fight)
+                        foreach (var p in st.Men)
+                        {
+                            if (!p.Alive || p.Cooldown > 1 || Arms.Of(st, p).Bursts) continue;
+                            var sq = st.Squads[p.Squad];
+                            double reach = Tactics.Reach(st, p);
+                            var list = new List<int>();
+                            foreach (var e in st.Men)
+                            {
+                                if (!e.Alive || e.Side == p.Side || !Senses.Knows(st, sq, e.Squad)) continue;
+                                if (st.Gunnery && !Gunnery.InArc(st, p, e)) continue;
+                                if (Combat.Dist(p, e) > reach || Combat.SmokeBlocks(st, p.X, p.Z, e.X, e.Z)) continue;
+                                list.Add(e.Id);
+                                chance[(long)p.Id * 100000 + e.Id] = Combat.HitChance(st, p, e);
+                            }
+                            could[p.Id] = list;
+                        }
+
+                    int from = st.Events.Count;
+                    m.Step();
+                    bool fight = st.Phase == Phase.Fight;
+                    string cause = "something else"; string burstKind = null;
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        switch (e.Kind)
+                        {
+                            case EventKind.Fire:
+                            {
+                                var by = st.Men[e.Id]; var at = st.Men[e.Target.Value];
+                                string c = Class(by.Weapon);
+                                bool blind = e.Amount == 1;
+                                shots++; shotsBy[c]++; roundsBy[c] += Math.Max(1, e.Rounds); distBy[c] += Combat.Dist(by.X, by.Z, Was(at.Id).x, Was(at.Id).z);
+                                if (blind) blindBy[c]++;
+                                cause = "a " + c; burstKind = null;
+                                var w = Was(at.Id);
+                                string what = w.cover >= 0 ? (w.posture == Posture.Standing ? "on his feet in cover" : "down in cover")
+                                            : w.moving ? "moving in the open" : w.posture == Posture.Standing ? "on his feet in the open, still" : w.posture == Posture.Crouched ? "kneeling in the open" : "flat in the open";
+                                atWhat[what] = atWhat.GetValueOrDefault(what) + 1;
+                                if (by.Weapon == Weapon.Sniper) { string k = Class(at.Weapon); sniperAt[k] = sniperAt.GetValueOrDefault(k) + 1; }
+                                // The same man: a squad-mate fired at him within the last two seconds, and another he could have fired at had nobody on him.
+                                bool mate = lastAt.TryGetValue((by.Squad, at.Id), out int la) && st.Tick - la <= 40;
+                                if (mate) same++;
+                                lastAt[(by.Squad, at.Id)] = st.Tick;
+                                if (blind || !chance.TryGetValue((long)by.Id * 100000 + at.Id, out double p)) break;
+                                known++; knownBy[c]++; chanceBy[c] += p;
+                                int b = p < 0.01 ? 0 : p < 0.03 ? 1 : p < 0.06 ? 2 : p < 0.12 ? 3 : 4;
+                                band[b]++;
+                                // (His kill, if it is one, is the next event.)
+                                if (i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == at.Id) bandKills[b]++;
+                                bool across = st.Squads[at.Squad].Lane != st.Squads[by.Squad].Lane;
+                                double best = p; int bestId = at.Id; bool spare = false;
+                                foreach (int o in could[by.Id])
+                                {
+                                    if (o == at.Id || (!across && st.Squads[st.Men[o].Squad].Lane != st.Squads[by.Squad].Lane)) continue;
+                                    double po = chance[(long)by.Id * 100000 + o];
+                                    if (po > best) { best = po; bestId = o; }
+                                    if (!(lastAt.TryGetValue((by.Squad, o), out int lo) && st.Tick - lo <= 40)) spare = true;
+                                }
+                                if (mate && spare) sameSpare++;
+                                if (best >= 2 * p && best >= 0.02)
+                                {
+                                    better++;
+                                    var bw = Was(bestId);
+                                    string k = $"fired at a man {what}; one {(bw.cover >= 0 ? (bw.posture == Posture.Standing ? "on his feet in cover" : "down in cover") : bw.moving ? "moving in the open" : bw.posture == Posture.Standing ? "on his feet in the open, still" : bw.posture == Posture.Crouched ? "kneeling in the open" : "flat in the open")} was {(Combat.Dist(by.X, by.Z, bw.x, bw.z) < Combat.Dist(by.X, by.Z, w.x, w.z) ? "nearer" : "further")}";
+                                    betterWhat[k] = betterWhat.GetValueOrDefault(k) + 1;
+                                }
+                                break;
+                            }
+                            case EventKind.Launch:
+                            case EventKind.GrenadeThrown:
+                            {
+                                string k = e.Kind == EventKind.GrenadeThrown ? "hand grenade" : st.Men[e.Id].Weapon.ToString();
+                                foreach (var g in st.Grenades) if (g.X == e.X && g.Z == e.Z) grenadeBy[g.Id] = k;
+                                var at = Was(e.Target.Value);
+                                int near = 0;
+                                foreach (var o in st.Men) if (o.Alive && o.Side == st.Men[e.Target.Value].Side && o.Id != e.Target.Value && Combat.Dist(Was(o.Id).x, Was(o.Id).z, at.x, at.z) <= (e.Kind == EventKind.GrenadeThrown ? Tune.FragRadius : Arms.Of(st.Men[e.Id].Weapon).Blast)) near++;
+                                burstRounds[k] = burstRounds.GetValueOrDefault(k) + 1;
+                                if (near == 0) burstLone[k] = burstLone.GetValueOrDefault(k) + 1;
+                                if (at.cover >= 0) burstCover[k] = burstCover.GetValueOrDefault(k) + 1;
+                                break;
+                            }
+                            case EventKind.GrenadeBlast:
+                            {
+                                burstKind = grenadeBy.TryGetValue(e.Id, out string k) ? k : "hand grenade";
+                                cause = burstKind == "hand grenade" ? "a hand grenade" : burstKind == "Mortar" ? "a mortar" : "a launcher";
+                                double r = burstKind == "hand grenade" ? Tune.FragRadius : Arms.Of((Weapon)Enum.Parse(typeof(Weapon), burstKind)).Blast;
+                                int inside = 0;
+                                foreach (var o in st.Men) if (o.DiedAt < 0 || o.DiedAt == st.Tick) { if (o.Side != e.Side && Combat.Dist(Was(o.Id).x, Was(o.Id).z, e.X.Value, e.Z.Value) < r) inside++; }
+                                burstMen[burstKind] = burstMen.GetValueOrDefault(burstKind) + inside;
+                                if (inside == 0) burstEmpty[burstKind] = burstEmpty.GetValueOrDefault(burstKind) + 1;
+                                break;
+                            }
+                            case EventKind.Shell: cause = "a shell"; burstKind = null; break;
+                            case EventKind.Melee: cause = "hand to hand"; burstKind = null; break;
+                            case EventKind.Through: cause = "a round through the man in front"; burstKind = null; break;
+                            case EventKind.TrapSprung: cause = "a trap"; burstKind = null; break;
+                            case EventKind.Kill:
+                            {
+                                var dead = st.Men[e.Id];
+                                kills++;
+                                diedBy[cause] = diedBy.GetValueOrDefault(cause) + 1;
+                                if (cause.StartsWith("a ") && killsBy.ContainsKey(cause.Substring(2)) && burstKind == null) killsBy[cause.Substring(2)]++;
+                                if (burstKind != null)
+                                {
+                                    string c = burstKind == "Mortar" ? "mortar" : burstKind == "hand grenade" ? null : "launcher";
+                                    if (c != null) killsBy[c]++;
+                                    // (A burst is its thrower's side's: a man of that side it kills is its own.)
+                                    var blast = st.Events.Skip(from).Take(i - from).Last(x => x.Kind == EventKind.GrenadeBlast);
+                                    if (dead.Side == blast.Side) burstOwn[burstKind] = burstOwn.GetValueOrDefault(burstKind) + 1;
+                                    else burstKills[burstKind] = burstKills.GetValueOrDefault(burstKind) + 1;
+                                }
+                                var w = Was(dead.Id);
+                                string how = w.cover >= 0 ? (w.posture == Posture.Standing ? "on his feet in cover" : "down in cover")
+                                           : w.moving ? "moving in the open" : w.posture == Posture.Standing ? "on his feet in the open, still" : w.posture == Posture.Crouched ? "kneeling in the open" : "flat in the open";
+                                diedHow[how] = diedHow.GetValueOrDefault(how) + 1;
+                                string task = $"{dead.Side} {(dead.Squad < tasks.Count ? tasks[dead.Squad] : st.Squads[dead.Squad].Task)}";
+                                diedTask[task] = diedTask.GetValueOrDefault(task) + 1;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Each weapon's time in the fight, and how much of it down.
+                    if (fight)
+                        foreach (var p in st.Men)
+                        {
+                            if (!p.Alive) continue;
+                            string c = Class(p.Weapon);
+                            seconds[c] += Tune.Dt;
+                            if (p.Pin >= Tune.PinDrop) pinnedBy[c] += Tune.Dt;
+                        }
+
+                    // Squads: going in, and what it came to; a fight with half its weapons reloading; men down under fire.
+                    for (int si = 0; si < st.Squads.Count && fight; si++)
+                    {
+                        var sq = st.Squads[si];
+                        var live = st.Men.Where(p => p.Alive && p.Squad == si).ToList();
+                        bool goingIn = sq.Task == SquadTask.Assault && live.Count > 0;
+                        if (goingIn && !going.ContainsKey(si))
+                        {
+                            going[si] = (st.Tick, live.Count, sq.Threat, Alive(sq.Threat));
+                            FireControl.Front(st, sq, out int en, out int dn, out bool gu);
+                            double gap = st.Men.Where(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5).Select(e => live.Min(p => Combat.Dist(p, e))).DefaultIfEmpty(99).Min();
+                            began[si] = $"{(en == 0 ? "nobody in front" : live.Count >= 3 * en ? "three to one or more" : live.Count >= 2 * en ? "two to one" : live.Count >= en ? "even to two to one" : "outnumbered"),-22} {(en == 0 ? "" : dn * 3 >= en * 2 ? "two in three down" : dn * 3 >= en ? "a third down" : "few down"),-18} {(gu ? "a gun up" : ""),-9} {(gap < 8 ? "under 8 m" : gap < 14 ? "8 to 14 m" : "over 14 m")}";
+                        }
+                        else if (!goingIn && going.TryGetValue(si, out var g))
+                        {
+                            going.Remove(si);
+                            assaults++;
+                            int lost = g.own - live.Count, cost = g.theirs - Alive(g.threat);
+                            assaultOwn += lost; assaultTheirs += cost; assaultTicks += st.Tick - g.tick;
+                            string end = live.Count == 0 ? "wiped out going in"
+                                       : Alive(g.threat) == 0 ? "the enemy squad dead"
+                                       : sq.Task == SquadTask.Withdraw ? "broke and ran"
+                                       : g.threat >= 0 && st.Squads[g.threat].Task == SquadTask.Withdraw ? "the enemy squad running"
+                                       : sq.Task == SquadTask.March ? "the enemy gone from in front of it"
+                                       : sq.Task == SquadTask.Firefight ? "back to a firefight: " + (live.Average(p => p.Pin) >= (Tune.PinDrop + Tune.PinStop) * 0.5 ? "its men went down under fire"
+                                            : st.Tick - g.tick < Tune.AssaultMax ? "told to hold where it was"
+                                            : Alive(g.threat) * 2 > live.Count * 4 ? "it was outnumbered two to one"
+                                            : st.Men.Any(e => e.Alive && e.Side != sq.Side && (e.Weapon == Weapon.M60 || e.Weapon == Weapon.Rpd) && e.Pin < Tune.PinDrop && Math.Abs(e.X - sq.AnchorX) <= Tune.AssaultReach && st.Squads[e.Squad].Lane == sq.Lane) ? "a machine gun was up in front of it"
+                                            : !st.Men.Any(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5 && (e.X - sq.AnchorX) * Combat.Advance(sq.Side) >= 0 && (e.X - sq.AnchorX) * Combat.Advance(sq.Side) <= Tune.AssaultReach && Senses.Remembers(st, sq, e.Squad)) ? "nobody left in front of it"
+                                            : "stopped short of him, its own heads going down")
+                                       : $"back to a {sq.Task.ToString().ToLower()}";
+                            assaultEnd[end] = assaultEnd.GetValueOrDefault(end) + 1;
+                            assaultOwnBy[end] = assaultOwnBy.GetValueOrDefault(end) + lost; assaultTheirsBy[end] = assaultTheirsBy.GetValueOrDefault(end) + cost;
+                            if (began.TryGetValue(si, out string how)) { beganN[how] = beganN.GetValueOrDefault(how) + 1; beganOwn[how] = beganOwn.GetValueOrDefault(how) + lost; beganTheirs[how] = beganTheirs.GetValueOrDefault(how) + cost; began.Remove(si); }
+                        }
+                        if (live.Count == 0 || !sq.ThreatSeen || (sq.Task != SquadTask.Firefight && sq.Task != SquadTask.Close && sq.Task != SquadTask.Assault)) continue;
+                        fightSeconds += Tune.Dt;
+                        var guns = live.Where(p => !Arms.Of(st, p).Bursts).ToList();
+                        if (guns.Count >= 2 && guns.Count(p => p.Reloading > 0) * 2 >= guns.Count) reloadSeconds += Tune.Dt;
+                        foreach (var p in live)
+                        {
+                            contactSeconds += Tune.Dt;
+                            if (p.Pin >= Tune.PinDrop) downSeconds += Tune.Dt;
+                            if (p.Pin >= Tune.PinStop) flatSeconds += Tune.Dt;
+                        }
+                    }
+                }
+                minutes += st.Tick * Tune.Dt / 60;
+            }
+
+            void Top(Dictionary<string, double> d, double of, int n = 8) { foreach (var kv in d.OrderByDescending(k => k.Value).Take(n)) Console.WriteLine($"      {kv.Key,-84} {kv.Value / minutes,6:F1}  ({100 * kv.Value / Math.Max(1, of):F0}%)"); }
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}, {minutes:F1} minutes; a minute:");
+            Console.WriteLine("  by weapon          men in the fight   shots  rounds   killed   a kill every   mean distance   mean chance   blind   time pinned");
+            foreach (var c in classes)
+            {
+                if (seconds[c] == 0) continue;
+                Console.WriteLine($"    {c,-16} {seconds[c] / minutes / 60,14:F1} {shotsBy[c] / minutes,9:F1} {roundsBy[c] / minutes,7:F0} {killsBy[c] / minutes,8:F2} {(killsBy[c] > 0 ? (shotsBy[c] + (c == "launcher" || c == "mortar" ? burstRounds.Where(k => (k.Key == "Mortar") == (c == "mortar") && k.Key != "hand grenade").Sum(k => k.Value) : 0)) / killsBy[c] : 0),10:F0} shots {(shotsBy[c] > 0 ? distBy[c] / shotsBy[c] : 0),11:F1} m {(knownBy[c] > 0 ? 100 * chanceBy[c] / knownBy[c] : 0),12:F1}% {(shotsBy[c] > 0 ? 100 * blindBy[c] / shotsBy[c] : 0),6:F0}% {100 * pinnedBy[c] / seconds[c],12:F0}%");
+            }
+            Console.WriteLine($"  shots              {shots / minutes:F0}; men killed {kills / minutes:F1}");
+            Top(diedBy, kills, 10);
+            Console.WriteLine($"  a shot's chance    of {known / minutes:F0} aimed shots whose chance is known:");
+            for (int b = 0; b < bands.Length; b++) Console.WriteLine($"      {bands[b],-84} {band[b] / minutes,6:F1}  ({100 * band[b] / Math.Max(1, known):F0}%), killing {bandKills[b] / minutes:F2}");
+            Console.WriteLine($"  fired at a man     of {shots / minutes:F0} shots:");
+            Top(atWhat, shots);
+            Console.WriteLine($"  a better target    {better / minutes:F1} ({100 * better / Math.Max(1, known):F0}% of aimed shots): a man he could have fired at with twice the chance or more");
+            Top(betterWhat, better, 8);
+            Console.WriteLine($"  the same man       {same / minutes:F1} ({100 * same / Math.Max(1, shots):F0}% of shots) at a man a squad-mate fired at in the last 2 s; {sameSpare / minutes:F1} ({100 * sameSpare / Math.Max(1, shots):F0}%) while another in reach had nobody of the squad on him");
+            if (sniperAt.Count > 0) { Console.WriteLine("  a sniper fires at"); Top(sniperAt, sniperAt.Values.Sum()); }
+            Console.WriteLine("  bursts             rounds   nobody inside   enemy inside, a round   killed, a round   own men killed   at a lone man   at a man in cover");
+            foreach (var k in burstRounds.Keys.OrderBy(x => x))
+                Console.WriteLine($"    {k,-16} {burstRounds[k] / minutes,6:F1} {100 * burstEmpty.GetValueOrDefault(k) / burstRounds[k],14:F0}% {burstMen.GetValueOrDefault(k) / burstRounds[k],18:F2} {burstKills.GetValueOrDefault(k) / burstRounds[k],18:F2} {burstOwn.GetValueOrDefault(k) / minutes,16:F2} {100 * burstLone.GetValueOrDefault(k) / burstRounds[k],14:F0}% {100 * burstCover.GetValueOrDefault(k) / burstRounds[k],18:F0}%");
+            Console.WriteLine("  where men die");
+            Top(diedHow, kills);
+            Console.WriteLine("  and their squad was");
+            Top(diedTask, kills, 10);
+            Console.WriteLine($"  assaults           {assaults / minutes:F2}, {assaultTicks / Math.Max(1, assaults) * Tune.Dt:F1} s each; each cost the squad going in {assaultOwn / Math.Max(1, assaults):F2} men and the enemy squad {assaultTheirs / Math.Max(1, assaults):F2}; they ended (and cost: its own, the enemy's)");
+            foreach (var kv in assaultEnd.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / minutes,6:F2}  ({100 * kv.Value / Math.Max(1, assaults):F0}%)   {assaultOwnBy[kv.Key] / kv.Value:F2}, {assaultTheirsBy[kv.Key] / kv.Value:F2}");
+            if (a.Contains("why"))
+            {
+                Console.WriteLine("  an assault as it began (its number against the enemy in front, his heads, a gun, the nearest man)   a minute   cost: its own, the enemy's");
+                foreach (var kv in beganN.OrderByDescending(k => k.Value).Take(24)) Console.WriteLine($"      {kv.Key,-70} {kv.Value / minutes,6:F2}   {beganOwn[kv.Key] / kv.Value:F2}, {beganTheirs[kv.Key] / kv.Value:F2}");
+            }
+            Console.WriteLine($"  in a fight         {fightSeconds / minutes:F0} squad-seconds with the enemy in sight; {reloadSeconds / minutes:F1} of them ({100 * reloadSeconds / Math.Max(1e-9, fightSeconds):F0}%) with half its rifles and guns reloading at once");
+            Console.WriteLine($"                     its men down {100 * downSeconds / Math.Max(1e-9, contactSeconds):F0}% of that time, flat and hardly firing {100 * flatSeconds / Math.Max(1e-9, contactSeconds):F0}%");
+            return 0;
+        }
+
         /// <summary>
         /// Where and when a burst kills a man, as the game plays the seed: something to point a capture at.
         /// `blasts seed [flags]`; the game's own match is `fieldcraft arms senses gunnery ammo tactics fortune tempo`.
@@ -1160,9 +1447,9 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune");
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol");
             string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") ? "siege" : "standard";
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "skirmish" && x != "siege").ToArray();
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -1178,7 +1465,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune };
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol };
                 if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
                 if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);

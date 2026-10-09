@@ -506,6 +506,26 @@ namespace LanesOfVietnam.Sim
         /// <summary>How much longer or shorter than its own time a pause between shots, or a reload, may be.</summary>
         public const double PauseSpread = 0.35;
 
+        // --- fire control (MatchOptions.FireControl) ----------------------------------
+
+        /// <summary>How much less a man is worth firing at for each of the firer's squad already on him; and ticks a man stays on the man he last fired at (3 s).</summary>
+        public const double SpreadFire = 1.0;
+        public const int MarkTicks = 100;
+        /// <summary>How much likelier a man is to stay on his own man than to change; and a machine gun, which traverses, to move on from him.</summary>
+        public const double HoldMark = 1.3, Traverse = 0.6;
+        /// <summary>A man of the squad his own is dealing with, against one of another.</summary>
+        public const double ThreatFirst = 1.5;
+        /// <summary>A sniper's eye for a crew (a machine gun, a launcher, the mortar, another sniper); a machine gun's for each further head near the one it fires at.</summary>
+        public const double SniperCrew = 3, GunGroup = 0.3;
+        /// <summary>Below this chance a rifleman's round is covering fire, not an aimed shot; and how much slower he fires it while nobody of his is moving under it.</summary>
+        public const double AimedFloor = 0.02, CoverFireSlow = 2.0;
+        /// <summary>Ticks after fire last came near a man in which he does not begin to get over it (0.6 s): fire that is kept up keeps him down.</summary>
+        public const int PinHold = 12;
+        /// <summary>A squad goes in when this share of the enemy in front of it is down, or when it has him this many to one; never with less than this share of his number (going in already, half that).</summary>
+        public const double AssaultDown = 0.66, AssaultSure = 3, AssaultFew = 1.0;
+        /// <summary>Ticks before a squad whose assault was stopped goes in again, unless it has him three to one (20 s).</summary>
+        public const int AssaultAgain = 400;
+
         public const double VetPerSecond = 0.010;
         public const double VetCap = 1.0;
 

@@ -53,6 +53,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>The nearest seen enemy in cover within throwing range, or null.</summary>
         public static Man PickTarget(SimState st, Man a)
         {
+            // FireControl: where it will find the most men, and never onto his own.
+            if (st.FireControl) return FireControl.Throw(st, a);
             Man best = null;
             double far = st.Arms ? Tune.ArmsFragRange : Tune.FragRange, near = st.Arms ? Tune.ArmsFragMin : Tune.FragMin;
             double bestD2 = far * far, min2 = near * near;

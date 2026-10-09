@@ -125,10 +125,13 @@ namespace LanesOfVietnam.View
         /// With Tactics and Fortune (PLAN §12.26) the same costs hold, measured over 48 seeds with
         /// `player 48 N rate=0.9 tactics fortune`: 46 and 48 of 48 against a Recruit, 40 and 37 against a
         /// Veteran, 21 and 24 against the Elite.
+        /// With FireControl (PLAN §12.29) numbers tell for more, and the Elite at 22 was beaten 6 and 11 times in 48: it
+        /// is 25. Measured with `player 48 N rate=0.9 tactics fortune firecontrol`: 44 and 46 of 48 against a Recruit, 36
+        /// and 33 against a Veteran, 26 and 21 against the Elite.
         /// </summary>
         public enum Difficulty { Recruit, Veteran, Elite }
 
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 22 : 29;
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 25 : 29;
 
         /// <summary>
         /// How fast will runs out, against the length setting's own rate. The settings were calibrated
@@ -141,7 +144,9 @@ namespace LanesOfVietnam.View
         /// three ran to 176, 315 and 641 s. Then 1.0, 0.8 and 0.9 until Tactics, PLAN §12.26: a squad that
         /// closes by bounds, with fewer grenades, kills a quarter fewer men a minute, and at those a
         /// standard match with nobody playing ran 256 s. At these a skirmish runs 109 to 142 s, a standard
-        /// match 167 to 242, a siege six to ten minutes.)
+        /// match 167 to 242, a siege six to ten minutes. With FireControl, PLAN §12.29, the same rates hold:
+        /// a skirmish 125 to 144 s, a standard match 200 to 241, a siege seven and a half to eight and a half
+        /// minutes, one in six of them to the twelve-minute cap.)
         /// </summary>
         public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.0 : 0.9;
 
@@ -184,6 +189,10 @@ namespace LanesOfVietnam.View
                 Tactics = CaptureSettings.Active?.Tactics ?? true,
                 // Fortune (Part 2): men who differ, pauses that vary, the lucky long shot, an opening that is drawn. On in the game.
                 Fortune = CaptureSettings.Active?.Fortune ?? true,
+                // FireControl (Part 2): a man fires at the enemy he is likeliest to hit and a squad spreads its fire; fire that
+                // is kept up keeps heads down; a squad works up to an assault and goes in by halves on a beaten enemy; a
+                // rocket is for a group. On in the game.
+                FireControl = CaptureSettings.Active?.FireControl ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

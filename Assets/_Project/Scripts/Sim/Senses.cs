@@ -206,6 +206,8 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static Man PickTarget(SimState st, Man a)
         {
+            // FireControl: the man he is likeliest to hit, and one his squad is not already on.
+            if (st.FireControl) return FireControl.Pick(st, a);
             var sq = st.Squads[a.Squad];
             // (Tactics: and a long shot beyond his weapon's own distance.)
             double reach = Tactics.Reach(st, a);
@@ -306,6 +308,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>It goes in when the enemy in front of it is beaten down or badly outnumbered, and it is not.</summary>
         private static bool CanAssault(SimState st, Squad sq, IReadOnlyList<Man> live, double pin)
         {
+            // FireControl: beaten down man by man, and no machine gun of his still up.
+            if (st.FireControl) return FireControl.GoesIn(st, sq, live, pin);
             if (!sq.Assaults || !sq.ThreatSeen || pin >= Tune.PinDrop) return false;
             Front(st, sq, Tune.AssaultReach, out int enemies, out double theirs, out _);
             if (enemies == 0) return false;
@@ -319,6 +323,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static Order Decide(SimState st, Squad sq, IReadOnlyList<Man> live, Plan plan, int raised, Order prev)
         {
+            sq.Prep = false;
             if (sq.PlayerOrder.HasValue)
             {
                 var given = sq.PlayerOrder.Value;
@@ -375,7 +380,7 @@ namespace LanesOfVietnam.Sim
                     if (Held(st, sq)) task = SquadTask.Firefight;
                     else if (!threat) task = SquadTask.March;
                     else if (pin >= (Tune.PinDrop + Tune.PinStop) * 0.5) task = SquadTask.Firefight;      // it falters
-                    else if (held >= Tune.AssaultMax && !CanAssault(st, sq, live, pin)) task = SquadTask.Firefight;
+                    else if (held >= Tune.AssaultMax && !(st.FireControl ? FireControl.GoesIn(st, sq, live, pin, committed: true) : CanAssault(st, sq, live, pin))) task = SquadTask.Firefight;
                     break;
                 case SquadTask.Withdraw:
                     bool there = sq.Target >= 0 && sq.Halted;
@@ -396,7 +401,11 @@ namespace LanesOfVietnam.Sim
                     }
                     break;
             }
+            // FireControl: an assault that is stopped is remembered.
+            if (st.FireControl && sq.Task == SquadTask.Assault && task == SquadTask.Firefight) sq.StalledAt = st.Tick;
             if (task != sq.Task) Take(st, sq, live, plan, task);
+            // FireControl: a squad that means to go in works up to it, and its fire says so.
+            if (st.FireControl) sq.Prep = plan.Advance && !Held(st, sq) && FireControl.MeansTo(st, sq, live, pin, st.Tick - sq.TaskSince);
 
             switch (sq.Task)
             {

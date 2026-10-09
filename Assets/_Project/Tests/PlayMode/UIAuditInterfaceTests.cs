@@ -62,7 +62,12 @@ namespace LanesOfVietnam.Tests
             // Paused, so only FastForward moves the men: the check against where
             // they stand is then exact, not raced by the game's own clock.
             if (!Root.Paused) HudOf.TogglePause();
-            Root.Driver.FastForward(560);          // into the fight
+            // Into the fight: on until somebody has fired, and eight seconds more. (It was 560 ticks flat. A match
+            // is a different seed every run, and in one of forty nobody has fired by then: the opening waits out its
+            // 45 s when the first VC squad stops in the last cover that will hold it, 35 m short of the Americans.
+            // `simcs` counted 7 such seeds in 300, with fire control and without.)
+            for (int waited = 0; waited < 90 && !st.Over && !st.Events.Any(e => e.Kind == EventKind.Fire); waited++) Root.Driver.FastForward(20);
+            Root.Driver.FastForward(160);
             yield return null;
             rec.Played.Clear();
 

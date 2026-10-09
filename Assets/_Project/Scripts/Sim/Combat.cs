@@ -215,12 +215,16 @@ namespace LanesOfVietnam.Sim
             // Tactics: a long shot is a deliberate one, and pins less (below). Not at a sniper: him they mean to keep down.
             bool longShot = Tactics.Long(st, a, target) && target.Weapon != Weapon.Sniper;
             if (longShot) a.Cooldown = (int)(a.Cooldown * Tune.LongCooldown);
+            double p = HitChance(st, a, target);
+            // FireControl: a round with next to no chance is covering fire. He fires it slowly, until somebody of his is moving under it.
+            if (st.FireControl && !blind && !longShot && FireControl.Covering(st, a, p) && !FireControl.Wanted(st, a)) a.Cooldown = (int)(a.Cooldown * Tune.CoverFireSlow);
             // Fortune: his next shot comes when it comes.
             if (st.Fortune) a.Cooldown = Fortune.Pause(st, a, a.Cooldown);
             // Firing gives away concealment.
             a.Seen = true;
             a.FiredAt = st.Tick;
-            double p = HitChance(st, a, target);
+            // FireControl: this is the man he is on.
+            if (st.FireControl && !blind) a.Mark = target.Id;
             // Ammo: a long burst, close in, is likelier to find him than a short one.
             if (automatic && rounds > Ammo.Of(st, a).Burst) p = Math.Min(0.9, p * Tune.LongBurstHit);
             bool hit = !blind && rng.Next() < p;
@@ -293,6 +297,8 @@ namespace LanesOfVietnam.Sim
             // Fortune: and some men's heads go down sooner than others'.
             if (st.Fortune) amount = Fortune.Shaken(m, amount);
             m.Pin = Math.Min(1, m.Pin + amount * resist);
+            // FireControl: and while it keeps coming he does not get his head up (Relax).
+            if (st.FireControl && amount > 0) m.UnderAt = st.Tick;
             if (before < Tune.PinDrop && m.Pin >= Tune.PinDrop)
             {
                 st.Events.Add(new SimEvent
@@ -311,6 +317,9 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static void Relax(SimState st, Man m)
         {
+            // FireControl: not while rounds are still landing by him. Fire that is kept up keeps a head down;
+            // it comes up a moment after the fire lifts.
+            if (st.FireControl && st.Tick - m.UnderAt <= Tune.PinHold) return;
             double before = m.Pin;
             double rate = Tune.PinDecay * (m.Posture == Posture.Prone ? Tune.PinDecayProne : 1.0);
             m.Pin = Math.Max(0, m.Pin - rate * Tune.Dt);

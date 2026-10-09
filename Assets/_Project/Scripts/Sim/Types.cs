@@ -162,6 +162,11 @@ namespace LanesOfVietnam.Sim
         /// much fire it takes to put his head down, and how quick he is to fire again.
         /// </summary>
         public double Aim = 1, Nerve = 1, Quick = 1;
+
+        /// <summary>The man he last fired at, or -1: the one he is on (MatchOptions.FireControl).</summary>
+        public int Mark = -1;
+        /// <summary>The tick fire last came near him: while it keeps coming he keeps his head down (MatchOptions.FireControl).</summary>
+        public int UnderAt = -100000;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -238,6 +243,11 @@ namespace LanesOfVietnam.Sim
         public int Threat = -1;
         public double ThreatGap = double.PositiveInfinity;
         public bool ThreatSeen;
+
+        /// <summary>It means to go in, and is working up to it: its fire is poured on until the enemy's heads are down (MatchOptions.FireControl).</summary>
+        public bool Prep;
+        /// <summary>The tick it last went in and was stopped: it does not try again at once (MatchOptions.FireControl).</summary>
+        public int StalledAt = Senses.Never;
 
         /// <summary>The cover the squad is making for, or -1.</summary>
         public int Target = -1;
@@ -447,6 +457,8 @@ namespace LanesOfVietnam.Sim
         public bool Tactics;
         /// <summary>Part 2 rule: men who differ, and luck in a firefight (<see cref="Sim.Fortune"/>). Off is the baseline.</summary>
         public bool Fortune;
+        /// <summary>Part 2 rule: fire spread along the enemy's line, covering fire, guns that traverse, an assault on an enemy who is beaten down (<see cref="Sim.FireControl"/>). Off is the baseline.</summary>
+        public bool FireControl;
         /// <summary>Fortune's own random stream: what each man is like, and every stroke of luck.</summary>
         public Rng LuckRng;
         /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>

@@ -100,6 +100,8 @@ namespace LanesOfVietnam.Sim
         public bool Tactics;
         /// <summary>Part 2: men who differ, and luck in a firefight (Fortune). False is the parity baseline.</summary>
         public bool Fortune;
+        /// <summary>Part 2: fire spread along the enemy's line and at the man likeliest to be hit, covering fire, a machine gun that traverses, an assault on an enemy who is beaten down (FireControl). False is the parity baseline.</summary>
+        public bool FireControl;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -240,6 +242,7 @@ namespace LanesOfVietnam.Sim
                 Ammo = opts.Ammo,
                 Tactics = opts.Tactics,
                 Fortune = opts.Fortune,
+                FireControl = opts.FireControl,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;

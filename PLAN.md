@@ -2170,6 +2170,7 @@ a quick-fix pass. He decides what reaches `main`. A download asks first.
 | | what | gate |
 |---|---|---|
 | P0 | **Playtest 9** (§12.26): built, on `polish` | playtest 10: he calls the AI, the grenades and the snipers right, or says what is not |
+| P1 | **Fire control** (§12.29, 2026-10-09, his word: "focus on firing/gunplay mechanics and AI smartness"): a man fires at the man he is likeliest to hit and a squad spreads its fire; fire that is kept up keeps heads down; a squad works up to an assault and goes in by halves on a beaten enemy; a rocket is for a group. Behind `MatchOptions.FireControl`, on in the game | built and measured, not played: he says whether the fights read better |
 | P2 | **Every class its job**, three rules, each behind its own flag: the computer pulls hold and go on its own strongpoints; the mortar fires only once halted and set up; sappers carry satchel charges and use them on an occupied position. Then the view for each | flag off, every pin unchanged; a pin and tests a rule; `player 48 29 rate=0.9 tactics fortune` off and on |
 | P3 | **The bound order (key 3): taken out** (2026-10-09, his word). Squads bound by themselves (§12.26); the keys are 1 advance, 2 hold, 3 fall back (4 still falls back), 0 auto; the tutor says what a closing squad is doing | done: PlayMode 19/19 |
 | P4 | **The guns:** model detail in `tools/blender/weapons.py`; a launcher's burst the size of its round | captures at full zoom |
@@ -2352,6 +2353,226 @@ capture).
 - Vercel's Hobby plan is for personal, non-commercial use, and its monthly
   transfer allowance is the limit on visitors: at 33 MB a full visit, the
   usage page in the dashboard is where to watch it.
+
+
+### 12.29 Fire control: what a squad does with its fire (2026-10-09)
+
+The owner, with the demo up: "get to work on the rest of the plan: focus on
+firing/gunplay mechanics and AI smartness (COMBAT ESSENTIALLY)." (And three
+things first, done: this repository's commits now carry GitHub's no-reply
+address; the Vercel CLI is signed out; `captures/.blast/` is gone.)
+
+**Measured first.** A new command, `simcs gunplay`, counts the firing itself:
+each weapon's shots and what they do, the chance each shot had
+(`Combat.HitChance` as the tick began) for the man fired at and for every
+man the firer could have fired at instead, bursts and who was inside them,
+what a man was doing when he was killed, and what an assault came to. On
+the build he has (`gunplay 20 2400 20 fieldcraft arms senses gunnery ammo
+tactics fortune tempo`; a minute of fighting):
+
+- 279 shots for 11.3 men killed. Three aimed shots in four had less than
+  three chances in a hundred; two in five less than one.
+- 71% of shots went at a man one of the firer's own squad had fired at
+  within two seconds, 66% while another enemy in reach had nobody on him:
+  a squad put all its fire on the nearest man.
+- So a squad's men were down under fire 12% of their time in a fight, and
+  flat 7%: one man was kept on his face and the rest were free. Suppression
+  is what `Combat.cs` says the fighting turns on, and it was not turning.
+- 11% of aimed shots had a man to fire at instead with twice the chance or
+  more: most often one on his feet or running, a little further off.
+- A squad went in 6.5 times a minute. Two times in three it ended back in
+  the same firefight; one in five with the enemy dead or running; one in
+  ten in a rout.
+- A sniper fired four rounds in five at riflemen.
+- 24% of an M79's rounds and 12% of the rockets (a team carries three) were
+  fired at one man with nobody near him.
+- Three deaths in four were of men in cover: the fighting is cover to
+  cover, and decided by attrition and grenades.
+
+Read in the code, the causes are plain. Every man fires at the nearest
+enemy his squad has in sight, at his rifle's own rate, whatever the shot is
+worth. A near miss is got over in a second and a half, so one rifle cannot
+hold a man down and a squad never tries to hold more than one. And a squad
+goes in when the enemy's pin, averaged, passes a line that one flattened
+man in three takes it past.
+
+**As built:** a new rule, `MatchOptions.FireControl` (`Sim/FireControl.cs`),
+on in the game.
+
+- *His man.* A man fires at the enemy he is likeliest to hit, not the
+  nearest: the one up and running before the one flat behind a wall. Each
+  man of his squad already on a man makes that man worth half as much to
+  him, so a squad's fire is spread along the enemy's line. He stays on his
+  man rather than change with every shot. (A man in his own lane before
+  one seen over the bank, as since playtest 6.)
+- *The guns.* A machine gun fires where the most heads are and moves on
+  from the man it has just fired at: it traverses. A sniper looks for the
+  crews first: a machine gun, a launcher, the mortar, another sniper.
+- *Covering fire.* A rifleman's round with less than two chances in a
+  hundred is covering fire. He fires it at half his pace, saving his
+  magazine, until somebody of his needs it: his own squad closing, going
+  in, working up to going in, or falling back, or a squad beside it doing
+  so. Then everybody fires as fast as he can. A squad's fire quickening is
+  the sign that it means to move.
+- *Kept down.* A man does not begin to get over fire while it is still
+  landing by him (0.6 s after each near miss). Fire that is kept up keeps a
+  head down, and it comes up a moment after the fire lifts: a reload, a
+  squad getting up to move. One rifle at its own pace does not do it; two
+  do, or a machine gun.
+- *Going in.* A squad goes in when the enemy in front of it is beaten down
+  man by man (two in three of them with their heads down), never onto a
+  machine gun that is still up, never outnumbered; or when it has him
+  three to one. It goes in by halves: one half rushes while the other,
+  down, fires over it, then the other. Once in it keeps going unless a gun
+  or twice its number stops it, or its own men go down. Stopped, it does
+  not try again for twenty seconds.
+- *Bursts.* A launcher or the mortar fires where its round will find the
+  most men, and not at one rifleman by himself: a rocket or a bomb is for a
+  crew or a group, an M79's round also for a man bullets cannot reach
+  behind his cover. A grenade is thrown where it will find the most, and
+  never where it would catch the thrower's own side.
+
+No random draws. Its state (the man each man is on, when fire last came
+near him, whether a squad is working up to an assault and when it was last
+stopped) is hashed only with the rule on.
+
+**Built, measured and left out.** A multiplier on what a covering round
+pins while somebody is moving under it (1.6): with "kept down" in, it moved
+men down in a fight from 30% to 32% and nothing else that could be told
+from chance. And "kept down" for a second instead of 0.6: 37% down and 8.2
+men killed a minute against 30% and 9.8, more of the same thing; the
+shorter was kept.
+
+**Before and after** (`simcs gunplay`, `brain`, `muddle` and `aware`, each
+with `N 2400 40 fieldcraft arms senses gunnery ammo tactics fortune tempo`,
+then the same with `firecontrol`; a minute of fighting):
+
+| | seeds 20 to 59, tuned on | | seeds 100 to 139, not tuned on | |
+|---|---|---|---|---|
+| | before | after | before | after |
+| a shot at a man a squad-mate had just fired at | 73% | 43% | 73% | 43% |
+| the same, with another in reach nobody was on | 68% | 36% | 68% | 34% |
+| aimed shots with a man twice as likely to be hit to fire at | 11% | 2% | 13% | 2% |
+| a sniper's rounds at a crew | 15% | 42% | 20% | 52% |
+| rockets at one man by himself | 16% | 5% | 22% | 1% |
+| the enemy inside a rocket's burst; killed, a rocket | 2.51; 0.46 | 2.74; 0.45 | 2.27; 0.39 | 3.72; 0.59 |
+| the enemy inside an M79's burst; rounds fired | 2.50; 1.5 | 2.66; 1.5 | 2.62; 2.0 | 3.73; 1.1 |
+| grenades thrown; own men they killed | 6.1; 0.00 | 3.9; 0.01 | 4.8; 0.03 | 3.8; 0.00 |
+| a squad's men down in a fight; flat | 13%; 7% | 30%; 19% | 13%; 7% | 27%; 17% |
+| assaults; seconds each | 6.80; 8.0 | 4.01; 9.0 | 6.76; 7.8 | 4.03; 9.3 |
+| what one cost the squad going in; the enemy squad | 0.49; 0.66 | 0.32; 0.50 | 0.46; 0.64 | 0.38; 0.61 |
+| assaults ending with the enemy dead or running; in a rout | 21%; 11% | 19%; 4% | 22%; 9% | 25%; 5% |
+| a squad goes up the lane and back | 2.9 | 1.5 | 2.6 | 1.8 |
+| a man walks 5 m and ends where he began | 1.7 | 0.9 | 1.8 | 1.0 |
+| direction of travel turns a whole circle | 3.6 | 3.5 | 4.6 | 3.5 |
+| turns about (`muddle`); sets off, a man | 7.2; 4.6 | 5.2; 4.0 | 8.4; 4.6 | 6.8; 4.1 |
+| squads within 30 m: silent, fighting (squad-seconds) | 74.0, 226.2 | 68.8, 251.7 | 82.3, 214.5 | 79.0, 230.4 |
+| a man with a target, not fired for 4 s | 21% | 20% | 20% | 20% |
+| sight to the first shot: median; nine in ten within | 1.7; 12.2 s | 1.8; 11.3 s | 1.7; 10.0 s | 1.7; 11.6 s |
+| at rest in the open by cover with a place free (man-seconds) | 203.6 | 211.9 | 177.4 | 190.2 |
+| shots; men killed | 289; 11.9 | 311; 9.0 | 272; 10.8 | 272; 9.7 |
+| aimed shots with less than one chance in a hundred | 37% | 47% | 39% | 47% |
+| a rifle's kill, every so many shots | 39 | 56 | 43 | 47 |
+
+What the table says against the build, plainly:
+
+- **There is no less shooting, and more of it is hopeless.** Shots are the
+  same or a little more, and nearly half of the aimed ones now have less
+  than one chance in a hundred, because the men they are fired at are down
+  more. They are covering fire and do what covering fire is for; they are
+  still tracers that hit nothing. Playtests 5 and 8 both asked for less.
+- **Fewer men are killed a minute**, by a tenth to a quarter.
+- **Assaults still mostly do not carry.** They are two fifths fewer, they
+  cost the squad going in less and a rout is half as common; but the share
+  that end with the enemy dead or running is what it was, about a quarter.
+  Inside ten metres a pinned man still fires at three fifths of his rate
+  and aims as well (Gunnery's rule, for two squads that lay four metres
+  apart pinned for twelve seconds), so the last rush is run against men who
+  shoot back whatever was done to them first.
+- Men at rest in the open beside cover are no fewer, and the slowest tenth
+  of contacts no quicker to a first shot.
+
+**Balance** (`simcs player 48 N rate=0.9 tactics fortune firecontrol`, a
+player who only buys line squads): against a Recruit (40) he wins 44 and 46
+of 48; against a Veteran (29) 36 and 33, where it was 40 and 37. Against
+the Elite at 22 he won 6 and 11, where it was 21 and 24: with fire that
+keeps heads down, numbers tell for more. At 24 he wins 16 and 16, at 26, 27
+and 26. **`GameRoot.CostFor(Elite)` is now 25**: 26 and 21. The two plans
+left to themselves at Veteran: 26 and 22.
+
+The lengths hold at `RateFor`'s 1.15, 0.9 and 1.0 (`player 24 29
+[skirmish|siege] rate=R tactics fortune firecontrol`, and the Veteran table
+above): a skirmish 125 and 136 s for a player who buys, 144 with nobody
+playing; a standard match 200 and 214, and 241; a siege 441 and 492, and
+515, with four in twenty-four at the twelve-minute cap, where it ends on
+morale.
+
+**Checks.** With the flag off a match is what it was: determinism ok;
+`hash 1` 4390 ticks, final `2256114725u`; `hash 1 frag smoke drill
+fieldcraft arms senses gunnery ammo map` 2725, `988759736u`; the Tactics
+pins (3538, `2103794046u`; 3341, `2175602128u`) and the Fortune pins (2719,
+`4215652832u`; 2166, `535311614u`) unmoved. New pins, each from `simcs
+hash`:
+
+- `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+  firecontrol map` (the game): 5070 ticks, `4188068015u`, `3040016184u`,
+  `1731903378u`;
+- `7 drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol`:
+  4220 ticks, `2037419726u`, `1865812131u`, `1248060381u`.
+
+(Those two are the baseline's economy, sixteen men a side to open and no
+tempo: there the rule doubles a match's length. In the game's it is a fifth
+longer, above.)
+
+EditMode 76/76: the two pins and three new tests (a man fires at the man
+worth most and a squad spreads its fire, with covering fire and "kept
+down"; a squad goes in on a beaten enemy and a burst is for a group; and in
+whole matches fire is spread and men are kept down). PlayMode 19/19, run
+three times over on three seeds (one skipped, the capture).
+
+One PlayMode test was corrected, and what it tripped on is older than this
+rule. The audio test waited a flat 28 s for the fight and then listened
+for nine. A match is a different seed every run, and in 7 seeds of 300,
+with the rule and without (a temporary `simcs` count, a player who buys
+nothing), nobody has fired by then: the match opens in the far lane, the
+first VC squad stops in the last cover that will hold it, 35 m short of
+the Americans in theirs, neither can see the other, and the opening waits
+out its 45 s. The test failed once on this build for that; it now waits
+for the first shot.
+
+WebGL 25.58 MB initial, 32.76 MB in all. 4.3 to 4.5 ms a frame, 5 to 6 ms
+at the 95th percentile, at 2592 x 1370 with the display awake (`?perf=1&
+seed=3` in headless Chrome, twelve readings of a hundred ticks each); the
+simulation is 0.01 ms of a frame.
+
+No new `EventKind`, and nothing new for the view to draw. New files:
+`Sim/FireControl.cs` and its `.meta`. `simcs gunplay` is new; with `why` it
+also lists what each assault cost by how it began.
+
+**Not done, or not known.**
+
+- Nothing here has been played by the owner, and no frame of it has been
+  looked at: it is numbers. Whether a firefight where men spend a quarter
+  of their time with their heads down reads as a better fight or a slower
+  one is his to say. One number puts it back: `Tune.PinHold`.
+- The rest of §12.27's P2 (the computer's levers, the mortar emplaced,
+  satchel charges) is not started.
+- **The computer never commands.** Found while reading for this: a side
+  without a player raises a squad when it can afford one, into a lane drawn
+  at random, and does nothing else. It never calls artillery, smoke, an air
+  strike or a medevac, never lays a trap or opens a tunnel, never pulls a
+  lever, and never gives a squad an order. Its difficulty is the price of
+  its squads. That is the largest thing left in "AI smartness", and it is
+  wider than P2's "the computer pulls hold and go": proposed as the next
+  rule, the computer's commander, with its own flag and balance.
+- The last ten metres of an assault (above) is the next thing in the
+  gunplay itself.
+- **One match in forty opens with 42 seconds of nothing** (above), and
+  one in ten has no shot in its first 31 s (the first shot: median 18 s).
+  Not touched here.
+- **The demo is still the build before this one.** A deploy is on his
+  word, and the Vercel CLI is signed out at his word; `Builds/web` here is
+  this build, for `python3 tools/serve.py Builds/web --port 8065`.
 
 
 ### 12.13 Corrections to earlier sections

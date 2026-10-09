@@ -159,7 +159,13 @@ namespace LanesOfVietnam.Sim
             if (st.Ammo && a.Rounds <= 0) { a.Cooldown = Tune.ScanIdle * 4; return false; }
             Man target = null;
             double best = arm.Range * arm.Range, min2 = arm.MinRange * arm.MinRange;
-            for (int i = 0; i < st.Men.Count; i++)
+            // FireControl: where the round will find the most men, and not at one rifleman by himself.
+            if (st.FireControl)
+            {
+                target = FireControl.Burst(st, a, arm);
+                if (target != null) { double tx = a.X - target.X, tz = a.Z - target.Z; best = tx * tx + tz * tz; }
+            }
+            for (int i = 0; i < st.Men.Count && !st.FireControl; i++)
             {
                 var b = st.Men[i];
                 if (!b.Alive || !b.Seen || b.Side == a.Side) continue;

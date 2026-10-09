@@ -639,6 +639,8 @@ namespace LanesOfVietnam.Sim
             // front of it that it knows of. (Marching its anchor up, it stood behind its lead man
             // the moment he was pinned.)
             bool goingIn = st.Senses && sq.Task == SquadTask.Assault && sq.Order != Order.Hold;
+            // FireControl: and it goes in by halves: one rushes while the other, down, fires over it; then the other.
+            if (goingIn && st.FireControl && !Tactics.Turn(st, sq, m)) goingIn = false;
             // (Tactics: the last ten metres. Further off the squad comes on by bounds, half of it firing.)
             if (goingIn) reach = st.Tactics ? Tune.RushFrom : Tune.AssaultReach + Tune.ChargeRange;
             Man best = null;
