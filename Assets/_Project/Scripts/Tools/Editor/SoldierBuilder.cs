@@ -1036,7 +1036,11 @@ namespace LanesOfVietnam.Tools
                 fig.CrouchDeath2 = states.Contains("Dead death_crouch");
                 fig.MirroredDeaths = states.Contains("Dead death_blast mirrored");
                 // What a burst can take off him: a forearm and hand, a lower leg and foot, either side.
-                fig.Limbs = new[] { "lowerarm_l", "calf_r", "lowerarm_r", "calf_l" }.Select(b => Limb(name, smr, t, b)).Where(l => l.Mesh != null).ToArray();
+                // (And, for a burst close by or a heavy round: his head, a whole arm, a whole leg.)
+                var parts = new[] { "lowerarm_l", "calf_r", "lowerarm_r", "calf_l", "head", "upperarm_l", "upperarm_r", "thigh_l", "thigh_r" }
+                    .Select(b => (bone: b, limb: Limb(name, smr, t, b))).Where(x => x.limb.Mesh != null).ToArray();
+                fig.Limbs = parts.Select(x => x.limb).ToArray();
+                fig.LimbNames = parts.Select(x => x.bone).ToArray();
 
                 Grip(t);
                 // The weapons (tools/blender/weapons.py), in place of the one rifle the body came with:

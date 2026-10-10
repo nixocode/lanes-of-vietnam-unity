@@ -2877,6 +2877,77 @@ is in its way: a squad's covering half fires over the half that is going
 in (§12.29), and friendly fire would undo that. Not played by the owner.
 
 
+### 12.34 What a round and a burst do to a man (2026-10-10)
+
+The owner, with the shooting rule: "also add bullets hitting soldiers and
+blood splatters, body disfigurement and gore (with high cal + explosions)".
+
+All of it is the view's. The simulation is untouched: no hash moved.
+
+**What was there** (§12.26): a man shot fell, with a puff of blood and a
+stain; a burst within 2.6 m threw him and, seven times in ten, took one
+forearm or lower leg off him.
+
+**As built.**
+
+- **A round leaves its mark on the man.** Where it went in, a patch of
+  blood on him; where it came out, a bigger, torn one. The round's line is
+  taken through his trunk (his chest six times in ten, his belly, his
+  head) and the patches are put where that line meets his skin as he is
+  posed at that moment (`SoldierFigure.Wound`), on the bone that part of
+  him follows, so they stay on him as he falls. Never on his arms: they
+  are across his chest as often as not, and the first version put a plate
+  on his forearm. By the round: a rifle's 8 cm, a machine gun's 9 (and two
+  of them, its burst puts two rounds in him), a sniper's 11. Three wounds
+  a man at most.
+- **A heavy round may take a part of him** (`ArmyView.HeavyRound`: a
+  belt-fed gun's, a sniper's). His head, a sniper's one time in three and
+  a machine gun's one in eight; a forearm or a lower leg, either's one in
+  five (`HeadOffSniper`, `HeadOffGun`, `LimbOffRound`: the owner's to
+  turn).
+- **A burst takes more of him.** Nine parts can come off a man now, not
+  four: his head, each arm at the shoulder or the elbow, each leg at the
+  hip or the knee (`SoldierBuilder` cuts each from his own skin; thirty
+  more meshes). Within 2.6 m one part, seven times in ten; within 1.9 m
+  two; within 1.2 m three (`SoldierFigure.MostOff`). Never the same part
+  twice, nor a forearm after its arm. Each is flung its own way, lands,
+  and lies along the ground, not on end.
+- **Where a part came off is raw:** blood on the stump and on the end of
+  the piece (which is his skin and no more, and was open there).
+- **Blood.** From a stump, in spurts, each weaker, for three and a half
+  seconds. Out of a man a burst kills within 2.2 m, pieces, dark, flung
+  wide and falling. On the ground beyond a man a heavy round killed, seven
+  stains and further out, where a rifle's leaves four; and a stain where
+  each part of him came down.
+- **With GORE off** in the settings: no wounds, no parts, no pieces, no
+  spurts; the blood there was before, at four tenths.
+- A man's wounds are a dozen small things to draw. When he lies still they
+  are made one mesh with him (`SoldierFigure.Gather`), as his body is.
+
+**Looked at:** `SoldierPreview.RenderGore` (new: `captures/soldiers/
+us_a_gore_a.png`, `_b.png`: a rifle's round from in front and from behind,
+a machine gun's, a sniper's taking his head, a forearm, a burst close by
+taking three parts); and in the game, `tools/strip.sh
+seed=3,tick=4320,x=7,dolly=0.45,every=0.3` (a grenade at arm's length of
+two men: one loses his head, his hat with it) and `seed=3,tick=2916,x=-10`
+(a sniper's round: the man stands a moment without his head, and falls).
+`simcs blasts 3 fieldcraft arms senses gunnery ammo tactics fortune
+firecontrol ballistics tempo guns` finds the ticks (with `tempo`: without
+it the match is not the game's).
+
+**Checks.** EditMode 80/80, PlayMode 21/21 (the limb test now takes three
+parts off one man and refuses a fourth, the same one twice and an arm after
+its forearm; wounds are on his trunk, three at most, and one mesh once he
+lies still). WebGL 29.25 MB initial (27.0 before: the thirty meshes),
+36.77 MB in all, of 45 and 80; 4.4 to 4.5 ms a frame, 6.0 ms at the 95th
+percentile, at 2592 x 1370 with the display awake (4.2 to 4.4 and 5 to 6
+before).
+
+**Not done.** A wound on a living man: nobody is wounded in this
+simulation, a round kills or it misses. Bodies do not come apart at the
+trunk. Not seen by the owner.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

@@ -154,6 +154,8 @@ namespace LanesOfVietnam.View
             public Mesh Mesh;
         }
         public Limb[] Limbs = new Limb[0];
+        /// <summary>Each of them by the name of the bone it hangs from (SoldierBuilder): "lowerarm_l", "calf_r", "head", "upperarm_l", "thigh_r" and the rest.</summary>
+        public string[] LimbNames = new string[0];
 
         /// <summary>
         /// How fast a death plays against its clip. Thrown by a burst, a man is down in a second, not three
@@ -165,9 +167,21 @@ namespace LanesOfVietnam.View
         public const float ThrownFor = 0.55f;
         private float _deathPace = 1f, _hop;
         private Vector3 _blown;
-        private Transform _severed, _limb;
-        private Vector3 _limbPace, _limbSpin;
-        private bool _limbFlying;
+        /// <summary>A part of him that has come off: the bone it hung from (drawn down to nothing on his body), and the piece itself, flying or lying.</summary>
+        private struct Off
+        {
+            public Transform Bone, Piece;
+            public Vector3 Pace, Spin;
+            public bool Flying;
+            /// <summary>The middle of the piece and the way it is longest, in its own space; and how high its middle rests off the ground, metres.</summary>
+            public Vector3 Mid, Long;
+            public float Lift;
+        }
+        private readonly System.Collections.Generic.List<Off> _off = new System.Collections.Generic.List<Off>(MostOff);
+        /// <summary>The most that comes off one man: a burst close by may take three parts of him.</summary>
+        public const int MostOff = 3;
+        private int _wounds;
+        private bool AnyFlying { get { for (int k = 0; k < _off.Count; k++) if (_off[k].Flying) return true; return false; } }
 
         private static readonly int SpeedId = Animator.StringToHash("Speed");
         private static readonly int ScaleId = Animator.StringToHash("SpeedScale");
@@ -284,7 +298,7 @@ namespace LanesOfVietnam.View
                 float through = Animator.IsInTransition(0) ? 0f : fall.normalizedTime;
                 if ((through > 0.6f || _deadFor > 3f) && Rifle != null && Rifle.transform.parent != transform) DropRifle(deathIndex);
                 // Fallen and still (and what a burst took off him landed): freeze him as a plain mesh.
-                if (((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) && !_limbFlying) { Bake(); return; }
+                if (((through >= 1f && _deadFor > 0.6f) || _deadFor > 6f) && !AnyFlying) { Bake(); return; }
             }
             // One gait at a time, played at the rate that puts his feet down where he is going: the walk
             // or the run, the crouched walk, the crawl; never a blend of two, whose feet agree with
@@ -346,21 +360,27 @@ namespace LanesOfVietnam.View
             }
             // (A climb is played at the pace the simulation climbs at; a death at its own.)
             Animator.Update(_deadFor >= 0 ? dt * _deathPace : _climbPace != 1f && !dead && Climbing ? dt * _climbPace : dt);
-            if (_severed != null)
+            for (int k = 0; k < _off.Count; k++)
             {
                 // The clip does not know his arm is gone: drawn down to nothing again after every pose.
-                _severed.localScale = Vector3.one * 0.001f;
-                if (_limbFlying)
+                var o = _off[k];
+                o.Bone.localScale = Vector3.one * 0.001f;
+                if (o.Flying)
                 {
-                    _limbPace += Vector3.down * (9.8f * dt);
-                    _limb.position += _limbPace * dt;
-                    _limb.Rotate(_limbSpin, 620f * dt, Space.World);
-                    float ground = transform.position.y + 0.07f;
-                    if (_limb.position.y <= ground && _limbPace.y < 0)
+                    o.Pace += Vector3.down * (9.8f * dt);
+                    o.Piece.position += o.Pace * dt;
+                    o.Piece.Rotate(o.Spin, 620f * dt, Space.World);
+                    float ground = transform.position.y + o.Lift;
+                    if (o.Piece.TransformPoint(o.Mid).y <= ground && o.Pace.y < 0)
                     {
-                        _limb.position = new Vector3(_limb.position.x, ground, _limb.position.z);
-                        _limbFlying = false;
+                        // Down: it lies along the ground, not on end, its middle its own thickness off it.
+                        var lies = o.Piece.TransformDirection(o.Long);
+                        var level = new Vector3(lies.x, 0, lies.z);
+                        if (level.sqrMagnitude > 1e-4f) o.Piece.rotation = Quaternion.FromToRotation(lies, level) * o.Piece.rotation;
+                        o.Piece.position += Vector3.up * (ground - o.Piece.TransformPoint(o.Mid).y);
+                        o.Flying = false;
                     }
+                    _off[k] = o;
                 }
             }
 
@@ -485,23 +505,40 @@ namespace LanesOfVietnam.View
             _hop = hop;
         }
 
-        /// <summary>Where what a burst took off him lies, once it has landed.</summary>
-        public bool TryLimb(out Vector3 at)
+        /// <summary>Where the first thing to come off him lies, once it has landed.</summary>
+        public bool TryLimb(out Vector3 at) => TryLimb(0, out at);
+
+        /// <summary>Where the <paramref name="k"/>th thing to come off him lies, once it has landed.</summary>
+        public bool TryLimb(int k, out Vector3 at)
         {
-            at = _limb != null ? _limb.position : default;
-            return _limb != null && !_limbFlying;
+            at = k >= 0 && k < _off.Count ? _off[k].Piece.TransformPoint(_off[k].Mid) : default;
+            return k >= 0 && k < _off.Count && !_off[k].Flying;
         }
 
+        /// <summary>Where it came off him: the stump, as his body is posed now.</summary>
+        public bool TryStump(int k, out Vector3 at)
+        {
+            at = k >= 0 && k < _off.Count ? _off[k].Bone.position : default;
+            return k >= 0 && k < _off.Count;
+        }
+
+        /// <summary>How many parts of him have come off.</summary>
+        public int Severed => _off.Count;
+
         /// <summary>
-        /// A burst takes a limb off him (the owner, playtest 9: "body dismemberment"): one of
-        /// <see cref="Limbs"/> by <paramref name="which"/>, flung at <paramref name="pace"/> (m/s, in the
-        /// world). On his body the bone is drawn down to nothing; the limb is a plain mesh from where it was.
+        /// A part of him comes off (the owner, playtest 9: "body dismemberment"; 2026-10-10: "body disfigurement
+        /// and gore (with high cal + explosions)"): one of <see cref="Limbs"/> by <paramref name="which"/>, flung at
+        /// <paramref name="pace"/> (m/s, in the world). On his body the bone is drawn down to nothing; the part is
+        /// a plain mesh from where it was. False if it is off already, or what it hangs from or what hangs from
+        /// it is, or he has lost <see cref="MostOff"/> parts.
         /// </summary>
         public bool Sever(int which, Vector3 pace)
         {
-            if (_baked || _severed != null || Limbs == null || Limbs.Length == 0) return false;
+            if (_baked || _off.Count >= MostOff || Limbs == null || Limbs.Length == 0) return false;
             var limb = Limbs[Mathf.Abs(which) % Limbs.Length];
             if (limb.Bone == null || limb.Mesh == null) return false;
+            for (int k = 0; k < _off.Count; k++)
+                if (_off[k].Bone == limb.Bone || _off[k].Bone.IsChildOf(limb.Bone) || limb.Bone.IsChildOf(_off[k].Bone)) return false;
             // The hand his rifle is in: it falls with him, not with the hand.
             if (Rifle != null && Rifle.transform.IsChildOf(limb.Bone)) DropRifle(which);
             var go = new GameObject("limb");
@@ -513,12 +550,206 @@ namespace LanesOfVietnam.View
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = Body.sharedMaterial;
             mr.shadowCastingMode = ShadowCastingMode.On;
-            _severed = limb.Bone; _limb = go.transform;
-            _limbPace = pace;
-            _limbSpin = Vector3.Cross(Vector3.up, pace).sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, pace).normalized : transform.right;
-            _limbFlying = true;
-            _severed.localScale = Vector3.one * 0.001f;
+            // (How it will lie: along its longest side, half its thinnest off the ground.)
+            var box = limb.Mesh.bounds.size;
+            var along = box.x >= box.y && box.x >= box.z ? Vector3.right : box.y >= box.z ? Vector3.up : Vector3.forward;
+            _off.Add(new Off
+            {
+                Bone = limb.Bone, Piece = go.transform, Pace = pace, Flying = true,
+                Mid = limb.Mesh.bounds.center, Long = along,
+                Lift = Mathf.Max(0.04f, 0.5f * Mathf.Min(box.x * want.x, box.y * want.y, box.z * want.z)),
+                Spin = Vector3.Cross(Vector3.up, pace).sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, pace).normalized : transform.right,
+            });
+            // Where it parted, raw: on him, and on the end of the piece (which is his skin and no more: open there).
+            float raw = Mathf.Clamp(1.8f * _off[_off.Count - 1].Lift, 0.08f, 0.14f);
+            Patch(limb.Bone.parent, limb.Bone.position, Vector3.up, raw, 0.8f);
+            Patch(go.transform, limb.Bone.position, Vector3.up, raw, 0.8f);
+            limb.Bone.localScale = Vector3.one * 0.001f;
             return true;
+        }
+
+        /// <summary>Whether this part of him has come off: the bone, or one it hangs from.</summary>
+        private bool Gone(Transform bone)
+        {
+            for (int k = 0; k < _off.Count; k++)
+                if (bone == _off[k].Bone || bone.IsChildOf(_off[k].Bone)) return true;
+            return false;
+        }
+
+        /// <summary>The same, by the part's name (<see cref="LimbNames"/>: "head", "lowerarm_l", "thigh_r" and the rest).</summary>
+        public bool Sever(string part, Vector3 pace)
+        {
+            int k = System.Array.IndexOf(LimbNames, part);
+            return k >= 0 && Sever(k, pace);
+        }
+
+        /// <summary>The most wounds drawn on one man.</summary>
+        public const int MostWounds = 3;
+
+        // His skin as he is posed at this moment, to find where on it a round struck; whose bone each vertex of a
+        // body follows most (Unity lists a vertex's bones heaviest first); and what a wound is drawn with.
+        private static Mesh _skin, _ball;
+        private static readonly System.Collections.Generic.List<Vector3> _skinAt = new System.Collections.Generic.List<Vector3>();
+        private static readonly System.Collections.Generic.Dictionary<Mesh, int[]> _owners = new System.Collections.Generic.Dictionary<Mesh, int[]>();
+        private static Material _blood;
+
+        /// <summary>How many wounds are drawn on him.</summary>
+        public int Wounds => _wounds;
+
+        /// <summary>
+        /// Where a round went through him (the owner, 2026-10-10: "bullets hitting soldiers and blood splatters"):
+        /// a patch of blood on him where it went in, and a bigger one where it came out. <paramref name="along"/>
+        /// is the way the round was going, in the world; <paramref name="size"/> metres across. The round's line
+        /// is taken through his trunk (his chest most often) and the patches are put where that line meets his
+        /// skin as he is posed now, each on the bone that part of him follows: an arm held across his chest takes
+        /// it, and they stay on him as he falls. False if the line missed him or he has
+        /// <see cref="MostWounds"/> already.
+        /// </summary>
+        public bool Wound(Vector3 along, float size, int seed)
+        {
+            if (_wounds >= MostWounds || _baked || Body == null || Body.sharedMesh == null || Chest == null) return false;
+            along.y = 0;
+            if (along.sqrMagnitude < 1e-4f) along = transform.forward;
+            along.Normalize();
+            seed = Mathf.Abs(seed);
+            int pick = seed % 10;
+            Vector3 aim = pick < 6 || Hips == null ? Chest.position
+                        : pick < 8 ? Vector3.Lerp(Hips.position, Chest.position, 0.45f)
+                        : pick == 8 && Head != null ? Head.position + (Head.position - Chest.position).normalized * 0.06f
+                        : Chest.position;
+            aim += Vector3.Cross(Vector3.up, along) * (0.025f * (seed / 7 % 5 - 2)) + Vector3.up * (0.03f * (seed / 3 % 5 - 2));
+
+            if (_skin == null) _skin = new Mesh { name = "skin" };
+            Body.BakeMesh(_skin, true);
+            _skin.GetVertices(_skinAt);
+            var bones = Body.bones;
+            if (!_owners.TryGetValue(Body.sharedMesh, out var owner))
+            {
+                // Not his arms (-1): they are across his chest as often as not, and a wound's patch on a forearm
+                // is a plate strapped to it.
+                Transform armL = Part("upperarm_l") ?? Part("lowerarm_l"), armR = Part("upperarm_r") ?? Part("lowerarm_r");
+                var arm = new bool[bones.Length];
+                for (int b = 0; b < bones.Length; b++)
+                    arm[b] = bones[b] == null || (armL != null && bones[b].IsChildOf(armL)) || (armR != null && bones[b].IsChildOf(armR));
+                var weights = Body.sharedMesh.boneWeights;
+                owner = new int[weights.Length];
+                for (int i = 0; i < weights.Length; i++)
+                    owner[i] = weights[i].boneIndex0 < arm.Length && !arm[weights[i].boneIndex0] ? weights[i].boneIndex0 : -1;
+                _owners[Body.sharedMesh] = owner;
+            }
+            // The round's line, in the space the skin was baked in. Of the skin within a few centimetres of it:
+            // the first it meets, and the last.
+            var skin = Body.transform;
+            float scale = Mathf.Max(1e-4f, skin.lossyScale.x);
+            Vector3 from = skin.InverseTransformPoint(aim), way = skin.InverseTransformDirection(along);
+            float near = 0.03f / scale; near *= near;
+            int first = -1, last = -1;
+            float inAt = float.MaxValue, outAt = float.MinValue;
+            int n = Mathf.Min(_skinAt.Count, owner.Length);
+            for (int i = 0; i < n; i++)
+            {
+                if (owner[i] < 0) continue;
+                var rel = _skinAt[i] - from;
+                float t = Vector3.Dot(rel, way);
+                if (rel.sqrMagnitude - t * t > near) continue;
+                if (t < inAt) { inAt = t; first = i; }
+                if (t > outAt) { outAt = t; last = i; }
+            }
+            if (first < 0) return false;
+            // In: one patch. Out: a bigger one, torn, with more of it to either side.
+            Vector3 side = Vector3.Cross(Vector3.up, along), hole = aim + along * (inAt * scale), torn = aim + along * (outAt * scale);
+            Patch(bones[owner[first]], hole + along * 0.006f, -along, size);
+            Patch(bones[owner[last]], torn - along * 0.006f, along, size * 1.5f);
+            float a = 0.1f * (seed % 11), reach = size * 0.75f;
+            Patch(bones[owner[last]], torn - along * 0.012f + (side * Mathf.Cos(a) + Vector3.up * Mathf.Sin(a)) * reach, along, size * 0.9f);
+            Patch(bones[owner[last]], torn - along * 0.012f - (side * Mathf.Cos(a + 0.9f) + Vector3.up * Mathf.Sin(a + 0.9f)) * reach, along, size * 0.7f);
+            _wounds++;
+            return true;
+        }
+
+        /// <summary>One of <see cref="Limbs"/> by its name, or null.</summary>
+        private Transform Part(string name)
+        {
+            int k = System.Array.IndexOf(LimbNames, name);
+            return k >= 0 && k < Limbs.Length ? Limbs[k].Bone : null;
+        }
+
+        /// <summary>A patch of blood on him: a flattened ball, dark and wet, lying on the part of him that <paramref name="bone"/> moves.</summary>
+        private void Patch(Transform bone, Vector3 at, Vector3 facing, float size, float thick = 0.28f)
+        {
+            // (A part of him that has come off is drawn down to nothing: nothing to put it on.)
+            if (bone == null || Gone(bone)) return;
+            if (_ball == null) _ball = Ball();
+            if (_blood == null)
+            {
+                // His own body's material, so that the build has it, with no cloth on it.
+                _blood = new Material(Body.sharedMaterial) { name = "blood" };
+                _blood.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                _blood.SetColor("_BaseColor", new Color(0.26f, 0.012f, 0.010f, 1f));
+            }
+            var go = new GameObject("wound");
+            go.transform.SetParent(bone, true);
+            go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(facing, Vector3.up));
+            var s = bone.lossyScale;
+            go.transform.localScale = new Vector3(size / s.x, size * (thick < 0.6f ? 1.25f : 1f) / s.y, size * thick / s.z);
+            go.AddComponent<MeshFilter>().sharedMesh = _ball;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = _blood;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+            _patches.Add(go.transform);
+        }
+
+        // Every patch of blood on him, until he lies still: then they are one mesh with him (a dozen small
+        // things to draw for every dead man otherwise, for the rest of the match).
+        private readonly System.Collections.Generic.List<Transform> _patches = new System.Collections.Generic.List<Transform>();
+        private Mesh _marks;
+
+        private void Gather()
+        {
+            if (_patches.Count == 0 || _ball == null || _blood == null) return;
+            var parts = new CombineInstance[_patches.Count];
+            var toMe = transform.worldToLocalMatrix;
+            for (int k = 0; k < parts.Length; k++) parts[k] = new CombineInstance { mesh = _ball, transform = toMe * _patches[k].localToWorldMatrix };
+            _marks = new Mesh { name = "wounds" };
+            _marks.CombineMeshes(parts, true, true);
+            var go = new GameObject("wounds");
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = _marks;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = _blood;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+            foreach (var p in _patches)
+                if (p != null) { if (Application.isPlaying) Destroy(p.gameObject); else DestroyImmediate(p.gameObject); }
+            _patches.Clear();
+        }
+
+        /// <summary>A ball a metre across, of few faces: a wound is one, flattened.</summary>
+        private static Mesh Ball()
+        {
+            const int around = 10, down = 6;
+            var at = new System.Collections.Generic.List<Vector3>();
+            var normal = new System.Collections.Generic.List<Vector3>();
+            var uv = new System.Collections.Generic.List<Vector2>();
+            var tri = new System.Collections.Generic.List<int>();
+            for (int j = 0; j <= down; j++)
+                for (int i = 0; i <= around; i++)
+                {
+                    float lat = Mathf.PI * j / down, lon = 2 * Mathf.PI * i / around;
+                    var p = new Vector3(Mathf.Sin(lat) * Mathf.Cos(lon), Mathf.Cos(lat), Mathf.Sin(lat) * Mathf.Sin(lon));
+                    at.Add(p * 0.5f); normal.Add(p); uv.Add(new Vector2((float)i / around, (float)j / down));
+                }
+            for (int j = 0; j < down; j++)
+                for (int i = 0; i < around; i++)
+                {
+                    int a = j * (around + 1) + i, b = a + around + 1;
+                    tri.Add(a); tri.Add(a + 1); tri.Add(b);
+                    tri.Add(a + 1); tri.Add(b + 1); tri.Add(b);
+                }
+            var m = new Mesh { name = "wound" };
+            m.SetVertices(at); m.SetNormals(normal); m.SetUVs(0, uv); m.SetTriangles(tri, 0);
+            m.RecalculateTangents();
+            m.RecalculateBounds();
+            return m;
         }
 
         /// <summary>
@@ -749,11 +980,13 @@ namespace LanesOfVietnam.View
             mr.sharedMaterial = Body.sharedMaterial;
             mr.shadowCastingMode = ShadowCastingMode.On;
             Body.enabled = false;
+            Gather();
         }
 
         private void OnDestroy()
         {
             if (_fallen != null) Destroy(_fallen);
+            if (_marks != null) Destroy(_marks);
         }
     }
 }

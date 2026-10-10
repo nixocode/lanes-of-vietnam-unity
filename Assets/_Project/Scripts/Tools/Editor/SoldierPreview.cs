@@ -218,6 +218,62 @@ namespace LanesOfVietnam.Tools
             States = orig; Own = null;
         }
 
+        /// <summary>For RenderGore: what is done to each column's man as he is killed.</summary>
+        private static System.Action<SoldierFigure>[] Hurt;
+
+        /// <summary>
+        /// What a round and a burst leave on a man (the owner, 2026-10-10: "bullets hitting soldiers and blood
+        /// splatters, body disfigurement and gore (with high cal + explosions)"), as the game does it: the hole a
+        /// rifle round makes going in and coming out, a machine gun's two, a sniper's round taking his head, a
+        /// forearm gone, and a burst close by taking three parts of him: captures/soldiers/us_a_gore_a.png, _b.png.
+        /// </summary>
+        public static void RenderGore()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            var states = new System.Collections.Generic.List<(string, float, int, bool, bool, int, float)>();
+            var own = new System.Collections.Generic.List<(int, int, float)>();
+            var hurt = new System.Collections.Generic.List<System.Action<SoldierFigure>>();
+            void Killed(string name, int death, float push, float[] at, System.Action<SoldierFigure> how)
+            {
+                foreach (float t in at) { states.Add((name, 0f, 0, false, true, death, t)); own.Add((0, 0, push)); hurt.Add(how); }
+            }
+            // He faces +x: a round going -x strikes his front.
+            Killed("rifle, from in front", 4, -1f, new[] { 0.15f, 5f }, f => f.Wound(Vector3.left, 0.045f + 0.035f * 1f, 12));
+            Killed("rifle, from behind", 8, 1f, new[] { 0.15f, 5f }, f => f.Wound(Vector3.right, 0.045f + 0.035f * 1f, 30));
+            Killed("machine gun", 0, -1f, new[] { 0.15f, 5f }, f =>
+            {
+                f.Wound(Vector3.left, 0.045f + 0.035f * 1.4f, 21);
+                f.Wound(Quaternion.Euler(0, 12f, 0) * Vector3.left, 0.045f + 0.035f * 1.4f, 47);
+            });
+            States = states.ToArray(); Own = own.ToArray(); Hurt = hurt.ToArray();
+            Sheet("us_a", 2.4f, "_gore_a", 1.5f);
+
+            states.Clear(); own.Clear(); hurt.Clear();
+            Killed("sniper: his head", 4, -1f, new[] { 0.2f, 0.6f, 5f }, f =>
+            {
+                f.Wound(Vector3.left, 0.045f + 0.035f * 1.9f, 8);
+                f.Sever("head", Vector3.left * 2.5f + Vector3.up * 3f + Vector3.forward * 0.4f);
+            });
+            Killed("machine gun: a forearm", 9, -1f, new[] { 0.3f, 5f }, f =>
+            {
+                f.Wound(Vector3.left, 0.045f + 0.035f * 1.4f, 21);
+                f.Sever("lowerarm_l", Vector3.left * 2.5f + Vector3.up * 3f + Vector3.back * 0.5f);
+            });
+            Killed("a burst close by", -1, -1f, new[] { 0.25f, 0.6f, 5f }, f =>
+            {
+                f.Blown(Vector3.left * 2.2f, 0.8f);
+                f.Sever("head", Vector3.left * 1.5f + Vector3.up * 5f + Vector3.forward * 1f);
+                f.Sever("upperarm_r", Vector3.left * 3f + Vector3.up * 4f + Vector3.back * 1.2f);
+                f.Sever("calf_l", Vector3.left * 0.5f + Vector3.up * 3.5f + Vector3.forward * 1.5f);
+                f.Wound(Vector3.left, 0.09f, 3);
+                f.Wound(Quaternion.Euler(0, 35f, 0) * Vector3.left, 0.1f, 14);
+            });
+            States = states.ToArray(); Own = own.ToArray(); Hurt = hurt.ToArray();
+            Sheet("us_a", 2.4f, "_gore_b", 1.5f);
+            States = orig; Own = null; Hurt = null;
+        }
+
         private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -277,6 +333,7 @@ namespace LanesOfVietnam.Tools
                 if (!s.dead && s.death == -5) f.Strike(1);
                 if (!s.dead && s.death == -6) f.Climb(true);
                 if (!s.dead && s.death == -7) f.Climb(false);
+                if (Hurt != null && c < Hurt.Length) Hurt[c]?.Invoke(f);
                 for (float t = 0; t < s.t; t += 1f / 30f) f.Step(1f / 30f, s.speed, s.posture, s.aim, s.dead, seed, how, Own != null ? Own[c].push : 0f);
                 shoot:
                 for (int row = 0; row < 3; row++)

@@ -439,6 +439,26 @@ MonoBehaviour:
     Mesh: {fileID: 4300000, guid: 390ad8b6ef23d47c2b6dd144186bdeab, type: 2}
   - Bone: {fileID: 5302450844437235435}
     Mesh: {fileID: 4300000, guid: 909ac913c11f14fbab8b768606a2f108, type: 2}
+  - Bone: {fileID: 8834082128570270956}
+    Mesh: {fileID: 4300000, guid: 07310a5e3e4b5456f837fe95bf5ec3d9, type: 2}
+  - Bone: {fileID: 7331949487739379485}
+    Mesh: {fileID: 4300000, guid: a34af9bbd45124ebaa72f3f4edb6199c, type: 2}
+  - Bone: {fileID: 856036679342012737}
+    Mesh: {fileID: 4300000, guid: 8512b4456978149e2b3e4b6fb6a372eb, type: 2}
+  - Bone: {fileID: 4653626121221080343}
+    Mesh: {fileID: 4300000, guid: a263e2eb9c2e34984b231aa2340cb389, type: 2}
+  - Bone: {fileID: 4061278563018677220}
+    Mesh: {fileID: 4300000, guid: 101a8cf185fab4b348530fa5f50727eb, type: 2}
+  LimbNames:
+  - lowerarm_l
+  - calf_r
+  - lowerarm_r
+  - calf_l
+  - head
+  - upperarm_l
+  - upperarm_r
+  - thigh_l
+  - thigh_r
   Carriage: {x: 0, y: 0}
 --- !u!1 &696580235859697130
 GameObject:

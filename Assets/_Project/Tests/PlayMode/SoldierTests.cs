@@ -77,7 +77,9 @@ namespace LanesOfVietnam.Tests
                 Assert.IsTrue(proto.MirroredDeaths, $"{proto.name}: the deaths by circumstance have no mirrors");
                 Assert.AreEqual(SoldierFigure.BlastCode, proto.DeathCode(2, 0, SoldierFigure.Fall.Blast));
                 Assert.AreEqual(SoldierFigure.BlastCode + SoldierFigure.MirroredCode, proto.DeathCode(3, 0, SoldierFigure.Fall.Blast));
-                Assert.AreEqual(4, proto.Limbs.Length, $"{proto.name}: a forearm and a lower leg, each side");
+                Assert.AreEqual(9, proto.Limbs.Length, $"{proto.name}: a forearm, an arm, a lower leg and a leg, each side, and his head");
+                Assert.AreEqual(proto.Limbs.Length, proto.LimbNames.Length, $"{proto.name}: a part with no name");
+                Assert.Contains("head", proto.LimbNames, $"{proto.name}: his head cannot come off");
                 Assert.IsTrue(proto.Limbs.All(l => l.Bone != null && l.Mesh != null && l.Mesh.vertexCount > 100), $"{proto.name}: a limb with no mesh to it");
             }
 
@@ -89,8 +91,32 @@ namespace LanesOfVietnam.Tests
                 if (burst)
                 {
                     f.Blown(Vector3.right * 2.5f, 0.8f);
-                    Assert.IsTrue(f.Sever(0, new Vector3(3f, 4f, 0.5f)), "nothing came off him");
-                    Assert.IsFalse(f.Sever(1, Vector3.up), "a second limb off the same man");
+                    Assert.IsTrue(f.Sever("lowerarm_l", new Vector3(3f, 4f, 0.5f)), "nothing came off him");
+                    Assert.IsFalse(f.Sever("lowerarm_l", Vector3.up), "the same forearm came off him twice");
+                    Assert.IsFalse(f.Sever("upperarm_l", Vector3.up), "the arm came off after its own forearm");
+                    Assert.IsTrue(f.Sever("head", new Vector3(2f, 5f, -1f)), "a burst this near did not take his head");
+                    Assert.IsTrue(f.Sever("calf_r", new Vector3(1f, 4f, 2f)), "nor a leg");
+                    Assert.IsFalse(f.Sever("calf_l", Vector3.up), "a fourth part of one man");
+                    Assert.AreEqual(SoldierFigure.MostOff, f.Severed);
+                    Assert.IsTrue(f.Wound(Vector3.right, 0.12f, 3), "a burst's splinters left no mark on him");
+                }
+                else
+                {
+                    // A round through him: where it went in and where it came out, on his trunk and not on the arms
+                    // across it; three of them at most.
+                    Assert.IsTrue(f.Wound(Vector3.left, 0.08f, 12), "a round left no mark on him");
+                    Assert.IsTrue(f.Wound(Vector3.right, 0.08f, 21), "nor one from behind");
+                    Assert.IsTrue(f.Wound(Vector3.forward, 0.08f, 30), "nor one from his side");
+                    Assert.IsFalse(f.Wound(Vector3.left, 0.08f, 5), "a fourth wound on one man");
+                    Assert.AreEqual(SoldierFigure.MostWounds, f.Wounds);
+                    var marks = f.GetComponentsInChildren<MeshFilter>().Where(m => m.name == "wound").ToArray();
+                    Assert.AreEqual(4 * SoldierFigure.MostWounds, marks.Length, "a hole in, and a torn one out, for each");
+                    foreach (string arm in new[] { "upperarm_l", "upperarm_r" })
+                    {
+                        var bone = f.Limbs[System.Array.IndexOf(f.LimbNames, arm)].Bone;
+                        Assert.IsFalse(marks.Any(m => m.transform.IsChildOf(bone)), $"a wound's patch on his {arm}");
+                    }
+                    Assert.IsTrue(marks.All(m => (m.transform.position - f.Hips.position).magnitude < 0.9f), "a wound's patch off him");
                 }
                 float t = 0;
                 while (!f.Baked && t < 12f) { f.Step(0.05f, 0f, 0, false, true, 3, how); t += 0.05f; }
@@ -105,8 +131,18 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(blown.Centre.x - stood.x, 1.5f, "the burst did not throw him");
             Assert.Less(Mathf.Abs(shot.Centre.x), 1.6f, "a man who was shot was thrown");
             Assert.IsFalse(shot.TryLimb(out _), "a man who was shot lost a limb");
+            // Lying still, his wounds are one mesh with him (the patches go at the end of the frame).
+            yield return null;
+            Assert.AreEqual(0, shot.GetComponentsInChildren<MeshFilter>().Count(m => m.name == "wound"), "his wounds are still things by themselves");
+            Assert.AreEqual(1, shot.GetComponentsInChildren<MeshFilter>().Count(m => m.name == "wounds" && m.sharedMesh.vertexCount > 100), "his wounds went when he lay still");
             Assert.IsTrue(blown.TryLimb(out var limb), "his limb never landed");
-            Assert.AreEqual(50.07f, limb.y, 0.02f, "his limb is not on the ground");
+            for (int k = 0; k < SoldierFigure.MostOff; k++)
+            {
+                Assert.IsTrue(blown.TryLimb(k, out var part), $"part {k} of him never landed");
+                Assert.That(part.y, Is.InRange(50.02f, 50.2f), $"part {k} of him is not on the ground");
+                Assert.IsTrue(blown.TryStump(k, out _), $"part {k} came off nowhere");
+            }
+            Assert.That(limb.y, Is.InRange(50.02f, 50.12f), "his forearm is not on the ground");
             Assert.Greater(new Vector2(limb.x - stood.x, limb.z - stood.z).magnitude, 1f, "his limb lies where he stood");
             Assert.Less(blown.Limbs[0].Bone.lossyScale.x, 0.01f, "the limb is still on his body");
             Object.Destroy(shot.gameObject);

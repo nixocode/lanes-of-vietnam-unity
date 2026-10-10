@@ -88,6 +88,18 @@ namespace LanesOfVietnam.View
         /// with dirt. And how he stood when he was last drawn, to know a man who goes to ground at a run.
         /// </summary>
         private byte[] _shook = new byte[0];
+        /// <summary>A round killed him: how heavy a round (CombatView.Calibre; 0, none or seen to already), and the way it was going.</summary>
+        private float[] _hitBy = new float[0];
+        private Vector2[] _hitWay = new Vector2[0];
+        /// <summary>
+        /// From this calibre a round may take a part of a man off (a belt-fed gun's, a sniper's): the owner,
+        /// 2026-10-10, "body disfigurement and gore (with high cal + explosions)". A sniper's takes his head off
+        /// one time in three and a machine gun's one in eight; either a forearm or a lower leg one time in five.
+        /// And a burst within this of him may take two parts, within the nearer three.
+        /// </summary>
+        public const float HeavyRound = 1.25f, TwoOffWithin = 1.9f, ThreeOffWithin = 1.2f;
+        /// <summary>The chances a heavy round takes a man's head off (a sniper's, a machine gun's), and a forearm or a lower leg (either's).</summary>
+        public const float HeadOffSniper = 0.33f, HeadOffGun = 0.125f, LimbOffRound = 0.2f;
         private sbyte[] _stood = new sbyte[0];
         private int[] _idled = new int[0];
         /// <summary>By squad: what it was doing when last drawn, and the hand signal one of its men owes for the change.</summary>
@@ -201,6 +213,8 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _burst, n);
                 System.Array.Resize(ref _blown, n);
                 System.Array.Resize(ref _shook, n);
+                System.Array.Resize(ref _hitBy, n);
+                System.Array.Resize(ref _hitWay, n);
                 System.Array.Resize(ref _stood, n);
                 System.Array.Resize(ref _idled, n);
                 System.Array.Resize(ref _front, n);
@@ -274,6 +288,13 @@ namespace LanesOfVietnam.View
                         var way = new Vector2((float)(him.X - by.X), (float)-(him.Z - by.Z));
                         float yaw = _yaw[e.Id] * Mathf.Deg2Rad;
                         if (way.sqrMagnitude > 0.01f) _push[e.Id] = Vector2.Dot(way.normalized, new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)));
+                        // The round itself, for the hole it makes in him: a shot's or a stray's is the firer's; one that
+                        // came through another man is a rifle's.
+                        if (prev.Kind != EventKind.Melee && way.sqrMagnitude > 0.01f)
+                        {
+                            _hitBy[e.Id] = prev.Kind == EventKind.Through ? 1f : CombatView.Calibre(by.Weapon);
+                            _hitWay[e.Id] = way.normalized;
+                        }
                     }
                     _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
                                 : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
@@ -382,11 +403,22 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>Where what a burst took off a man lies, once it has landed.</summary>
-        public bool TryLimb(int id, out Vector3 p)
+        public bool TryLimb(int id, out Vector3 p) => TryLimb(id, 0, out p);
+
+        /// <summary>Where the <paramref name="k"/>th part to come off a man lies, once it has landed.</summary>
+        public bool TryLimb(int id, int k, out Vector3 p)
         {
             p = default;
             var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
-            return f != null && f.TryLimb(out p);
+            return f != null && f.TryLimb(k, out p);
+        }
+
+        /// <summary>Where the <paramref name="k"/>th part came off him: the stump, as his body lies now.</summary>
+        public bool TryStump(int id, int k, out Vector3 p)
+        {
+            p = default;
+            var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
+            return f != null && f.TryStump(k, out p);
         }
 
         private void DrawFigures(MatchDriver d, Ground g)
@@ -655,9 +687,47 @@ namespace LanesOfVietnam.View
                         float near = 1f - far / ThrowWithin;
                         bool gore = GameRoot.Instance == null || GameRoot.Instance.Settings == null || GameRoot.Instance.Settings.Gore;
                         f.Blown(flung * (0.5f + 2.6f * near * (0.7f + 0.6f * Hash(m.Id, 14))), 0.2f + 0.8f * near);
-                        if (gore && far < SeverWithin && Hash(m.Id, 15) < SeverChance)
-                            f.Sever((int)(Hash(m.Id, 16) * 97), flung * (2.5f + 3f * Hash(m.Id, 17)) + Vector3.up * (3.5f + 2.5f * Hash(m.Id, 18))
-                                                               + Vector3.Cross(Vector3.up, flung) * (2f * Hash(m.Id, 19) - 1f));
+                        // (One part of him, seven times in ten; close to it two, and closer three: an arm, a leg, his head.)
+                        int parts = far < ThreeOffWithin ? 3 : far < TwoOffWithin ? 2 : 1;
+                        for (int k = 0; k < parts && gore && far < SeverWithin; k++)
+                        {
+                            if (Hash(m.Id, 15 + 20 * k) >= SeverChance) continue;
+                            var thrown = Quaternion.Euler(0, (k == 0 ? 0f : k == 1 ? 50f : -65f), 0) * flung;
+                            f.Sever((int)(Hash(m.Id, 16 + 20 * k) * 97), thrown * (2.5f + 3f * Hash(m.Id, 17 + 20 * k)) + Vector3.up * (3.5f + 2.5f * Hash(m.Id, 18 + 20 * k))
+                                                                        + Vector3.Cross(Vector3.up, thrown) * (2f * Hash(m.Id, 19 + 20 * k) - 1f));
+                        }
+                        // And what its splinters did to the rest of him.
+                        if (gore && !fresh && far < SeverWithin)
+                        {
+                            f.Wound(flung, 0.09f, (int)(Hash(m.Id, 51) * 1000));
+                            if (far < TwoOffWithin) f.Wound(Quaternion.Euler(0, 35f, 0) * flung, 0.1f, (int)(Hash(m.Id, 52) * 1000));
+                        }
+                    }
+                }
+                // A round killed him: the hole it went in by, and the bigger one it came out by. A heavy round may take
+                // a part of him with it: his head, a forearm, a lower leg.
+                if (_hitBy[i] > 0f && !m.Alive)
+                {
+                    float cal = _hitBy[i];
+                    _hitBy[i] = 0f;
+                    // (A man first drawn as he dies has not been posed: nothing to find his skin by. With the setting
+                    // off, none of it.)
+                    bool bloody = GameRoot.Instance == null || GameRoot.Instance.Settings == null || GameRoot.Instance.Settings.Gore;
+                    if (!jump && !fresh && bloody)
+                    {
+                        var along = new Vector3(_hitWay[i].x, 0, _hitWay[i].y);
+                        f.Wound(along, 0.045f + 0.035f * cal, (int)(Hash(m.Id, 44) * 1000));
+                        // (A belt-fed gun's burst puts two rounds in him.)
+                        if (cal >= HeavyRound && cal < 1.7f) f.Wound(Quaternion.Euler(0, 12f, 0) * along, 0.045f + 0.035f * cal, (int)(Hash(m.Id, 53) * 1000));
+                        if (cal >= HeavyRound)
+                        {
+                            float roll = Hash(m.Id, 45), head = cal >= 1.7f ? HeadOffSniper : HeadOffGun;
+                            var up = Vector3.up * (2.2f + 1.8f * Hash(m.Id, 47));
+                            var aside = Vector3.Cross(Vector3.up, along) * (1.6f * Hash(m.Id, 48) - 0.8f);
+                            if (roll < head) f.Sever("head", along * (1.5f + 2.5f * Hash(m.Id, 46)) + up + aside);
+                            else if (roll < head + LimbOffRound)
+                                f.Sever(new[] { "lowerarm_l", "lowerarm_r", "calf_l", "calf_r" }[(int)(Hash(m.Id, 49) * 4) % 4], along * (2f + 2f * Hash(m.Id, 46)) + up + aside);
+                        }
                     }
                 }
                 if (fresh || jump)
