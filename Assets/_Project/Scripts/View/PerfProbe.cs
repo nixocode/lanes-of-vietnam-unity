@@ -119,6 +119,25 @@ namespace LanesOfVietnam.View
             return done.Count == 0 ? "" : " off: " + string.Join(", ", done) + ";";
         }
 
+        private IEnumerator Posted(GameRoot root)
+        {
+            for (int k = 0; k < 40; k++)
+            {
+                yield return new WaitForSecondsRealtime(1f);
+                var st = root.Driver.State;
+                int ladder = 0, climbing = 0, up = 0;
+                float y = 0;
+                foreach (var m in st.Men)
+                {
+                    if (!m.Alive || st.Squads[m.Squad].Post < 0) continue;
+                    var f = root.ArmyView.FigureOf(m.Id);
+                    if (m.Climb != 0) { ladder++; if (f != null && f.Animator.GetBool("Ladder")) climbing++; }
+                    else if (m.High > 0) { up++; if (f != null) y = f.transform.position.y; }
+                }
+                Debug.Log($"[LOV] post: tick {st.Tick}, on the ladder {ladder} (in the climb {climbing}), up {up} (drawn at y {y:F1})");
+            }
+        }
+
         private IEnumerator Start()
         {
             var root = GameRoot.Instance;
@@ -126,6 +145,15 @@ namespace LanesOfVietnam.View
             var screens = FindAnyObjectByType<Screens>();
             if (screens != null) { screens.ChooseSide(Side.Us); screens.Deploy(); screens.Skip(); }
             int ff = int.TryParse(Param("ff"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 600;
+            // post=us-sniper (with a short ff): a squad sent up the watchtower in the build itself, and what is drawn
+            // of it said once a second: MatchOptions.Vantage, PLAN §12.35.
+            string post = Param("post");
+            if (post != null)
+            {
+                root.Driver.State.Cp[0] = 100;
+                root.Driver.Match.Issue(Command.BuyTo(Side.Us, post, 0));
+                StartCoroutine(Posted(root));
+            }
             root.Driver.FastForward(ff);
             yield return null;
             string off = SwitchOff(root, Param("off"));

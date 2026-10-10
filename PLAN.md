@@ -3060,6 +3060,13 @@ men drawn on the ladder, climbing, facing it, and on the platform). With
 in all; 4.3 to 4.5 ms a frame, 5 to 7 ms at the 95th percentile, at 2592 x
 1370 with the display awake.
 
+**In the WebGL build itself** (headless Chrome,
+`?perf=1&seed=3&post=us-sniper&ff=40`: the probe's new `post=`): a sniper
+team is sent up the tower, both men are on the ladder in the climb, and by
+tick 361 both are up, drawn 8.45 m above the ground there; no error. (Driven
+by hand through the browser extension it could not be checked: the tab was
+not drawing frames.)
+
 **Looked at:** `captures/tower_climb.png` (`tools/strip.sh
 "seed=3,tick=140,x=-39,every=1.5,n=8,call=us-sniper:2:0:5"`), a team on
 the platform (`tools/capture.sh "seed=3,tick=420,x=-39,call=us-sniper:2:0:5"`)
