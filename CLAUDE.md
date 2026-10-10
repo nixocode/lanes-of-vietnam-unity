@@ -58,7 +58,7 @@ and say so:
 - `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage map`
   (with the watchtower's rule, on `polish`; nobody is on it, so the match is the one above with
   more hashed): 3493 ticks, final `2586780023u`. With `aiposts` (the computer mans its tower,
-  which the game does not do): 5116 ticks, final `2152767161u`.
+  which the game does not do): 4236 ticks, final `1179344068u`.
 - `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander map`
   (the game, on `polish`): 5206 ticks, final `4057359457u`.
 

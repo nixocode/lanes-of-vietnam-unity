@@ -613,8 +613,6 @@ namespace LanesOfVietnam.Sim
                     // where he had been, and ran forward to it, toward the enemy (review, PLAN §12.23).
                     Squads.Reanchor(sq, live);
                     sq.Order = Senses.Decide(st, sq, live, plan, original.TryGetValue(sq.Id, out int was0) ? was0 : live.Count, prev);
-                    // Vantage: a sniper's team with men up on a post in its sight stays where it is and shoots at them.
-                    if (st.Vantage && sq.Order == Order.Advance && sq.PlayerOrder == null && Vantage.Duels(st, sq, live)) sq.Order = Order.Hold;
                 }
                 // Part 2 (MatchOptions.Drill): the policy's order, steadied.
                 else if (st.Drill && sq.PlayerOrder == null && !opening)
@@ -785,9 +783,9 @@ namespace LanesOfVietnam.Sim
                     // Commander: to the lane that is shortest of men, and the squad that lane wants.
                     int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
                     double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                    // Vantage: against men up on a post it raises its sniper, if it has none.
-                    string answer = st.Vantage && st.Arms ? Vantage.Answer(st, side) : null;
-                    var raised = SpawnSquad(st, side, lane, x, rng, card: answer ?? (st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null));
+                    var raised = SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null);
+                    // Vantage: against men up on a post, the squad brings a marksman of its own.
+                    if (st.Vantage && st.Arms) Vantage.Answer(st, raised);
                     // Vantage: its machine gun or its sniper goes up its post, if nobody is on it.
                     if (st.ComputerPosts) Vantage.Offer(st, raised);
                     foreach (var sq in st.Squads)

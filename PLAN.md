@@ -2976,18 +2976,18 @@ their wire.
   is up and shooting about twenty seconds after it is bought.
 - **From up there:** a man sees over the bank between the lanes and into
   cover, sixty metres (a sniper, the whole map); both lanes are his; his
-  rifle reaches 60 m where it reached 20, a machine gun 69 where it reached
-  30, a sniper's rifle the whole map; he hits oftener (a rifle 1.6 times, a
-  machine gun 1.8); cover is half the help against him that it is from the
-  ground, and a man lying flat is no smaller to him than one on a knee.
+  rifle reaches 52 m where it reached 20, a machine gun 61 where it reached
+  30, a sniper's rifle the whole map (less surely at its far end); he hits
+  oftener (a rifle 1.25 times, a machine gun 1.4); cover is six tenths the
+  help against him that it is from the ground, and a man lying flat is no
+  smaller to him than one on a knee.
 - **What he risks:** he is seen from as far as he sees. A sniper's rifle
   reaches him from anywhere it can see him (at 0.55 of its chance beyond its
-  own 44 m), a sniper's team with a manned tower in sight stops where it is
-  and shoots at it, and the computer raises a sniper against a tower the
-  player has manned, if it has none. A rocket or a launcher's grenade is
-  fired at him from 60 m and bursts up there, where the bags are no help.
-  Nothing else on the ground reaches him: no hand grenade, no bayonet, no
-  shell; nobody closes with him.
+  own 44 m), and while a tower is manned every squad the computer raises
+  brings a marksman: one of its riflemen with a sniper's rifle. A rocket or
+  a launcher's grenade is fired at him from 60 m and bursts up there, where
+  the bags are no help. Nothing else on the ground reaches him: no hand
+  grenade, no bayonet, no shell; nobody closes with him.
 - **Coming down:** told to advance or fall back (1, 3), the squad comes
   down the ladder and is a squad in the far lane again.
 - A new event, `Posted` (the last of the enum): a squad's first man is up.
@@ -2998,54 +2998,66 @@ there and rounds at them go up there; a rocket bursts up there; a man
 killed on the ladder falls off it. The squad's tag reads GOING UP THE
 WATCHTOWER, ON THE WATCHTOWER, COMING DOWN. Two tutor lines.
 
-**Measured** (`simcs post 1 48 <card>`, new: the American player buys line
-squads and keeps one squad of the card alive, on the tower or in the lanes;
-Veteran costs; 48 seeds):
+**Measured,** as the game plays now (the commander of §12.36 on, the
+Veteran's 32): `simcs post 1 48 <card> commander`, new. The American player
+buys line squads and keeps one squad of the card alive, on the tower or in
+the lanes; 48 seeds, and in brackets the 48 after them, which nothing was
+tuned on.
 
 | | wins of 48 | men it kills a match | men it loses |
 |---|---|---|---|
-| line squads only (`player 48 29 ... vantage`) | 39 | | |
-| a sniper team, in the lanes | 42 | 4.0 | 0.4 |
-| a sniper team, on the tower | 47 (47 on seeds 49 to 96) | 9.0 | 0.4 |
-| an M60 team, in the lanes | 31 | 1.4 | 1.6 |
-| an M60 team, on the tower | 46 | 8.4 | 0.6 |
-| a rifle squad, on the tower | 42 | 8.4 | 0.5 |
+| line squads only (`player 48 32 ... vantage commander`) | 30 | | |
+| a sniper team, in the lanes | 39 (39) | 3.2 | 0.7 |
+| a sniper team, on the tower | 43 (40) | 7.6 | 0.2 |
+| an M60 team, in the lanes | 31 | 1.5 | 1.7 |
+| an M60 team, on the tower | 42 (45) | 6.5 | 0.8 |
+| a rifle squad, on the tower | 40 (42) | 7.2 | 0.2 |
 
-Every man lost on the tower was killed by a sniper.
+Nearly every man lost on the tower was killed by a sniper.
 
-On the way there: with a rifle reaching 30 m and a machine gun 45 from the
-tower, a squad up it won fewer matches than the same squad in the lanes
-(rifles 10 of 24): the fight is at the middle of the map and the tower is
-at its end. With the computer's marksman marching past the tower instead of
-standing to shoot at it, nothing up there was ever killed.
+**On the way to those numbers,** each of them measured:
+
+- With a rifle reaching 30 m and a machine gun 45 from the tower, a squad
+  up it won fewer matches than the same squad in the lanes (rifles 10 of
+  24): the fight is at the middle of the map and the tower is at its end.
+- With a rifle reaching 60 m and a machine gun 69, and the commander on,
+  any squad up it won 48 of 48: a machine gun that reaches the far third of
+  the map keeps every squad the enemy raises on its face from the moment it
+  is raised.
+- The computer's first answer was a marksman bought at a squad's price. He
+  marched past the tower and nothing up there was ever killed; told to
+  stand and shoot at it, he stood in the open at his own end of the map and
+  was shot from it, and the next one after him. A marksman in every squad
+  raised while the tower is manned costs the computer nothing in men.
 
 **The computer does not man the tower itself** (`MatchOptions.
 ComputerPosts`, off in the game; `aiposts` in `simcs`). Measured with it
-on, a Vietnamese player who buys line squads wins 3 of 48 where he won 30,
-and 5 of 48 if he keeps a marksman. With the rule on and nobody posted a
-match is the match it was (39 and 30 of 48, as §12.33; a test holds three
-seeds to it man for man). So playing the Vietnamese, the tower stands
-empty. That is the owner's to decide: the computer's cost when it holds
-the tower would have to rise a good deal first.
+on (`player 48 32 ... vantage commander aiposts`), a Vietnamese player who
+buys line squads wins 10 of 48 where he won 35. With the rule on and nobody
+posted a match is the match it was (a test holds three seeds to it man for
+man). So playing the Vietnamese, the tower stands empty. That is the
+owner's to decide: the computer's cost when it holds the tower would have
+to rise a good deal first.
 
 **Checks.** With the flag off: determinism ok; `hash 1` 4390 ticks, final
 `2256114725u`; `hash 1 ... ballistics map` 3493, `2457736883u`. New pins
 (the computer manning its tower, so that the rule is exercised):
 
 - `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
-  firecontrol ballistics vantage aiposts map`: 5116 ticks, `2018994123u`,
-  `1740777576u`, `2152767161u`;
+  firecontrol ballistics vantage aiposts map`: 4236 ticks, `2018994123u`,
+  `1740777576u`, `1179344068u`;
 - `7 drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
-  ballistics vantage aiposts`: 3073 ticks, `1364659758u`, `4075419781u`,
-  `2379840719u`.
+  ballistics vantage aiposts`: 4008 ticks, `1364659758u`, `4075419781u`,
+  `3668849121u`.
 
-EditMode 84/84 (the two pins; nobody posted, nothing changed; a sniper
+Four EditMode tests (the two pins; nobody posted, nothing changed; a sniper
 team bought, sent, up the ladder a man at a time, what it sees and hits
-from up there against a man at its foot, what reaches it, and down again).
-PlayMode 22/22 (new: the selector's third choice by tag, pointer and key,
-not for a mortar team and not for a manned tower; men drawn on the ladder,
-climbing, facing it, and on the platform). WebGL 29.29 MB initial, 36.81 MB
-in all; 4.4 to 4.5 ms a frame, 6.0 ms at the 95th percentile, at 2592 x
+from up there against a man at its foot, what reaches it, the computer's
+answer, and down again) and one PlayMode test (the selector's third choice
+by tag, pointer and key, not for a mortar team and not for a manned tower;
+men drawn on the ladder, climbing, facing it, and on the platform). With
+§12.36's: EditMode 87/87, PlayMode 22/22. WebGL 29.29 MB initial, 36.81 MB
+in all; 4.3 to 4.5 ms a frame, 5 to 7 ms at the 95th percentile, at 2592 x
 1370 with the display awake.
 
 **Looked at:** `captures/tower_climb.png` (`tools/strip.sh
@@ -3055,9 +3067,10 @@ and the selector with the tower chosen (`arm=us-sniper:2:0`).
 
 **Not done.** A man stepping off the ladder onto the platform is put there
 (a clip for it, `ladder_top`, was fetched and is not used yet). The
-Vietnamese have no post on this map. A sniper team on the tower wins 47
-matches in 48 at Veteran: the owner asked for a massive advantage and this
-is one; `Tune.PostReach`, `PostGunReach`, `PostHit`, `PostGunHit`,
+Vietnamese have no post on this map. The tower is worth ten to thirteen
+matches in forty-eight to an American player at Veteran: the owner asked
+for a massive advantage, and how massive is his to say. `Tune.PostReach`,
+`PostGunReach`, `PostHit`, `PostGunHit`, `PostSniperFar`, `PostOverCover`,
 `PostCover` and `PostDuelHit` are the numbers to turn. Not played by the
 owner.
 

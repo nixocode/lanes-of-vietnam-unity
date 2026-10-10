@@ -541,12 +541,14 @@ namespace LanesOfVietnam.Sim
         public const int ClimbTicks = TickHz * 8, LadderGap = TickHz * 3;
         /// <summary>Within this of the ladder's foot a man is at it; and metres between men on the platform.</summary>
         public const double PostArrive = 0.35, PostSpacing = 1.0;
-        /// <summary>From up there a rifle reaches this many times as far (an M16, 60 m) and a machine gun this many (an M60, 69 m); a sniper's rifle, the whole map.</summary>
-        public const double PostReach = 3.0, PostGunReach = 2.3, PostSniperReach = 95;
-        /// <summary>And hits this many times as often: a rifle, a machine gun (rested on the bags, firing down a lane), a sniper's rifle.</summary>
-        public const double PostHit = 1.6, PostGunHit = 1.8, PostSniperHit = 1.0;
+        /// <summary>From up there a rifle reaches this many times as far (an M16, 52 m) and a machine gun this many (an M60, 61 m); a sniper's rifle, the whole map.</summary>
+        public const double PostReach = 2.6, PostGunReach = 2.05, PostSniperReach = 95;
+        /// <summary>And hits this many times as often: a rifle, a machine gun (rested on the bags, firing down a lane), a sniper's rifle (no oftener: what he gains is the map).</summary>
+        public const double PostHit = 1.25, PostGunHit = 1.4, PostSniperHit = 1.0;
+        /// <summary>What is left of a sniper's accuracy at the far end of the map from up there, of what is left of it at his rifle's own distance on the ground.</summary>
+        public const double PostSniperFar = 0.6;
         /// <summary>What cover is worth against a man firing down into it, of what it is worth from the ground.</summary>
-        public const double PostOverCover = 0.5;
+        public const double PostOverCover = 0.6;
         /// <summary>What the bags round the platform are worth to the man behind them: less than a sandbag wall on the ground (0.5 to 0.6), he is against the sky.</summary>
         public const double PostCover = 0.35;
         /// <summary>Metres a rocket or a launcher's grenade is fired at a post from: it is a big thing that does not move (at a man on the ground, 24).</summary>

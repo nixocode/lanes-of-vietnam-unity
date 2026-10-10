@@ -1951,8 +1951,8 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage aiposts [map]`.</summary>
-        [TestCase(1, true, 5116, 2018994123u, 1740777576u, 2152767161u, "vc morale broke")]
-        [TestCase(7, false, 3073, 1364659758u, 4075419781u, 2379840719u, "vc morale broke")]
+        [TestCase(1, true, 4236, 2018994123u, 1740777576u, 1179344068u, "vc morale broke")]
+        [TestCase(7, false, 4008, 1364659758u, 4075419781u, 3668849121u, "vc morale broke")]
         public void With_vantage_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
             int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -2110,8 +2110,20 @@ namespace LanesOfVietnam.Tests
             foe.Weapon = Weapon.Sniper;
             Assert.AreEqual(Tune.PostSniperReach * Tune.PostSniperReach, Vantage.Reach2(foe, mate, rifle2), "a sniper's rifle does not");
             Assert.IsFalse(Tactics.Long(st, foe, mate), "a sniper's shot at the tower is a long shot");
-            Assert.AreEqual("vc-marksman", Vantage.Answer(st, Side.Vc), "the computer's Vietnamese do not answer a manned tower with a marksman");
-            Assert.IsNull(Vantage.Answer(st, Side.Us));
+            // And the computer's answer: while the tower is manned, a squad it raises brings a marksman of its own
+            // (one of its riflemen, not its leader), and only one.
+            var cell = st.Squads[foe.Squad];
+            int wasRank = foe.Rank;
+            foe.Weapon = Weapon.Ak; foe.Rank = 1;
+            foreach (var x in st.Men.Where(x => x.Squad == cell.Id && x != foe)) if (x.Weapon == Weapon.Sniper) x.Weapon = Weapon.Ak;
+            int strength = Squads.Roster(st, cell.Id).Count;
+            Assert.IsTrue(Vantage.Answer(st, cell), "a Vietnamese squad raised against a manned tower brings no marksman");
+            Assert.AreEqual(1, Squads.Roster(st, cell.Id).Count(x => x.Weapon == Weapon.Sniper), "it brings one");
+            Assert.AreEqual(strength, Squads.Roster(st, cell.Id).Count, "and no man the fewer");
+            Assert.IsFalse(Vantage.Answer(st, cell), "nor a second");
+            foreach (var x in st.Men.Where(x => x.Squad == cell.Id)) if (x.Weapon == Weapon.Sniper) x.Weapon = Weapon.Ak;
+            foe.Rank = wasRank;
+            Assert.IsFalse(Vantage.Answer(st, st.Squads[below.Squad]), "the Americans answer a tower nobody has manned against them");
             foe.Weapon = Weapon.Ak; foe.X = 44;
             Assert.IsFalse(Vantage.Reaches(0, mate), "a burst on the ground reaches the platform");
             Assert.IsTrue(Vantage.Reaches(post.Height, mate));

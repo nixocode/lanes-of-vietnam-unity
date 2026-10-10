@@ -46,16 +46,16 @@ namespace LanesOfVietnam.Sim
     ///                  ladder does nothing else and has nothing round him
     ///   from up there  he sees over the bank between the lanes and into
     ///                  cover: sixty metres, a sniper the whole map. His
-    ///                  weapon reaches two or three times as far (a rifle 60 m,
-    ///                  a machine gun 69, a sniper's the whole map) and hits
-    ///                  oftener; both lanes are his; cover is half the help
-    ///                  against him it is from the ground, and a man lying
-    ///                  flat is no smaller than one kneeling
+    ///                  weapon reaches two or three times as far (a rifle 52 m,
+    ///                  a machine gun 61, a sniper's the whole map, less surely
+    ///                  at its far end) and hits oftener; both lanes are his;
+    ///                  cover is six tenths the help against him it is from
+    ///                  the ground, and a man lying flat is no smaller than
+    ///                  one kneeling
     ///   what he risks  everyone can see him, from as far as he sees them,
     ///                  and a sniper's rifle reaches him from anywhere it
-    ///                  can see him: a sniper's team with a manned post in
-    ///                  sight stays where it is and shoots at it, and the
-    ///                  computer raises one against a post the player mans. The bags round the platform
+    ///                  can see him, and while a post is manned every squad
+    ///                  the computer raises against it brings a marksman. The bags round the platform
     ///                  are some cover from rifles; a rocket or a grenade
     ///                  from a launcher is fired at him from sixty metres and
     ///                  bursts up there, and the bags are none against that. Nothing on the ground
@@ -120,18 +120,28 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// The computer's side, raising a squad by itself while the enemy has men up on a post: its sniper, if it
-        /// has none alive (the card to raise, or null for whatever it would have raised).
+        /// The computer's side, raising a squad by itself while the enemy has men up on a post: one of the squad's
+        /// riflemen (its last) comes with a sniper's rifle. A post is answered by every squad that comes up after it
+        /// is manned, not by one man bought at a squad's price and sent to stand in the open under it. True if
+        /// one was armed so.
         /// </summary>
-        public static string Answer(SimState st, Side side)
+        public static bool Answer(SimState st, Squad sq)
         {
             bool manned = false;
-            for (int i = 0; i < st.Men.Count && !manned; i++) manned = st.Men[i].Alive && st.Men[i].Side != side && Up(st.Men[i]);
-            if (!manned) return null;
-            string sniper = side == Side.Us ? "us-sniper" : "vc-marksman";
-            for (int i = 0; i < st.Squads.Count; i++)
-                if (st.Squads[i].Side == side && st.Squads[i].Card == sniper && Squads.AnyAlive(st, st.Squads[i].Id)) return null;
-            return sniper;
+            for (int i = 0; i < st.Men.Count && !manned; i++) manned = st.Men[i].Alive && st.Men[i].Side != sq.Side && Up(st.Men[i]);
+            if (!manned) return false;
+            Man pick = null;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive || m.Squad != sq.Id) continue;
+                if (m.Weapon == Weapon.Sniper) return false;
+                if (m.Rank > 0 && (m.Weapon == Weapon.M16 || m.Weapon == Weapon.Ak || m.Weapon == Weapon.Sks)) pick = m;
+            }
+            if (pick == null) return false;
+            pick.Weapon = Weapon.Sniper;
+            if (st.Ammo) Ammo.Issue(st, pick);
+            return true;
         }
 
         /// <summary>Where the k-th man of a squad stands on the platform.</summary>
@@ -144,7 +154,7 @@ namespace LanesOfVietnam.Sim
             if (a.Bursts) return a;
             bool sniper = w == Weapon.Sniper, gun = w == Weapon.M60 || w == Weapon.Rpd;
             return new Arm(sniper ? Tune.PostSniperReach : a.Range * (gun ? Tune.PostGunReach : Tune.PostReach), a.Cooldown,
-                           a.Hit * (gun ? Tune.PostGunHit : sniper ? Tune.PostSniperHit : Tune.PostHit), a.Pin, a.AtRange,
+                           a.Hit * (gun ? Tune.PostGunHit : sniper ? Tune.PostSniperHit : Tune.PostHit), a.Pin, sniper ? a.AtRange * Tune.PostSniperFar : a.AtRange,
                            1 - (1 - a.Pierce) * Tune.PostOverCover, a.MinRange, a.Blast, a.Kill, a.CoverFactor, a.Flight, a.Scatter);
         }
 
@@ -163,24 +173,6 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static double Reach2(Man a, Man b, double reach2)
             => Duel(a, b) ? Math.Max(reach2, Tune.PostSniperReach * Tune.PostSniperReach) : reach2;
-
-        /// <summary>
-        /// A squad on the ground with a sniper in it, and men up on a post that it has in sight: it has a duel on
-        /// its hands, and fights it from where it is.
-        /// </summary>
-        public static bool Duels(SimState st, Squad sq, IReadOnlyList<Man> live)
-        {
-            if (sq.Post >= 0) return false;
-            bool sniper = false;
-            for (int i = 0; i < live.Count && !sniper; i++) sniper = live[i].Weapon == Weapon.Sniper;
-            if (!sniper) return false;
-            for (int i = 0; i < st.Men.Count; i++)
-            {
-                var b = st.Men[i];
-                if (b.Alive && b.Side != sq.Side && Up(b) && Senses.Knows(st, sq, b.Squad)) return true;
-            }
-            return false;
-        }
 
         /// <summary>A sniper on the ground firing at a man up on a post.</summary>
         public static bool Duel(Man a, Man b) => a.Weapon == Weapon.Sniper && b.High > 0;
