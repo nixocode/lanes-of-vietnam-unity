@@ -246,6 +246,29 @@ MonoBehaviour:
   Blows: 2
   BlowFirst: 0
   Climbs: 1
+  Acts:
+  - Calm
+  - Hit 0
+  - Hit 1
+  - Hit 2
+  - Reload 0
+  - Reload 1
+  - Reload 2
+  - Throw 0
+  - Throw 1
+  - Melee 0
+  - Melee 1
+  - Climb in
+  - Climb out
+  - Blast fall
+  - Rub eyes
+  - Dodge
+  - Flinch 1b
+  - Dive
+  - Signal follow
+  - Signal stay
+  - Look about
+  - Inspect
   MirroredDeaths: 1
   Limbs:
   - Bone: {fileID: 2270105488133237281}

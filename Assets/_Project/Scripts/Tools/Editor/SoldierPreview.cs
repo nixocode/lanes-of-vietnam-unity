@@ -138,6 +138,42 @@ namespace LanesOfVietnam.Tools
         /// <summary>For RenderArms: the weapon each column's man is given.</summary>
         private static string[] Carry;
 
+        /// <summary>For RenderDoings: the act each column's man is started in (SoldierFigure.Act), or a blow by its number ("blow 2").</summary>
+        private static string[] Play;
+
+        /// <summary>
+        /// What a man does besides walk, fire and die (the clips of 2026-10-10), each through its length:
+        /// captures/soldiers/us_a_doings_a.png and _b.png.
+        /// </summary>
+        public static void RenderDoings()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            foreach (var (suffix, acts) in new[]
+            {
+                ("_doings_a", new (string act, int posture, float[] at)[]
+                {
+                    (SoldierFigure.BlastFall, 1, new[] { 0.25f, 0.6f, 1.0f, 1.5f, 1.9f, 2.3f }), (SoldierFigure.RubEyes, 0, new[] { 0.4f, 1.0f, 1.8f }),
+                    (SoldierFigure.Dodge, 0, new[] { 0.2f, 0.45f, 0.8f }), (SoldierFigure.KneelFlinch, 1, new[] { 0.2f, 0.5f, 0.9f }),
+                    (SoldierFigure.Dive, 2, new[] { 0.15f, 0.35f, 0.55f, 0.8f, 1.1f, 1.5f }),
+                }),
+                ("_doings_b", new (string act, int posture, float[] at)[]
+                {
+                    (SoldierFigure.SignalFollow, 1, new[] { 0.4f, 0.9f, 1.5f, 2.2f }), (SoldierFigure.SignalStay, 1, new[] { 0.4f, 0.9f, 1.5f, 2.2f }),
+                    (SoldierFigure.LookAbout, 0, new[] { 1.0f, 2.5f }), (SoldierFigure.Inspect, 0, new[] { 1.0f, 2.5f }),
+                }),
+            })
+            {
+                var states = new System.Collections.Generic.List<(string, float, int, bool, bool, int, float)>();
+                var play = new System.Collections.Generic.List<string>();
+                foreach (var (act, posture, at) in acts)
+                    foreach (float t in at) { states.Add(($"{act} {t:F2}", 0f, posture, false, false, 0, t)); play.Add(act); }
+                States = states.ToArray(); Play = play.ToArray();
+                Sheet("us_a", 1.4f, suffix, 1.25f);
+            }
+            States = orig; Play = null;
+        }
+
         /// <summary>For RenderBatch: each column's walk on the march and at the double, and which way what killed him threw him.</summary>
         private static (int gait, int pace, float push)[] Own;
 
@@ -224,12 +260,15 @@ namespace LanesOfVietnam.Tools
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
                 if (Carry != null && !f.Carry(Carry[c])) Debug.LogWarning($"[LOV] {side} cannot carry {Carry[c]}");
                 if (Own != null) { f.Gait = Own[c].gait; f.Pace = Own[c].pace; }
+                string doing = Play != null ? Play[c] : null;
                 if (s.name == "bind") goto shoot;          // as rigged: no Animator at all
                 var how = s.dead && s.death == -1 ? SoldierFigure.Fall.Blast : s.dead && s.death == -2 ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
                 int seed = System.Math.Max(0, s.death);
                 if (s.dead)
                     for (float t = 0; t < s.t; t += 1f / 30f) f.Step(t == 0 ? 0f : 1f / 30f, s.speed, s.posture, false, false, 0);   // alive first, in his posture
                 f.Settle(s.speed, s.posture, s.aim, false, seed);
+                if (doing != null && doing.StartsWith("blow ")) f.Strike(int.Parse(doing.Substring(5)));
+                else if (doing != null && !f.Act(doing)) Debug.LogWarning($"[LOV] no act {doing}");
                 if (!s.dead && s.death == -1) f.React();
                 if (!s.dead && s.death == -2) f.Reload();
                 if (!s.dead && s.death == -3) f.Throw();

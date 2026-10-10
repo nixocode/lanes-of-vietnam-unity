@@ -4,8 +4,10 @@ using System.Collections.Generic;
 namespace LanesOfVietnam.Sim
 {
     /// <summary>
-    /// The commander (Part 2, behind <see cref="MatchOptions.Commander"/>):
-    /// what the computer's side does with its points, its cards and its levers.
+    /// The captain (Part 2, behind <see cref="MatchOptions.Commander"/>): the
+    /// computer's commander. (Not called Commander: that is the view's name for
+    /// the player's own hand on the game.) What the computer's side does with
+    /// its points, its cards and its levers.
     ///
     /// The owner, 2026-10-09: "focus on firing/gunplay mechanics and AI
     /// smartness", and then, of what that found: "then the computer
@@ -55,7 +57,7 @@ namespace LanesOfVietnam.Sim
     /// stream. No transcendentals. It has no state of its own: off, the match
     /// is what it was to the bit.
     /// </summary>
-    public static class Commander
+    public static class Captain
     {
         /// <summary>What a commander sees of one lane: its own men there and the enemy it knows of.</summary>
         public struct LaneView

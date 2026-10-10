@@ -176,6 +176,59 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(seen, 3);
         }
 
+        /// <summary>
+        /// The owner, 2026-10-10: "focus on adding animations ... as realistic as possible". What a man does
+        /// besides walk, fire and die: every body has each act; one that is started plays out and is over; a man
+        /// who has to go or to shoot stops what he was doing (but a fall and a dive are played out); and he does
+        /// not flinch the same way every time.
+        /// </summary>
+        [UnityTest, Category("Soldiers")]
+        public IEnumerator A_man_is_knocked_over_dives_signals_and_stands_about()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var army = Root.ArmyView;
+            Root.Paused = true;
+            var acts = new[] { SoldierFigure.BlastFall, SoldierFigure.RubEyes, SoldierFigure.Dodge, SoldierFigure.KneelFlinch, SoldierFigure.Dive,
+                               SoldierFigure.SignalFollow, SoldierFigure.SignalStay, SoldierFigure.LookAbout, SoldierFigure.Inspect };
+            foreach (var proto in army.UsFigures.Concat(army.VcFigures))
+                foreach (string act in acts) CollectionAssert.Contains(proto.Acts, act, $"{proto.name} has no \"{act}\"");
+
+            var f = Object.Instantiate(army.UsFigures[0], new Vector3(0, 50, 0), Quaternion.identity);
+            f.Settle(0f, 0, false, false, 0);
+            Assert.IsFalse(f.Act("no such thing"));
+            foreach (string act in acts)
+            {
+                int posture = act == SoldierFigure.KneelFlinch || act == SoldierFigure.SignalFollow || act == SoldierFigure.SignalStay ? 1 : act == SoldierFigure.Dive ? 2 : 0;
+                f.Settle(0f, posture, false, false, 0);
+                Assert.IsTrue(f.Act(act), act);
+                Assert.AreEqual(act, f.Doing);
+                float t = 0;
+                for (; t < 12f && f.Doing != null; t += 0.05f) f.Step(0.05f, 0f, posture, false, false, 0);
+                Assert.IsNull(f.Doing, $"\"{act}\" is never over");
+                Assert.Greater(t, 0.5f, $"\"{act}\" was over as it began");
+                Debug.Log($"[LOV] act \"{act}\": {t:F2} s");
+            }
+            // He has to go: standing about is over, a fall is not.
+            f.Settle(0f, 0, false, false, 0);
+            f.Act(SoldierFigure.LookAbout);
+            for (int k = 0; k < 4; k++) f.Step(0.05f, 1.2f, 0, false, false, 0);
+            Assert.IsNull(f.Doing, "he walks off still looking over his shoulder");
+            f.Settle(0f, 0, false, false, 0);
+            f.Act(SoldierFigure.BlastFall);
+            for (int k = 0; k < 4; k++) f.Step(0.05f, 1.2f, 0, false, false, 0);
+            Assert.AreEqual(SoldierFigure.BlastFall, f.Doing, "a man knocked over got up to walk");
+            // He has to shoot: whatever it was, it is over.
+            f.Fire();
+            Assert.IsNull(f.Doing, "he fires from flat on his back");
+            // Not the same flinch every time.
+            f.Settle(0f, 0, false, false, 0);
+            f.React(); for (int k = 0; k < 40; k++) f.Step(0.05f, 0f, 0, false, false, 0);
+            string first = f.Doing;
+            f.React();
+            Assert.AreNotEqual(first, f.Doing, "the same flinch twice running");
+            Object.Destroy(f.gameObject);
+        }
+
         [UnityTest, Category("Soldiers")]
         public IEnumerator Paused_men_are_still_and_the_match_moves_them()
         {

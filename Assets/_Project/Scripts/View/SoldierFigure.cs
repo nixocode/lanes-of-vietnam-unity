@@ -130,6 +130,15 @@ namespace LanesOfVietnam.View
         public bool Climbs;
         /// <summary>Where in its clip a blow starts (past the wind-up), and how far he is carried in behind it.</summary>
         public const float BlowFrom = 0.18f;
+        /// <summary>
+        /// What a man does besides walk, fire and die, each a state of the Animator's React layer started by its
+        /// name (<see cref="Act"/>): knocked over by a burst that did not kill him, the dirt out of his eyes, a
+        /// dodge, a second flinch from a knee, a dive to the ground, the hand signals of a man on one knee, and
+        /// two ways of standing about. <see cref="Acts"/> lists those the controller has (SoldierBuilder).
+        /// </summary>
+        public const string BlastFall = "Blast fall", RubEyes = "Rub eyes", Dodge = "Dodge", KneelFlinch = "Flinch 1b", Dive = "Dive",
+                            SignalFollow = "Signal follow", SignalStay = "Signal stay", LookAbout = "Look about", Inspect = "Inspect";
+        public string[] Acts = new string[0];
         /// <summary>How a man died, as the view can tell: shot, shot while running, or by a blast.</summary>
         public enum Fall { Shot, Running, Blast }
         public const int RunCode = 100, BlastCode = 101, CrouchCode = 102, ProneCode = 103, RunFlatCode = 104, BlastForwardCode = 105, Crouch2Code = 106;
@@ -301,6 +310,14 @@ namespace LanesOfVietnam.View
                 legs = own * scale;
             }
             Legs = speed >= 0.05f ? legs : 0f;
+            // An act is over when the Animator is back at rest; and a man who has to go, goes: only a fall and a dive
+            // are played out on the move.
+            if (_act != null)
+            {
+                _actFor += dt;
+                if (speed > 0.3f && _act != Dive && _act != BlastFall) Calm();
+                else if (_actFor > 0.3f && _reactLayer >= 0 && !Animator.IsInTransition(_reactLayer) && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Calm")) _act = null;
+            }
             // Eased over a tenth of a second, so he goes from standing to walking and from a walk to a run, not snaps.
             float now = Animator.GetFloat(SpeedId), want = back ? -key : key;
             Animator.SetFloat(SpeedId, dt <= 0 ? want : Mathf.MoveTowards(now, want, Mathf.Max(Mathf.Abs(want - now), RunSpeed) * dt / 0.1f));
@@ -525,13 +542,47 @@ namespace LanesOfVietnam.View
         /// <summary>Rounds close by: he flinches, ducks, is knocked (the React layer, where the clips exist).</summary>
         public void React()
         {
-            if (_deadFor < 0 && !_baked) Animator.SetTrigger(HitId);
+            if (_deadFor >= 0 || _baked) return;
+            // Not the same flinch every time: on his feet he dodges every other time, on a knee he has two.
+            _flinches++;
+            if (_flinches % 2 == 0 && ((_posture == 0 && Act(Dodge)) || (_posture == 1 && Act(KneelFlinch)))) return;
+            Animator.SetTrigger(HitId);
+        }
+        private int _flinches;
+
+        /// <summary>
+        /// Start one of the things a man does besides (<see cref="Acts"/>), over whatever his body is doing, from
+        /// <paramref name="from"/> seconds into it. False if the controller has no such act, or he is dead,
+        /// climbing or in the middle of a blow.
+        /// </summary>
+        public bool Act(string act, float blend = 0.12f, float from = 0f)
+        {
+            if (_deadFor >= 0 || _baked || _reactLayer < 0 || System.Array.IndexOf(Acts, act) < 0) return false;
+            var now = Animator.GetCurrentAnimatorStateInfo(_reactLayer);
+            if (now.shortNameHash == ClimbInState || now.shortNameHash == ClimbOutState || now.IsName("Melee 0") || now.IsName("Melee 1")) return false;
+            Animator.CrossFadeInFixedTime(act, blend, _reactLayer, from);
+            _act = act; _actFor = 0f;
+            return true;
+        }
+
+        /// <summary>The act he is in the middle of (<see cref="Act"/>), or null.</summary>
+        public string Doing => _act;
+        private string _act;
+        private float _actFor;
+
+        /// <summary>Whatever he was doing besides, he stops: he has to shoot, or to go.</summary>
+        private void Calm(float blend = 0.15f)
+        {
+            if (_act == null || _reactLayer < 0) return;
+            Animator.CrossFadeInFixedTime("Calm", blend, _reactLayer);
+            _act = null;
         }
 
         /// <summary>A shot: the kick of the rifle into the shoulder; a reload he was in the middle of is over.</summary>
         public void Fire()
         {
             _recoil = 1f;
+            Calm();
             if (_reactLayer >= 0 && _deadFor < 0 && !_baked && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
                 Animator.CrossFadeInFixedTime("Calm", 0.12f, _reactLayer);
         }

@@ -749,7 +749,7 @@ namespace LanesOfVietnam.Sim
                 {
                     var plan = side == Side.Us ? us : vc;
                     if (st.Player == side || !plan.Reinforce) continue;
-                    if (!Commander.Think(st, side, plan, rng)) continue;
+                    if (!Captain.Think(st, side, plan, rng)) continue;
                     foreach (var sq in st.Squads)
                         if (!original.ContainsKey(sq.Id)) original[sq.Id] = Squads.Roster(st, sq.Id).Count;
                 }
@@ -763,12 +763,12 @@ namespace LanesOfVietnam.Sim
                     if (!plan.Reinforce || st.Player == side || st.Cp[(int)side] < st.MusterCost) continue;
                     if (AliveCount(st, side) >= Tune.ForceCap) continue;
                     // Commander: saving its points for a strike it has a target for.
-                    if (st.Commander && Commander.Saving(st, side)) continue;
+                    if (st.Commander && Captain.Saving(st, side)) continue;
                     st.Cp[(int)side] -= st.MusterCost;
                     // Commander: to the lane that is shortest of men, and the squad that lane wants.
-                    int lane = st.Commander ? Commander.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
+                    int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
                     double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                    SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Commander.Raise(st, side, lane) : null);
+                    SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null);
                     foreach (var sq in st.Squads)
                     {
                         if (!original.ContainsKey(sq.Id)) original[sq.Id] = Squads.Roster(st, sq.Id).Count;

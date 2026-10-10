@@ -84,6 +84,18 @@ namespace LanesOfVietnam.View
         private Vector2[] _burst = new Vector2[0];
         private bool[] _blown = new bool[0];
         /// <summary>
+        /// A burst went off by a man and did not kill him: 1, near enough to knock him over; 2, to fill his eyes
+        /// with dirt. And how he stood when he was last drawn, to know a man who goes to ground at a run.
+        /// </summary>
+        private byte[] _shook = new byte[0];
+        private sbyte[] _stood = new sbyte[0];
+        private int[] _idled = new int[0];
+        /// <summary>By squad: what it was doing when last drawn, and the hand signal one of its men owes for the change.</summary>
+        private SquadTask[] _task = new SquadTask[0];
+        private string[] _signal = new string[0];
+        /// <summary>A burst knocks a man over inside this, and fills his eyes inside this (metres).</summary>
+        public const float KnockedWithin = 3.5f, DazedWithin = 8f;
+        /// <summary>
         /// A burst within this many metres throws a man it kills (further, he falls where he stood); within
         /// <see cref="SeverWithin"/> it may take a limb off him, this often.
         /// </summary>
@@ -188,6 +200,9 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _push, n);
                 System.Array.Resize(ref _burst, n);
                 System.Array.Resize(ref _blown, n);
+                System.Array.Resize(ref _shook, n);
+                System.Array.Resize(ref _stood, n);
+                System.Array.Resize(ref _idled, n);
                 System.Array.Resize(ref _front, n);
                 System.Array.Resize(ref _turned, n);
                 System.Array.Resize(ref _struck, n);
@@ -212,6 +227,20 @@ namespace LanesOfVietnam.View
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
                 if (e.Kind == EventKind.Reload && e.Id < _reload.Length) { _reload[e.Id] = true; continue; }
+                if ((e.Kind == EventKind.GrenadeBlast || e.Kind == EventKind.Shell) && e.X != null)
+                {
+                    // A burst: the men it does not kill it knocks over, or fills their eyes. (Those it kills are
+                    // written after it; a dead man's mark is never read.)
+                    for (int j = 0; j < st.Men.Count && j < _shook.Length; j++)
+                    {
+                        var o = st.Men[j];
+                        if (!o.Alive) continue;
+                        double bx = o.X - e.X.Value, bz = o.Z - e.Z.Value, b2 = bx * bx + bz * bz;
+                        if (b2 < KnockedWithin * KnockedWithin) _shook[j] = 1;
+                        else if (b2 < DazedWithin * DazedWithin && _shook[j] == 0) _shook[j] = 2;
+                    }
+                    continue;
+                }
                 if ((e.Kind == EventKind.VaultIn || e.Kind == EventKind.VaultOut) && e.Id < _climbUntil.Length)
                 {
                     _climbTicks[e.Id] = Gunnery.VaultTicks(st, e.Kind == EventKind.VaultIn, st.Men[e.Id]);
@@ -372,6 +401,22 @@ namespace LanesOfVietnam.View
             _matchTime = now;
             while (_figures.Count < st.Men.Count) _figures.Add(null);
             while (_pending.Length < _figures.Count) System.Array.Resize(ref _pending, _figures.Count * 2);
+            // A squad that changes what it is doing: one of its men, on a knee and at rest, says so with his hand.
+            // Going forward (closing, going in), its second man waves the rest on; gone to ground at first sight of
+            // the enemy, its lead man holds them where they are.
+            if (_task.Length < st.Squads.Count) { System.Array.Resize(ref _task, st.Squads.Count * 2); System.Array.Resize(ref _signal, st.Squads.Count * 2); }
+            for (int s = 0; s < st.Squads.Count; s++)
+            {
+                var task = st.Squads[s].Task;
+                _signal[s] = null;
+                if (task == _task[s]) continue;
+                if (st.Senses && !jump)
+                {
+                    if (task == SquadTask.Close || task == SquadTask.Assault) _signal[s] = SoldierFigure.SignalFollow;
+                    else if (task == SquadTask.Firefight && _task[s] == SquadTask.Contact) _signal[s] = SoldierFigure.SignalStay;
+                }
+                _task[s] = task;
+            }
             _cam ??= Camera.main;
             float pxPerMetre = _cam != null ? Screen.height / (2f * Mathf.Tan(_cam.fieldOfView * 0.5f * Mathf.Deg2Rad)) : 1000f;
             int frame = Time.frameCount;
@@ -573,6 +618,28 @@ namespace LanesOfVietnam.View
                     _rounds[i] = 0;
                 }
                 Drawn++;
+                if (m.Alive && !jump && !fresh)
+                {
+                    // A burst that did not kill him: over he goes, or he has the dirt out of his eyes (not flat
+                    // already, not in the middle of a climb, and nobody rubs his eyes on the move).
+                    if (_shook[i] == 1 && posture != 2 && m.Vault == 0) f.Act(SoldierFigure.BlastFall);
+                    else if (_shook[i] == 2 && posture != 2 && !away && m.Vault == 0 && Hash(m.Id + st.Tick, 41) < 0.6f)
+                        f.Act(SoldierFigure.RubEyes, 0.15f, posture == 1 ? 0.45f : 0f);
+                    // Going to ground at a run: a dive, not a man lowering himself.
+                    if (_stood[i] == 0 && posture == 2 && pace > 0.9f && _shook[i] != 1) f.Act(SoldierFigure.Dive, 0.1f);
+                    // His squad's signal, if he is the man to give it: on a knee, at rest, his head up.
+                    string sign = m.Squad < _signal.Length ? _signal[m.Squad] : null;
+                    if (sign != null && posture == 1 && !away && !aiming && m.Pin < Tune.PinDrop && m.Rank == (sign == SoldierFigure.SignalFollow ? 1 : 0))
+                        f.Act(sign, 0.2f);
+                    // Standing about, out of the fight: now and then he looks behind him, or at his rifle.
+                    if (posture == 0 && !away && !aiming && m.Pin < 0.05 && f.Doing == null && (!st.Senses || st.Squads[m.Squad].Task == SquadTask.March))
+                    {
+                        int turn = (int)(now / 5f) + m.Id * 7;
+                        if (turn != _idled[i]) { _idled[i] = turn; if (Hash(m.Id + turn, 42) < 0.3f) f.Act(Hash(m.Id + turn, 43) < 0.65f ? SoldierFigure.LookAbout : SoldierFigure.Inspect, 0.3f); }
+                    }
+                }
+                _shook[i] = 0;
+                _stood[i] = (sbyte)posture;
                 if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
                 // A burst killed him: it throws him, and close enough may take a limb off him.

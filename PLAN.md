@@ -2656,6 +2656,44 @@ simulation is untouched, so no pin moved.
 clips in a blend should cost nothing that can be measured; it is not
 measured). Not seen by the owner.
 
+#### The second batch: what a man does besides walk, fire and die (2026-10-10)
+
+The owner: "focus on adding animations (mixamo still open) to make it as
+realistic as possible." Nine more clips (`ASSETS.md` has them), each for
+something the simulation already says happens and the view had no way to
+show:
+
+- **A burst that does not kill him.** Within 3.5 m it knocks a man over:
+  he goes down on his back where he is and scrambles up again, 2.1 s.
+  Within 8 m, three men in five put a hand to their eyes (not on the move).
+- **Going to ground at a run.** A man on his feet and moving whom the
+  simulation puts flat dives, 1.35 s; he had lowered himself.
+- **A flinch that is not the same every time.** On his feet he dodges every
+  other time; from a knee he has two.
+- **A squad's hand signals.** When a squad goes forward (closing, going in)
+  its second man, if he is on a knee and at rest with his head up, raises
+  his rifle arm and waves the rest on; when it has gone to ground at its
+  first sight of the enemy its lead man holds them where they are.
+- **Standing about.** A man on his feet out of the fight now and then
+  looks behind him, or at his rifle.
+
+Each is a state of the Animator's top layer started by name
+(`SoldierFigure.Act`); a man who has to go or to shoot stops what he was
+doing (a fall and a dive are played out). The fall and the dive keep their
+travel in the clip's root, which the game does not apply, so they happen
+where the simulation has the man: as first imported the dive carried him
+three metres out of his place and the fall a metre and a half, and he
+snapped back when it was over.
+
+Tried and thrown away: a blow with the rifle's butt (the clip came in
+facing a quarter turn off, as a mirrored one had); and a man on his back
+writhing after he is shot, which wants the body held where its death left
+it while one clip is blended into another. Their files are deleted.
+
+Looked at as contact sheets (`SoldierPreview.RenderDoings`, new). PlayMode
+21/21 (one new test); the motion audit 0.6% (limit 2%). Not seen in the
+game by anyone: nobody has watched a grenade knock a man down.
+
 
 ### 12.31 The computer's commander: begun, not on in the game (2026-10-09)
 
@@ -2665,8 +2703,8 @@ afford one, into a lane drawn at random, and does nothing else: no
 call-in, no lever, no order. He then put animations and the look of the
 shooting ahead of it (2026-10-10), so this is where it was left.
 
-**Written,** behind `MatchOptions.Commander` (`Sim/Commander.cs`), **off in
-the game**: the computer's side thinks every two seconds from what its
+**Written,** behind `MatchOptions.Commander` (`Sim/Captain.cs`; the view
+already has a `Commander`, the player's own hand), **off in the game**: the computer's side thinks every two seconds from what its
 squads know. A new squad goes to the lane where it is shortest of men, and
 three times in four is the squad that lane wants (a marksman for his guns,
 something that bursts for an enemy dug in, then engineers or sappers, a

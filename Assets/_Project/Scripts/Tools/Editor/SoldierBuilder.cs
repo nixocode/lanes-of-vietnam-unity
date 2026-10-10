@@ -259,7 +259,17 @@ namespace LanesOfVietnam.Tools
             ("crouch_run", true, true), ("kneel_reload", false, false), ("kneel_grenade", false, false),
             ("death_blast_fwd", false, false), ("death_fall_forward", false, false), ("death_left", false, false),
             ("death_knees", false, false), ("death_crouch", false, false), ("death_run_flat", false, false),
+            // The second batch of 2026-10-10 (the owner: "focus on adding animations ... as realistic as possible"):
+            // what a man does that is not walking, firing or dying. Knocked over by a burst that did not kill him,
+            // and rubbing the dirt out of his eyes; a dodge and a second flinch from a knee; a dive to the ground
+            // at a run; the hand signals of a man on one knee; two ways of standing about. (The fall and the dive
+            // keep their travel in the root, where the game leaves it: he goes over, and down, where he is.)
+            ("blast_fall", false, true), ("rub_eyes", false, false), ("dodge", false, false), ("kneel_hit_b", false, false),
+            ("dive", false, true), ("signal_follow", false, false), ("signal_stay", false, false),
+            ("idle_look", false, false), ("idle_inspect", false, false),
         };
+        /// <summary>Clips imported left for right, so that the hand that is free does what Mixamo's right hand does (ours holds the rifle).</summary>
+        private static readonly HashSet<string> LeftForRight = new HashSet<string> { "kneel_grenade" };
 
         /// <summary>
         /// A limb as a thing by itself: the part of his skin that follows this bone and the bones below it, as
@@ -425,7 +435,7 @@ namespace LanesOfVietnam.Tools
                 // authored: the rifle along the clip's forward, the hips ~57 degrees
                 // to its right. Prone clips read true as they are.
                 // (A clip that is imported left for right is measured as Mixamo made it: put back first.)
-                bool mirrored = role == "kneel_grenade";
+                bool mirrored = LeftForRight.Contains(role);
                 if (mirrored && c.mirror) { c.mirror = false; mi.clipAnimations = new[] { c }; mi.SaveAndReimport(); }
                 var blade = AuthoredYaw(path);
                 if (blade.HasValue) { c.keepOriginalOrientation = false; c.rotationOffset = blade.Value * OrientationSign; }
@@ -696,6 +706,12 @@ namespace LanesOfVietnam.Tools
                 {
                     ("Melee 0", R("melee_stab"), 1.9f, 0.82f), ("Melee 1", R("melee_slash"), 1.7f, 0.82f),
                     ("Climb in", R("trench_in"), 1f, 0.9f), ("Climb out", R("trench_out"), 2.1f, 0.92f),
+                    // What a man does besides (SoldierFigure.Act, by these names).
+                    (SoldierFigure.BlastFall, R("blast_fall"), 1.25f, 0.9f), (SoldierFigure.RubEyes, R("rub_eyes"), 1.1f, 0.85f),
+                    (SoldierFigure.Dodge, R("dodge"), 1.2f, 0.85f), (SoldierFigure.KneelFlinch, R("kneel_hit_b"), 1f, 0.8f),
+                    (SoldierFigure.Dive, R("dive"), 1.15f, 0.88f),
+                    (SoldierFigure.SignalFollow, R("signal_follow"), 1.1f, 0.9f), (SoldierFigure.SignalStay, R("signal_stay"), 1.1f, 0.9f),
+                    (SoldierFigure.LookAbout, R("idle_look"), 1f, 0.93f), (SoldierFigure.Inspect, R("idle_inspect"), 1f, 0.93f),
                 })
                 {
                     if (clip == null) continue;
@@ -703,7 +719,8 @@ namespace LanesOfVietnam.Tools
                     st.motion = C(clip);
                     st.speed = rate;
                     var back = st.AddTransition(calm);
-                    back.hasExitTime = true; back.exitTime = leave; back.hasFixedDuration = true; back.duration = 0.2f;
+                    // (Off his back and up again takes longer to blend than putting a hand down.)
+                    back.hasExitTime = true; back.exitTime = leave; back.hasFixedDuration = true; back.duration = state == SoldierFigure.BlastFall ? 0.55f : state == SoldierFigure.Dive ? 0.3f : 0.2f;
                     var dead = st.AddTransition(calm);
                     dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
                     dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
@@ -1002,6 +1019,7 @@ namespace LanesOfVietnam.Tools
                 var have = new HashSet<string>(ImportedMixamo);
                 fig.MixamoStand = have.Contains("rifle_idle");
                 fig.Blows = (have.Contains("melee_stab") ? 1 : 0) + (have.Contains("melee_slash") ? 1 : 0);
+                fig.Acts = ctrl.layers.Length > 2 ? ctrl.layers[2].stateMachine.states.Select(x => x.state.name).ToArray() : new string[0];
                 fig.BlowFirst = have.Contains("melee_stab") ? 0 : 1;
                 fig.Climbs = have.Contains("trench_in") && have.Contains("trench_out");
                 fig.MixamoCrouch = have.Contains("kneel_idle");

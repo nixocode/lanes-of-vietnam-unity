@@ -459,7 +459,7 @@ namespace LanesOfVietnam.Sim
         public bool Fortune;
         /// <summary>Part 2 rule: fire spread along the enemy's line, covering fire, guns that traverse, an assault on an enemy who is beaten down (<see cref="Sim.FireControl"/>). Off is the baseline.</summary>
         public bool FireControl;
-        /// <summary>Part 2 rule: the computer's side commands: the lane and the squad it raises, its call-ins, its levers (<see cref="Sim.Commander"/>). Off is the baseline.</summary>
+        /// <summary>Part 2 rule: the computer's side commands: the lane and the squad it raises, its call-ins, its levers (<see cref="Sim.Captain"/>). Off is the baseline.</summary>
         public bool Commander;
         /// <summary>The commander's own random stream: one time in four, and a tie between lanes.</summary>
         public Rng CommandRng;
