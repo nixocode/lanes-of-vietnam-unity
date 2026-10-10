@@ -2792,11 +2792,89 @@ through the men it was fired at.
 4.4 ms a frame, 5 to 6 ms at the 95th percentile, at 2592 x 1370 with the
 display awake; the effects 0.06 to 0.12 ms of it.
 
-**Not done.** Nothing in the simulation: a burst is still one shot with one
-chance, and a round that misses its man still cannot hit the man beside
-him. That is the next thing in the shooting itself (a round that lands
-where another man is may hit him), and it is a rule with its own flag and
-its own balance, not a look. Not seen by the owner.
+**Not done here,** and done next (§12.33): anything in the simulation. A
+burst was still one shot with one chance, and a round that missed its man
+could not hit the man beside him.
+
+
+### 12.33 Ballistics: a round that misses goes somewhere (2026-10-10)
+
+The owner, told that the look of the shooting (§12.32) had changed nothing
+in its rules: "yes i want the new shooting rule".
+
+**What was there.** A shot was one chance at one man. If it missed it put
+his head down, and the heads near him, and was gone: a man a pace behind
+him on the round's own line was as safe as one in the other lane. A
+machine gun's burst of ten rounds was one chance at one man too. (The one
+exception, since Fieldcraft: a round that kills may go on into the man
+behind.)
+
+**As built:** `MatchOptions.Ballistics` (`Sim/Ballistics.cs`), on in the
+game.
+
+- A round that misses comes down where the simulation already said a miss
+  does (past its man, on its own line, a little wide). The rounds of a
+  burst are walked along that line, 0.6 m apart, the last of them there:
+  as the view had drawn them since §12.32, now the simulation's own.
+- Over the last four metres before it comes down a round is at the height
+  of a man. The first man of the enemy within 0.6 m of that line, other
+  than the one it was fired at, may be hit by it, with the chance the
+  firer would have had firing at him (his cover and his posture count as
+  they would), shared among the rounds of a burst.
+- The rounds of a burst that kills, other than those in the man, were
+  walked up to him: they may find a man in front of him.
+- Not a machine gun's bursts onto cover it has lost sight of, which pin and
+  do not kill; and never a man of the firer's own side.
+
+A new event, `Stray` (the last of the enum): man Id's round, fired at
+somebody else, has hit man Target at X, Z; his `Kill` follows it as a
+shot's does. The view draws the hit (the slap, the blood by the round) and
+takes the death for a shot from that firer.
+
+**Measured** (`simcs gunplay N 2400 40 fieldcraft arms senses gunnery ammo
+tactics fortune firecontrol tempo [ballistics]`, a minute of fighting):
+
+| | seeds 20 to 59, tuned on | | seeds 100 to 139, not tuned on | |
+|---|---|---|---|---|
+| | off | on | off | on |
+| men killed | 9.0 | 9.8 | 9.7 | 9.3 |
+| by a stray round, from a rifle or a submachine gun | 0 | 0.6 | 0 | 0.6 |
+| from a sniper; from a machine gun | 0 | 0.2; 0.1 | 0 | 0.1; 0.1 |
+| by a round through the man in front (as before) | 0.5 | 0.7 | 0.5 | 0.5 |
+
+Tried on the way to those numbers: half an aimed round's chance within
+0.45 m over three metres made stray rounds 3% of deaths, which nobody
+would ever see; one and a half times the chance, 14%.
+
+Eight or nine deaths in a hundred are now a round that was meant for
+somebody else. A machine gun's are few (one a minute in ten): its burst's
+chance is shared among its rounds, and its bursts are mostly at men flat
+behind something.
+
+**Balance** (`simcs player 48 N rate=0.9 tactics fortune firecontrol
+ballistics`): a line-squad buyer wins 39 and 30 of 48 against a Veteran
+(36 and 33 without the rule), 19 and 21 against the Elite at 25 (26 and
+21); a standard match 208 and 185 s for a player who buys (214 and 200),
+228 with nobody playing (241). Nothing moved by more than forty-eight
+seeds can tell, and the costs and rates stay.
+
+**Checks.** With the flag off: determinism ok; `hash 1` 4390 ticks, final
+`2256114725u`; `hash 1 ... firecontrol map` 5070, `1731903378u`. New pins:
+
+- `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+  firecontrol ballistics map` (the game): 3493 ticks, `4188068015u`,
+  `3149690676u`, `2457736883u`;
+- `7 drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
+  ballistics`: 4414 ticks, `2037419726u`, `1815324906u`, `3760706757u`.
+
+EditMode 80/80: the two pins; a test of the rule on a range (the chance, a
+burst's share of it, off the line, short of the reach, never the man fired
+at, never his own side); and one of whole matches (none without the rule,
+some with it, each followed by its death, under a third of the killing).
+
+**Not done.** A round does not hit a man of the firer's own side, whatever
+is in its way: a squad's covering half fires over the half that is going
+in (§12.29), and friendly fire would undo that. Not played by the owner.
 
 
 ### 12.13 Corrections to earlier sections

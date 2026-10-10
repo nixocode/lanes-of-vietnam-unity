@@ -64,8 +64,8 @@ namespace LanesOfVietnam.View
                 default: return 1f;
             }
         }
-        /// <summary>Metres between one round of a burst and the next where they land: a burst is walked along its own line.</summary>
-        public const float StitchStep = 0.6f;
+        /// <summary>Metres between one round of a burst and the next where they land: a burst is walked along its own line (the simulation's own step, MatchOptions.Ballistics).</summary>
+        public const float StitchStep = (float)Tune.StitchStep;
         /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
         public const double RicochetShare = 0.05;
         private const double MaxAge = 11.0;
@@ -192,6 +192,7 @@ namespace LanesOfVietnam.View
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
                     case EventKind.Launch: Launched(e, i, (float)age); break;
                     case EventKind.Through: Passed(e, i, (float)age); break;
+                    case EventKind.Stray: Strayed(e, i, (float)age); break;
                     case EventKind.Kill: Blasted(ev, i, (float)age); break;
                 }
             }
@@ -224,7 +225,7 @@ namespace LanesOfVietnam.View
             switch (kind)
             {
                 case EventKind.Fire: return 2.6f;
-                case EventKind.Melee: case EventKind.Through: case EventKind.Kill: return 1.3f;
+                case EventKind.Melee: case EventKind.Through: case EventKind.Stray: case EventKind.Kill: return 1.3f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
                 case EventKind.GrenadeBlast: return 6f;
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
@@ -522,7 +523,7 @@ namespace LanesOfVietnam.View
             x = z = 0;
             var e = ev[kill];
             if (kill > 0 && ev[kill - 1].Tick == e.Tick && ev[kill - 1].Target == e.Id
-                && (ev[kill - 1].Kind == EventKind.Fire || ev[kill - 1].Kind == EventKind.Through || ev[kill - 1].Kind == EventKind.Melee)) return false;
+                && (ev[kill - 1].Kind == EventKind.Fire || ev[kill - 1].Kind == EventKind.Through || ev[kill - 1].Kind == EventKind.Stray || ev[kill - 1].Kind == EventKind.Melee)) return false;
             for (int k = kill - 1; k >= 0 && ev[k].Tick == e.Tick; k--)
             {
                 var b = ev[k];
@@ -653,6 +654,30 @@ namespace LanesOfVietnam.View
             if (tail < dist) AddStreak(a + dir * tail, a + dir * Mathf.Min(head, dist), 0.03f, new Color(0.9f, 0.75f, 0.6f) * 1.5f, (float)Hash(i, 41));
             float ai = age - dist / TracerSpeed;
             if (ai >= 0 && e.Amount == 1) Blood(i * 8 + 5, ai, b, dir, 1f);
+        }
+
+        /// <summary>
+        /// A round fired at one man that found another (the sim's Stray, MatchOptions.Ballistics): the slap of it
+        /// on him and what it throws out of him, as a round that was meant for him would. (Its flash and its
+        /// flight are the shot's own, drawn with the shot.)
+        /// </summary>
+        private void Strayed(SimEvent e, int i, float age)
+        {
+            var men = _root.Driver.State.Men;
+            if (e.Target == null || e.Id >= men.Count || e.Target.Value >= men.Count) return;
+            var a = Chest(men[e.Id]);
+            var b = Chest(men[e.Target.Value]);
+            float dist = Vector3.Distance(a, b);
+            var dir = (b - a) / Mathf.Max(0.01f, dist);
+            float ai = age - dist / TracerSpeed;
+            if (ai < 0) return;
+            float cal = Calibre(men[e.Id].Weapon);
+            if (ai < 0.22f)
+            {
+                float f = 1 - ai / 0.22f;
+                AddPuff(b - dir * 0.12f + Vector3.up * (0.25f * ai), (0.14f + 1.1f * ai) * (0.8f + 0.3f * cal), new Color(0.50f, 0.46f, 0.38f, 0.75f * f), (float)Hash(i, 58), 1f);
+            }
+            Blood(i * 16 + 7, ai, b, dir, Mathf.Clamp(cal, 0.75f, 1.8f));
         }
 
         // --- grenades ---------------------------------------------------------------------
@@ -956,7 +981,7 @@ namespace LanesOfVietnam.View
                 {
                     // The simulation writes a kill straight after the shot, or the round through another man, that made it.
                     bool shot = i > 0 && ev[i - 1].Tick == e.Tick && ev[i - 1].Target == e.Id
-                                && (ev[i - 1].Kind == EventKind.Fire || ev[i - 1].Kind == EventKind.Through);
+                                && (ev[i - 1].Kind == EventKind.Fire || ev[i - 1].Kind == EventKind.Through || ev[i - 1].Kind == EventKind.Stray);
                     bool burst = Burst(ev, i, out double fx, out double fz);
                     _fresh.Add(new Fresh { Event = i, Shot = shot, Burst = burst, FromX = fx, FromZ = fz });
                 }

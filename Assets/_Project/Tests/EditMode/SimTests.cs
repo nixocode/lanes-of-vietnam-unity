@@ -1823,6 +1823,123 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(down[1] / seconds[1], 1.3 * down[0] / seconds[0], "men are kept down no more than they were");
         }
 
+        // --- Part 2: ballistics, behind MatchOptions.Ballistics (the owner, 2026-10-10: "yes i want the new shooting rule") -----
+
+        private static MatchOptions Flown(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Directed(seed, onMap, tempo);
+            o.Ballistics = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics [map]`.</summary>
+        [TestCase(1, true, 3493, 4188068015u, 3149690676u, 2457736883u, "us morale broke")]
+        [TestCase(7, false, 4414, 2037419726u, 1815324906u, 3760706757u, "vc morale broke")]
+        public void With_ballistics_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Ballistics, "ballistics must be off unless asked for");
+            var (a, m) = Played(Flown(seed, asTheGame));
+            var (b, _) = Played(Flown(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, 2026-10-10: "make it as realistic as possible", and "yes i want the new shooting rule". A
+        /// round that misses its man may hit the man who is where it goes: one of the enemy within 0.6 m of its
+        /// line over its last four metres, with the chance the firer would have had firing at him; never the man
+        /// it was fired at, never one of the firer's own side, never a man off its line or short of its reach.
+        /// A burst's rounds share that chance, each a pace short of the next.
+        /// </summary>
+        [Test]
+        public void With_ballistics_a_round_that_misses_may_hit_the_man_behind_its_target()
+        {
+            var st = Match.Create(Flown(3));
+            var sq = st.Squads.First(q => q.Side == Side.Us && q.Card == "us-rifle");
+            var a = st.Men.First(x => x.Squad == sq.Id);
+            double z = Tune.Lanes[sq.Lane];
+            foreach (var o in st.Men.Where(x => x != a)) { o.X = o.Side == Side.Us ? -44 : 44; o.Z = z; o.Cover = -1; o.Posture = Posture.Crouched; o.Pin = 0; }
+            a.X = -10; a.Z = z; a.Posture = Posture.Crouched; a.Cover = -1; a.Pin = 0; a.Weapon = Weapon.M16;
+            var foes = st.Men.Where(x => x.Side == Side.Vc).ToList();
+            Man target = foes[0], behind = foes[1];
+            target.X = 2; behind.X = 3.5;
+            int Found(int shots, int strays, int of, double landX, double landZ)
+            {
+                int n = 0, before = st.Events.Count;
+                for (int k = 0; k < shots; k++)
+                {
+                    foreach (var o in st.Men) o.Alive = true;
+                    Ballistics.Strays(st, a, target, strays, of, landX, landZ);
+                    if (!behind.Alive) n++;
+                }
+                Assert.AreEqual(n, st.Events.Skip(before).Count(e => e.Kind == EventKind.Stray && e.Target == behind.Id), "a stray that killed was not written, or one was written that did not kill");
+                Assert.IsTrue(st.Events.Skip(before).Where(e => e.Kind == EventKind.Stray).All(e => e.Id == a.Id && e.Target != target.Id), "a stray round found the man it was fired at");
+                return n;
+            }
+            // The round comes down two and a half metres past its man, and there is a man a pace and a half behind him.
+            double chance = Combat.HitChance(st, a, behind) * Tune.StrayShare;
+            Assert.Greater(chance, 0.005);
+            int hits = Found(4000, 1, 1, target.X + 2.5, z);
+            Assert.That(hits, Is.InRange(4000 * chance * 0.6, 4000 * chance * 1.5), "a stray round's chance is not the chance of a round fired at him");
+            // A burst of five shares it: for a man all five rounds pass (a pace in front of the one fired at; the
+            // rounds come down from 0.1 m to 2.5 m past him), about as many, not five times as many.
+            behind.X = target.X - 1;
+            double shared = Combat.HitChance(st, a, behind) * Tune.StrayShare;
+            int burst = Found(4000, 5, 5, target.X + 2.5, z);
+            Assert.That(burst, Is.InRange(4000 * shared * 0.6, 4000 * shared * 1.5), "a burst's stray rounds do not share one chance");
+            behind.X = 3.5;
+            // Off its line; short of where it is still at a man's height; and behind where it comes down.
+            behind.Z = z + Tune.StrayWidth + 0.3;
+            Assert.AreEqual(0, Found(2000, 1, 1, target.X + 2.5, z), "a man off the round's line");
+            behind.Z = z; behind.X = target.X + 2.5 - Tune.StrayReach - 0.5;
+            Assert.AreEqual(0, Found(2000, 1, 1, target.X + 2.5, z), "a man short of where the round comes down to a man's height");
+            behind.X = target.X + 3.5;
+            Assert.AreEqual(0, Found(2000, 1, 1, target.X + 2.5, z), "a man beyond where the round came down");
+            // Never one of his own side.
+            behind.X = 44;
+            var friend = st.Men.First(x => x.Side == Side.Us && x != a);
+            friend.X = 3.5; friend.Z = z;
+            for (int k = 0; k < 2000; k++) Ballistics.Strays(st, a, target, 1, 1, target.X + 2.5, z);
+            Assert.IsTrue(friend.Alive, "a stray round killed a man of the firer's own side");
+        }
+
+        /// <summary>
+        /// And in whole matches, as the game plays them: without the rule no round finds anybody it was not fired
+        /// at; with it some do, each written before the death it made, and they are a small part of the killing.
+        /// </summary>
+        [Test]
+        public void With_ballistics_stray_rounds_kill_a_few_and_only_with_the_rule()
+        {
+            int strays = 0, shot = 0;
+            for (int seed = 3; seed <= 8; seed++)
+            {
+                var plain = new LiveMatch(Directed(seed, tempo: true));
+                while (!plain.State.Over && plain.State.Tick < 3600) plain.Step();
+                Assert.AreEqual(0, plain.State.Events.Count(e => e.Kind == EventKind.Stray), "a stray round without the rule");
+
+                var m = new LiveMatch(Flown(seed, tempo: true));
+                var st = m.State;
+                while (!st.Over && st.Tick < 3600) m.Step();
+                for (int i = 0; i < st.Events.Count; i++)
+                {
+                    var e = st.Events[i];
+                    if (e.Kind == EventKind.Fire && i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill && st.Events[i + 1].Id == e.Target) shot++;
+                    if (e.Kind != EventKind.Stray) continue;
+                    strays++;
+                    Assert.AreEqual(EventKind.Kill, st.Events[i + 1].Kind, "a stray round with no death after it");
+                    Assert.AreEqual(e.Target, st.Events[i + 1].Id);
+                    Assert.AreNotEqual(st.Men[e.Id].Side, st.Men[e.Target.Value].Side, "a stray round killed a man of the firer's side");
+                }
+            }
+            Assert.Greater(strays, 0, "no round ever found a man it was not fired at");
+            Assert.Less(strays * 3, shot, "stray rounds do a third of the killing or more");
+        }
+
         [Test]
         public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
         {

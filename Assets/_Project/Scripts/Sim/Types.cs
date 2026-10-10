@@ -380,6 +380,9 @@ namespace LanesOfVietnam.Sim
         Contact,
         // Reload (MatchOptions.Ammo): man Id has started a reload of Amount ticks.
         Reload,
+        // Stray (MatchOptions.Ballistics): a round man Id fired at somebody else has hit man Target, at X, Z, and
+        // killed him: his Kill is the next event, as a shot's is.
+        Stray,
     }
 
     public struct SimEvent
@@ -461,6 +464,8 @@ namespace LanesOfVietnam.Sim
         public bool FireControl;
         /// <summary>Part 2 rule: the computer's side commands: the lane and the squad it raises, its call-ins, its levers (<see cref="Sim.Captain"/>). Off is the baseline.</summary>
         public bool Commander;
+        /// <summary>Part 2 rule: a round that misses goes somewhere, and whoever is there may be hit (<see cref="Sim.Ballistics"/>). Off is the baseline.</summary>
+        public bool Ballistics;
         /// <summary>The commander's own random stream: one time in four, and a tie between lanes.</summary>
         public Rng CommandRng;
         /// <summary>The tick each side's commander last laid a trap: it does not lay them one on another (MatchOptions.Commander).</summary>

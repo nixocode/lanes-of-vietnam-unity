@@ -193,6 +193,9 @@ namespace LanesOfVietnam.View
                 // is kept up keeps heads down; a squad works up to an assault and goes in by halves on a beaten enemy; a
                 // rocket is for a group. On in the game.
                 FireControl = CaptureSettings.Active?.FireControl ?? true,
+                // Ballistics (Part 2): a round that misses its man comes down somewhere, and may hit the man who is there; a
+                // burst is its rounds, walked along its line. On in the game.
+                Ballistics = CaptureSettings.Active?.Ballistics ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

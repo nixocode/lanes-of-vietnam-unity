@@ -263,7 +263,7 @@ namespace LanesOfVietnam.View
                     // round through another man that made it; a kill with none of
                     // those before it was a shell or a grenade.
                     var prev = _eventCursor > 0 ? st.Events[_eventCursor - 1] : default;
-                    bool shot = (prev.Kind == EventKind.Fire || prev.Kind == EventKind.Melee || prev.Kind == EventKind.Through)
+                    bool shot = (prev.Kind == EventKind.Fire || prev.Kind == EventKind.Melee || prev.Kind == EventKind.Through || prev.Kind == EventKind.Stray)
                                 && prev.Target == e.Id && prev.Tick == e.Tick;
                     // Which way it threw him: from the man who fired (or, for a round that
                     // had already gone through someone, from that man) across his own facing.

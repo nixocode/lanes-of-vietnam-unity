@@ -105,6 +105,8 @@ namespace LanesOfVietnam.View
         public bool? Fortune;
         /// <summary>Fire spread and aimed at the man likeliest to be hit, heads kept down, an assault on a beaten enemy (MatchOptions.FireControl); the game's default (on) if not given.</summary>
         public bool? FireControl;
+        /// <summary>A round that misses may hit the man beside its target (MatchOptions.Ballistics); the game's default (on) if not given.</summary>
+        public bool? Ballistics;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -165,6 +167,7 @@ namespace LanesOfVietnam.View
                     case "tactics": c.Tactics = v == "1" || v == "true"; break;
                     case "fortune": c.Fortune = v == "1" || v == "true"; break;
                     case "firecontrol": c.FireControl = v == "1" || v == "true"; break;
+                    case "ballistics": c.Ballistics = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

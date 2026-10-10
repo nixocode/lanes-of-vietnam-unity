@@ -81,7 +81,8 @@ reference/TARGET.jpg             the specification for the look
 | Build | 27.0 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
 | Frame | 4.2 to 4.4 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
 | Demo | on Vercel since 2026-10-09, after a security check: only the build goes up, under a content policy that lets it call nobody (PLAN §12.28) |
-| Tests | EditMode 76/76 (PLAN §12.29), PlayMode 21/21 (PLAN §12.30), 2026-10-10 |
+| Ballistics | a round that misses its man comes down somewhere and may hit the man who is there; a burst is its rounds, walked along its line (PLAN §12.33) |
+| Tests | EditMode 80/80 (PLAN §12.33), PlayMode 21/21 (PLAN §12.30), 2026-10-10 |
 
 The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.29 (fire control), §12.30 (the Mixamo batches) and §12.32 (rounds that are seen to land); §12.31 is the computer's commander, begun and not yet on.
 

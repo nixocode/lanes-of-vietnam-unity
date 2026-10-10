@@ -526,6 +526,15 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks before a squad whose assault was stopped goes in again, unless it has him three to one (20 s).</summary>
         public const int AssaultAgain = 400;
 
+        // --- ballistics (MatchOptions.Ballistics) ----------------------------------------
+
+        /// <summary>Metres between one round of a burst and the next where they come down: a burst is walked along its own line (the view draws them so too).</summary>
+        public const double StitchStep = 0.6;
+        /// <summary>Over this many metres before it comes down a round is at the height of a man, and a man within this far of its line may be hit by it.</summary>
+        public const double StrayReach = 4.0, StrayWidth = 0.6;
+        /// <summary>A stray round's chance against the chance the firer would have had firing at that man (shared among a burst's rounds).</summary>
+        public const double StrayShare = 1.0;
+
         // --- the commander (MatchOptions.Commander) -------------------------------------
 
         /// <summary>Ticks between a side's thoughts (2 s; the two sides think a second apart).</summary>

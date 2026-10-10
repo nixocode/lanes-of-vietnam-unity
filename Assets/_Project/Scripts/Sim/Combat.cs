@@ -247,8 +247,16 @@ namespace LanesOfVietnam.Sim
             {
                 Kill(st, target);
                 if (st.Fieldcraft) Fieldcraft.Through(st, a, target, rng);
+                // Ballistics: the rounds of the burst that did not hit him were walked up to him.
+                if (st.Ballistics && rounds > 1)
+                {
+                    double ux = target.X - a.X, uz = target.Z - a.Z, ud = Math.Sqrt(ux * ux + uz * uz);
+                    if (ud > 1e-6) Ballistics.Strays(st, a, target, rounds - 1, rounds, target.X - ux / ud * Tune.StitchStep, target.Z - uz / ud * Tune.StitchStep);
+                }
                 return true;
             }
+            // Ballistics: it missed him, and comes down somewhere: whoever is there may be hit.
+            if (st.Ballistics && !blind && atX.HasValue) Ballistics.Strays(st, a, target, Math.Max(1, rounds), Math.Max(1, rounds), atX.Value, atZ.Value);
 
             // The miss is the point: pin on the man it passed and everyone
             // near him, which is how fire suppresses a position.

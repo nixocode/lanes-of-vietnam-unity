@@ -104,6 +104,8 @@ namespace LanesOfVietnam.Sim
         public bool FireControl;
         /// <summary>Part 2: the computer's side chooses where its squads go and what they are, plays its call-ins and pulls its levers (Commander). False is the parity baseline.</summary>
         public bool Commander;
+        /// <summary>Part 2: a round that misses its man may hit the man beside him, and a burst is so many rounds (Ballistics). False is the parity baseline.</summary>
+        public bool Ballistics;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -246,6 +248,7 @@ namespace LanesOfVietnam.Sim
                 Fortune = opts.Fortune,
                 FireControl = opts.FireControl,
                 Commander = opts.Commander,
+                Ballistics = opts.Ballistics,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
