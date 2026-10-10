@@ -45,6 +45,27 @@ namespace LanesOfVietnam.View
         /// <summary>Rounds in a burst from an automatic weapon, and the time between them.</summary>
         public const int BurstRounds = 3;
         public const float BurstGap = 0.085f;
+        /// <summary>
+        /// How hard a round strikes, against an AK's: what it throws up where it lands and out of a man it goes
+        /// through. The owner, 2026-10-10: "see rounds hit soldiers, ground (and spit up dust: more prominent for
+        /// large caliber like snipers and especially gunners)". A submachine gun fires a pistol's round; an M16 a
+        /// light, fast one; the belt-fed guns and a sniper's rifle the full-power rounds, and a machine gun puts
+        /// five or ten of them down in a row.
+        /// </summary>
+        public static float Calibre(Weapon w)
+        {
+            switch (w)
+            {
+                case Weapon.Smg: return 0.7f;
+                case Weapon.M16: return 0.85f;
+                case Weapon.M60: return 1.4f;
+                case Weapon.Rpd: return 1.3f;
+                case Weapon.Sniper: return 1.9f;
+                default: return 1f;
+            }
+        }
+        /// <summary>Metres between one round of a burst and the next where they land: a burst is walked along its own line.</summary>
+        public const float StitchStep = 0.6f;
         /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
         public const double RicochetShare = 0.05;
         private const double MaxAge = 11.0;
@@ -266,23 +287,38 @@ namespace LanesOfVietnam.View
                 }
                 else landed = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.05f);
             }
+            // A burst is walked along its own line: each round lands a pace beyond the one before, the last where
+            // the simulation says the shot went (or, if it killed, in the man: a belt-fed gun's last two).
+            float cal = Calibre(shooter.Weapon);
+            bool gun = shooter.Weapon == Weapon.M60 || shooter.Weapon == Weapon.Rpd;
+            int inHim = hit ? (gun && rounds > 2 ? 2 : 1) : 0;
+            var flat = new Vector3(aim.x, 0, aim.z).normalized;
             for (int r = 0; r < rounds; r++)
             {
                 float ra = age - r * BurstGap;
                 if (ra < 0) break;
-                Round(i * 8 + r, ra, muzzle, b, aim, hit && r == rounds - 1, auto, shooter.Side, shooter.Weapon, r == 0 ? landed : Near(landed, i * 8 + r), surface);
+                int s = i * 16 + r;
+                bool strikes = r >= rounds - inHim;
+                Vector3? at = landed;
+                if (!strikes && rounds > 1)
+                {
+                    // Short of the last by a pace for each round still to come, and a little to one side.
+                    var last = hit ? new Vector3(b.x, 0, b.z) : landed ?? new Vector3(b.x, 0, b.z);
+                    int toCome = rounds - inHim - 1 - r + (hit ? 1 : 0);
+                    if (surface == Bags && landed.HasValue)
+                        // Along the wall, not through it.
+                        at = landed.Value + new Vector3(-flat.z, 0, flat.x) * ((r - (rounds - 1) * 0.5f) * 0.35f + (float)(Hash(s, 45) - 0.5) * 0.2f) + Vector3.up * (float)((Hash(s, 44) - 0.5) * 0.3);
+                    else if (toCome > 0 || hit)
+                    {
+                        var p = last - flat * (toCome * StitchStep * (0.8f + 0.4f * (float)Hash(s, 44))) + new Vector3(-flat.z, 0, flat.x) * (float)((Hash(s, 45) - 0.5) * 0.5);
+                        at = Coords.World(p.x, -p.z, (float)_root.Ground.HeightAt(p.x, -p.z) + 0.05f);
+                    }
+                }
+                Round(s, ra, muzzle, b, aim, strikes, auto, shooter.Side, shooter.Weapon, at, strikes || !landed.HasValue ? Earth : surface, cal);
             }
         }
 
         private const int Earth = 0, Bags = 1;
-
-        /// <summary>The later rounds of a burst land round the first: a metre or so, on the ground.</summary>
-        private Vector3? Near(Vector3? first, int s)
-        {
-            if (!first.HasValue) return null;
-            var p = first.Value + new Vector3((float)(Hash(s, 44) * 2.4 - 1.2), 0, (float)(Hash(s, 45) * 1.6 - 0.8));
-            return p;
-        }
 
         /// <summary>
         /// The flash at the muzzle, by weapon: a ball of burning gas, a tongue
@@ -328,7 +364,7 @@ namespace LanesOfVietnam.View
 
         /// <summary>One round: the flash at the muzzle, its path through the air, and what it does where it lands.</summary>
         private void Round(int s, float age, Vector3 muzzle, Vector3 b, Vector3 aim, bool hit, bool auto, Side side,
-                           Weapon weapon = Weapon.Rifle, Vector3? landed = null, int surface = Earth)
+                           Weapon weapon = Weapon.Rifle, Vector3? landed = null, int surface = Earth, float cal = 1f)
         {
             Vector3 end;
             if (hit) end = b;
@@ -367,21 +403,30 @@ namespace LanesOfVietnam.View
             if (ai < 0) return;
             if (hit)
             {
-                Blood(s, ai, b, dir, 1f);
+                // Into a man: the slap of it on his kit (dust off the cloth, pale, gone in a moment), and what it
+                // throws out of him, by the round.
+                if (ai < 0.22f)
+                {
+                    float f = 1 - ai / 0.22f;
+                    AddPuff(b - dir * 0.12f + Vector3.up * (0.25f * ai), (0.14f + 1.1f * ai) * (0.8f + 0.3f * cal), new Color(0.50f, 0.46f, 0.38f, 0.75f * f), (float)Hash(s, 58), 1f);
+                }
+                Blood(s, ai, b, dir, Mathf.Clamp(cal, 0.75f, 1.8f));
                 return;
             }
             if (surface == Bags)
             {
                 // Into a sandbag: a slap of pale dust off the face of the wall, and sand running out of the hole.
-                if (ai < 0.05f) AddGlow(end, 0.16f, new Color(1f, 0.85f, 0.6f) * (2.5f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
+                if (ai < 0.05f) AddGlow(end, 0.16f * cal, new Color(1f, 0.85f, 0.6f) * (2.5f * (1 - ai / 0.05f)), 0, (float)Hash(s, 34));
                 if (ai < 0.9f)
                 {
                     float f = 1 - ai / 0.9f;
-                    for (int k = 0; k < 3; k++)
+                    // (A heavier round bursts the bag: more of it, thrown further.)
+                    int slaps = cal >= 1.25f ? 5 : 3;
+                    for (int k = 0; k < slaps; k++)
                     {
-                        var v = -dir * (1.6f + 1.2f * (float)Hash(s, 20 + k)) + Vector3.up * (0.8f + 1.0f * (float)Hash(s, 23 + k))
+                        var v = -dir * (1.6f + 1.2f * (float)Hash(s, 20 + k)) * (0.7f + 0.3f * cal) + Vector3.up * (0.8f + 1.0f * (float)Hash(s, 23 + k)) * cal
                                 + new Vector3(-dir.z, 0, dir.x) * (float)(Hash(s, 26 + k) - 0.5);
-                        AddPuff(end + v * ai * (1f - 0.5f * ai), 0.16f + 0.75f * ai, new Color(0.46f, 0.40f, 0.30f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
+                        AddPuff(end + v * ai * (1f - 0.5f * ai), (0.16f + 0.75f * ai) * (0.7f + 0.3f * cal), new Color(0.46f, 0.40f, 0.30f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
                     }
                     for (int k = 0; k < 2; k++)
                         AddPuff(end + Vector3.down * (0.5f * ai + 1.6f * ai * ai) + new Vector3(0.03f * k, 0, 0), 0.06f + 0.04f * k,
@@ -390,23 +435,39 @@ namespace LanesOfVietnam.View
                 return;
             }
             // Into the earth: a spurt of dirt straight up at once, then the dust it leaves hanging.
-            if (ai < 0.04f) AddGlow(end + Vector3.up * 0.05f, 0.12f, new Color(1f, 0.8f, 0.55f) * (2f * (1 - ai / 0.04f)), 0, (float)Hash(s, 35));
-            if (ai < 0.32f)
+            // (By the round: a pistol's from a submachine gun kicks up a handful; a rifle's a spurt as high as a
+            // man's knee; a machine gun's or a sniper's a fountain to his waist and a cloud that hangs.)
+            if (ai < 0.04f) AddGlow(end + Vector3.up * 0.05f, 0.12f * cal, new Color(1f, 0.8f, 0.55f) * (2f * (1 - ai / 0.04f)), 0, (float)Hash(s, 35));
+            float spurt = 0.32f * (0.75f + 0.25f * cal);
+            if (ai < spurt)
             {
-                float f = 1 - ai / 0.32f;
-                for (int k = 0; k < 5; k++)
+                float f = 1 - ai / spurt;
+                int clods = Mathf.Clamp(Mathf.RoundToInt(5 * cal), 3, 9);
+                for (int k = 0; k < clods; k++)
                 {
                     float az = (float)(Hash(s, 20 + k) * Math.PI * 2);
-                    var v = new Vector3(Mathf.Cos(az) * 0.9f, 5.5f + 3.5f * (float)Hash(s, 23 + k), Mathf.Sin(az) * 0.9f) - dir * 1.2f;
-                    AddPuff(end + v * ai + Vector3.down * (9.8f * ai * ai), 0.12f + 0.3f * ai, new Color(0.13f, 0.1f, 0.07f, 0.95f * f), (float)Hash(s, 26 + k), 1f);
+                    var v = new Vector3(Mathf.Cos(az) * 0.9f * cal, (5.5f + 3.5f * (float)Hash(s, 23 + k)) * (0.6f + 0.4f * cal), Mathf.Sin(az) * 0.9f * cal) - dir * 1.2f;
+                    AddPuff(end + v * ai + Vector3.down * (9.8f * ai * ai), (0.12f + 0.3f * ai) * (0.7f + 0.3f * cal), new Color(0.13f, 0.1f, 0.07f, 0.95f * f), (float)Hash(s, 26 + k), 1f);
+                }
+                // The spit of it: a column of dry earth straight up, pale against the grass, there and gone. (The clods
+                // alone were dark on dark ground: looked for in a capture, a machine gun's burst could not be found.)
+                float top = (0.45f + 0.35f * (float)Hash(s, 36)) * cal * Mathf.Min(1f, ai / 0.07f);
+                int stack = cal >= 1.25f ? 5 : 4;
+                for (int k = 0; k < stack; k++)
+                {
+                    float up = (k + 0.5f) / stack;
+                    AddPuff(end + Vector3.up * (top * up) - new Vector3(dir.x, 0, dir.z) * (0.12f * up),
+                            (0.10f + 0.16f * up + 0.5f * ai) * (0.7f + 0.3f * cal), new Color(0.41f, 0.34f, 0.24f, 0.88f * f), (float)Hash(s, 37 + k), 1f);
                 }
             }
-            if (ai < 1.8f)
+            float hangs = 1.8f * (0.6f + 0.4f * cal);
+            if (ai < hangs)
             {
-                float f = 1 - ai / 1.8f;
-                for (int k = 0; k < 2; k++)
-                    AddPuff(end + Vector3.up * (0.1f + 0.6f * ai + 0.15f * k), 0.34f + (1.0f + 0.3f * k) * ai,
-                            new Color(0.22f, 0.19f, 0.14f, 0.8f * f * f), (float)Hash(s, 8 + k), 1f);
+                float f = 1 - ai / hangs;
+                int clouds = cal >= 1.7f ? 4 : cal >= 1.25f ? 3 : 2;
+                for (int k = 0; k < clouds; k++)
+                    AddPuff(end + Vector3.up * ((0.1f + 0.6f * ai) * (0.7f + 0.3f * cal) + 0.15f * k) + new Vector3(dir.x, 0, dir.z) * (0.25f * k * ai),
+                            (0.34f + (1.0f + 0.3f * k) * ai) * (0.55f + 0.45f * cal), new Color(0.40f, 0.35f, 0.26f, Mathf.Min(0.95f, 0.8f * (0.75f + 0.25f * cal)) * f * f), (float)Hash(s, 8 + k), 1f);
             }
             // Now and then it glances off and goes on, lit, low and onward: a ricochet.
             if (Hash(s, 30) < RicochetShare && ai < 0.16f)

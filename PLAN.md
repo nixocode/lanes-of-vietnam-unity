@@ -2747,6 +2747,58 @@ flag off every pin holds: `hash 1` 4390 ticks, final `2256114725u`; `hash
 `1248060381u`.
 
 
+### 12.32 Rounds that are seen to land (2026-10-10)
+
+The owner: "add better shooting mechanics, make it as realistic as
+possible. See rounds hit soldiers, ground (and spit up dust: more prominent
+for large caliber like snipers and especially gunners)."
+
+**What was there.** The view drew every round's flash, one tracer in five
+from an automatic weapon, and where a miss landed (the simulation says
+where since playtest 6): a spurt of dark clods and a little dust, the same
+for every weapon; a burst's later rounds were scattered a metre round its
+first. Looked for in a capture of a machine gun's nine-round burst, the
+impacts could not be found: dark earth thrown up over dark ground.
+
+**As built** (`View/CombatView.cs`; the simulation is not touched):
+
+- **By the round.** What a round throws up goes by its calibre
+  (`CombatView.Calibre`: a submachine gun's pistol round 0.7, an M16's 0.85,
+  an AK's or an SKS's 1, an RPD's 1.3, an M60's 1.4, a sniper's 1.9): how
+  many clods and how far, how high the spit of earth, how big the dust it
+  leaves and how long it hangs (a rifle's a second and a half, a sniper's
+  two and a half), how much of a sandbag it bursts.
+- **A spit of earth that is seen.** Every round into the ground throws a
+  pale column of dry earth straight up, knee high for a rifle and waist
+  high for a machine gun or a sniper, there and gone in a third of a
+  second, besides the clods; and the dust it leaves is the colour of dust.
+- **A burst is walked along its line.** Each round of a burst lands a pace
+  beyond the one before (0.6 m), the last where the simulation says the
+  shot went: a machine gun stitches five or ten spits across a position
+  (it had peppered a patch). Against a wall the burst runs along the wall.
+- **A man who is hit.** The slap of the round on his kit, a puff of pale
+  dust off the cloth, and the blood it throws out of him by its calibre: a
+  sniper's round nearly twice a rifle's. A belt-fed gun's burst that kills
+  puts its last two rounds into the man and walks the rest up to him.
+
+**Looked at:** two strips of a machine gun's burst landing (`tools/strip.sh
+seed=3,tick=2919,x=-12,every=0.12` and `seed=3,tick=3879,x=9,every=0.1`;
+`simcs blasts 3 ... guns`, new, finds the ticks). In the first, as first
+built, nothing; in the second, with the column, a row of spits walking
+through the men it was fired at.
+
+**Checks.** EditMode 76/76, PlayMode 21/21. WebGL 27.0 MB initial (it was
+25.58: twenty-two more clips since), 34.18 MB in all, of 45 and 80; 4.2 to
+4.4 ms a frame, 5 to 6 ms at the 95th percentile, at 2592 x 1370 with the
+display awake; the effects 0.06 to 0.12 ms of it.
+
+**Not done.** Nothing in the simulation: a burst is still one shot with one
+chance, and a round that misses its man still cannot hit the man beside
+him. That is the next thing in the shooting itself (a round that lands
+where another man is may hit him), and it is a rule with its own flag and
+its own balance, not a look. Not seen by the owner.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

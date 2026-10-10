@@ -1517,6 +1517,9 @@ namespace LanesOfVietnam.SimCs
                 for (int i = from; i < st.Events.Count; i++)
                 {
                     var e = st.Events[i];
+                    // `guns`: a machine gun's bursts and a sniper's rounds too, the first of each second: where to look at what they throw up.
+                    if (a.Contains("guns") && e.Kind == EventKind.Fire && st.Tick % 20 == 0 && (st.Men[e.Id].Weapon == Weapon.M60 || st.Men[e.Id].Weapon == Weapon.Rpd || st.Men[e.Id].Weapon == Weapon.Sniper))
+                        Console.WriteLine($"  t{st.Tick} {st.Men[e.Id].Weapon} man {e.Id} at {st.Men[e.Id].X:F1},{st.Men[e.Id].Z:F1} fires {e.Rounds} at man {e.Target} at {st.Men[e.Target.Value].X:F1},{st.Men[e.Target.Value].Z:F1}{(i + 1 < st.Events.Count && st.Events[i + 1].Kind == EventKind.Kill ? " and kills him" : "")}");
                     if (e.Kind == EventKind.GrenadeBlast || e.Kind == EventKind.Shell || e.Kind == EventKind.TrapSprung) { burst = e; continue; }
                     if (e.Kind == EventKind.Fire || e.Kind == EventKind.Melee || e.Kind == EventKind.Through) { burst = null; continue; }
                     if (e.Kind != EventKind.Kill || burst == null || burst.Value.X == null) continue;
