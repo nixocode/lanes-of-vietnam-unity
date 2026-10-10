@@ -3062,6 +3062,82 @@ is one; `Tune.PostReach`, `PostGunReach`, `PostHit`, `PostGunHit`,
 owner.
 
 
+### 12.36 The computer's commander: finished, and on in the game (2026-10-10)
+
+The owner, 2026-10-09: "focus on firing/gunplay mechanics and AI smartness",
+and "then the computer commander"; 2026-10-10: "keep building until you have
+something impressive to show for a final playtest". §12.31 had left it
+written, measured once and off.
+
+**What it is** is §12.31's, unchanged: the computer's side sends its next
+squad to the lane that is shortest of men and picks the squad that lane
+wants; the Americans call artillery, an air strike, smoke and a medevac;
+the VC lay traps and open tunnels; both pull their levers. The player's own
+side is his: it plays nothing for him.
+
+**What was left, done.**
+
+- **Its costs,** over 96 seeds a cell (`simcs player 96 N rate=0.9 tactics
+  fortune firecontrol ballistics vantage commander`: a player who only buys
+  line squads, as the Americans and as the VC):
+
+  | what a squad costs the computer | he wins, of 96 |
+  |---|---|
+  | 40, the Recruit | 78 and 83 |
+  | 32, the Veteran (it was 29: at 29 he won 29 and 22 of 48) | 62 and 71 |
+  | 27 | 49 and 53 |
+  | 26, the Elite (it was 25) | 54 and 44 |
+  | 25 | 60 and 37 |
+
+  The American column does not fall evenly (49 at 27, 60 at 25): ninety-six
+  seeds do not settle a cell to better than five or so. The Veteran is in
+  the band the plan set (56 to 80 of 96); the Elite is about an even match.
+- **Lengths** (`player 48 32 [skirmish rate=1.15 | siege rate=N] ...
+  commander`): a skirmish 119 to 147 s and a standard match 187 to 226, at
+  the rates they had. A siege at 1.0 ran 466 to 606 s with matches reaching
+  the twelve-minute cap; at 1.15 it runs 324 to 545 s, and that is its rate
+  now (`GameRoot.RateFor`).
+- **What it does in a match** (`simcs command 20 14400 24 ... vantage tempo
+  commander`, both sides the computer's, at the Veteran's 32): an air
+  strike 1.58 times with 5.9 of the enemy inside it and 1.47 killed,
+  artillery 1.21 times with 10.6 and 1.00, of its own men 0.03 and none;
+  smoke once, a medevac 2.25 times; 8.1 traps laid, 6.3 sprung, 4.4 killed;
+  a tunnel 2.25 times; a lever on hold for 224 position-seconds a match and
+  on go for 248. (With both sides the computer's the Americans win 8 of
+  those 24: its Vietnamese are the better of its two commanders. Against a
+  player the two are nearer, as the table says.)
+- **Pins** (`simcs hash`), with every pin of a rule before it holding:
+  - `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+    firecontrol ballistics vantage commander map` (the game): 5206 ticks,
+    `3822424213u`, `2673544029u`, `4057359457u`;
+  - `7 drill fieldcraft arms senses gunnery ammo tactics fortune
+    firecontrol ballistics vantage commander`: 3133 ticks, `3346100974u`,
+    `276441402u`, `4139978951u`.
+- **Tests** (EditMode, three): the two pins; and over four matches that
+  without it the computer plays no card and pulls no lever, with it both
+  sides do, a trap never sooner after the last than it may be, its strikes
+  not on its own men, nothing played for the player's side, and a new squad
+  sent to the lane with fewest of its men.
+- **The view:** looked at (`tools/strip.sh
+  seed=3,tick=2860,x=4,dolly=0.8,every=0.6`): the computer's artillery on
+  the VC is drawn as a player's own is, shells, men thrown, the ground
+  marked. Nothing had to be written for it.
+
+**Checks.** EditMode 87/87, PlayMode 22/22. WebGL 29.32 MB initial, 36.84
+MB in all; 4.3 to 4.4 ms a frame, 5 to 7 ms at the 95th percentile, at
+2592 x 1370 with the display awake.
+
+**What changes for the owner's playtest.** The enemy now does what he
+does: as the Americans he walks onto traps (4.4 men a match) and has
+tunnels opened behind him; as the VC he is shelled and bombed where his
+men bunch up and stand still. Against a Veteran he has three more points
+to a squad's worth of the computer's than he had.
+
+**Not done.** The computer does not man the watchtower (§12.35). Its
+commander does not use the bound of §12.29's covering fire to time a
+strike, or lift one for its own assault. Not played by the owner.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

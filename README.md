@@ -84,7 +84,8 @@ reference/TARGET.jpg             the specification for the look
 | Ballistics | a round that misses its man comes down somewhere and may hit the man who is there; a burst is its rounds, walked along its line (PLAN §12.33) |
 | Wounds and gore | a round leaves its mark on the man; a heavy round or a burst close by can take a part of him: nine can come off; a GORE switch (PLAN §12.34) |
 | Vantage | a rifle squad, an M60 team or a sniper team can be sent up the firebase's watchtower from the lane selector, and sees and shoots from there as nobody on the ground can; a sniper or a rocket answers it (PLAN §12.35) |
-| Tests | EditMode 84/84, PlayMode 22/22 (PLAN §12.35), 2026-10-10 |
+| Commander | the computer's side commands as the player does: where its next squad goes and which, its cards (artillery, air strikes, smoke, a medevac; traps and tunnels), its levers (PLAN §12.31, §12.36) |
+| Tests | EditMode 87/87, PlayMode 22/22 (PLAN §12.36), 2026-10-10 |
 
 The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.29 (fire control), §12.30 (the Mixamo batches) and §12.32 (rounds that are seen to land); §12.31 is the computer's commander, begun and not yet on.
 

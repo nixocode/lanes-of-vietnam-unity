@@ -489,7 +489,7 @@ namespace LanesOfVietnam.SimCs
         }
 
         /// <summary>GameRoot.RateFor: how fast will runs out in the game, by length.</summary>
-        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.0 : 0.9;
+        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.15 : 0.9;
 
         private static MatchOptions Game(int seed, string[] a)
         {
@@ -504,7 +504,7 @@ namespace LanesOfVietnam.SimCs
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
             if (a.Contains("siege")) o.Length = MatchLength.Siege;
             // (GameRoot.CostFor(Veteran), GameRoot.RateFor(length).)
-            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 29; o.MoraleRate = GameRate(o.Length); }
+            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 32; o.MoraleRate = GameRate(o.Length); }
             foreach (var x in a) if (x.StartsWith("rate=")) o.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
             return o;
         }

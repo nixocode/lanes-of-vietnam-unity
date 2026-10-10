@@ -109,6 +109,8 @@ namespace LanesOfVietnam.View
         public bool? Ballistics;
         /// <summary>A squad can be posted up the watchtower (MatchOptions.Vantage); the game's default (on) if not given.</summary>
         public bool? Vantage;
+        /// <summary>The computer's side commands (MatchOptions.Commander); the game's default (on) if not given.</summary>
+        public bool? Commander;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -171,6 +173,7 @@ namespace LanesOfVietnam.View
                     case "firecontrol": c.FireControl = v == "1" || v == "true"; break;
                     case "ballistics": c.Ballistics = v == "1" || v == "true"; break;
                     case "vantage": c.Vantage = v == "1" || v == "true"; break;
+                    case "commander": c.Commander = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

@@ -129,10 +129,14 @@ namespace LanesOfVietnam.View
         /// With FireControl (PLAN §12.29) numbers tell for more, and the Elite at 22 was beaten 6 and 11 times in 48: it
         /// is 25. Measured with `player 48 N rate=0.9 tactics fortune firecontrol`: 44 and 46 of 48 against a Recruit, 36
         /// and 33 against a Veteran, 26 and 21 against the Elite.
+        /// With the computer's commander (PLAN §12.36) the computer plays its cards and its levers, and a squad is
+        /// worth more to it: at 29 the same player won 29 and 22 of 48. Measured over 96 seeds with `player 96 N
+        /// rate=0.9 tactics fortune firecontrol ballistics vantage commander`: 78 and 83 of 96 against a Recruit
+        /// (40), 62 and 71 against a Veteran (32), 54 and 44 against the Elite (26).
         /// </summary>
         public enum Difficulty { Recruit, Veteran, Elite }
 
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 25 : 29;
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 26 : 32;
 
         /// <summary>
         /// How fast will runs out, against the length setting's own rate. The settings were calibrated
@@ -147,9 +151,12 @@ namespace LanesOfVietnam.View
         /// standard match with nobody playing ran 256 s. At these a skirmish runs 109 to 142 s, a standard
         /// match 167 to 242, a siege six to ten minutes. With FireControl, PLAN §12.29, the same rates hold:
         /// a skirmish 125 to 144 s, a standard match 200 to 241, a siege seven and a half to eight and a half
-        /// minutes, one in six of them to the twelve-minute cap.)
+        /// minutes, one in six of them to the twelve-minute cap. With the commander, PLAN §12.36, a siege at 1.0 ran
+        /// seven and three quarters to ten minutes, more of them to the cap; at 1.15 (`player 48 32 siege rate=1.15
+        /// ... commander`) five and a half to nine. The other two hold: a skirmish 119 to 147 s, a standard match
+        /// 187 to 226.)
         /// </summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.0 : 0.9;
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.15 : 0.9;
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 
@@ -202,6 +209,10 @@ namespace LanesOfVietnam.View
                 // computer does not man the tower itself: measured, a Vietnamese player's game goes from 17 wins in
                 // 24 to 5. It does raise a sniper against a tower the player has manned.)
                 Vantage = CaptureSettings.Active?.Vantage ?? true,
+                // Commander (Part 2): the computer's side commands, as the player does his: where its next squad goes
+                // and which, its side's cards (strikes, smoke and a medevac; traps and tunnels), its levers. On in the
+                // game. (The player's own side is his: it plays nothing for him.)
+                Commander = CaptureSettings.Active?.Commander ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

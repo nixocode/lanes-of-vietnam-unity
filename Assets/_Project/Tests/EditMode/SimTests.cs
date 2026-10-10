@@ -2139,6 +2139,111 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(men.Max(x => x.X), from0 + 2, "down from the tower, it does not march");
         }
 
+        // --- Part 2: the computer's commander, behind MatchOptions.Commander (the owner, 2026-10-09: "then the computer commander") -----
+
+        private static MatchOptions Commanded(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Posted(seed, onMap, tempo);
+            o.Commander = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander [map]`.</summary>
+        [TestCase(1, true, 5206, 3822424213u, 2673544029u, 4057359457u, "vc morale broke")]
+        [TestCase(7, false, 3133, 3346100974u, 276441402u, 4139978951u, "vc morale broke")]
+        public void With_the_commander_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Commander, "the commander must be off unless asked for");
+            var (a, m) = Played(Commanded(seed, asTheGame));
+            var (b, _) = Played(Commanded(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The owner, 2026-10-09: "focus on firing/gunplay mechanics and AI smartness", and "then the computer
+        /// commander". Without it a side with no player raises a squad when it can afford one and does nothing
+        /// else. With it the computer plays its side's cards (the Americans' strikes and smoke, the VC's traps),
+        /// pulls its levers, sends a new squad to the lane that is shortest of men; never plays the player's
+        /// cards for him; does not call a strike down on its own men; and lays a trap no oftener than it may.
+        /// </summary>
+        [Test]
+        public void With_the_commander_the_computer_plays_its_cards_and_its_levers_and_only_its_own()
+        {
+            int usCards = 0, vcCards = 0, strikes = 0, onItsOwn = 0, leverTicks = 0;
+            for (int seed = 3; seed <= 6; seed++)
+            {
+                // (A squad's own smoke is an area too, and no card: strikes and traps are what is counted.)
+                var plain = new LiveMatch(Posted(seed, tempo: true));
+                while (!plain.State.Over && plain.State.Tick < 6000)
+                {
+                    plain.Step();
+                    Assert.IsFalse(plain.State.Areas.Any(x => x.Kind != AreaKind.Smoke), "the computer played a card without its commander");
+                    Assert.IsTrue(plain.State.Cover.All(c => c.LeverUs == Lever.Auto && c.LeverVc == Lever.Auto), "or pulled a lever");
+                }
+
+                var m = new LiveMatch(Commanded(seed, tempo: true));
+                var st = m.State;
+                int lastTrap = -100000;
+                while (!st.Over && st.Tick < 6000)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    if (st.Cover.Any(c => c.LeverUs != Lever.Auto || c.LeverVc != Lever.Auto)) leverTicks++;
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        if (e.Kind != EventKind.AreaStart) continue;
+                        var area = st.Areas.FirstOrDefault(x => x.Id == e.Id);
+                        if (area == null || area.Kind == AreaKind.Smoke) continue;
+                        if (e.Side == Side.Us) usCards++; else vcCards++;
+                        if (area.Kind == AreaKind.Barrage)
+                        {
+                            strikes++;
+                            onItsOwn += st.Men.Count(x => x.Alive && x.Side == e.Side && Combat.Dist(x.X, x.Z, area.X, area.Z) < area.Radius);
+                        }
+                        if (area.Kind == AreaKind.Trap)
+                        {
+                            Assert.AreEqual(Side.Vc, e.Side, "the Americans laid a trap");
+                            Assert.GreaterOrEqual(st.Tick - lastTrap, Tune.TrapEvery, $"seed {seed}: two traps too close together");
+                            lastTrap = st.Tick;
+                        }
+                    }
+                }
+            }
+            Assert.Greater(usCards, 0, "the Americans' commander never played a card");
+            Assert.Greater(vcCards, 0, "the VC's commander never played a card");
+            Assert.Greater(strikes, 0, "nor called a strike");
+            Assert.LessOrEqual(onItsOwn * 4, strikes, "it calls its strikes down on its own men");
+            Assert.Greater(leverTicks, 0, "it never pulled a lever");
+
+            // The player's side is his own: the commander plays nothing for it.
+            var o = Commanded(4, tempo: true);
+            o.Player = Side.Us;
+            var mine = new LiveMatch(o);
+            int traps = 0;
+            while (!mine.State.Over && mine.State.Tick < 4000)
+            {
+                mine.Step();
+                Assert.IsTrue(mine.State.Cover.All(c => c.LeverUs == Lever.Auto), "the commander pulled the player's lever");
+                Assert.IsFalse(mine.State.Areas.Any(x => x.Side == Side.Us && x.Kind != AreaKind.Smoke), "the commander played the player's cards");
+                if (mine.State.Areas.Any(x => x.Side == Side.Vc && x.Kind == AreaKind.Trap)) traps++;
+            }
+            Assert.Greater(traps, 0, "and none of its own against him");
+
+            // A new squad: to the lane where it has fewest men.
+            var fresh = Match.Create(Commanded(3, tempo: true));
+            foreach (var q in fresh.Squads.Where(q => q.Side == Side.Us)) q.Lane = 0;
+            Assert.AreEqual(1, Captain.Lane(fresh, Side.Us), "its next squad goes where its men already are");
+            foreach (var q in fresh.Squads.Where(q => q.Side == Side.Us)) q.Lane = 1;
+            Assert.AreEqual(0, Captain.Lane(fresh, Side.Us));
+        }
+
         [Test]
         public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
         {
