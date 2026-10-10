@@ -38,6 +38,23 @@ namespace LanesOfVietnam.View
         public double TargetX { get; private set; }
         public bool HasTarget { get; private set; }
 
+        /// <summary>
+        /// The post the card in hand would be sent up (an index into the match's posts: on the firebase 0, its
+        /// watchtower), or -1 when it would go into a lane. (The owner, 2026-10-10: "an option to select (with lane
+        /// selector) certain objectives per map to place certain soldiers".)
+        /// </summary>
+        public int TargetPost { get; private set; } = -1;
+
+        /// <summary>The post this card's squad can be sent up now (the player's side's own, empty, and a squad it takes), or -1.</summary>
+        public int PostFor(Card card)
+        {
+            if (card == null || Root == null || Root.Driver == null) return -1;
+            var st = State;
+            for (int p = 0; p < st.Posts.Count; p++)
+                if (Vantage.Blocked(st, Root.PlayerSide, card.Id, p) == null) return p;
+            return -1;
+        }
+
         /// <summary>Raised when a card is placed: its id, lane and x. The HUD's field orders listen.</summary>
         public event Action<Card, int, double> Placed;
 
@@ -83,6 +100,7 @@ namespace LanesOfVietnam.View
             Armed = null;
             HasTarget = false;
             _chosen = -1;
+            TargetPost = -1;
         }
 
         private void Update()
@@ -160,16 +178,53 @@ namespace LanesOfVietnam.View
             _chosen = Mathf.Clamp(lane, 0, Tune.Lanes.Length - 1);
             _chosenAt = _lastAim;
             TargetLane = _chosen;
+            TargetPost = -1;
+        }
+
+        /// <summary>
+        /// The post, by hand (its tag clicked): the card in hand goes up it, if it can. It stands, as a lane chosen
+        /// by hand does, until the pointer is moved. (A choice past the last lane is a post.)
+        /// </summary>
+        public bool ChoosePost(int post)
+        {
+            if (Armed == null || PostFor(Armed) != post) return false;
+            _chosen = Tune.Lanes.Length + post;
+            _chosenAt = _lastAim;
+            ToPost(post);
+            return true;
+        }
+
+        private void ToPost(int post)
+        {
+            var p = State.Posts[post];
+            TargetPost = post;
+            TargetLane = p.Lane; TargetX = p.FootX;
+            HasTarget = true;
+        }
+
+        /// <summary>Whether the pointer is on a post: the box it stands in, on the screen, and a little round it.</summary>
+        public bool OverPost(Vector2 screen, int post)
+        {
+            var p = State.Posts[post];
+            var cam = Root.CameraRig.Camera;
+            float y = (float)Root.Ground.HeightAt(p.X, p.Z);
+            var low = cam.WorldToScreenPoint(Coords.World(p.X - 2.4, p.Z, y));
+            var top = cam.WorldToScreenPoint(Coords.World(p.X + 2.4, p.Z, y + (float)p.Height + 2f));
+            if (low.z <= 0 || top.z <= 0) return false;
+            return screen.x >= Mathf.Min(low.x, top.x) - 8f && screen.x <= Mathf.Max(low.x, top.x) + 8f && screen.y >= low.y - 8f && screen.y <= top.y + 8f;
         }
 
         /// <summary>Take the next lane further from the lens (+1) or nearer it (-1), whatever the pointer is on.</summary>
         public void Switch(int step)
         {
-            // Lane 0 is the near one; the far lanes follow it.
-            int now = _chosen >= 0 ? _chosen : TargetLane;
-            _chosen = Mathf.Clamp(now + step, 0, Tune.Lanes.Length - 1);
+            // Lane 0 is the near one; the far lanes follow it; and past the last of them, the post, if the card in
+            // hand can go up it.
+            int post = PostFor(Armed);
+            int now = _chosen >= 0 ? _chosen : TargetPost >= 0 ? Tune.Lanes.Length : TargetLane;
+            _chosen = Mathf.Clamp(now + step, 0, Tune.Lanes.Length - (post >= 0 ? 0 : 1));
             _chosenAt = _lastAim;
-            TargetLane = _chosen;
+            if (_chosen >= Tune.Lanes.Length) ToPost(post);
+            else { TargetLane = _chosen; TargetPost = -1; }
         }
 
         /// <summary>
@@ -193,7 +248,7 @@ namespace LanesOfVietnam.View
                 var m = st.Men[i];
                 if (!m.Alive || (m.Side != Root.PlayerSide && !m.Seen)) continue;
                 var (mx, mz) = Root.ArmyView.Where(Root.Driver, i);
-                float y = (float)Root.Ground.HeightAt(mx, mz);
+                float y = (float)Root.Ground.HeightAt(mx, mz) + (float)m.High;
                 float tall = m.Posture == Posture.Prone ? 0.5f : m.Posture == Posture.Crouched ? 1.15f : 1.8f;
                 var feet = cam.WorldToScreenPoint(Coords.World(mx, mz, y));
                 var head = cam.WorldToScreenPoint(Coords.World(mx, mz, y + tall));
@@ -210,11 +265,17 @@ namespace LanesOfVietnam.View
         {
             _lastAim = screen;
             int lane = LaneAt(screen, out bool onGround, out double gx, out int groundLane);
+            // The post: the pointer on it, or it chosen by hand, and the card in hand one that can go up it.
+            int post = PostFor(Armed);
+            bool up = post >= 0 && OverPost(screen, post);
             if (_chosen >= 0)
             {
                 if ((screen - _chosenAt).sqrMagnitude > ChoiceHolds * ChoiceHolds) _chosen = -1;
-                else lane = _chosen;
+                else if (_chosen >= Tune.Lanes.Length) up = post >= 0;
+                else { lane = _chosen; up = false; }
             }
+            if (up) { ToPost(post); return true; }
+            TargetPost = -1;
             TargetLane = lane;
             // Along the lane: under the pointer if it is on that lane's ground; else where the line
             // of sight through the pointer crosses the lane (over a man, the trees or the sky).
@@ -239,13 +300,28 @@ namespace LanesOfVietnam.View
         {
             Armed = card;
             TargetLane = lane; TargetX = x; HasTarget = card != null;
+            // (A lane past the last is a post, as a capture's call-in is.)
+            TargetPost = -1;
+            if (card != null && lane >= Tune.Lanes.Length && PostFor(card) == lane - Tune.Lanes.Length) ToPost(lane - Tune.Lanes.Length);
         }
 
         /// <summary>Place the armed card at a screen point. Returns whether a purchase was sent.</summary>
         public bool PlaceAt(Vector2 screen)
         {
             if (Armed == null || !Aim(screen)) return false;
-            return Place(TargetLane, TargetX);
+            return TargetPost >= 0 ? PlaceOnPost(TargetPost) : Place(TargetLane, TargetX);
+        }
+
+        /// <summary>Send the card in hand's squad up a post.</summary>
+        public bool PlaceOnPost(int post)
+        {
+            var card = Armed;
+            if (card == null || PostFor(card) != post) return false;
+            var p = State.Posts[post];
+            Root.Driver.Match.Issue(Command.BuyTo(Root.PlayerSide, card.Id, post));
+            Placed?.Invoke(card, p.Lane, p.FootX);
+            Disarm();
+            return true;
         }
 
         /// <summary>Place the armed card in a lane at an x. UIAudit places cards through here.</summary>
@@ -275,6 +351,8 @@ namespace LanesOfVietnam.View
             if (Marks == null || Root == null || Root.CameraRig == null) return;
             Marks.Material = LaneMaterial;
             bool show = Armed != null && HasTarget;
+            Marks.PostAt = show && TargetPost >= 0 && TargetPost < State.Posts.Count
+                ? new Vector3((float)State.Posts[TargetPost].X, (float)State.Posts[TargetPost].Z, (float)State.Posts[TargetPost].Height) : (Vector3?)null;
             Marks.Show(Root.Ground, Root.CameraRig.Camera.transform, show, TargetLane, TargetX,
                        show ? Radius(Armed) : 0f, EntryX, (float)Combat.Advance(Root.PlayerSide), Time.unscaledDeltaTime);
         }

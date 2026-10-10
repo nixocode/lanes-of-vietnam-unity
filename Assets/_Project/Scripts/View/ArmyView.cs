@@ -167,6 +167,8 @@ namespace LanesOfVietnam.View
         public const float GoAbove = 0.4f, StopBelow = 0.3f;
         /// <summary>Each man's height as drawn: it follows the ground, but over a parapet it takes a moment.</summary>
         private float[] _height = new float[0];
+        /// <summary>Metres above the ground he is drawn: up a post's ladder or on its platform (MatchOptions.Vantage).</summary>
+        private float[] _high = new float[0];
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
         public const float FrontRange = 45f, ClimbRate = 3.2f;
         /// <summary>Degrees his front has to move before he turns to it, and how fast he turns (degrees a second).</summary>
@@ -229,6 +231,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _going, n);
                 System.Array.Resize(ref _pivot, n);
                 System.Array.Resize(ref _height, n);
+                System.Array.Resize(ref _high, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -570,15 +573,26 @@ namespace LanesOfVietnam.View
                     feet = _pivot[i] ? yaw : _yaw[i];
                 }
                 else _pivot[i] = false;
+                // On a post's ladder he faces it: away from the camera, which the ladder is on the side of.
+                bool onLadder = m.Alive && m.Climb != 0;
+                if (onLadder) { feet = 0f; _pivot[i] = false; }
                 float wasYaw = _yaw[i];
-                _yaw[i] = jump ? feet : Mathf.MoveTowardsAngle(_yaw[i], feet, (atRest ? PivotRate : st.Gunnery && going ? RunTurnRate : TurnRate) * dt);
+                _yaw[i] = jump ? feet : Mathf.MoveTowardsAngle(_yaw[i], feet, (onLadder ? 360f : atRest ? PivotRate : st.Gunnery && going ? RunTurnRate : TurnRate) * dt);
                 bool stepping = atRest && Mathf.Abs(Mathf.DeltaAngle(wasYaw, _yaw[i])) > PivotRate * dt * 0.25f;
                 f.Twist(atRest ? Mathf.Clamp(Mathf.DeltaAngle(_yaw[i], yaw), -f.TwistRoom(posture), f.TwistRoom(posture)) : 0f);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
                 float ground = (float)g.HeightAt(x, z);
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
                                                        : Mathf.MoveTowards(_height[i], ground, ClimbRate * dt);
-                var at = Coords.World(x, z, _height[i]);
+                // Vantage: up a post's ladder, or on its platform. (Killed on the ladder, he comes off it.)
+                float high = (float)m.High;
+                // (Followed a little faster than he climbs, to smooth the simulation's twenty steps a second; more than
+                // half a metre behind, as after a long frame, he is put where he is.)
+                _high[i] = fresh || jump || (m.Alive && Mathf.Abs(high - _high[i]) > 0.5f) ? high
+                         : m.Alive || m.Climb == 0 ? Mathf.MoveTowards(_high[i], high, 1.6f * dt) : Mathf.MoveTowards(_high[i], 0f, 9f * dt);
+                if (onLadder) f.Twist(0f);
+                f.Ladder(onLadder, m.Climb < 0);
+                var at = Coords.World(x, z, _height[i] + _high[i]);
                 // PLAN §12.3's mitigations 2 and 3: a man small on the screen is
                 // stepped every other frame and skinned with two bones a vertex;
                 // one off it, every fourth. Staggered by id, so the work is even.

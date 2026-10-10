@@ -87,7 +87,8 @@ namespace LanesOfVietnam.View
                     var card = Deck.For(side).FirstOrDefault(c => c.Id == call.card);
                     string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
                     Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
-                    if (blocked == null) Driver.Match.Issue(Command.Buy(side, call.card, call.lane, call.x));
+                    // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)
+                    if (blocked == null) Driver.Match.Issue(call.lane >= Tune.Lanes.Length ? Command.BuyTo(side, call.card, call.lane - Tune.Lanes.Length) : Command.Buy(side, call.card, call.lane, call.x));
                 }
                 if (cap.Tick > at) Driver.FastForward(cap.Tick - at);
                 ViewTime = cap.ViewTime;
@@ -196,6 +197,11 @@ namespace LanesOfVietnam.View
                 // Ballistics (Part 2): a round that misses its man comes down somewhere, and may hit the man who is there; a
                 // burst is its rounds, walked along its line. On in the game.
                 Ballistics = CaptureSettings.Active?.Ballistics ?? true,
+                // Vantage (Part 2): a rifle squad, a machine gun's team or a sniper's can be sent up the firebase's
+                // watchtower, and sees and shoots from there as nobody on the ground can. On in the game. (The
+                // computer does not man the tower itself: measured, a Vietnamese player's game goes from 17 wins in
+                // 24 to 5. It does raise a sniper against a tower the player has manned.)
+                Vantage = CaptureSettings.Active?.Vantage ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

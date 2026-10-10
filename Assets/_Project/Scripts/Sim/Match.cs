@@ -106,6 +106,13 @@ namespace LanesOfVietnam.Sim
         public bool Commander;
         /// <summary>Part 2: a round that misses its man may hit the man beside him, and a burst is so many rounds (Ballistics). False is the parity baseline.</summary>
         public bool Ballistics;
+        /// <summary>Part 2: a squad can be posted up high (the firebase's watchtower), and sees and shoots from there as nobody on the ground can (Vantage). False is the parity baseline.</summary>
+        public bool Vantage;
+        /// <summary>
+        /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
+        /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
+        /// </summary>
+        public bool ComputerPosts;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -249,6 +256,8 @@ namespace LanesOfVietnam.Sim
                 FireControl = opts.FireControl,
                 Commander = opts.Commander,
                 Ballistics = opts.Ballistics,
+                Vantage = opts.Vantage,
+                ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
@@ -257,6 +266,7 @@ namespace LanesOfVietnam.Sim
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             if (opts.Commander) st.CommandRng = rng.Fork("commander");
+            if (opts.Vantage) st.Posts = Map.Posts();
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
@@ -584,6 +594,8 @@ namespace LanesOfVietnam.Sim
                 // left, and a list was made and sorted for each of them every tick to find that out.)
                 if (!Squads.AnyAlive(st, sq.Id)) continue;
                 var live = Squads.Roster(st, sq.Id);
+                // Part 2 (MatchOptions.Vantage): a squad on a post, or on its way up or down, is not its own master.
+                if (st.Vantage && sq.Post >= 0) { Vantage.Move(st, sq, live); continue; }
                 var plan = sq.Side == Side.Us ? us : vc;
                 var prev = sq.Order;
                 // The player's order wins over the plan and over the opening
@@ -601,6 +613,8 @@ namespace LanesOfVietnam.Sim
                     // where he had been, and ran forward to it, toward the enemy (review, PLAN §12.23).
                     Squads.Reanchor(sq, live);
                     sq.Order = Senses.Decide(st, sq, live, plan, original.TryGetValue(sq.Id, out int was0) ? was0 : live.Count, prev);
+                    // Vantage: a sniper's team with men up on a post in its sight stays where it is and shoots at them.
+                    if (st.Vantage && sq.Order == Order.Advance && sq.PlayerOrder == null && Vantage.Duels(st, sq, live)) sq.Order = Order.Hold;
                 }
                 // Part 2 (MatchOptions.Drill): the policy's order, steadied.
                 else if (st.Drill && sq.PlayerOrder == null && !opening)
@@ -771,7 +785,11 @@ namespace LanesOfVietnam.Sim
                     // Commander: to the lane that is shortest of men, and the squad that lane wants.
                     int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
                     double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                    SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null);
+                    // Vantage: against men up on a post it raises its sniper, if it has none.
+                    string answer = st.Vantage && st.Arms ? Vantage.Answer(st, side) : null;
+                    var raised = SpawnSquad(st, side, lane, x, rng, card: answer ?? (st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null));
+                    // Vantage: its machine gun or its sniper goes up its post, if nobody is on it.
+                    if (st.ComputerPosts) Vantage.Offer(st, raised);
                     foreach (var sq in st.Squads)
                     {
                         if (!original.ContainsKey(sq.Id)) original[sq.Id] = Squads.Roster(st, sq.Id).Count;
@@ -973,6 +991,8 @@ namespace LanesOfVietnam.Sim
                             {
                                 var m = st.Men[j];
                                 if (!m.Alive) continue;
+                                // Vantage: a shell bursts on the ground.
+                                if (st.Vantage && !Vantage.Reaches(0, m)) continue;
                                 double d = JsMath.Hypot(m.X - bx, m.Z - bz);
                                 if (d > Tune.ShellRadius) continue;
                                 double f = 1 - d / Tune.ShellRadius;
@@ -1006,6 +1026,7 @@ namespace LanesOfVietnam.Sim
                         {
                             var m = st.Men[j];
                             if (!m.Alive || m.Side == a.Side) continue;
+                            if (st.Vantage && !Vantage.Reaches(0, m)) continue;
                             double d = JsMath.Hypot(m.X - a.X, m.Z - a.Z);
                             if (d > a.Radius * 2.2) continue;
                             // A trap's real weapon is the pin: everyone near it

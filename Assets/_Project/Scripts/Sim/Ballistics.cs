@@ -62,6 +62,8 @@ namespace LanesOfVietnam.Sim
                 {
                     var o = st.Men[i];
                     if (!o.Alive || o.Side != target.Side || o == target) continue;
+                    // (Vantage: a round fired at a man on the ground does not find one up on a post, nor the other way.)
+                    if (st.Vantage && !Vantage.Reaches(target.High, o)) continue;
                     double ox = px - o.X, oz = pz - o.Z;
                     double before = ox * dx + oz * dz;
                     if (before < 0 || before > Tune.StrayReach || before <= first) continue;

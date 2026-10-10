@@ -1703,6 +1703,7 @@ MonoBehaviour:
   - Signal stay
   - Look about
   - Inspect
+  - Ladder
   MirroredDeaths: 1
   Limbs:
   - Bone: {fileID: 1870932225201040404}
@@ -1734,6 +1735,7 @@ MonoBehaviour:
   - thigh_l
   - thigh_r
   Carriage: {x: 0, y: 0}
+  Ladders: 1
 --- !u!1 &7251789432133354445
 GameObject:
   m_ObjectHideFlags: 0

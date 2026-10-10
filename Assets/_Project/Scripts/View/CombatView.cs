@@ -244,7 +244,8 @@ namespace LanesOfVietnam.View
         {
             var (x, z) = At(m.Id);
             float h = m.Posture == Posture.Prone ? 0.3f : m.Posture == Posture.Crouched ? 0.95f : 1.35f;
-            return Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + h);
+            // (Up a post, he is that much higher: MatchOptions.Vantage.)
+            return Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + h + (float)m.High);
         }
 
         private void Shot(IReadOnlyList<SimEvent> ev, int i, float age)
@@ -638,7 +639,9 @@ namespace LanesOfVietnam.View
             if (age >= 1.6f && age >= flight) return;           // landed, and the smoke of the shot gone
             var a = Chest(by);
             double lx = e.X.Value, lz = e.Z.Value;
-            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.1f);
+            // (Fired at a man up on a post, it goes up there.)
+            float aloft = e.Target.HasValue && e.Target.Value < men.Count ? (float)men[e.Target.Value].High : 0f;
+            var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.1f + aloft);
             var from = _root.ArmyView != null && _root.ArmyView.TryMuzzle(by.Id, out var mz) ? mz : a + (to - a).normalized * 0.6f;
             var dir = (to - from).normalized;
             bool rocket = by.Weapon == Weapon.Rpg, mortar = by.Weapon == Weapon.Mortar;
@@ -810,7 +813,8 @@ namespace LanesOfVietnam.View
         {
             if (e.X == null || e.Z == null) return;
             double x = e.X.Value, z = e.Z.Value;
-            var p0 = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z));
+            // (A launcher's round fired at a man up on a post bursts up there: the event says how high.)
+            var p0 = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + (float)(e.Amount ?? 0));
             int seed = e.Id * 6151 + e.Tick;
             Explosions++;
 
@@ -1041,7 +1045,8 @@ namespace LanesOfVietnam.View
             _live.Clear();
             for (int i = 0; i < st.Men.Count; i++)
             {
-                if (_lies[i]) continue;
+                // (A man up on a post has no shadow on the ground under it.)
+                if (_lies[i] || st.Men[i].High > 1) continue;
                 Shadow(_live, st.Men[i]);
             }
             int before = _settled.P.Count;
@@ -1058,7 +1063,7 @@ namespace LanesOfVietnam.View
                 }
                 if (kill)
                 {
-                    Shadow(_settled, st.Men[e.Id]);
+                    if (st.Men[e.Id].High <= 1 || st.Men[e.Id].Climb != 0) Shadow(_settled, st.Men[e.Id]);
                     Bled(_settled, st, e, f, age);
                     _lies[e.Id] = true;
                 }
@@ -1081,6 +1086,8 @@ namespace LanesOfVietnam.View
         /// <summary>A dead man's blood: what the round threw out of him, and the pool where he lies.</summary>
         private void Bled(MarkQuads into, SimState st, SimEvent e, Fresh how, float since)
         {
+            // (A man killed up on a post bleeds up there, not on the ground under it.)
+            if (st.Men[e.Id].High > 1 && st.Men[e.Id].Climb == 0) return;
             bool shot = how.Shot;
             float gore = Gore;
             if (since >= 0.2f && how.Burst)

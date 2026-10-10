@@ -203,6 +203,14 @@ namespace LanesOfVietnam.View.UI
                 ui.Add(tag);
                 LaneTags[lane] = tag;
             }
+            // And one for the post (the firebase's watchtower), above the far lane's: shown when the card in hand
+            // is a squad that can go up it and nobody is on it.
+            PostTag = new Button(() => Deployer.ChoosePost(0)) { name = "post-tag-0", text = "WATCHTOWER  ↑" };
+            PostTag.AddToClassList("lane-tag");
+            PostTag.style.display = DisplayStyle.None;
+            PostTag.style.left = LaneTagLeft; PostTag.style.top = 0;
+            PostTag.usageHints = UsageHints.DynamicTransform;
+            ui.Add(PostTag);
             AimTag = new Label("") { name = "aim-tag", pickingMode = PickingMode.Ignore };
             AimTag.AddToClassList("aim-tag");
             AimTag.style.display = DisplayStyle.None;
@@ -264,7 +272,7 @@ namespace LanesOfVietnam.View.UI
             v.Clicked += card =>
             {
                 if (Deployer.Armed == card) Deployer.Disarm();
-                else if (Deployer.Arm(card)) Tutor.Teach("armed");
+                else if (Deployer.Arm(card)) { Tutor.Teach("armed"); if (Deployer.PostFor(card) >= 0) Tutor.Teach("post"); }
             };
             v.RegisterCallback<PointerEnterEvent>(_ => HoveredCard = c);
             v.RegisterCallback<PointerLeaveEvent>(_ => { if (HoveredCard == c) HoveredCard = null; });
@@ -374,13 +382,15 @@ namespace LanesOfVietnam.View.UI
             Buttons["mus"].EnableInClassList("on", Music);
 
             // With nothing in hand, the card the pointer is on says what it buys; in hand, where it goes.
-            var hint = (Deployer.Armed, Deployer.HasTarget, Deployer.TargetLane, HoveredCard);
+            var hint = (Deployer.Armed, Deployer.HasTarget, Deployer.TargetLane * 10 + Deployer.TargetPost, HoveredCard);
             if (!hint.Equals(_hintFor) || ArmedHint.text == null)
             {
                 _hintFor = hint;
                 ArmedHint.text = Deployer.Armed == null ? (HoveredCard != null ? Describe(HoveredCard) : "")
+                    : Deployer.HasTarget && Deployer.TargetPost >= 0
+                        ? $"{Deployer.Armed.Name} — {PostName(Deployer.TargetPost)} · CLICK TO SEND THEM UP · ↓ A LANE · RIGHT CLICK TO CANCEL"
                     : Deployer.HasTarget
-                        ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE · RIGHT CLICK TO CANCEL"
+                        ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE{(Deployer.PostFor(Deployer.Armed) >= 0 ? " OR THE " + PostName(Deployer.PostFor(Deployer.Armed)) : "")} · RIGHT CLICK TO CANCEL"
                         : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
             }
             LaneSelector();
@@ -398,6 +408,7 @@ namespace LanesOfVietnam.View.UI
         private void LaneSelector()
         {
             bool armed = Deployer.Armed != null && Deployer.HasTarget && _root?.panel != null && Root.CameraRig != null;
+            float highest = float.MaxValue;
             for (int lane = 0; lane < LaneTags.Length; lane++)
             {
                 var tag = LaneTags[lane];
@@ -410,19 +421,40 @@ namespace LanesOfVietnam.View.UI
                 double x = probe.x, z = Tune.Lanes[lane];
                 var vp = cam.WorldToViewportPoint(Coords.World(x, z, (float)Root.Ground.HeightAt(x, z)));
                 float panelH = _root.resolvedStyle.height;
-                tag.style.translate = new Translate(0, Mathf.Round(Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f))));
-                tag.EnableInClassList("lit", Deployer.TargetLane == lane);
+                float top = Mathf.Round(Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f + LaneTagHeight + 6f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f)));
+                tag.style.translate = new Translate(0, top);
+                tag.EnableInClassList("lit", Deployer.TargetLane == lane && Deployer.TargetPost < 0);
+                highest = Mathf.Min(highest, top);
+            }
+            // The post's tag, above the lanes': there only when the card in hand can go up it.
+            bool post = armed && Deployer.PostFor(Deployer.Armed) == 0;
+            PostTag.style.display = post ? DisplayStyle.Flex : DisplayStyle.None;
+            if (post)
+            {
+                if (PostTag.text != PostName(0) + "  ↑") PostTag.text = PostName(0) + "  ↑";
+                PostTag.style.translate = new Translate(0, highest - LaneTagHeight - 6f);
+                PostTag.EnableInClassList("lit", Deployer.TargetPost == 0);
             }
             AimTag.style.display = armed && CaptureSettings.Active == null ? DisplayStyle.Flex : DisplayStyle.None;
             if (!armed) return;
             var mouse = Input.mousePosition;
             var m = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(mouse.x, Screen.height - mouse.y));
-            var aim = (Deployer.Armed, Deployer.TargetLane);
-            if (!aim.Equals(_aimFor)) { _aimFor = aim; AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE"; }
+            var aim = (Deployer.Armed, Deployer.TargetLane * 10 + Deployer.TargetPost);
+            if (!aim.Equals(_aimFor)) { _aimFor = aim; AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetPost >= 0 ? PostName(Deployer.TargetPost) : (Deployer.TargetLane == 0 ? "NEAR" : "FAR") + " LANE")}"; }
             AimTag.style.translate = new Translate(Mathf.Round(m.x + 22f), Mathf.Round(m.y - 44f));
         }
 
         public const float LaneTagLeft = 46f, LaneTagHeight = 26f;
+
+        /// <summary>The post's tag in the lane selector (MatchOptions.Vantage).</summary>
+        public Button PostTag { get; private set; }
+
+        /// <summary>A post's name, as the map gives it.</summary>
+        public string PostName(int post)
+        {
+            var posts = Root.Driver.State.Posts;
+            return post >= 0 && post < posts.Count ? posts[post].Name : "";
+        }
 
         /// <summary>A card's line in the hint: its name and what it buys (UIAudit reads it).</summary>
         public string Describe(Card card) => $"{card.Name} — {CardText.Line(card, Root.PlayerSide)}";
@@ -443,6 +475,7 @@ namespace LanesOfVietnam.View.UI
                     case EventKind.Contact when e.Side == me: Tutor.Teach("contact"); break;
                     case EventKind.Fire when e.Side == me: Tutor.Teach("lanes"); break;
                     case EventKind.TrapSprung: Tutor.Teach("trap"); break;
+                    case EventKind.Posted when e.Side == me: Tutor.Teach("posted"); break;
                     case EventKind.FirstContact: Tutor.Teach("concealed"); Tutor.Teach("glasses"); break;
                 }
             }

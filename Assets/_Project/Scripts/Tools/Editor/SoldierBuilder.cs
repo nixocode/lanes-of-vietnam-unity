@@ -267,6 +267,9 @@ namespace LanesOfVietnam.Tools
             ("blast_fall", false, true), ("rub_eyes", false, false), ("dodge", false, false), ("kneel_hit_b", false, false),
             ("dive", false, true), ("signal_follow", false, false), ("signal_stay", false, false),
             ("idle_look", false, false), ("idle_inspect", false, false),
+            // The watchtower (2026-10-10, the owner: "have a climb animation for gunners, snipers and rifle squads"):
+            // up a ladder, hand over hand. Its rise stays in the root, where the game leaves it: ArmyView lifts him.
+            ("ladder_climb", true, true),
         };
         /// <summary>Clips imported left for right, so that the hand that is free does what Mixamo's right hand does (ours holds the rifle).</summary>
         private static readonly HashSet<string> LeftForRight = new HashSet<string> { "kneel_grenade" };
@@ -447,7 +450,7 @@ namespace LanesOfVietnam.Tools
                 c.lockRootHeightY = true; c.keepOriginalPositionY = true; c.heightFromFeet = false;
                 // "Climbing Up Wall" goes up a wall twice a man's height. Its rise is left in the
                 // root with its travel: a trench's own depth is the climb, and ArmyView gives it.
-                if (role == "trench_out") { c.lockRootHeightY = false; c.heightFromFeet = true; }
+                if (role == "trench_out" || role == "ladder_climb") { c.lockRootHeightY = false; c.heightFromFeet = true; }
                 c.lockRootPositionXZ = !travels; c.keepOriginalPositionXZ = !travels;
                 mi.clipAnimations = new[] { c };
                 mi.SaveAndReimport();
@@ -507,6 +510,8 @@ namespace LanesOfVietnam.Tools
             ctrl.AddParameter("Dead", AnimatorControllerParameterType.Bool);
             ctrl.AddParameter("DeathIndex", AnimatorControllerParameterType.Int);
             foreach (var t in new[] { "Hit", "Reload", "Throw" }) ctrl.AddParameter(t, AnimatorControllerParameterType.Trigger);
+            ctrl.AddParameter("Ladder", AnimatorControllerParameterType.Bool);
+            ctrl.AddParameter(new AnimatorControllerParameter { name = "LadderPace", type = AnimatorControllerParameterType.Float, defaultFloat = 1f });
 
             AnimationClip C(string n) => clips.TryGetValue(n, out var c) ? c : throw new System.Exception($"no clip {n}");
             // A role: the first of its clips that exists (Mixamo's first, the interim one last).
@@ -725,6 +730,20 @@ namespace LanesOfVietnam.Tools
                     dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
                     dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
                     log.Add($"{state}: {clip} x{rate:F1}");
+                }
+                // A post's ladder: the climb, round and round, for as long as he is on it (SoldierFigure.Ladder).
+                if (R("ladder_climb") != null)
+                {
+                    var st = react.AddState(SoldierFigure.LadderState);
+                    st.motion = C(R("ladder_climb"));
+                    st.speedParameter = "LadderPace"; st.speedParameterActive = true;
+                    var off = st.AddTransition(calm);
+                    off.hasExitTime = false; off.hasFixedDuration = true; off.duration = 0.25f;
+                    off.AddCondition(AnimatorConditionMode.IfNot, 0, "Ladder");
+                    var dead = st.AddTransition(calm);
+                    dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
+                    dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+                    log.Add($"{SoldierFigure.LadderState}: {R("ladder_climb")}");
                 }
             }
 
@@ -1022,6 +1041,7 @@ namespace LanesOfVietnam.Tools
                 fig.Acts = ctrl.layers.Length > 2 ? ctrl.layers[2].stateMachine.states.Select(x => x.state.name).ToArray() : new string[0];
                 fig.BlowFirst = have.Contains("melee_stab") ? 0 : 1;
                 fig.Climbs = have.Contains("trench_in") && have.Contains("trench_out");
+                fig.Ladders = have.Contains("ladder_climb");
                 fig.MixamoCrouch = have.Contains("kneel_idle");
                 fig.KneelThrowLeft = have.Contains("kneel_grenade");
                 fig.MixamoProne = have.Contains("prone_idle");

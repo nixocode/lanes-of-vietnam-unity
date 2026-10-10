@@ -31,6 +31,9 @@ namespace LanesOfVietnam.View.UI
             ["glasses"] = "HOLD F FOR FIELD GLASSES",
             ["lever"] = "HOLD KEEPS A SQUAD IN A STRONGPOINT · GO SENDS IT ON · RIGHT CLICK: ITS OWN JUDGEMENT · NOT EVERYONE FITS",
             ["armed"] = "POINT AT A LANE, OR A SQUAD IN IT · ↑ ↓ THE OTHER LANE · CLICK TO PLACE · RIGHT CLICK OR ESC TO CANCEL",
+            // The watchtower (MatchOptions.Vantage; the owner, 2026-10-10): taught the first time a squad it takes is in hand.
+            ["post"] = "THE WATCHTOWER TAKES A SNIPER TEAM, AN M60 TEAM OR A RIFLE SQUAD: POINT AT IT. FROM UP THERE THEY SEE AND SHOOT FAR FURTHER",
+            ["posted"] = "UP THE TOWER. A SNIPER OR A ROCKET CAN STILL REACH THEM · 1 OR 3 BRINGS THEM DOWN",
         };
 
         private const string Key = "lov_taught";

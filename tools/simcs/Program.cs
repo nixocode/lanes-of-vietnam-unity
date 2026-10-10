@@ -31,7 +31,7 @@ namespace LanesOfVietnam.SimCs
     ///                                  the firing itself: each weapon's shots and what they do, the chance a shot had,
     ///                                  the man it was fired at and the men it could have been, where men die, assaults
     ///
-    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol commander ballistics), and
+    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol commander ballistics vantage), and
     /// `tempo` for the game's own economy.
     /// </summary>
     public static class Program
@@ -56,6 +56,7 @@ namespace LanesOfVietnam.SimCs
                     "aware" => Aware(args),
                     "brain" => Brain(args),
                     "blasts" => Blasts(args),
+                    "post" => PostTable(args),
                     "gunplay" => Gunplay(args),
                     "command" => Command_(args),
                     "watch" => Watch(args),
@@ -167,7 +168,7 @@ namespace LanesOfVietnam.SimCs
             var usPlan = Plan.ByName(a.Length > 2 && a[2] != "game" ? a[2] : "ceiling");
             // "game": the match as the game (and a capture of it) plays it, every rule on and its own economy.
             var m = a.Contains("game")
-                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics")).ToArray()))
+                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts")).ToArray()))
                 : new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
@@ -203,10 +204,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -288,7 +289,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics")).ToArray()));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts")).ToArray()));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -344,21 +345,36 @@ namespace LanesOfVietnam.SimCs
             int seeds = a.Length > 1 && int.TryParse(a[1], out int n) ? n : 24;
             double muster = a.Length > 2 && double.TryParse(a[2], out double mc) ? mc : 22;
             Console.WriteLine($"  the computer's squad costs it {muster}:");
+            // `post=us-sniper` (or us-mg, us-rifle): a fourth player, who also keeps that squad up on his side's post (Vantage).
+            string posted = a.Where(x => x.StartsWith("post=")).Select(x => x.Substring(5)).FirstOrDefault();
+            // `with=vc-marksman`: a player who also keeps one squad of that card alive, in the lanes.
+            string also = a.Where(x => x.StartsWith("with=")).Select(x => x.Substring(5)).FirstOrDefault();
             foreach (var side in new[] { Side.Us, Side.Vc })
-            foreach (var style in new[] { "buys nothing", "buys line squads", "left to the plan" })
+            foreach (var style in also != null ? new[] { "buys line squads", "buys them and one" } : posted == null ? new[] { "buys nothing", "buys line squads", "left to the plan" } : new[] { "buys line squads", "buys them and posts" })
             {
-                int wins = 0; double secs = 0, men = 0;
+                int wins = 0; double secs = 0, men = 0, fell = 0;
                 var each = new List<double>();
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x.StartsWith("rate="))).ToArray());
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
                     var card = Deck.For(side).First(c => c.Group == CardGroup.Line);
                     while (!m.State.Over && m.State.Tick < m.Cap)
                     {
-                        if (style == "buys line squads" && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
+                        if (style == "buys them and one" && Deck.Find(side, also) is Card one)
+                        {
+                            bool none = !m.State.Squads.Any(q => q.Side == side && q.Card == also && Squads.AnyAlive(m.State, q.Id));
+                            bool saving = none && Deck.CooldownLeft(m.State, side, one) == 0 && m.State.Squads.Count(q => q.Side == side) >= 2;
+                            if (saving) { if (m.State.Tick % 20 == 10 && Deck.Blocked(m.State, side, one) == null) m.Issue(Command.Buy(side, also, m.State.Squads.Count % 2, 0)); m.Step(); continue; }
+                        }
+                        // (The post first, whenever it is empty: he saves for it after his first line squad.)
+                        bool wanted = style == "buys them and posts" && Deck.Find(side, posted) is Card up && Vantage.Blocked(m.State, side, posted, 0) == null
+                                      && Deck.CooldownLeft(m.State, side, up) == 0 && m.State.Squads.Count(q => q.Side == side) >= 2;
+                        if (wanted && m.State.Tick % 20 == 10 && Deck.Blocked(m.State, side, Deck.Find(side, posted)) == null)
+                            m.Issue(Command.BuyTo(side, posted, 0));
+                        if (!wanted && style != "buys nothing" && style != "left to the plan" && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
                             m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
                         m.Step();
                     }
@@ -366,9 +382,84 @@ namespace LanesOfVietnam.SimCs
                     secs += m.State.Tick * Tune.Dt;
                     each.Add(m.State.Tick * Tune.Dt);
                     men += m.State.Men.Count(x => x.Side == side);
+                    fell += m.State.Men.Count(x => !x.Alive && x.High > 0);
                 }
                 double mean = secs / seeds, sd = Math.Sqrt(each.Sum(x => (x - mean) * (x - mean)) / seeds);
-                Console.WriteLine($"  {side} player who {style,-18} wins {wins,2}/{seeds}  mean {mean,5:F0} s (from {each.Min():F0} to {each.Max():F0}, sd {sd:F0})  fielded {men / seeds:F0} men");
+                Console.WriteLine($"  {side} player who {style,-18} wins {wins,2}/{seeds}  mean {mean,5:F0} s (from {each.Min():F0} to {each.Max():F0}, sd {sd:F0})  fielded {men / seeds:F0} men{(a.Contains("vantage") ? $"  killed up on a post {fell / seeds:F1}" : "")}");
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// What a squad up on the post does (Vantage): `post seed0 seeds card [flags]`. The American player buys line
+        /// squads and keeps <c>card</c>'s squad on the watchtower; a second column is the same squad bought into
+        /// the lanes instead, as often. Per match: the men it killed, the men it lost and to what, and who won.
+        /// </summary>
+        private static int PostTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 1, seeds = nums.Length > 1 ? nums[1] : 24;
+            string cardId = a.FirstOrDefault(x => x.StartsWith("us-") || x.StartsWith("vc-")) ?? "us-sniper";
+            var flags = new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tactics", "fortune", "firecontrol", "ballistics", "tempo", "vantage" }.Concat(a.Where(x => x == "skirmish" || x == "siege")).ToArray();
+            Console.WriteLine($"  {cardId}, seeds {seed0} to {seed0 + seeds - 1}, the American player buying line squads besides:");
+            foreach (bool up in new[] { true, false })
+            {
+                int wins = 0, bought = 0, shots = 0, kills = 0, lost = 0, lostRifle = 0, lostGun = 0, lostSniper = 0, lostBurst = 0;
+                double secs = 0, upSecs = 0, firstUp = 0, atP = 0, atD = 0; int firstUps = 0, at = 0, atSniper = 0;
+                for (int seed = seed0; seed < seed0 + seeds; seed++)
+                {
+                    var o = Game(seed, flags);
+                    o.Player = Side.Us;
+                    var m = new LiveMatch(o);
+                    var st = m.State;
+                    var line = Deck.For(Side.Us).First(c => c.Group == CardGroup.Line);
+                    var card = Deck.Find(Side.Us, cardId);
+                    var mine = new HashSet<int>();          // the squads bought with the card
+                    int first = -1;
+                    while (!st.Over && st.Tick < m.Cap)
+                    {
+                        // The squad first, whenever there is none: he saves for it (after his first line squad) and buys line squads with the rest.
+                        bool free = up ? Vantage.Blocked(st, Side.Us, cardId, 0) == null : !st.Squads.Any(q => mine.Contains(q.Id) && Squads.AnyAlive(st, q.Id));
+                        bool wanted = free && Deck.CooldownLeft(st, Side.Us, card) == 0 && st.Squads.Count(q => q.Side == Side.Us) >= 2;
+                        if (st.Tick % 20 == 10 && wanted && Deck.Blocked(st, Side.Us, card) == null)
+                        {
+                            m.Issue(up ? Command.BuyTo(Side.Us, cardId, 0) : Command.Buy(Side.Us, cardId, st.Squads.Count % 2, 0));
+                            bought++;
+                        }
+                        else if (st.Tick % 20 == 0 && !wanted && Deck.Blocked(st, Side.Us, line) == null) m.Issue(Command.Buy(Side.Us, line.Id, st.Squads.Count % 2, 0));
+                        int nsq = st.Squads.Count, from = st.Events.Count;
+                        m.Step();
+                        // `trace`: the posted squad's men, twice a second, for the first forty seconds of the first match.
+                        if (a.Contains("trace") && up && seed == seed0 && st.Tick <= 800 && st.Tick % 10 == 0 && mine.Count > 0)
+                            Console.WriteLine($"    t{st.Tick,4} " + string.Join("  ", st.Men.Where(x => mine.Contains(x.Squad)).Select(x => $"#{x.Id} {(x.Alive ? "" : "dead ")}({x.X:F1},{x.Z:F1}) up {x.High:F1} ladder {x.Climb} {x.Posture}")));
+                        for (int i = nsq; i < st.Squads.Count; i++) if (st.Squads[i].Side == Side.Us && st.Squads[i].Card == cardId && (!up || st.Squads[i].Post >= 0)) mine.Add(st.Squads[i].Id);
+                        if (st.Men.Any(x => x.Alive && mine.Contains(x.Squad) && (!up || Vantage.Up(x)))) { upSecs += Tune.Dt; if (first < 0) first = st.Tick; }
+                        for (int i = from; i < st.Events.Count; i++)
+                        {
+                            var e = st.Events[i];
+                            if (e.Kind == EventKind.Fire && mine.Contains(st.Men[e.Id].Squad)) shots++;
+                            if (e.Kind == EventKind.Fire && e.Target.HasValue && mine.Contains(st.Men[e.Target.Value].Squad))
+                            {
+                                at++; atP += Combat.HitChance(st, st.Men[e.Id], st.Men[e.Target.Value]); atD += Combat.Dist(st.Men[e.Id], st.Men[e.Target.Value]);
+                                if (st.Men[e.Id].Weapon == Weapon.Sniper) atSniper++;
+                            }
+                            if (e.Kind != EventKind.Kill) continue;
+                            var prev = i > 0 ? st.Events[i - 1] : default;
+                            bool shot = i > 0 && prev.Tick == e.Tick && prev.Target == e.Id && (prev.Kind == EventKind.Fire || prev.Kind == EventKind.Stray || prev.Kind == EventKind.Through);
+                            if (shot && prev.Kind != EventKind.Through && mine.Contains(st.Men[prev.Id].Squad)) kills++;
+                            if (!mine.Contains(st.Men[e.Id].Squad)) continue;
+                            lost++;
+                            if (!shot) lostBurst++;
+                            else { var w = st.Men[prev.Id].Weapon; if (w == Weapon.Sniper) lostSniper++; else if (w == Weapon.Rpd || w == Weapon.M60) lostGun++; else lostRifle++; }
+                        }
+                    }
+                    if (st.Winner == Side.Us) wins++;
+                    secs += st.Tick * Tune.Dt;
+                    if (first >= 0) { firstUp += first * Tune.Dt; firstUps++; }
+                }
+                Console.WriteLine($"  {(up ? "on the tower" : "in the lanes "),-13} wins {wins,2}/{seeds}  match {secs / seeds,4:F0} s  bought {bought / (double)seeds:F1}  fighting {upSecs / seeds,4:F0} s (from {(firstUps > 0 ? firstUp / firstUps : 0):F0} s)"
+                    + $"  shots {shots / (double)seeds,5:F1}  kills {kills / (double)seeds,4:F1}  lost {lost / (double)seeds:F1} men (rifle {lostRifle / (double)seeds:F1}, gun {lostGun / (double)seeds:F1}, sniper {lostSniper / (double)seeds:F1}, burst {lostBurst / (double)seeds:F1})"
+                    + $"  fired at {at / (double)seeds:F1} times ({atSniper / (double)seeds:F1} by a sniper), mean chance {(at > 0 ? atP / at : 0):F3} at {(at > 0 ? atD / at : 0):F0} m");
             }
             return 0;
         }
@@ -407,7 +498,7 @@ namespace LanesOfVietnam.SimCs
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
                 Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
                 Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"), Ammo = a.Contains("ammo"),
-                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"), Commander = a.Contains("commander"), Ballistics = a.Contains("ballistics"),
+                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"), Commander = a.Contains("commander"), Ballistics = a.Contains("ballistics"), Vantage = a.Contains("vantage"), ComputerPosts = a.Contains("aiposts"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
@@ -1548,9 +1639,9 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics");
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts");
             string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") ? "siege" : "standard";
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "skirmish" && x != "siege").ToArray();
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -1566,7 +1657,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics };
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts };
                 if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
                 if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);

@@ -70,6 +70,8 @@ namespace LanesOfVietnam.Sim
             if (st.Tick - target.FiredAt <= Tune.SightFiredTicks) r = Math.Max(r, Tune.SightFired);
             if (observer.Pin >= Tune.PinStop) r *= Tune.SightPinned;
             if (observer.Weapon == Weapon.Sniper) r *= Tune.SightScope;
+            // Vantage: a man up on a post sees further and into cover, and is seen from further.
+            if (st.Vantage) r = Vantage.Sight(observer, target, r);
             return r * st.Sight;
         }
 
@@ -182,6 +184,8 @@ namespace LanesOfVietnam.Sim
                     // Gunnery: a squad deals with the enemy in its own lane; one in the other only while it has it in
                     // sight (over the bank) and knows of nobody in its own (below).
                     if (st.Gunnery && sb.Lane != sa.Lane && !Knows(st, sa, b)) continue;
+                    // Vantage: nobody closes with a squad up on a post, or goes in at it. Its men are shot at, as any are.
+                    if (st.Vantage && sb.Post >= 0 && sa.Post < 0) continue;
                     double near = double.PositiveInfinity;
                     for (int i = 0; i < rosters[a].Count; i++)
                         for (int j = 0; j < rosters[b].Count; j++)
@@ -221,7 +225,8 @@ namespace LanesOfVietnam.Sim
                 double dx = a.X - b.X, dz = a.Z - b.Z;
                 double d2 = dx * dx + dz * dz;
                 // Gunnery: a man in the other lane, seen over the bank, is shot at only when there is nobody in his own.
-                bool far = st.Gunnery && st.Squads[b.Squad].Lane != sq.Lane;
+                // (Vantage: from up on a post both lanes are his.)
+                bool far = st.Gunnery && st.Squads[b.Squad].Lane != sq.Lane && !(st.Vantage && Vantage.Up(a));
                 bool theirs = !far && b.Squad == sq.Threat;
                 if (d2 > (far ? acrossD2 : theirs ? bestD2 : otherD2)) continue;
                 if (Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;

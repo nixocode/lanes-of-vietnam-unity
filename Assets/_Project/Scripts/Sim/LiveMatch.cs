@@ -33,6 +33,12 @@ namespace LanesOfVietnam.Sim
         public static Command Buy(Side side, string card, int lane, double aimX)
             => new Command { Kind = CommandKind.Buy, Side = side, Card = card, Lane = lane, AimX = aimX };
 
+        /// <summary>Buy: sent to a post up high (MatchOptions.Vantage), by its number from 1; 0 is the lane, as ever.</summary>
+        public int PostNo;
+
+        public static Command BuyTo(Side side, string card, int post)
+            => new Command { Kind = CommandKind.Buy, Side = side, Card = card, PostNo = post + 1 };
+
         public static Command SetLever(Side side, int cover, Lever lever)
             => new Command { Kind = CommandKind.Lever, Side = side, Cover = cover, Lever = lever };
     }
@@ -108,7 +114,7 @@ namespace LanesOfVietnam.Sim
                     var card = Deck.Find(c.Side, c.Card);
                     if (card == null) return false;
                     int before = State.Squads.Count;
-                    bool ok = Deck.Buy(State, c.Side, card, c.Lane, _rng, c.AimX);
+                    bool ok = Deck.Buy(State, c.Side, card, c.Lane, _rng, c.AimX, c.PostNo - 1);
                     // A bought squad's strength is recorded when it arrives, so it
                     // can break like any other. The original only caught up on
                     // this at the next reinforcement check, up to six seconds

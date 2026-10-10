@@ -34,6 +34,19 @@ namespace LanesOfVietnam.Sim
             { Kind = k; Lane = lane; X = x; Dz = dz; Length = length; }
         }
 
+        /// <summary>
+        /// The places up high a squad can be posted on (MatchOptions.Vantage). On this map one: the firebase's
+        /// watchtower, inside the wire behind the far lane, its platform 8.45 m up and its ladder up the front
+        /// (where WorldDressing stands it, and as tools/blender/plant_bake.py builds it). It is the Americans'.
+        /// </summary>
+        public static List<Post> Posts() => new List<Post>
+        {
+            new Post { Id = 0, Name = "WATCHTOWER", Side = Side.Us, X = TowerX, Z = TowerZ, Height = 8.45, FootX = TowerX, FootZ = TowerZ + 0.45, Lane = Far },
+        };
+
+        /// <summary>Where the watchtower stands.</summary>
+        public const double TowerX = -39.0, TowerZ = -11.6;
+
         // West is the firebase (US, advancing +x). East is the jungle.
         private static readonly Piece[] Pieces =
         {

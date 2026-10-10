@@ -60,6 +60,15 @@ namespace LanesOfVietnam.View.UI
             double pin = 0;
             for (int i = 0; i < live.Count; i++) pin += live[i].Pin;
             pin = live.Count > 0 ? pin / live.Count : 0;
+            // On a post (the watchtower), or on its way up or down: MatchOptions.Vantage.
+            if (st.Vantage && Vantage.Of(st, sq) is Post post)
+            {
+                bool up = false;
+                for (int i = 0; i < live.Count; i++) up |= Vantage.Up(live[i]);
+                if (sq.Leaving) return "COMING DOWN";
+                if (!up) return "GOING UP THE " + post.Name;
+                return pin >= Tune.PinStop ? "PINNED · ON THE " + post.Name : "ON THE " + post.Name;
+            }
             if (sq.Order == Order.Fallback) return "FALLING BACK";
             if (pin >= Tune.PinStop) return "PINNED";
             if (!st.Senses) return sq.Order == Order.Hold ? "HOLDING" : sq.Order == Order.Bound ? "BOUNDING" : "ADVANCING";
@@ -118,7 +127,8 @@ namespace LanesOfVietnam.View.UI
                 for (int i = 0; i < live.Count; i++)
                 {
                     var (x, z) = _root.ArmyView.Where(_root.Driver, live[i].Id);
-                    float y = (float)_root.Ground.HeightAt(x, z);
+                    // (Up a post, he is that much higher.)
+                    float y = (float)_root.Ground.HeightAt(x, z) + (float)live[i].High;
                     float tall = live[i].Posture == Posture.Prone ? 0.5f : live[i].Posture == Posture.Crouched ? 1.15f : 1.8f;
                     var vp = cam.WorldToViewportPoint(Coords.World(x, z, y + tall));
                     if (vp.z <= 0.5f) continue;

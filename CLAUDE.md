@@ -4,8 +4,9 @@ A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
 owner's playtests in order and what was built for each. The plan from here is
 §12.27: polish, then scenarios on the firebase map, then maps one at a time,
-and what the owner still has to decide. The latest work is §12.29 to §12.33 (fire control,
-the Mixamo batches, the commander begun, rounds seen to land, ballistics).
+and what the owner still has to decide. The latest work is §12.29 to §12.35 (fire control,
+the Mixamo batches, the commander begun, rounds seen to land, ballistics, what a round
+and a burst do to a man, the watchtower).
 
 ## What runs where
 
@@ -53,7 +54,11 @@ and say so:
   (every rule up to fire control; on the branch `polish`, `main` does not have these flags
   yet): 5070 ticks, final `1731903378u`.
 - `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics map`
-  (the game, on `polish`): 3493 ticks, final `2457736883u`.
+  (every rule up to ballistics, on `polish`): 3493 ticks, final `2457736883u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage map`
+  (the game, on `polish`; nobody is on the watchtower, so the match is the one above with more
+  hashed): 3493 ticks, final `2586780023u`. With `aiposts` (the computer mans its tower, which
+  the game does not do): 5116 ticks, final `2152767161u`.
 
 ## Rules this project keeps
 
@@ -61,8 +66,8 @@ and say so:
   TypeScript original. It owns no engine objects, reads no clock, and draws
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
-  Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics;
-  and Commander, written and not yet on in the game). With a
+  Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
+  Vantage; and Commander, written and not yet on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **Pinned hashes** in `Assets/_Project/Tests/EditMode/SimTests.cs` are

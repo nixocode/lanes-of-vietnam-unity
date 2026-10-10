@@ -112,9 +112,15 @@ namespace LanesOfVietnam.Sim
         /// for — took the points, set the cooldown and did nothing at all.
         /// Every branch below does something the simulation can see.
         /// </summary>
-        public static bool Buy(SimState st, Side side, Card card, int lane, Rng rng, double aimX = 0)
+        public static bool Buy(SimState st, Side side, Card card, int lane, Rng rng, double aimX = 0, int post = -1)
         {
             if (Blocked(st, side, card) != null) return false;
+            // Vantage: sent to a post, it has to be a squad the post takes, and the post empty.
+            if (post >= 0)
+            {
+                if (Vantage.Blocked(st, side, card.Id, post) != null) return false;
+                lane = st.Posts[post].Lane;
+            }
             st.Cp[(int)side] -= card.Cost;
             st.CardCooldown[(int)side][card.Index] = card.Cooldown;
             lane %= Tune.Lanes.Length;
@@ -122,7 +128,8 @@ namespace LanesOfVietnam.Sim
             if (card.Pips > 0)
             {
                 double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                Match.SpawnSquad(st, side, lane, x, rng, card: card.Id);
+                var raised = Match.SpawnSquad(st, side, lane, x, rng, card: card.Id);
+                if (post >= 0) Vantage.Send(st, raised, post);
                 return true;
             }
 

@@ -91,6 +91,8 @@ namespace LanesOfVietnam.Sim
         public static bool Long(SimState st, Man a, Man b)
         {
             if (!st.Tactics) return false;
+            // (Vantage: a sniper's shot at a man up on a post is an aimed one, however far.)
+            if (st.Vantage && Vantage.Duel(a, b)) return false;
             double r = Arms.Of(st, a).Range, dx = a.X - b.X, dz = a.Z - b.Z;
             return dx * dx + dz * dz > r * r;
         }

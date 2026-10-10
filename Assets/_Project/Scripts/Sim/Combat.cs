@@ -73,7 +73,9 @@ namespace LanesOfVietnam.Sim
             double p = Tune.HitBase * (1 - t * (1 - arm.AtRange));
             if (st.Arms) p *= arm.Hit;
             // Tactics: beyond his weapon's own distance a round seldom finds its man.
-            if (st.Tactics && d > arm.Range) p *= Tune.LongHit;
+            // (Vantage: but a sniper's at a man up on a post is an aimed shot at something against the sky: harder
+            // beyond his rifle's own distance, not hopeless.)
+            if (st.Tactics && d > arm.Range) p *= st.Vantage && Vantage.Duel(a, b) ? Tune.PostDuelHit : Tune.LongHit;
             // Fortune: and some men shoot better than others.
             if (st.Fortune) p *= a.Aim;
 
@@ -84,7 +86,8 @@ namespace LanesOfVietnam.Sim
             // into each other lay four metres apart, pinned, for twelve seconds.)
             p *= Math.Max(st.Gunnery && d < Tune.CloseRange ? Tune.CloseSteady : 0.15, 1 - steadied);
 
-            p *= Tune.Exposure(b.Posture);
+            // Vantage: from up on a post a man lying flat is no smaller than one on a knee.
+            p *= st.Vantage && Vantage.Up(a) ? Math.Max(Tune.Exposure(b.Posture), Tune.Exposure(Posture.Crouched)) : Tune.Exposure(b.Posture);
             // Gunnery: a man shooting from his feet hits a third as often.
             if (st.Gunnery && a.Posture == Posture.Standing) p *= Tune.StandingHit;
 
@@ -95,6 +98,8 @@ namespace LanesOfVietnam.Sim
                 p *= 1 - CoverValue(st, c) * (1 - arm.Pierce);
                 if (c.RangedIn >= 1) p *= Tune.RangedInBonus;
             }
+            // Vantage: a man up on a post has its bags round him (one on its ladder has nothing).
+            if (st.Vantage && Vantage.Up(b)) p *= 1 - Tune.PostCover * (1 - arm.Pierce);
             if (st.Fieldcraft && d < Tune.CloseRange) p *= 1 + Tune.CloseBonus * (1 - d / Tune.CloseRange);
 
             // Crossing open ground under fire has to cost something, or there
@@ -160,6 +165,8 @@ namespace LanesOfVietnam.Sim
         public static bool Fire(SimState st, Man a, Rng rng)
         {
             if (!a.Alive || a.Cooldown > 0) return false;
+            // Vantage: on a post's ladder he does nothing else.
+            if (st.Vantage && a.Climb != 0) return false;
 
             if (st.Fieldcraft)
             {

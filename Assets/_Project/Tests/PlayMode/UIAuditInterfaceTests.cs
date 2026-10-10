@@ -436,6 +436,113 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The owner, 2026-10-10: "add an option to select (with lane selector) certain objectives per map to place
+        /// certain soldiers that give massive advantage (for this map the watchtower, have a climb animation for
+        /// gunners, snipers and rifle squads)". With a squad the tower takes in hand, the lane selector has a third
+        /// choice: its tag, the pointer on the tower, or the up key past the far lane. Sent, the squad walks to the
+        /// ladder and goes up it: drawn on it, in the climb, facing it; and then on the platform, up in the air.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_watchtower_is_a_choice_in_the_lane_selector_and_a_squad_sent_up_it_climbs_it()
+        {
+            yield return LoadAndDeploy();
+            var hud = HudOf;
+            var dep = Object.FindAnyObjectByType<Deployer>();
+            var st = Root.Driver.State;
+            Assert.IsTrue(st.Vantage, "the game does not play with the watchtower");
+            Assert.AreEqual(1, st.Posts.Count);
+            var post = st.Posts[0];
+            Root.Paused = true;
+            st.Cp[0] = 100;
+            Root.CameraRig.Focus((float)post.X + 8f, instant: true);
+            yield return null; yield return null;
+            var cam = Root.CameraRig.Camera;
+            float ground = (float)Root.Ground.HeightAt(post.X, post.Z);
+            Vector2 onTower = cam.WorldToScreenPoint(Coords.World(post.X, post.Z, ground + 5f));
+            double clear = post.X + 12;
+            Vector2 nearGround = cam.WorldToScreenPoint(Coords.World(clear, Tune.Lanes[0], (float)Root.Ground.HeightAt(clear, Tune.Lanes[0])));
+            Assert.IsTrue(onTower.x > 0 && onTower.x < Screen.width && onTower.y > 0 && onTower.y < Screen.height, "the test's premise: the tower is in the picture");
+
+            // A squad the tower does not take: no choice of it.
+            dep.Arm(Deck.Find(Side.Us, "us-mortar"));
+            Assert.IsTrue(dep.Aim(onTower));
+            yield return null; yield return null; yield return null;
+            Assert.AreEqual(-1, dep.PostFor(dep.Armed));
+            Assert.AreEqual(-1, dep.TargetPost, "a mortar team was aimed up the tower");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, hud.PostTag.style.display.value, "the tower's tag is shown for a mortar team");
+
+            // A sniper team: the pointer on the tower takes it, and its tag is lit, not a lane's.
+            dep.Arm(Deck.Find(Side.Us, "us-sniper"));
+            Assert.IsTrue(dep.Aim(onTower));
+            yield return null; yield return null; yield return null;
+            Assert.AreEqual(0, dep.TargetPost, "the pointer on the tower did not choose it");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, hud.PostTag.style.display.value, "no tag for the tower");
+            Assert.IsTrue(hud.PostTag.ClassListContains("lit"), "the tower's tag is not lit");
+            Assert.IsFalse(hud.LaneTags[0].ClassListContains("lit") || hud.LaneTags[1].ClassListContains("lit"), "a lane is lit as well");
+            StringAssert.Contains("WATCHTOWER", hud.ArmedHint.text);
+            StringAssert.Contains("WATCHTOWER", hud.PostTag.text);
+            // Off it, a lane again; by its tag, the tower, until the pointer moves away; and by the keys, past the far lane.
+            dep.Aim(nearGround);
+            Assert.AreEqual(-1, dep.TargetPost);
+            Assert.AreEqual(0, dep.TargetLane);
+            Assert.IsTrue(dep.ChoosePost(0));
+            dep.Aim(nearGround + new Vector2(10, 0));
+            Assert.AreEqual(0, dep.TargetPost, "the tower taken by its tag did not stand");
+            dep.Switch(-1);
+            Assert.AreEqual(-1, dep.TargetPost, "the down key did not leave the tower");
+            Assert.AreEqual(1, dep.TargetLane, "nor take the far lane");
+            dep.Switch(1);
+            Assert.AreEqual(0, dep.TargetPost, "the up key past the far lane did not take the tower");
+            dep.Aim(nearGround + new Vector2(Deployer.ChoiceHolds + 40, 0));
+            Assert.AreEqual(-1, dep.TargetPost, "the pointer moved away and the tower stood");
+
+            // Sent up it.
+            int squads = st.Squads.Count;
+            dep.Aim(onTower);
+            Assert.IsTrue(dep.PlaceAt(onTower), "the sniper team was not sent");
+            Root.Driver.FastForward(2);
+            Assert.AreEqual(squads + 1, st.Squads.Count, "no squad was raised");
+            var sq = st.Squads[st.Squads.Count - 1];
+            Assert.AreEqual(0, sq.Post, "it was raised into a lane");
+            // (And now the tower is manned: it is no choice for the next.)
+            dep.Arm(Deck.Find(Side.Us, "us-rifle"));
+            dep.Aim(onTower);
+            yield return null; yield return null;
+            Assert.AreEqual(-1, dep.TargetPost, "a second squad was aimed up a manned tower");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, hud.PostTag.style.display.value);
+            dep.Disarm();
+
+            // Up the ladder, and onto the platform: each man drawn where he is.
+            var men = st.Men.Where(m => m.Squad == sq.Id).ToList();
+            bool onLadder = false;
+            for (int t = 0; t < 80 && !men.All(Vantage.Up); t++)
+            {
+                Root.Driver.FastForward(10);
+                yield return null; yield return null; yield return null;
+                foreach (var m in men.Where(m => m.Climb != 0 && m.High > 1.0 && m.High < post.Height - 1.0))
+                {
+                    var f = Root.ArmyView.FigureOf(m.Id);
+                    Assert.IsNotNull(f);
+                    Assert.IsTrue(f.Ladders, "the body has no ladder climb: SoldierBuilder has not been run with the clip");
+                    Assert.AreEqual(ground + (float)m.High, f.transform.position.y, 0.7f, "a man on the ladder is not drawn up it");
+                    Assert.Less(Mathf.Abs(Mathf.DeltaAngle(f.transform.eulerAngles.y, 0f)), 25f, "he does not face the ladder");
+                    Assert.IsTrue(f.Animator.GetBool("Ladder"), "he is not climbing");
+                    onLadder = true;
+                }
+            }
+            Assert.IsTrue(onLadder, "nobody was seen on the ladder");
+            Assert.IsTrue(men.All(Vantage.Up), "the team never got up the tower");
+            yield return null; yield return null;
+            foreach (var m in men)
+            {
+                var f = Root.ArmyView.FigureOf(m.Id);
+                Assert.AreEqual(ground + (float)post.Height, f.transform.position.y, 0.5f, "a man on the platform is drawn somewhere else");
+                Assert.IsFalse(f.Animator.GetBool("Ladder"), "he is still climbing, on the platform");
+            }
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Posted && e.Id == sq.Id));
+        }
+
+        /// <summary>
         /// A match a new player can read (PLAN §12.18 phase 2): the start screen
         /// sets how hard the enemy is and the game plays at the rates measured
         /// for it; every card says what it buys; and a squad has a tag that

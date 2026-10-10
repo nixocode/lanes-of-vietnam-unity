@@ -535,6 +535,31 @@ namespace LanesOfVietnam.Sim
         /// <summary>A stray round's chance against the chance the firer would have had firing at that man (shared among a burst's rounds).</summary>
         public const double StrayShare = 1.0;
 
+        // --- a post up high (MatchOptions.Vantage) -----------------------------------------
+
+        /// <summary>Ticks a man takes up a post's ladder (8 s), and between one man starting up it and the next (3 s).</summary>
+        public const int ClimbTicks = TickHz * 8, LadderGap = TickHz * 3;
+        /// <summary>Within this of the ladder's foot a man is at it; and metres between men on the platform.</summary>
+        public const double PostArrive = 0.35, PostSpacing = 1.0;
+        /// <summary>From up there a rifle reaches this many times as far (an M16, 60 m) and a machine gun this many (an M60, 69 m); a sniper's rifle, the whole map.</summary>
+        public const double PostReach = 3.0, PostGunReach = 2.3, PostSniperReach = 95;
+        /// <summary>And hits this many times as often: a rifle, a machine gun (rested on the bags, firing down a lane), a sniper's rifle.</summary>
+        public const double PostHit = 1.6, PostGunHit = 1.8, PostSniperHit = 1.0;
+        /// <summary>What cover is worth against a man firing down into it, of what it is worth from the ground.</summary>
+        public const double PostOverCover = 0.5;
+        /// <summary>What the bags round the platform are worth to the man behind them: less than a sandbag wall on the ground (0.5 to 0.6), he is against the sky.</summary>
+        public const double PostCover = 0.35;
+        /// <summary>Metres a rocket or a launcher's grenade is fired at a post from: it is a big thing that does not move (at a man on the ground, 24).</summary>
+        public const double PostRocketReach = 60;
+        /// <summary>Metres a man up there sees a man on the ground from, whatever he is behind, and is seen from himself.</summary>
+        public const double PostSight = 60;
+        /// <summary>A sniper's chance at a man up on a post from beyond his rifle's own distance, of what it is inside it (any other long shot: 0.15).</summary>
+        public const double PostDuelHit = 0.55;
+        /// <summary>What a man up on a post is worth to a sniper on the ground, against any other man he could fire at.</summary>
+        public const double PostWorth = 3;
+        /// <summary>A burst reaches a man within this many metres of its own height: one on the ground does not reach the platform, nor one up there the ground.</summary>
+        public const double PostBlastHigh = 2.5;
+
         // --- the commander (MatchOptions.Commander) -------------------------------------
 
         /// <summary>Ticks between a side's thoughts (2 s; the two sides think a second apart).</summary>

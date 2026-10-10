@@ -102,11 +102,16 @@ namespace LanesOfVietnam.Sim
 
         private static void Detonate(SimState st, Grenade g, Rng rng)
         {
-            st.Events.Add(new SimEvent { Kind = EventKind.GrenadeBlast, Tick = st.Tick, Side = g.Side, Id = g.Id, X = g.X, Z = g.Z });
+            var blast = new SimEvent { Kind = EventKind.GrenadeBlast, Tick = st.Tick, Side = g.Side, Id = g.Id, X = g.X, Z = g.Z };
+            // Vantage: one that bursts up on a post says how high (Amount, metres), for the view.
+            if (st.Vantage && g.High > 0) blast.Amount = g.High;
+            st.Events.Add(blast);
             for (int j = 0; j < st.Men.Count; j++)
             {
                 var m = st.Men[j];
                 if (!m.Alive) continue;
+                // Vantage: a burst on the ground does not reach a man up on a post, nor one up there the ground.
+                if (st.Vantage && !Vantage.Reaches(g.High, m)) continue;
                 double d = JsMath.Hypot(m.X - g.X, m.Z - g.Z);
                 if (d > Tune.FragPinRadius) continue;
                 if (d < g.Radius)

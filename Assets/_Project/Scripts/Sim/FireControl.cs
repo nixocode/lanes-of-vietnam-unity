@@ -108,12 +108,14 @@ namespace LanesOfVietnam.Sim
                 if (!b.Alive || b.Side == a.Side || !Senses.Knows(st, sq, b.Squad)) continue;
                 if (st.Gunnery && !Gunnery.InArc(st, a, b)) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z, d2 = dx * dx + dz * dz;
-                if (d2 > reach2 || Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
+                // (Vantage: a sniper's rifle reaches a man up on a post from anywhere.)
+                if (d2 > (st.Vantage ? Vantage.Reach2(a, b, reach2) : reach2) || Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
                 // Tactics: a sniper who has just fired has told everyone where he is.
                 if (st.Tactics && b.Weapon == Weapon.Sniper && st.Tick - b.FiredAt <= Tune.SniperMarked && d2 <= sniperD2) { sniperD2 = d2; sniper = b; }
                 double w = Worth(st, a, b, sq, marks);
                 // Gunnery: a man in the other lane, seen over the bank, is shot at only when there is nobody in his own.
-                if (st.Gunnery && st.Squads[b.Squad].Lane != sq.Lane) { if (w > acrossW) { acrossW = w; across = b; } }
+                // (Vantage: from up on a post both lanes are his.)
+                if (st.Gunnery && st.Squads[b.Squad].Lane != sq.Lane && !(st.Vantage && Vantage.Up(a))) { if (w > acrossW) { acrossW = w; across = b; } }
                 else if (w > bestW) { bestW = w; best = b; }
             }
             var pick = best ?? across;
@@ -132,6 +134,8 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < marks.Count; i++) if (marks[i] == b.Id) on++;
             w /= 1 + Tune.SpreadFire * on;
             if (b.Squad == sq.Threat) w *= Tune.ThreatFirst;
+            // Vantage: a sniper's first business is a man up on a post.
+            if (st.Vantage && Vantage.Duel(a, b)) w *= Tune.PostWorth;
             if (Gun(a.Weapon))
             {
                 // Where the most heads are; and on from the man it has just fired at.
@@ -278,7 +282,8 @@ namespace LanesOfVietnam.Sim
                 var b = st.Men[i];
                 if (!b.Alive || !b.Seen || b.Side == a.Side) continue;
                 double dx = a.X - b.X, dz = a.Z - b.Z, d2 = dx * dx + dz * dz;
-                if (d2 > max2 || d2 < min2) continue;
+                // (Vantage: at a man up on a post, from much further: a rocket or a launcher's grenade, not a mortar's bomb.)
+                if (d2 > (st.Vantage && b.High > 0 && a.Weapon != Weapon.Mortar ? Math.Max(max2, Tune.PostRocketReach * Tune.PostRocketReach) : max2) || d2 < min2) continue;
                 // A mortar fires over smoke; a launcher has to see what it shoots at.
                 if (a.Weapon != Weapon.Mortar && Combat.SmokeBlocks(st, a.X, a.Z, b.X, b.Z)) continue;
                 int men = 0;

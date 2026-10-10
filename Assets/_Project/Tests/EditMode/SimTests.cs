@@ -1940,6 +1940,205 @@ namespace LanesOfVietnam.Tests
             Assert.Less(strays * 3, shot, "stray rounds do a third of the killing or more");
         }
 
+        // --- Part 2: a post up high, behind MatchOptions.Vantage (the owner, 2026-10-10: the watchtower) -----
+
+        private static MatchOptions Posted(int seed, bool onMap = true, bool tempo = false, bool computer = false)
+        {
+            var o = Flown(seed, onMap, tempo);
+            o.Vantage = true;
+            o.ComputerPosts = computer;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage aiposts [map]`.</summary>
+        [TestCase(1, true, 5116, 2018994123u, 1740777576u, 2152767161u, "vc morale broke")]
+        [TestCase(7, false, 3073, 1364659758u, 4075419781u, 2379840719u, "vc morale broke")]
+        public void With_vantage_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Vantage, "vantage must be off unless asked for");
+            Assert.AreEqual(0, Match.Create(new MatchOptions { Seed = 1 }).Posts.Count, "a post without the rule");
+            var (a, m) = Played(Posted(seed, asTheGame, computer: true));
+            var (b, _) = Played(Posted(seed, asTheGame, computer: true));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+            Assert.IsTrue(m.State.Events.Any(e => e.Kind == EventKind.Posted), "the computer's Americans never manned their tower");
+        }
+
+        /// <summary>
+        /// With the rule on and nobody sent to the post, a match is the match it was: the same men in the same
+        /// places at the same end. (The computer does not man its tower unless it is told to: ComputerPosts.)
+        /// </summary>
+        [Test]
+        public void With_vantage_and_nobody_posted_a_match_is_what_it_was()
+        {
+            for (int seed = 3; seed <= 5; seed++)
+            {
+                var plain = new LiveMatch(Flown(seed, tempo: true));
+                while (!plain.State.Over && plain.State.Tick < plain.Cap) plain.Step();
+                var m = new LiveMatch(Posted(seed, tempo: true));
+                while (!m.State.Over && m.State.Tick < m.Cap) m.Step();
+                Assert.AreEqual(plain.State.Tick, m.State.Tick, $"seed {seed}: it ended at another tick");
+                Assert.AreEqual(plain.State.Reason, m.State.Reason);
+                Assert.AreEqual(plain.State.Men.Count, m.State.Men.Count);
+                for (int i = 0; i < m.State.Men.Count; i++)
+                {
+                    Assert.AreEqual(plain.State.Men[i].X, m.State.Men[i].X, $"seed {seed}: man {i}");
+                    Assert.AreEqual(plain.State.Men[i].Alive, m.State.Men[i].Alive, $"seed {seed}: man {i}");
+                }
+                Assert.AreEqual(0, m.State.Events.Count(e => e.Kind == EventKind.Posted));
+                // And without the rule nobody can be sent anywhere: the points stay.
+                var none = new LiveMatch(Flown(seed, tempo: true));
+                none.State.Cp[0] = 100;
+                none.Issue(Command.BuyTo(Side.Us, "us-sniper", 0));
+                none.Step();
+                Assert.IsFalse(none.Log[0].Accepted, "a squad sent to a post without the rule");
+                Assert.GreaterOrEqual(none.State.Cp[0], 100, "and it was paid for");
+            }
+        }
+
+        /// <summary>
+        /// The owner, 2026-10-10: "add an option to select (with lane selector) certain objectives per map to
+        /// place certain soldiers that give massive advantage (for this map the watchtower, have a climb animation
+        /// for gunners, snipers and rifle squads). Gunner very effective at medium, close range. Sniper covers all
+        /// maps. Rifles good short, medium. Big positional and height advantage should reflect in game
+        /// effectiveness." A sniper team sent to the firebase's watchtower walks to its ladder, goes up it a man
+        /// at a time, and from up there sees and shoots as nobody on the ground can; nothing on the ground
+        /// reaches it but a sniper's rifle and a rocket; told to advance, it comes down and is a squad again.
+        /// </summary>
+        [Test]
+        public void With_vantage_a_squad_sent_to_the_tower_climbs_it_and_fights_from_up_there()
+        {
+            var o = Posted(3, tempo: true);
+            o.Player = Side.Us;
+            var m = new LiveMatch(o);
+            var st = m.State;
+            Assert.AreEqual(1, st.Posts.Count, "the firebase has one post: its watchtower");
+            var post = st.Posts[0];
+            Assert.AreEqual(Side.Us, post.Side);
+
+            // Who may go up it: the side whose ground it is on, with a squad a post takes, one at a time.
+            Assert.AreEqual("not ours", Vantage.Blocked(st, Side.Vc, "vc-marksman", 0));
+            Assert.AreEqual("not for a post", Vantage.Blocked(st, Side.Us, "us-mortar", 0));
+            foreach (string card in new[] { "us-rifle", "us-mg", "us-sniper" }) Assert.IsNull(Vantage.Blocked(st, Side.Us, card, 0), card);
+            st.Cp[0] = 100;
+            m.Issue(Command.BuyTo(Side.Us, "us-mortar", 0));
+            m.Step();
+            Assert.IsFalse(m.Log[m.Log.Count - 1].Accepted, "a mortar team was sent up the tower");
+            Assert.GreaterOrEqual(st.Cp[0], 100, "and it was paid for");
+            m.Issue(Command.BuyTo(Side.Us, "us-sniper", 0));
+            m.Step();
+            Assert.IsTrue(m.Log[m.Log.Count - 1].Accepted, "the sniper team was not taken");
+            var sq = st.Squads[st.Squads.Count - 1];
+            Assert.AreEqual("us-sniper", sq.Card);
+            Assert.AreEqual(0, sq.Post);
+            Assert.AreEqual("manned", Vantage.Blocked(st, Side.Us, "us-mg", 0), "two squads for one post");
+            var men = Squads.Roster(st, sq.Id).ToList();
+            Assert.AreEqual(2, men.Count);
+
+            // Up the ladder: a man at a time, three seconds apart, and nobody fires from it.
+            int firstUp = -1, secondUp = -1;
+            for (int t = 0; t < 900 && secondUp < 0; t++)
+            {
+                int from = st.Events.Count;
+                var onLadder = men.Where(x => x.Climb != 0).Select(x => x.Id).ToList();
+                m.Step();
+                for (int i = from; i < st.Events.Count; i++)
+                    if (st.Events[i].Kind == EventKind.Fire) Assert.IsFalse(onLadder.Contains(st.Events[i].Id), "a man fired from the ladder");
+                foreach (var x in men) Assert.That(x.High, Is.InRange(0.0, post.Height), "a man above the platform or under the ground");
+                int up = men.Count(Vantage.Up);
+                if (up >= 1 && firstUp < 0) firstUp = st.Tick;
+                if (up >= 2 && secondUp < 0) secondUp = st.Tick;
+            }
+            Assert.Greater(firstUp, Tune.ClimbTicks, "a man was up the tower before he could have climbed it");
+            Assert.Greater(secondUp, 0, "the second man never got up");
+            Assert.GreaterOrEqual(secondUp - firstUp, Tune.LadderGap, "two men on the same rungs");
+            Assert.AreEqual(1, st.Events.Count(e => e.Kind == EventKind.Posted && e.Id == sq.Id && e.Target == 0), "the post was not reported manned, once");
+            foreach (var x in men)
+            {
+                Assert.AreEqual(post.Height, x.High);
+                Assert.Less(Combat.Dist(x.X, x.Z, post.X, post.Z), 2.0, "a man up the tower is not on its platform");
+                Assert.AreNotEqual(Posture.Standing, x.Posture, "he stands up there, over the bags");
+            }
+
+            // From up there: his weapon reaches further, and he sees a man flat behind a bank in the other lane.
+            var sniper = men.First(x => x.Weapon == Weapon.Sniper);
+            var mate = men.First(x => x.Weapon != Weapon.Sniper);
+            Assert.AreEqual(Tune.PostSniperReach, Arms.Of(st, sniper).Range, "a sniper's rifle from the tower does not cover the map");
+            Assert.AreEqual(Arms.Of(Weapon.M16).Range * Tune.PostReach, Arms.Of(st, mate).Range, 1e-9);
+            Assert.AreEqual(Arms.Of(Weapon.M60).Range * Tune.PostGunReach, Vantage.From(Arms.Of(Weapon.M60), Weapon.M60).Range, 1e-9);
+            foreach (var x in st.Men.Where(x => x.Side == Side.Vc)) { x.X = 44; x.Z = Tune.Lanes[1]; x.Cover = -1; x.Pin = 0; }
+            foreach (var x in st.Men.Where(x => x.Side == Side.Us && x.Squad != sq.Id)) { x.X = -44; x.Z = Tune.Lanes[0]; }
+            sniper.Pin = 0; mate.Pin = 0;
+            var berm = st.Cover.First(c => c.Kind == CoverKind.Berm && c.Z > 0 && c.X > 20);
+            var foe = st.Men.First(x => x.Side == Side.Vc && x.Alive);
+            foe.X = berm.X; foe.Z = berm.Z; foe.Cover = berm.Id; foe.Posture = Posture.Prone; foe.Weapon = Weapon.Ak; foe.FiredAt = Senses.Never;
+            foe.Trail.Clear();
+            var below = st.Men.First(x => x.Side == Side.Us && x.Alive && x.Squad != sq.Id);
+            below.X = post.X; below.Z = post.Z; below.Weapon = Weapon.Sniper; below.Posture = Posture.Crouched; below.Pin = 0; below.Cover = -1;
+            Assert.IsTrue(Senses.Sees(st, sniper, foe), "the sniper up the tower does not see a man across the map");
+            Assert.IsFalse(Senses.Sees(st, below, foe), "a sniper at its foot sees him too");
+            Assert.Greater(Combat.HitChance(st, sniper, foe), 3 * Combat.HitChance(st, below, foe), "the tower is no better a place to shoot from");
+            // A rifle, at a man flat in cover eighteen metres off: twice as likely from up there, and more.
+            foe.X = post.X + 18; foe.Z = post.Z; foe.Cover = berm.Id;
+            below.Weapon = Weapon.M16;
+            Assert.Greater(Combat.HitChance(st, mate, foe), 2 * Combat.HitChance(st, below, foe), "a rifle from the tower");
+            // And the man up there is harder to hit than he would be standing at its foot, but anyone can see him.
+            foe.Posture = Posture.Crouched; foe.Cover = -1;
+            double up0 = Combat.HitChance(st, foe, mate);
+            double high = mate.High; mate.High = 0;
+            double down0 = Combat.HitChance(st, foe, mate);
+            mate.High = high;
+            Assert.Less(up0, down0, "the bags round the platform are no cover");
+            Assert.Greater(up0, 0);
+            foe.X = 10; foe.Z = Tune.Lanes[0];
+            Assert.IsTrue(Senses.Sees(st, foe, mate), "a man up the tower cannot be seen from fifty metres off, in the other lane");
+            foe.X = 30;
+            Assert.IsFalse(Senses.Sees(st, foe, mate), "a rifleman sees him from seventy");
+            foe.Weapon = Weapon.Sniper;
+            Assert.IsTrue(Senses.Sees(st, foe, mate), "a sniper's scope does not find him");
+            foe.Weapon = Weapon.Ak;
+
+            // What reaches him from the ground: a sniper's rifle, from anywhere, as an aimed shot; no burst on the ground.
+            double rifle2 = Arms.Of(Weapon.Ak).Range * Arms.Of(Weapon.Ak).Range;
+            Assert.AreEqual(rifle2, Vantage.Reach2(foe, mate, rifle2), "a rifle reaches the tower from across the map");
+            Assert.IsTrue(Tactics.Long(st, foe, mate));
+            foe.Weapon = Weapon.Sniper;
+            Assert.AreEqual(Tune.PostSniperReach * Tune.PostSniperReach, Vantage.Reach2(foe, mate, rifle2), "a sniper's rifle does not");
+            Assert.IsFalse(Tactics.Long(st, foe, mate), "a sniper's shot at the tower is a long shot");
+            Assert.AreEqual("vc-marksman", Vantage.Answer(st, Side.Vc), "the computer's Vietnamese do not answer a manned tower with a marksman");
+            Assert.IsNull(Vantage.Answer(st, Side.Us));
+            foe.Weapon = Weapon.Ak; foe.X = 44;
+            Assert.IsFalse(Vantage.Reaches(0, mate), "a burst on the ground reaches the platform");
+            Assert.IsTrue(Vantage.Reaches(post.Height, mate));
+            Assert.IsFalse(Vantage.Reaches(post.Height, below), "a burst up there reaches the ground");
+            st.Grenades.Add(new Grenade { Id = st.GrenadeId++, Side = Side.Vc, Thrower = foe.Id, X = post.X, Z = post.Z, Ticks = 1, Radius = 8, Kill = 1 });
+            m.Step(); m.Step();
+            Assert.IsTrue(men.All(x => x.Alive), "a grenade at the tower's foot killed a man on its platform");
+
+            // Told to advance, it comes down, a man at a time, and is a squad in its lane again.
+            m.Issue(Command.OrderSquad(Side.Us, sq.Id, Order.Advance));
+            for (int t = 0; t < 900 && sq.Post >= 0; t++)
+            {
+                m.Step();
+                foreach (var x in st.Men.Where(x => x.Side == Side.Vc)) { x.X = 44; x.Pin = 0; }      // (kept out of it)
+            }
+            Assert.AreEqual(-1, sq.Post, "told to advance, it never came down");
+            Assert.IsTrue(men.All(x => x.High == 0 && x.Climb == 0), "a man of it is still up there");
+            Assert.IsNull(Vantage.Blocked(st, Side.Us, "us-mg", 0), "the post is not free again");
+            double from0 = men.Max(x => x.X);
+            for (int t = 0; t < 400; t++)
+            {
+                m.Step();
+                foreach (var x in st.Men.Where(x => x.Side == Side.Vc)) { x.X = 44; x.Pin = 0; }
+            }
+            Assert.Greater(men.Max(x => x.X), from0 + 2, "down from the tower, it does not march");
+        }
+
         [Test]
         public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
         {

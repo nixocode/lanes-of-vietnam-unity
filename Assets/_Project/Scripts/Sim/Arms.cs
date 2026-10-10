@@ -98,7 +98,12 @@ namespace LanesOfVietnam.Sim
             }
         }
 
-        public static Arm Of(SimState st, Man m) => st.Arms ? Of(m.Weapon) : Baseline;
+        public static Arm Of(SimState st, Man m)
+        {
+            var arm = st.Arms ? Of(m.Weapon) : Baseline;
+            // Vantage: from up on a post it reaches further, hits oftener and goes into cover.
+            return st.Vantage && Vantage.Up(m) ? Vantage.From(arm, m.Weapon) : arm;
+        }
 
         private static Kit K(string card, double reach, bool assaults, params Weapon[] men)
             => new Kit { Card = card, Men = men, Reach = reach, Assaults = assaults };
@@ -187,6 +192,8 @@ namespace LanesOfVietnam.Sim
                 Id = st.GrenadeId++, Side = a.Side, Thrower = a.Id,
                 X = target.X + sx, Z = target.Z + sz, Ticks = Math.Max(2, arm.Flight),
                 Radius = arm.Blast, Kill = arm.Kill, CoverFactor = arm.CoverFactor, By = a.Weapon,
+                // Vantage: fired at a man up on a post, it bursts up there.
+                High = st.Vantage ? target.High : 0,
             };
             st.Grenades.Add(g);
             if (st.Ammo) a.Rounds--;

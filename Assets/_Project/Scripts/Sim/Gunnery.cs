@@ -102,7 +102,9 @@ namespace LanesOfVietnam.Sim
             if (za * zb >= 0) return true;
             double t = za / (za - zb);
             double x = a.X + (b.X - a.X) * t;
-            double line = Eyes(a.Posture) + (Top(b.Posture) - Eyes(a.Posture)) * t;
+            // (Vantage: a man up on a post looks from up there, and is looked at up there. On the ground his height is 0.)
+            double eyes = Eyes(a.Posture) + a.High, top = Top(b.Posture) + b.High;
+            double line = eyes + (top - eyes) * t;
             return line > Bank(x);
         }
 

@@ -111,7 +111,7 @@ namespace LanesOfVietnam.View
             var (x, z) = Root.ArmyView.Where(Root.Driver, manId);
             var m = State.Men[manId];
             float h = m.Posture == Posture.Prone ? 0.32f : m.Posture == Posture.Crouched ? 0.85f : Chest;
-            return Coords.World(x, z, (float)Root.Ground.HeightAt(x, z) + h);
+            return Coords.World(x, z, (float)Root.Ground.HeightAt(x, z) + h + (float)m.High);
         }
 
         /// <summary>

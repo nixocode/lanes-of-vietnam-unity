@@ -653,6 +653,8 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Men[i];
                 if (!e.Alive || e.Side == m.Side) continue;
+                // Vantage: nobody goes for a man up on a post.
+                if (st.Vantage && e.High > 0) continue;
                 double dx = e.X - m.X, dz = e.Z - m.Z, d2 = dx * dx + dz * dz;
                 if (d2 >= best2) continue;
                 double half = Tune.ChargeRange * 0.5;
@@ -673,6 +675,8 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Men[i];
                 if (!e.Alive || e.Side == m.Side) continue;
+                // Vantage: nor is a man up there within arm's length of one below him.
+                if (st.Vantage && !Vantage.Reaches(m.High, e)) continue;
                 double dx = e.X - m.X, dz = e.Z - m.Z, d2 = dx * dx + dz * dz;
                 if (d2 < best2) { best = e; best2 = d2; }
             }

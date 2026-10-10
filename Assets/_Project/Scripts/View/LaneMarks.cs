@@ -159,6 +159,12 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
+        /// A post the squad in hand would be sent up (MatchOptions.Vantage): where it stands (x, the simulation's
+        /// z) and how high. The pointer's mark is then a column of light on the post, not a caret on the lane.
+        /// </summary>
+        public Vector3? PostAt;
+
+        /// <summary>
         /// Draw for this frame. <paramref name="card"/> null: nothing in hand,
         /// and what was shown fades out. <paramref name="radius"/> over zero:
         /// a call-in with that reach; else a squad, which comes in at
@@ -196,7 +202,8 @@ namespace LanesOfVietnam.View
                 _disc.enabled = false;
                 // Where the squad comes in, and where on its lane the pointer is.
                 Beam(_beam, cam, entryX, laneZ, 1.6f, 11f, 0.75f * _shown);
-                Beam(_caret, cam, x, laneZ, 0.5f, 3.2f, 0.7f * _shown);
+                if (PostAt.HasValue) Beam(_caret, cam, PostAt.Value.x, PostAt.Value.y, 4.6f, PostAt.Value.z + 2.4f, 0.85f * _shown);
+                else Beam(_caret, cam, x, laneZ, 0.5f, 3.2f, 0.7f * _shown);
             }
         }
 

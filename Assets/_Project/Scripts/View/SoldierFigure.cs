@@ -851,6 +851,29 @@ namespace LanesOfVietnam.View
 
         private float _climbPace = 1f;
 
+        /// <summary>The controller has a ladder's climb (the builder says).</summary>
+        public bool Ladders;
+        public const string LadderState = "Ladder";
+        private static readonly int LadderId = Animator.StringToHash("Ladder"), LadderPaceId = Animator.StringToHash("LadderPace");
+        private bool _onLadder;
+
+        /// <summary>
+        /// On a post's ladder (MatchOptions.Vantage), going up it or coming down: hand over hand, in place (ArmyView
+        /// lifts him), until he is told he is off it. Coming down is the climb played backwards.
+        /// </summary>
+        public void Ladder(bool on, bool down = false)
+        {
+            if (_baked || _reactLayer < 0 || !Ladders) return;
+            if (on) Animator.SetFloat(LadderPaceId, down ? -LadderPace : LadderPace);
+            if (on == _onLadder) return;
+            _onLadder = on;
+            Animator.SetBool(LadderId, on);
+            if (on && _deadFor < 0) Animator.CrossFadeInFixedTime(LadderState, 0.2f, _reactLayer);
+        }
+
+        /// <summary>The ladder clip's speed: it climbs slower than the simulation's man does (8.45 m in 8 s).</summary>
+        public const float LadderPace = 1.3f;
+
         /// <summary>In the climb's clip, or going into it.</summary>
         private bool Climbing
         {

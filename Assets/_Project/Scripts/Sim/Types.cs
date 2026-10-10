@@ -167,6 +167,10 @@ namespace LanesOfVietnam.Sim
         public int Mark = -1;
         /// <summary>The tick fire last came near him: while it keeps coming he keeps his head down (MatchOptions.FireControl).</summary>
         public int UnderAt = -100000;
+        /// <summary>Metres he is above the ground: on a post's platform, or part of the way up its ladder (MatchOptions.Vantage). 0 on the ground.</summary>
+        public double High;
+        /// <summary>Ticks of the ladder he has left: counting down to 0 going up, up to 0 coming down (MatchOptions.Vantage). 0 off it.</summary>
+        public int Climb;
     }
 
     /// <summary>A grenade in the air or on the ground, fuse burning (MatchOptions.Frag).</summary>
@@ -182,6 +186,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>Its burst: a hand grenade's unless a launcher or a mortar fired it (MatchOptions.Arms).</summary>
         public double Radius = Tune.FragRadius, Kill = Tune.FragKill, CoverFactor = Tune.FragCoverFactor;
         public Weapon By;
+        /// <summary>Metres up it bursts: a launcher's round fired at a man on a post (MatchOptions.Vantage). 0 on the ground.</summary>
+        public double High;
     }
 
     public sealed class Squad
@@ -268,6 +274,10 @@ namespace LanesOfVietnam.Sim
         /// not also give would be a second set of rules to get wrong.
         /// </summary>
         public Order? PlayerOrder;
+        /// <summary>The post it is on or on its way to (an index into <see cref="SimState.Posts"/>), or -1 (MatchOptions.Vantage).</summary>
+        public int Post = -1;
+        /// <summary>Told to come down from its post, and doing so (MatchOptions.Vantage).</summary>
+        public bool Leaving;
     }
 
     /// <summary>
@@ -383,6 +393,8 @@ namespace LanesOfVietnam.Sim
         // Stray (MatchOptions.Ballistics): a round man Id fired at somebody else has hit man Target, at X, Z, and
         // killed him: his Kill is the next event, as a shot's is.
         Stray,
+        // Posted (MatchOptions.Vantage): squad Id has its first man up on post Target, at X, Z.
+        Posted,
     }
 
     public struct SimEvent
@@ -466,6 +478,12 @@ namespace LanesOfVietnam.Sim
         public bool Commander;
         /// <summary>Part 2 rule: a round that misses goes somewhere, and whoever is there may be hit (<see cref="Sim.Ballistics"/>). Off is the baseline.</summary>
         public bool Ballistics;
+        /// <summary>Part 2 rule: a squad can be posted up high, and sees and shoots from there as nobody on the ground can (<see cref="Sim.Vantage"/>). Off is the baseline.</summary>
+        public bool Vantage;
+        /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
+        public bool ComputerPosts;
+        /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>
+        public List<Post> Posts = new List<Post>();
         /// <summary>The commander's own random stream: one time in four, and a tie between lanes.</summary>
         public Rng CommandRng;
         /// <summary>The tick each side's commander last laid a trap: it does not lay them one on another (MatchOptions.Commander).</summary>

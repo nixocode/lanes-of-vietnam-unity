@@ -117,6 +117,11 @@ namespace LanesOfVietnam.Sim
                 foreach (var s in st.Squads) { h = MixB(h, s.Prep); h = MixI(h, s.StalledAt); }
             }
             if (st.Commander) { h = MixI(h, st.TrapAt[0]); h = MixI(h, st.TrapAt[1]); }
+            if (st.Vantage)
+            {
+                foreach (var m in st.Men) { h = MixD(h, m.High); h = MixI(h, m.Climb); }
+                foreach (var s in st.Squads) { h = MixI(h, s.Post); h = MixB(h, s.Leaving); }
+            }
             if (st.Frag)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Grenades); h = MixI(h, m.FragCooldown); }
