@@ -25,11 +25,13 @@ namespace LanesOfVietnam.SimCs
     ///   watch seed from to [every] [flags] [man=N]
     ///                                  the squads tick by tick, or one man
     ///   blasts seed [flags]            where and when a burst kills a man: something to point a capture at
+    ///   command [seed] [ticks] [seeds] [flags]
+    ///                                  what the computer's commander does: what it raises, the cards it plays and what they hit, its levers
     ///   gunplay [seed] [ticks] [seeds] [flags]
     ///                                  the firing itself: each weapon's shots and what they do, the chance a shot had,
     ///                                  the man it was fired at and the men it could have been, where men die, assaults
     ///
-    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol), and
+    /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol commander), and
     /// `tempo` for the game's own economy.
     /// </summary>
     public static class Program
@@ -55,6 +57,7 @@ namespace LanesOfVietnam.SimCs
                     "brain" => Brain(args),
                     "blasts" => Blasts(args),
                     "gunplay" => Gunplay(args),
+                    "command" => Command_(args),
                     "watch" => Watch(args),
                     "lever" => LeverTrace(args),
                     "arms" => ArmsTable(args),
@@ -164,7 +167,7 @@ namespace LanesOfVietnam.SimCs
             var usPlan = Plan.ByName(a.Length > 2 && a[2] != "game" ? a[2] : "ceiling");
             // "game": the match as the game (and a capture of it) plays it, every rule on and its own economy.
             var m = a.Contains("game")
-                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol")).ToArray()))
+                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander")).ToArray()))
                 : new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
@@ -200,10 +203,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -285,7 +288,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol")).ToArray()));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander")).ToArray()));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -348,7 +351,7 @@ namespace LanesOfVietnam.SimCs
                 var each = new List<double>();
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x.StartsWith("rate="))).ToArray());
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -404,7 +407,7 @@ namespace LanesOfVietnam.SimCs
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
                 Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
                 Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"), Ammo = a.Contains("ammo"),
-                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"),
+                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"), Commander = a.Contains("commander"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
@@ -1405,6 +1408,99 @@ namespace LanesOfVietnam.SimCs
         }
 
         /// <summary>
+        /// What the computer's commander does, as the game plays it: `command [seed] [ticks] [seeds] [flags]`,
+        /// both sides the computer's. A match:
+        ///   raised        the squads each side raises, by card
+        ///   call-ins      each card played, and the points that went on cards against those that went on men
+        ///   from the sky  each barrage: the enemy inside its circle as it began, and whom it killed
+        ///   traps         laid, sprung, and whom they killed; tunnels opened
+        ///   levers        position-seconds on hold and on go
+        /// </summary>
+        private static int Command_(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 14400, seeds = nums.Length > 2 ? nums[2] : 6;
+            var raised = new Dictionary<string, double>(); var calls = new Dictionary<string, double>();
+            var inside = new Dictionary<string, double>(); var killed = new Dictionary<string, double>(); var own = new Dictionary<string, double>();
+            double sprung = 0, trapKills = 0, hold = 0, go = 0, onCards = 0, usWins = 0, seconds = 0;
+            var played = new Dictionary<string, double>(); var spent = new double[2];
+            var holdBy = new double[2]; var goBy = new double[2];
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var o = Game(seed, a);
+                var m = new LiveMatch(o);
+                var st = m.State;
+                var kind = new Dictionary<int, string>(); var sideOf = new Dictionary<int, Side>();
+                int squads = st.Squads.Count;
+                while (!st.Over && st.Tick < ticks)
+                {
+                    int from = st.Events.Count;
+                    m.Step();
+                    string cause = null; int area = -1;
+                    for (int i = from; i < st.Events.Count; i++)
+                    {
+                        var e = st.Events[i];
+                        switch (e.Kind)
+                        {
+                            case EventKind.AreaStart:
+                            {
+                                var ar = st.Areas.FirstOrDefault(x => x.Id == e.Id);
+                                if (ar == null) break;
+                                string k = ar.Kind == AreaKind.Barrage ? (ar.Radius > 14 ? "artillery" : "air strike")
+                                         : ar.Kind == AreaKind.Smoke ? (ar.Radius > 10 ? "smoke" : null)
+                                         : ar.Radius > 4 ? "tripwire" : ar.Radius > 3 ? "punji pit" : "spider hole";
+                                if (k == null) break;        // a squad's own smoke grenade
+                                kind[ar.Id] = k; sideOf[ar.Id] = ar.Side;
+                                calls[k] = calls.GetValueOrDefault(k) + 1;
+                                onCards += k == "artillery" ? 30 : k == "air strike" ? 40 : k == "smoke" ? 10 : k == "tripwire" ? 18 : k == "punji pit" ? 12 : 8;
+                                if (ar.Kind == AreaKind.Barrage) inside[k] = inside.GetValueOrDefault(k) + st.Men.Count(p => p.Alive && p.Side != ar.Side && Combat.Dist(p.X, p.Z, ar.X, ar.Z) <= ar.Radius);
+                                break;
+                            }
+                            case EventKind.Shell: cause = "shell"; area = e.Id; break;
+                            case EventKind.TrapSprung: cause = "trap"; area = e.Id; sprung++; break;
+                            case EventKind.Fire: case EventKind.Melee: case EventKind.GrenadeBlast: case EventKind.Through: cause = null; break;
+                            case EventKind.Kill:
+                                if (cause == "trap") trapKills++;
+                                else if (cause == "shell" && kind.TryGetValue(area, out string bk))
+                                {
+                                    if (st.Men[e.Id].Side == sideOf[area]) own[bk] = own.GetValueOrDefault(bk) + 1;
+                                    else killed[bk] = killed.GetValueOrDefault(bk) + 1;
+                                }
+                                break;
+                        }
+                    }
+                    // (A medevac and a tunnel leave no area: each card played, from its own cooldown just set.)
+                    foreach (var side in Match.Sides)
+                        foreach (var card in Deck.For(side))
+                            if (card.Group == CardGroup.Call && Deck.CooldownLeft(st, side, card) == card.Cooldown - 1) { played[card.Name] = played.GetValueOrDefault(card.Name) + 1; spent[(int)side] += card.Cost; }
+                    for (; squads < st.Squads.Count; squads++)
+                    {
+                        var q = st.Squads[squads];
+                        string k = $"{q.Side} {q.Card ?? "(baseline)"}";
+                        raised[k] = raised.GetValueOrDefault(k) + 1;
+                    }
+                    foreach (var c in st.Cover)
+                    {
+                        if (c.LeverUs == Lever.Hold) { hold += Tune.Dt; holdBy[0] += Tune.Dt; } else if (c.LeverUs == Lever.Go) { go += Tune.Dt; goBy[0] += Tune.Dt; }
+                        if (c.LeverVc == Lever.Hold) { hold += Tune.Dt; holdBy[1] += Tune.Dt; } else if (c.LeverVc == Lever.Go) { go += Tune.Dt; goBy[1] += Tune.Dt; }
+                    }
+                }
+                seconds += st.Tick * Tune.Dt;
+                if (st.Winner == Side.Us) usWins++;
+            }
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}: a match {seconds / seeds:F0} s; the Americans win {usWins:F0} of {seeds}");
+            Console.WriteLine("  raised, a match (the opening's squads apart)");
+            foreach (var kv in raised.OrderBy(k => k.Key)) Console.WriteLine($"      {kv.Key,-22} {kv.Value / seeds,6:F2}");
+            Console.WriteLine($"  call-ins, a match          ({onCards / seeds:F0} points a match on cards that leave a mark)");
+            foreach (var kv in calls.OrderByDescending(k => k.Value))
+                Console.WriteLine($"      {kv.Key,-14} {kv.Value / seeds,6:F2}" + (inside.ContainsKey(kv.Key) ? $"   the enemy inside it as it began {inside[kv.Key] / kv.Value:F1}; killed {killed.GetValueOrDefault(kv.Key) / kv.Value:F2}; of its own {own.GetValueOrDefault(kv.Key) / kv.Value:F2}" : ""));
+            Console.WriteLine("  every card played, a match: " + string.Join(", ", played.OrderByDescending(k => k.Value).Select(k => $"{k.Key.ToLower()} {k.Value / seeds:F2}")) + $"; points on cards: the Americans {spent[0] / seeds:F0}, the VC {spent[1] / seeds:F0}");
+            Console.WriteLine($"  traps sprung {sprung / seeds:F2} a match, killing {trapKills / seeds:F2}");
+            Console.WriteLine($"  levers, position-seconds a match: on hold {hold / seeds:F0} (the Americans {holdBy[0] / seeds:F0}, the VC {holdBy[1] / seeds:F0}); on go {go / seeds:F0} ({goBy[0] / seeds:F0}, {goBy[1] / seeds:F0})");
+            return 0;
+        }
+
+        /// <summary>
         /// Where and when a burst kills a man, as the game plays the seed: something to point a capture at.
         /// `blasts seed [flags]`; the game's own match is `fieldcraft arms senses gunnery ammo tactics fortune tempo`.
         /// </summary>
@@ -1447,9 +1543,9 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol");
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander");
             string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") ? "siege" : "standard";
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "skirmish" && x != "siege").ToArray();
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -1465,7 +1561,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol };
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander };
                 if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
                 if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);

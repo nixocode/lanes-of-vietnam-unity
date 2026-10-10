@@ -390,8 +390,11 @@ namespace LanesOfVietnam.Sim
                 else if (st.Senses && free && plan.Advance && sq.Task == SquadTask.March && st.Phase == Phase.Fight)
                 {
                     bool more = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, true, sq.Side, live.Count) >= 0;
-                    if (more && tc != null) { Release(live); sq.Target = -1; sq.Held = 0; tc = null; }
-                    else if (!more && tc == null)
+                    // Commander: sent out of a position (its lever on Go) it goes, cover ahead or none: on up the lane to
+                    // find the enemy. (It had stayed: a lever that says go did nothing with no cover ahead.)
+                    bool sentOn = st.Commander && sq.Sent > 0;
+                    if ((more || sentOn) && tc != null) { Release(live); sq.Target = -1; sq.Held = 0; tc = null; }
+                    else if (!more && tc == null && !sentOn)
                     {
                         sq.Target = Senses.Ground(st, sq, live, dir, Tune.HoldRadius, double.NegativeInfinity);
                         sq.Held = 0;
@@ -412,7 +415,8 @@ namespace LanesOfVietnam.Sim
                         if (next < 0) next = Combat.BestCover(st, sq.AnchorX, sq.Lane, dir, plan.Advance, sq.Side, live.Count);
                         // Nothing further on: only a side that is taking ground leaves its cover for none
                         // (Senses: and it does not; a squad with no cover ahead holds the last).
-                        if (next < 0 && tc != null && (!plan.Advance || st.Senses)) next = sq.Target;
+                        // (Commander: unless it has been sent on.)
+                        if (next < 0 && tc != null && (!plan.Advance || st.Senses) && !(st.Commander && sq.Sent > 0)) next = sq.Target;
                         if (next != sq.Target)
                         {
                             Release(live);

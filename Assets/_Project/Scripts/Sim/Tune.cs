@@ -526,6 +526,41 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks before a squad whose assault was stopped goes in again, unless it has him three to one (20 s).</summary>
         public const int AssaultAgain = 400;
 
+        // --- the commander (MatchOptions.Commander) -------------------------------------
+
+        /// <summary>Ticks between a side's thoughts (2 s; the two sides think a second apart).</summary>
+        public const int CommandEvery = 40;
+        /// <summary>How often it raises the next squad on its list instead of the one the lane wants.</summary>
+        public const double CommandWhim = 0.25;
+        /// <summary>This many of the enemy in cover and staying there is an enemy dug in; riflemen this many with no machine gun want one.</summary>
+        public const int DugInMen = 3, GunForMen = 4;
+        /// <summary>With fewer of its own men alive than this it buys men before any call-in, unless it has the points for both.</summary>
+        public const int MenFirst = 6;
+        /// <summary>It holds the positions it is in where the enemy has this many more men in the lane than it has, until he has no more than this many more.</summary>
+        public const int HoldWhenShort = 3, HoldUntilShort = 1;
+        /// <summary>Ticks a squad has sat in a position with nobody known ahead before it is sent on (5 s), and how far ahead "nobody" has to hold, metres.</summary>
+        public const int GoAfter = 100;
+        public const double GoClear = 30;
+        /// <summary>An air strike: this many of the enemy within this far of one of them, none of its own within this far.</summary>
+        public const int StrikeMen = 5;
+        public const double StrikeRadius = 9, StrikeClear = 15;
+        /// <summary>Artillery: this many, staying where they are, within this far of one of them; none of its own within this far.</summary>
+        public const int BarrageMen = 7;
+        public const double BarrageRadius = 13, BarrageClear = 21;
+        /// <summary>A medevac: its will below this, and this many of its men down.</summary>
+        public const double MedevacBelow = 0.5;
+        public const int MedevacMen = 4;
+        /// <summary>A tunnel: to a lane where it is this many men short, this far behind the position it comes up at.</summary>
+        public const int TunnelWhenShort = 2;
+        public const double TunnelBehind = 6;
+        /// <summary>Traps: this many laid at once at most; this far in front of the squad they are for; no two nearer than this.</summary>
+        public const int TrapsLaid = 3;
+        public const double TrapAhead = 9, TrapApart = 7;
+        /// <summary>Ticks between one trap and the next (25 s): a commander has a company to run.</summary>
+        public const int TrapEvery = 500;
+        /// <summary>A support team (a gun, a marksman, something that bursts) for every this many riflemen in the lane, no more.</summary>
+        public const int RiflesToSupport = 4;
+
         public const double VetPerSecond = 0.010;
         public const double VetCap = 1.0;
 

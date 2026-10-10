@@ -102,6 +102,8 @@ namespace LanesOfVietnam.Sim
         public bool Fortune;
         /// <summary>Part 2: fire spread along the enemy's line and at the man likeliest to be hit, covering fire, a machine gun that traverses, an assault on an enemy who is beaten down (FireControl). False is the parity baseline.</summary>
         public bool FireControl;
+        /// <summary>Part 2: the computer's side chooses where its squads go and what they are, plays its call-ins and pulls its levers (Commander). False is the parity baseline.</summary>
+        public bool Commander;
 
         /// <summary>Command points a second, each side, and what each starts with. The baseline's: 0.9 and nothing.</summary>
         public double CpRate = Tune.CpPerSecond, StartCp = 0;
@@ -243,6 +245,7 @@ namespace LanesOfVietnam.Sim
                 Tactics = opts.Tactics,
                 Fortune = opts.Fortune,
                 FireControl = opts.FireControl,
+                Commander = opts.Commander,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
             st.Cp[0] = st.Cp[1] = opts.StartCp;
@@ -250,6 +253,7 @@ namespace LanesOfVietnam.Sim
             if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
+            if (opts.Commander) st.CommandRng = rng.Fork("commander");
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 
@@ -739,6 +743,17 @@ namespace LanesOfVietnam.Sim
                 });
             }
 
+            // --- the computer's commander (Part 2, MatchOptions.Commander) ---------
+            if (st.Commander)
+                foreach (var side in Sides)
+                {
+                    var plan = side == Side.Us ? us : vc;
+                    if (st.Player == side || !plan.Reinforce) continue;
+                    if (!Commander.Think(st, side, plan, rng)) continue;
+                    foreach (var sq in st.Squads)
+                        if (!original.ContainsKey(sq.Id)) original[sq.Id] = Squads.Roster(st, sq.Id).Count;
+                }
+
             // --- reinforcement ----------------------------------------------------
             if (st.Tick % Tune.ReinforceEvery == 0)
             {
@@ -747,10 +762,13 @@ namespace LanesOfVietnam.Sim
                     var plan = side == Side.Us ? us : vc;
                     if (!plan.Reinforce || st.Player == side || st.Cp[(int)side] < st.MusterCost) continue;
                     if (AliveCount(st, side) >= Tune.ForceCap) continue;
+                    // Commander: saving its points for a strike it has a target for.
+                    if (st.Commander && Commander.Saving(st, side)) continue;
                     st.Cp[(int)side] -= st.MusterCost;
-                    int lane = rng.Int(0, Tune.Lanes.Length);
+                    // Commander: to the lane that is shortest of men, and the squad that lane wants.
+                    int lane = st.Commander ? Commander.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
                     double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
-                    SpawnSquad(st, side, lane, x, rng);
+                    SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Commander.Raise(st, side, lane) : null);
                     foreach (var sq in st.Squads)
                     {
                         if (!original.ContainsKey(sq.Id)) original[sq.Id] = Squads.Roster(st, sq.Id).Count;

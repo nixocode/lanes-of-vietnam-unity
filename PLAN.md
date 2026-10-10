@@ -2657,6 +2657,58 @@ clips in a blend should cost nothing that can be measured; it is not
 measured). Not seen by the owner.
 
 
+### 12.31 The computer's commander: begun, not on in the game (2026-10-09)
+
+The owner: "do the mixamo batch next ... then the computer commander".
+§12.29 had found that a side without a player raises a squad when it can
+afford one, into a lane drawn at random, and does nothing else: no
+call-in, no lever, no order. He then put animations and the look of the
+shooting ahead of it (2026-10-10), so this is where it was left.
+
+**Written,** behind `MatchOptions.Commander` (`Sim/Commander.cs`), **off in
+the game**: the computer's side thinks every two seconds from what its
+squads know. A new squad goes to the lane where it is shortest of men, and
+three times in four is the squad that lane wants (a marksman for his guns,
+something that bursts for an enemy dug in, then engineers or sappers, a
+machine gun for riflemen without one; a support team only where there are
+four riflemen for it). The Americans call an air strike on five of the
+enemy in sight close together and artillery on seven who are staying where
+they are, never where it would fall on their own, only when they are not
+behind in men, and save their points for one when there is a target;
+smoke in front of a squad pinned flat in the open; a medevac when their
+will is failing. The VC lay a trap nine metres in front of a squad that is
+coming on, one every twenty-five seconds at most, and open a tunnel behind
+a position that is being gone in on (it costs them what a squad costs
+them). Levers: hold the positions it is in where the enemy has three more
+men in the lane; go, from a position its squad has sat in five seconds with
+nobody known ahead. And a lever on go now sends a squad on when there is
+no cover ahead of it (it had stayed).
+
+**Measured so far** (`simcs command 20 14400 40 fieldcraft arms senses
+gunnery ammo tactics fortune firecontrol tempo commander`, new: forty whole
+matches, both sides the computer's): the Americans win 25 of 40 (24
+without it); a match 291 s (248); artillery 2.45 times a match with 11.8
+of the enemy inside it and 1.20 killed, an air strike 1.62 times with 6.9
+and 2.08, of its own men 0.02 and 0.00; a medevac 3.23 times; traps 9.4
+laid, 7.9 sprung, 5.2 killed; a tunnel 2.1 times. As first written the VC
+laid 21 traps a match that killed 13.4 men and the Americans won 14 of
+40; and before "not behind in men" the Americans spent 266 points a
+match on strikes and raised 5 squads where they had raised 13.
+
+Against a player who only buys line squads (`player 48 N rate=0.9 tactics
+fortune firecontrol commander`): he wins 41 and 45 of 48 against a Recruit
+(40), 30 and 28 against a Veteran (29; without the commander 36 and 33),
+34 and 20 against the Elite (25; 26 and 21). Forty-eight seeds do not
+settle the Elite.
+
+**Not done:** the costs by difficulty (96 seeds a cell), its pins and
+tests, the switch in `GameRoot`, what the view owes it (the enemy's
+call-ins are drawn as the player's own are; nobody has looked). With the
+flag off every pin holds: `hash 1` 4390 ticks, final `2256114725u`; `hash
+1 ... firecontrol map` 5070, `1731903378u`; `hash 7 ... firecontrol` 4220,
+`1248060381u`.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

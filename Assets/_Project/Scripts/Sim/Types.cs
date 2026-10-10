@@ -459,6 +459,12 @@ namespace LanesOfVietnam.Sim
         public bool Fortune;
         /// <summary>Part 2 rule: fire spread along the enemy's line, covering fire, guns that traverse, an assault on an enemy who is beaten down (<see cref="Sim.FireControl"/>). Off is the baseline.</summary>
         public bool FireControl;
+        /// <summary>Part 2 rule: the computer's side commands: the lane and the squad it raises, its call-ins, its levers (<see cref="Sim.Commander"/>). Off is the baseline.</summary>
+        public bool Commander;
+        /// <summary>The commander's own random stream: one time in four, and a tie between lanes.</summary>
+        public Rng CommandRng;
+        /// <summary>The tick each side's commander last laid a trap: it does not lay them one on another (MatchOptions.Commander).</summary>
+        public readonly int[] TrapAt = { Sim.Senses.Never, Sim.Senses.Never };
         /// <summary>Fortune's own random stream: what each man is like, and every stroke of luck.</summary>
         public Rng LuckRng;
         /// <summary>How far anyone sees, against a clear day's 1 (the weather's hook into <see cref="Sim.Senses.Sight"/>).</summary>
