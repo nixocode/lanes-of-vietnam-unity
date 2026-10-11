@@ -465,6 +465,20 @@ namespace LanesOfVietnam.Sim
         public double CpRate = Tune.CpPerSecond, MusterCost = Tune.CpPerSquad;
         /// <summary>The side whose reinforcements are its player's to buy: its plan raises none for it (MatchOptions.Player).</summary>
         public Side? Player;
+        /// <summary>
+        /// A scenario's shares, a side each (MatchOptions.UsMeans, VcMeans): of the income, and of how fast will
+        /// runs out. Ones: the two sides alike, the baseline.
+        /// </summary>
+        public readonly double[] Income = { 1, 1 }, Will = { 1, 1 };
+        /// <summary>The cards a side has not got in this match, by the card's index (MatchOptions.UsDeck, VcDeck). None: the baseline.</summary>
+        public readonly bool[][] Barred = { new bool[Deck.Us.Length], new bool[Deck.Vc.Length] };
+        /// <summary>How the match is won (MatchOptions.Mode), and the side that comes on (MatchOptions.Attacker).</summary>
+        public MatchMode Mode;
+        public Side Attacker = Side.Vc;
+        /// <summary>The tick a siege's or an assault's clock runs out at; 0 with no clock.</summary>
+        public int ClockTicks;
+        /// <summary>An assault's ground: the positions (cover ids) the attacker has to have, all at once.</summary>
+        public int[] Objectives = new int[0];
         /// <summary>Part 2 rule: squads that spot each other, fire at what they have spotted, and react to it (<see cref="Sim.Senses"/>). Off is the baseline.</summary>
         public bool Senses;
         /// <summary>Part 2 rule: fire down the lane, from a knee or flat, never on the move, and every round lands somewhere (<see cref="Sim.Gunnery"/>). Off is the baseline.</summary>

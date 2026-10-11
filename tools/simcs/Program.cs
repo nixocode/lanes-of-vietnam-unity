@@ -19,6 +19,11 @@ namespace LanesOfVietnam.SimCs
     ///   bench                          wall clock per match
     ///   hash N [flags] [map]           a match's hash at ticks 100 and 1000 and at its end, for a pin
     ///   player N cost [flags]          the balance table: a player who buys line squads, and the plans left alone
+    ///   scenario [id] [seeds] [...]    every scenario (or one), each side it offers, each difficulty: the same player's
+    ///                                  wins, how long it took, and how it ended. To try a number before it is written
+    ///                                  down: clock=S income=us,vc will=us,vc open=us,vc purse=us,vc back=N attacker=us|vc
+    ///                                  mode=standard|siege|assault side=us|vc level=recruit|veteran|elite
+    ///   scenario [id] hash [seed]      a scenario's hash, as the game plays it against a Veteran with nobody playing, for a pin
     ///   aware, muddle, brain [seed] [ticks] [seeds] [flags]
     ///                                  what the squads know and do; how much a match looks like a muddle;
     ///                                  circles, men not fighting, men out of place, grenades, snipers
@@ -58,6 +63,7 @@ namespace LanesOfVietnam.SimCs
                     "brain" => Brain(args),
                     "blasts" => Blasts(args),
                     "post" => PostTable(args),
+                    "scenario" => ScenarioTable(args),
                     "gunplay" => Gunplay(args),
                     "command" => Command_(args),
                     "watch" => Watch(args),
@@ -357,7 +363,7 @@ namespace LanesOfVietnam.SimCs
                 var each = new List<double>();
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x.StartsWith("rate="))).ToArray());
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -401,7 +407,7 @@ namespace LanesOfVietnam.SimCs
             var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
             int seed0 = nums.Length > 0 ? nums[0] : 1, seeds = nums.Length > 1 ? nums[1] : 24;
             string cardId = a.FirstOrDefault(x => x.StartsWith("us-") || x.StartsWith("vc-")) ?? "us-sniper";
-            var flags = new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tactics", "fortune", "firecontrol", "ballistics", "tempo", "vantage" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "commander" || x == "cohesion")).ToArray();
+            var flags = new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tactics", "fortune", "firecontrol", "ballistics", "tempo", "vantage" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "commander" || x == "cohesion")).ToArray();
             Console.WriteLine($"  {cardId}, seeds {seed0} to {seed0 + seeds - 1}, the American player buying line squads besides:");
             foreach (bool up in new[] { true, false })
             {
@@ -494,7 +500,104 @@ namespace LanesOfVietnam.SimCs
         }
 
         /// <summary>GameRoot.RateFor: how fast will runs out in the game, by length.</summary>
-        private static double GameRate(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.35 : 0.9;
+        private static double GameRate(MatchLength l) => Scenario.RateFor(l);
+
+        private static double[] Pair(string[] a, string key)
+        {
+            string v = a.Where(x => x.StartsWith(key + "=")).Select(x => x.Substring(key.Length + 1)).FirstOrDefault();
+            if (v == null) return null;
+            var p = v.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+            return p.Length == 1 ? new[] { p[0], p[0] } : p;
+        }
+
+        /// <summary>A scenario with the numbers given on the command line in place of its own (for trying them, before they are written down).</summary>
+        private static Scenario Tried(Scenario s, string[] a)
+        {
+            string Arg(string key) => a.Where(x => x.StartsWith(key + "=")).Select(x => x.Substring(key.Length + 1)).FirstOrDefault();
+            var t = new Scenario
+            {
+                Id = s.Id, Title = s.Title, DateLine = s.DateLine, Briefing = s.Briefing, Orders = s.Orders, Map = s.Map,
+                Mode = s.Mode, ClockSeconds = s.ClockSeconds, Attacker = s.Attacker, LineBack = s.LineBack, Plays = s.Plays, Length = s.Length,
+                Us = new Means { Income = s.Us.Income, Purse = s.Us.Purse, Will = s.Us.Will, Opening = s.Us.Opening },
+                Vc = new Means { Income = s.Vc.Income, Purse = s.Vc.Purse, Will = s.Vc.Will, Opening = s.Vc.Opening },
+                UsDeck = s.UsDeck, VcDeck = s.VcDeck,
+            };
+            if (Arg("mode") is string mode) t.Mode = mode == "siege" ? MatchMode.Siege : mode == "assault" ? MatchMode.Assault : MatchMode.Standard;
+            if (Arg("attacker") is string att) t.Attacker = att == "us" ? Side.Us : Side.Vc;
+            if (Arg("clock") is string clock) t.ClockSeconds = double.Parse(clock, System.Globalization.CultureInfo.InvariantCulture);
+            if (Arg("back") is string back) t.LineBack = int.Parse(back);
+            if (Arg("length") is string len) t.Length = len == "skirmish" ? MatchLength.Skirmish : len == "long" ? MatchLength.Long : MatchLength.Standard;
+            if (Pair(a, "income") is double[] inc) { t.Us.Income = inc[0]; t.Vc.Income = inc[1]; }
+            if (Pair(a, "purse") is double[] purse) { t.Us.Purse = purse[0]; t.Vc.Purse = purse[1]; }
+            if (Pair(a, "will") is double[] will) { t.Us.Will = will[0]; t.Vc.Will = will[1]; }
+            if (Pair(a, "open") is double[] open) { t.Us.Opening = (int)open[0]; t.Vc.Opening = (int)open[1]; }
+            return t;
+        }
+
+        /// <summary>
+        /// Every scenario, each side it offers, each difficulty (PLAN §12.27, S4): the player who buys a line squad
+        /// whenever he can afford one and does nothing else. How often he wins, how long it took, and how the
+        /// matches ended. `scenario [id] [seeds]`, and the numbers to try in place of the scenario's own.
+        /// </summary>
+        private static int ScenarioTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seeds = nums.Length > 0 ? nums[0] : 48;
+            string only = a.Skip(1).FirstOrDefault(x => Scenarios.ById(x) != null);
+            string sideArg = a.Where(x => x.StartsWith("side=")).Select(x => x.Substring(5)).FirstOrDefault();
+            string levelArg = a.Where(x => x.StartsWith("level=")).Select(x => x.Substring(6)).FirstOrDefault();
+            bool idle = a.Contains("idle");
+            // `scenario [id] hash [seed]`: the scenario as the game plays it against a Veteran with nobody playing, for a pin.
+            if (a.Contains("hash"))
+            {
+                int seed = nums.Length > 0 ? nums[0] : 1;
+                foreach (var listed in Scenarios.All)
+                {
+                    if (only != null && listed.Id != only) continue;
+                    var m = new LiveMatch(listed.Options(seed, null, Difficulty.Veteran));
+                    var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
+                    while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
+                    Console.WriteLine($"  {listed.Id} seed {seed}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[h.Count - 1]}u");
+                }
+                return 0;
+            }
+            foreach (var listed in Scenarios.All)
+            {
+                if (only != null && listed.Id != only) continue;
+                var sc = Tried(listed, a);
+                string means = $"us income {sc.Us.Income} purse {sc.Us.Purse} will {sc.Us.Will} opens {(sc.Us.Opening > 0 ? sc.Us.Opening : Scenario.OpeningStrength)}; vc income {sc.Vc.Income} purse {sc.Vc.Purse} will {sc.Vc.Will} opens {(sc.Vc.Opening > 0 ? sc.Vc.Opening : Scenario.OpeningStrength)}";
+                Console.WriteLine($"  {sc.Id}: {sc.Mode}{(sc.Timed ? $", {sc.ClockSeconds:F0} s, {Match.Name(sc.Attacker)} comes on" : "")}{(sc.Mode == MatchMode.Assault ? $", line {sc.LineBack} back" : "")}; {means}");
+                foreach (var side in new[] { Side.Us, Side.Vc })
+                {
+                    if (sideArg != null ? sideArg != Match.Name(side) : !sc.Offers(side)) continue;
+                    foreach (Difficulty level in Enum.GetValues(typeof(Difficulty)))
+                    {
+                        if (levelArg != null && levelArg != level.ToString().ToLowerInvariant()) continue;
+                        int wins = 0; double secs = 0;
+                        var each = new List<double>();
+                        var endings = new SortedDictionary<string, int>();
+                        for (int seed = 1; seed <= seeds; seed++)
+                        {
+                            var m = new LiveMatch(sc.Options(seed, side, level));
+                            var card = Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(m.State, side, c));
+                            while (!m.State.Over && m.State.Tick < m.Cap)
+                            {
+                                if (!idle && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
+                                    m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
+                                m.Step();
+                            }
+                            if (m.State.Winner == side) wins++;
+                            secs += m.State.Tick * Tune.Dt;
+                            each.Add(m.State.Tick * Tune.Dt);
+                            string why = m.State.Reason ?? "tick cap";
+                            endings[why] = endings.GetValueOrDefault(why) + 1;
+                        }
+                        Console.WriteLine($"    as {Match.Name(side)}, {level,-7} wins {wins,2}/{seeds}  mean {secs / seeds,4:F0} s ({each.Min():F0} to {each.Max():F0})  {string.Join(", ", endings.Select(e => $"{e.Key} {e.Value}"))}");
+                    }
+                }
+            }
+            return 0;
+        }
 
         private static MatchOptions Game(int seed, string[] a)
         {
@@ -507,9 +610,9 @@ namespace LanesOfVietnam.SimCs
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
-            if (a.Contains("siege")) o.Length = MatchLength.Siege;
-            // (GameRoot.CostFor(Veteran), GameRoot.RateFor(length).)
-            if (a.Contains("tempo")) { o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = 34; o.MoraleRate = GameRate(o.Length); }
+            if (a.Contains("siege") || a.Contains("long")) o.Length = MatchLength.Long;      // (`siege` is what the long match was called until scenarios)
+            // (The game's own dials, as Scenario keeps them: a Veteran's cost, the length's rate.)
+            if (a.Contains("tempo")) { o.CpRate = Scenario.CpRate; o.StartCp = Scenario.StartCp; o.OpeningStrength = Scenario.OpeningStrength; o.MusterCost = Scenario.CostFor(Difficulty.Veteran); o.MoraleRate = GameRate(o.Length); }
             foreach (var x in a) if (x.StartsWith("rate=")) o.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
             return o;
         }
@@ -1768,8 +1871,8 @@ namespace LanesOfVietnam.SimCs
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
             bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion");
-            string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") ? "siege" : "standard";
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "skirmish" && x != "siege").ToArray();
+            string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") || a.Contains("long") ? "siege" : "standard";
+            a = a.Where(x => x != "frag" && x != "long" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -1786,7 +1889,7 @@ namespace LanesOfVietnam.SimCs
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
                 var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion };
-                if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Siege;
+                if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Long;
                 if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);
                 smokes += r.EventCounts.GetValueOrDefault(EventKind.AreaStart);
@@ -1867,6 +1970,27 @@ namespace LanesOfVietnam.SimCs
                 var (_, lm) = Trace(seed, Plan.NoReinforce, Plan.NoReinforce, true);
                 foreach (var e in lm.State.Events) seen.Add(e.Kind);
             }
+            // The scenarios' own endings (a clock that runs out, a line that is taken) need the scenarios, as the game plays them.
+            foreach (var sc in Scenarios.All)
+            {
+                if (!sc.Timed) continue;
+                for (int seed = 1; seed <= 16; seed++)
+                {
+                    var r = Match.Run(sc.Options(seed, null, Difficulty.Veteran));
+                    foreach (var k in r.EventCounts.Keys) seen.Add(k);
+                    endings.Add(r.Reason);
+                }
+            }
+            // And a squad on a post needs somebody to send one up: the Americans' sniper team, up the watchtower.
+            {
+                var m = new LiveMatch(Scenarios.Firebase.Options(1, Side.Us, Difficulty.Veteran));
+                while (!m.State.Over && m.State.Tick < 1200)
+                {
+                    if (m.State.Tick == 40) m.Issue(Command.BuyTo(Side.Us, "us-sniper", 0));
+                    m.Step();
+                }
+                foreach (var e in m.State.Events) seen.Add(e.Kind);
+            }
             Console.WriteLine("  events that fired:");
             int missing = 0;
             foreach (EventKind k in Enum.GetValues(typeof(EventKind)))
@@ -1875,7 +1999,8 @@ namespace LanesOfVietnam.SimCs
                 if (!y) missing++;
                 Console.WriteLine($"    {(y ? "yes" : "NO ")}  {k}");
             }
-            var expected = new[] { "us morale broke", "vc morale broke", "us wiped out", "vc wiped out", "time, on morale", "time, drawn" };
+            var expected = new[] { "us morale broke", "vc morale broke", "us wiped out", "vc wiped out", "time, on morale", "time, drawn",
+                                   "us held out", "us took the line", "vc held the line" };
             Console.WriteLine("\n  endings:");
             int unreached = 0;
             foreach (var e in expected)

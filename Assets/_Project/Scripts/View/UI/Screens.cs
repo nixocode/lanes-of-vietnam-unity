@@ -32,7 +32,7 @@ namespace LanesOfVietnam.View.UI
         // What the start screen has chosen.
         public Side ChosenSide { get; private set; } = Side.Us;
         public MatchLength ChosenLength { get; private set; } = MatchLength.Standard;
-        public GameRoot.Difficulty ChosenLevel { get; private set; } = GameRoot.Difficulty.Veteran;
+        public Difficulty ChosenLevel { get; private set; } = Difficulty.Veteran;
 
         public VisualElement StartPanel { get; private set; }
         public VisualElement SettingsPanel { get; private set; }
@@ -51,7 +51,7 @@ namespace LanesOfVietnam.View.UI
         private float _openingT, _overT, _panT;
         private IReadOnlyList<LiveMatch.Applied> _lastLog;
         private MatchLength _lastLength;
-        private GameRoot.Difficulty _lastLevel;
+        private Difficulty _lastLevel;
         private Side _lastSide;
         private int _lastSeed;
 
@@ -127,14 +127,14 @@ namespace LanesOfVietnam.View.UI
             var lens = new VisualElement(); lens.AddToClassList("choice-row"); StartPanel.Add(lens);
             Btn(lens, "len-skirmish", "SKIRMISH\n~2 MIN", () => ChooseLength(MatchLength.Skirmish), "choice");
             Btn(lens, "len-standard", "STANDARD\n~3½ MIN", () => ChooseLength(MatchLength.Standard), "choice");
-            Btn(lens, "len-siege", "SIEGE\n~8 MIN", () => ChooseLength(MatchLength.Siege), "choice");
+            Btn(lens, "len-long", "LONG\n~8 MIN", () => ChooseLength(MatchLength.Long), "choice");
 
             // The 2D game's three: how fast the other side raises its squads.
             Text(StartPanel, "THE ENEMY", "field");
             var levels = new VisualElement(); levels.AddToClassList("choice-row"); StartPanel.Add(levels);
-            Btn(levels, "level-recruit", "RECRUIT\nSLOW TO REINFORCE", () => ChooseLevel(GameRoot.Difficulty.Recruit), "choice");
-            Btn(levels, "level-veteran", "VETERAN\nA FAIR FIGHT", () => ChooseLevel(GameRoot.Difficulty.Veteran), "choice");
-            Btn(levels, "level-elite", "ELITE\nOUTNUMBERS YOU", () => ChooseLevel(GameRoot.Difficulty.Elite), "choice");
+            Btn(levels, "level-recruit", "RECRUIT\nSLOW TO REINFORCE", () => ChooseLevel(Difficulty.Recruit), "choice");
+            Btn(levels, "level-veteran", "VETERAN\nA FAIR FIGHT", () => ChooseLevel(Difficulty.Veteran), "choice");
+            Btn(levels, "level-elite", "ELITE\nOUTNUMBERS YOU", () => ChooseLevel(Difficulty.Elite), "choice");
 
             var view = new VisualElement(); view.AddToClassList("choice-row"); StartPanel.Add(view);
             Btn(view, "full-start", "FULL SCREEN", FullScreen.Toggle, "choice");
@@ -230,7 +230,7 @@ namespace LanesOfVietnam.View.UI
 
         public void ChooseSide(Side s) { ChosenSide = s; SyncChoices(); }
         public void ChooseLength(MatchLength l) { ChosenLength = l; SyncChoices(); }
-        public void ChooseLevel(GameRoot.Difficulty d) { ChosenLevel = d; SyncChoices(); }
+        public void ChooseLevel(Difficulty d) { ChosenLevel = d; SyncChoices(); }
 
         /// <summary>Start the chosen match and play the opening. Deploy is also the gesture that lets a browser start audio.</summary>
         public void Deploy()
@@ -330,10 +330,10 @@ namespace LanesOfVietnam.View.UI
             On("side-vc", ChosenSide == Side.Vc);
             On("len-skirmish", ChosenLength == MatchLength.Skirmish);
             On("len-standard", ChosenLength == MatchLength.Standard);
-            On("len-siege", ChosenLength == MatchLength.Siege);
-            On("level-recruit", ChosenLevel == GameRoot.Difficulty.Recruit);
-            On("level-veteran", ChosenLevel == GameRoot.Difficulty.Veteran);
-            On("level-elite", ChosenLevel == GameRoot.Difficulty.Elite);
+            On("len-long", ChosenLength == MatchLength.Long);
+            On("level-recruit", ChosenLevel == Difficulty.Recruit);
+            On("level-veteran", ChosenLevel == Difficulty.Veteran);
+            On("level-elite", ChosenLevel == Difficulty.Elite);
             On("full-start", FullScreen.On);
             On("full", FullScreen.On);
             var st = Root.Settings;

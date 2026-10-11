@@ -111,9 +111,9 @@ namespace LanesOfVietnam.View
         /// replay of a match already played, on the same seed.
         /// </summary>
         /// <summary>Command points a second and at the start, and the men each side opens with (at least), in the game.</summary>
-        public const double CpRate = 1.6, StartCp = 20;
+        public const double CpRate = Scenario.CpRate, StartCp = Scenario.StartCp;
         /// <summary>One squad a side (the first raised is five men). It was a squad a lane; the owner, 2026-10-02: "still too many soldiers at the start from both sides".</summary>
-        public const int OpeningStrength = 4;
+        public const int OpeningStrength = Scenario.OpeningStrength;
 
         /// <summary>
         /// How hard the computer is: what a squad costs it (40, 29, 22). Measured with
@@ -137,9 +137,7 @@ namespace LanesOfVietnam.View
         /// with the same and `cohesion`: 86 and 80 of 96 against a Recruit (42), 62 and 56 against a Veteran (34), 55
         /// and 39 against the Elite (28).
         /// </summary>
-        public enum Difficulty { Recruit, Veteran, Elite }
-
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 42 : d == Difficulty.Elite ? 28 : 34;
+        public static double CostFor(Difficulty d) => Scenario.CostFor(d);
 
         /// <summary>
         /// How fast will runs out, against the length setting's own rate. The settings were calibrated
@@ -162,7 +160,7 @@ namespace LanesOfVietnam.View
         /// cohesion`) five to eight and a half; a skirmish 127 to 147 s and a standard match 197 to 228 at the rates
         /// they had.)
         /// </summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.35 : 0.9;
+        public static double RateFor(MatchLength l) => Scenario.RateFor(l);
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 

@@ -721,7 +721,7 @@ namespace LanesOfVietnam.Sim
                 if (c.Owner.HasValue)
                 {
                     var lost = c.Owner.Value;
-                    double hit = (Built(c) ? Tune.PositionMorale : Tune.GroundMorale) * st.MoraleScale;
+                    double hit = (Built(c) ? Tune.PositionMorale : Tune.GroundMorale) * st.MoraleScale * st.Will[(int)lost];
                     st.Morale[(int)lost] = Math.Max(0, st.Morale[(int)lost] - hit);
                     st.MoraleLostToGround[(int)lost] += hit;
                     st.Events.Add(new SimEvent { Kind = EventKind.PositionTaken, Tick = st.Tick, Side = now, Id = c.Id, X = c.X, Z = c.Z });

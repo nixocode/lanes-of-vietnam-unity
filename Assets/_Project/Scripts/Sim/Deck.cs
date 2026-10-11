@@ -93,10 +93,14 @@ namespace LanesOfVietnam.Sim
             }
         }
 
+        /// <summary>Has the side this card, in this match? (A scenario may give it fewer than its side has.)</summary>
+        public static bool Has(SimState st, Side side, Card card) => !st.Barred[(int)side][card.Index];
+
         /// <summary>Why a card cannot be bought right now, or null if it can.</summary>
         public static string Blocked(SimState st, Side side, Card card)
         {
             if (st.Over) return "match over";
+            if (!Has(st, side, card)) return "not in this operation";
             if (st.Cp[(int)side] < card.Cost) return "not enough CP";
             if (CooldownLeft(st, side, card) > 0) return "cooling down";
             if (card.Pips > 0 && Match.AliveCount(st, side) >= Tune.ForceCap) return "force cap";

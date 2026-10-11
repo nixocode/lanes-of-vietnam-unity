@@ -1209,7 +1209,7 @@ namespace LanesOfVietnam.Tests
         /// </summary>
         [TestCase(MatchLength.Skirmish, 1.0, 85, 165)]
         [TestCase(MatchLength.Standard, 0.8, 150, 270)]
-        [TestCase(MatchLength.Siege, 0.9, 330, 600)]
+        [TestCase(MatchLength.Long, 0.9, 330, 600)]
         public void At_the_games_settings_a_match_runs_as_long_as_the_start_screen_says(MatchLength length, double rate, int atLeast, int atMost)
         {
             Assert.AreEqual(1.0, new MatchOptions().MoraleRate, "the baseline's morale rate moved");
@@ -2447,6 +2447,276 @@ namespace LanesOfVietnam.Tests
             Assert.Less(now.length, was.length * 0.8, $"squads are no shorter: {was.length:F1} m, {now.length:F1} m");
             Assert.Less(now.alone, was.alone * 0.75, $"a lead man is out alone as often: {was.alone:P1}, {now.alone:P1}");
             Assert.Less(now.behind, was.behind * 0.75, $"men are left behind as often: {was.behind:P1}, {now.behind:P1}");
+        }
+
+        // --- scenarios (PLAN §12.27, Phase S) -----------------------------------------------
+
+        /// <summary>
+        /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
+        /// each scenario as the game plays it against a Veteran, with nobody playing.
+        /// </summary>
+        [TestCase("firebase", 1, 5924, 1056117905u, 2554614484u, 200793914u, "vc morale broke")]
+        [TestCase("the-wire", 1, 6000, 462142278u, 3079272302u, 3885593046u, "us held out")]
+        [TestCase("the-wire", 7, 4422, 2109928862u, 1206390886u, 3201476268u, "us morale broke")]
+        [TestCase("first-light", 1, 3709, 2181607374u, 3929359279u, 800917681u, "vc wiped out")]
+        [TestCase("first-light", 7, 6516, 87608034u, 3651205314u, 2864221065u, "vc morale broke")]
+        [TestCase("earth-fights", 1, 9080, 1297176673u, 3363225269u, 2805131492u, "vc morale broke")]
+        public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
+            string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var sc = Scenarios.ById(id);
+            Assert.IsNotNull(sc, $"no scenario called {id}");
+            var (a, m) = Played(sc.Options(seed, null, Difficulty.Veteran));
+            var (b, _) = Played(sc.Options(seed, null, Difficulty.Veteran));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// The firebase, first on the list, is the match the game had before there were scenarios: every rule
+        /// on, the game's economy, both sides alike and taking ground, no clock. And the options a scenario
+        /// leaves alone are the baseline's, so a match made without one is what it was.
+        /// </summary>
+        [Test]
+        public void The_firebase_scenario_is_the_match_the_game_always_had()
+        {
+            Assert.AreSame(Scenarios.Firebase, Scenarios.All[0]);
+            Assert.AreSame(Scenarios.Firebase, Scenarios.ById("firebase"));
+            Assert.IsNull(Scenarios.ById("no such scenario"));
+            foreach (var sc in Scenarios.All)
+            {
+                Assert.AreSame(sc, Scenarios.ById(sc.Id), $"{sc.Id} is listed twice, or not by its name");
+                Assert.IsNotEmpty(sc.Title); Assert.IsNotEmpty(sc.DateLine); Assert.IsNotEmpty(sc.Briefing); Assert.IsNotEmpty(sc.Orders);
+                Assert.AreEqual(sc.Timed, sc.ClockSeconds > 0, $"{sc.Id}: a clock and no use for one, or the other way about");
+                if (sc.Timed) Assert.Less(sc.ClockSeconds * Tune.TickHz, Tune.MaxTicks, $"{sc.Id}: its clock is longer than a match may run");
+                if (sc.Timed) Assert.IsNotNull(sc.Length, $"{sc.Id}: a clock, and a length left to the start screen as well");
+            }
+
+            var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
+            Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion, "a rule the game plays with is off");
+            Assert.IsFalse(o.ComputerPosts);
+            Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
+            Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
+            Assert.AreEqual(MatchLength.Long, o.Length); Assert.AreEqual(Scenario.RateFor(MatchLength.Long), o.MoraleRate);
+            Assert.AreEqual(Side.Vc, o.Player);
+            Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Ceiling, o.Vc);
+            Assert.AreEqual(MatchMode.Standard, o.Mode); Assert.AreEqual(Side.Vc, o.Attacker); Assert.AreEqual(0, o.ClockSeconds); Assert.IsNull(o.Objectives);
+            Assert.IsNull(o.UsDeck); Assert.IsNull(o.VcDeck);
+            Assert.AreSame(Maps.Firebase, o.Map); Assert.AreEqual(17, o.Cover.Count);
+            Assert.IsTrue(Scenarios.Firebase.Offers(Side.Us) && Scenarios.Firebase.Offers(Side.Vc), "the firebase is either side's");
+            Assert.Greater(Scenario.CostFor(Difficulty.Recruit), Scenario.CostFor(Difficulty.Veteran));
+            Assert.Greater(Scenario.CostFor(Difficulty.Veteran), Scenario.CostFor(Difficulty.Elite));
+
+            // Tick for tick the match those rules gave with the game's economy.
+            var kept = Kept(5, tempo: true);
+            kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
+            var (was, _) = Played(kept);
+            var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));
+            CollectionAssert.AreEqual(was, now, "the firebase scenario is not the match the game had");
+
+            // And what a scenario does not touch is the baseline's.
+            var baseline = new MatchOptions();
+            Assert.AreEqual(MatchMode.Standard, baseline.Mode); Assert.AreEqual(Side.Vc, baseline.Attacker); Assert.AreEqual(0, baseline.ClockSeconds);
+            foreach (var has in new[] { baseline.UsMeans, baseline.VcMeans })
+            {
+                Assert.AreEqual(1, has.Income); Assert.AreEqual(1, has.Purse); Assert.AreEqual(1, has.Will); Assert.AreEqual(0, has.Opening);
+            }
+            var st = Match.Create(new MatchOptions { Seed = 1 });
+            Assert.AreEqual(0, st.ClockTicks); Assert.AreEqual(-1, Match.ClockLeft(st)); Assert.IsEmpty(st.Objectives);
+            foreach (var side in Match.Sides)
+                foreach (var card in Deck.For(side)) Assert.IsTrue(Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck");
+        }
+
+        /// <summary>
+        /// What a scenario gives one side and not the other: the points it opens with, its income, the men it
+        /// opens with, and how fast its will runs out. Each is a share of the match's own, so the difficulty and
+        /// the length still turn the whole.
+        /// </summary>
+        [Test]
+        public void A_scenario_gives_each_side_its_own_means()
+        {
+            var o = Scenarios.Firebase.Options(3, null, Difficulty.Veteran);
+            o.Us = o.Vc = Plan.NoReinforce;         // nobody spends, so the points can be counted
+            o.UsMeans = new Means { Purse = 0.5 };
+            o.VcMeans = new Means { Purse = 2, Income = 1.5, Opening = 12, Will = 0.5 };
+            var m = new LiveMatch(o);
+            var st = m.State;
+            Assert.AreEqual(Scenario.StartCp * 0.5, st.Cp[(int)Side.Us]);
+            Assert.AreEqual(Scenario.StartCp * 2, st.Cp[(int)Side.Vc]);
+            int us = st.Men.Count(x => x.Side == Side.Us), vc = st.Men.Count(x => x.Side == Side.Vc);
+            Assert.GreaterOrEqual(vc, 12, "the VC opened with fewer men than the scenario gave them");
+            Assert.Less(us, 12, "the Americans opened with the VC's strength");
+            Assert.GreaterOrEqual(us, Scenario.OpeningStrength);
+
+            bool usFell = false, vcFell = false;
+            int ticks = 0;
+            while (!st.Over && st.Tick < 4000 && !(usFell && vcFell))
+            {
+                int from = st.Events.Count;
+                m.Step(); ticks++;
+                for (int i = from; i < st.Events.Count; i++)
+                {
+                    var e = st.Events[i];
+                    if (e.Kind != EventKind.MoraleLost) continue;
+                    double whole = Tune.MoralePerCasualty * st.MoraleScale;
+                    if (e.Side == Side.Us) { usFell = true; Assert.AreEqual(whole, e.Amount, 1e-12, "an American's death cost his side something other than the match's rate"); }
+                    else { vcFell = true; Assert.AreEqual(whole * 0.5, e.Amount, 1e-12, "a VC's death did not cost his side half"); }
+                }
+            }
+            Assert.IsTrue(usFell && vcFell, "nobody fell on one side: the test saw nothing");
+            Assert.AreEqual(Scenario.StartCp * 0.5 + ticks * Scenario.CpRate * Tune.Dt, st.Cp[(int)Side.Us], 1e-6, "the Americans' income");
+            Assert.AreEqual(Scenario.StartCp * 2 + ticks * Scenario.CpRate * 1.5 * Tune.Dt, st.Cp[(int)Side.Vc], 1e-6, "the VC's income is not half as much again");
+        }
+
+        /// <summary>
+        /// A siege (The Wire): the clock is the defender's. The match never runs past it; a match that reaches it
+        /// ends there, his, with his will unbroken; and he can still be broken before it. The side that holds is
+        /// given the plan that holds, and the one that comes on the plan that takes ground.
+        /// </summary>
+        [Test]
+        public void In_a_siege_the_clock_is_the_defenders()
+        {
+            var wire = Scenarios.TheWire;
+            Assert.AreEqual(MatchMode.Siege, wire.Mode);
+            Assert.IsTrue(wire.Offers(Side.Us)); Assert.IsFalse(wire.Offers(Side.Vc));
+            var o = wire.Options(1, Side.Us, Difficulty.Veteran, MatchLength.Skirmish);
+            Assert.AreSame(Plan.Defend, o.Us, "the side that holds was not told to");
+            Assert.AreSame(Plan.Ceiling, o.Vc);
+            Assert.AreEqual(MatchLength.Standard, o.Length, "a clock is its own length: the start screen's was used");
+
+            int held = 0, broke = 0;
+            foreach (int seed in new[] { 1, 7 })
+            {
+                var m = new LiveMatch(wire.Options(seed, null, Difficulty.Veteran));
+                var st = m.State;
+                Assert.AreEqual((int)(wire.ClockSeconds * Tune.TickHz), st.ClockTicks);
+                Assert.AreEqual(wire.ClockSeconds, Match.ClockLeft(st), 1e-9);
+                while (!st.Over && st.Tick < m.Cap)
+                {
+                    m.Step();
+                    Assert.LessOrEqual(st.Tick, st.ClockTicks, $"seed {seed}: the match ran past its clock");
+                }
+                if (st.Reason == "us held out")
+                {
+                    held++;
+                    Assert.AreEqual(st.ClockTicks, st.Tick, "he held out, and not at the end of the clock");
+                    Assert.AreEqual(Side.Us, st.Winner);
+                    Assert.Greater(st.Morale[(int)Side.Us], 0);
+                    Assert.AreEqual(0, Match.ClockLeft(st));
+                    Assert.AreEqual(EventKind.MatchOver, st.Events[st.Events.Count - 1].Kind);
+                }
+                else
+                {
+                    broke++;
+                    Assert.AreEqual("us morale broke", st.Reason);
+                    Assert.Less(st.Tick, st.ClockTicks);
+                    Assert.AreEqual(Side.Vc, st.Winner);
+                }
+            }
+            Assert.AreEqual(1, held, "the clock never ran out on a siege");
+            Assert.AreEqual(1, broke, "the defender was never broken before his clock");
+        }
+
+        /// <summary>
+        /// An assault (First Light): the attacker wins the moment the line he was sent for is his in both lanes
+        /// at once, and not with one end of it; the clock is the defender's. The line is the position in front
+        /// of the defender's last in each lane. And the side that comes on is the one that moves in the opening:
+        /// here the Americans, against VC who open in their positions.
+        /// </summary>
+        [Test]
+        public void An_assault_is_won_by_having_the_line_in_both_lanes_at_once()
+        {
+            var light = Scenarios.FirstLight;
+            Assert.AreEqual(MatchMode.Assault, light.Mode);
+            var o = light.Options(5, null, Difficulty.Veteran);
+            Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
+            var m = new LiveMatch(o);
+            var st = m.State;
+            Assert.AreEqual(Side.Us, st.Attacker);
+
+            // The line: the berm in the near lane and the trench in the far, each one back from the VC's last.
+            Assert.AreEqual(2, st.Objectives.Length);
+            Cover near = st.Cover[st.Objectives[0]], far = st.Cover[st.Objectives[1]];
+            Assert.AreEqual(CoverKind.Berm, near.Kind); Assert.AreEqual(26.5, near.X); Assert.Greater(near.Z, 0);
+            Assert.AreEqual(CoverKind.Trench, far.Kind); Assert.AreEqual(29.0, far.X); Assert.Less(far.Z, 0);
+            var last = Match.LastLine(st, Side.Vc);
+            Assert.AreEqual(36.5, st.Cover[last[0]].X); Assert.AreEqual(39.0, st.Cover[last[1]].X);
+            var ours = Match.LastLine(st, Side.Us);
+            Assert.AreEqual(-39.0, st.Cover[ours[0]].X); Assert.AreEqual(-36.0, st.Cover[ours[1]].X);
+            Assert.IsEmpty(Match.LastLine(st, Side.Vc, 99), "a line further back than the map has positions");
+
+            // Whose it is, is whose both ends are.
+            Assert.IsFalse(Match.Taken(st));
+            near.Owner = Side.Us; far.Owner = Side.Vc;
+            Assert.IsFalse(Match.Taken(st), "one end of the line, and it was called taken");
+            far.Owner = Side.Us;
+            Assert.IsTrue(Match.Taken(st));
+            near.Owner = null; far.Owner = null;
+
+            // The opening: the VC are in their positions and stay; the Americans come on.
+            Assert.GreaterOrEqual(st.Men.Count(x => x.Side == Side.Vc && x.Cover >= 0), 4, "the VC did not open dug in");
+            Assert.AreEqual(0, st.Men.Count(x => x.Side == Side.Us && x.Cover >= 0), "the Americans opened in positions: they are the ones coming on");
+            for (int i = 0; i < 40 && st.Phase == Phase.Opening; i++) m.Step();
+            Assert.AreEqual(Phase.Opening, st.Phase, "the test's premise: forty ticks in, nobody has met");
+            foreach (var sq in st.Squads)
+                Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
+
+            // Seed 5: the line is taken. The match ends on the tick it is, and not before.
+            while (!st.Over && st.Tick < m.Cap)
+            {
+                Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
+                m.Step();
+            }
+            Assert.AreEqual("us took the line", st.Reason);
+            Assert.AreEqual(Side.Us, st.Winner);
+            Assert.IsTrue(Match.Taken(st));
+            Assert.Less(st.Tick, st.ClockTicks);
+            Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
+
+            // Seed 2: it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(2, null, Difficulty.Veteran));
+            Assert.AreEqual("vc held the line", late.State.Reason);
+            Assert.AreEqual(Side.Vc, late.State.Winner);
+            Assert.AreEqual(late.State.ClockTicks, late.State.Tick);
+            Assert.IsFalse(Match.Taken(late.State));
+        }
+
+        /// <summary>
+        /// A scenario's deck: a side has the cards it names and no others. The player cannot buy one it has not
+        /// got, and the computer's commander neither raises it nor plays it.
+        /// </summary>
+        [Test]
+        public void A_side_has_only_the_cards_its_scenario_gives_it()
+        {
+            var o = Scenarios.Firebase.Options(4, Side.Vc, Difficulty.Veteran);
+            o.UsDeck = new[] { "us-rifle", "us-smoke" };
+            o.VcDeck = new[] { "vc-cell", "vc-squad", "vc-punji" };
+            var m = new LiveMatch(o);
+            var st = m.State;
+            st.Cp[(int)Side.Vc] = 200;
+            Assert.AreEqual("not in this operation", Deck.Blocked(st, Side.Vc, Deck.Find(Side.Vc, "vc-tunnel")));
+            Assert.IsNull(Deck.Blocked(st, Side.Vc, Deck.Find(Side.Vc, "vc-punji")));
+            Assert.IsFalse(Deck.Has(st, Side.Us, Deck.Find(Side.Us, "us-arty")));
+            Assert.IsTrue(Deck.Has(st, Side.Us, Deck.Find(Side.Us, "us-rifle")));
+            m.Issue(Command.Buy(Side.Vc, "vc-tunnel", 0, 0));
+            m.Step();
+            Assert.IsFalse(m.Log[0].Accepted, "a card the scenario had not given was bought");
+
+            int opened = st.Squads.Count;
+            while (!st.Over && st.Tick < 5000)
+            {
+                if (st.Tick % 20 == 0 && Deck.Blocked(st, Side.Vc, Deck.Find(Side.Vc, "vc-squad")) == null) m.Issue(Command.Buy(Side.Vc, "vc-squad", st.Squads.Count % 2, 0));
+                m.Step();
+            }
+            var raised = st.Squads.Skip(opened).Where(q => q.Side == Side.Us).ToList();
+            Assert.Greater(raised.Count, 3, "the test's premise: the computer raised squads");
+            foreach (var q in raised) Assert.AreEqual("us-rifle", q.Card, "the computer raised a squad the scenario had not given it");
+            Assert.AreEqual(0, st.Events.Count(e => e.Kind == EventKind.Shell && e.Side == Side.Us), "shells fell, from a side with no artillery and no aircraft");
         }
 
         [Test]

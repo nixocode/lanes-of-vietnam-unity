@@ -174,6 +174,15 @@ namespace LanesOfVietnam.Sim
         /// <summary>The squad it raises for that lane: the card's id. What the lane wants, three times in four; else the next on its list.</summary>
         public static string Raise(SimState st, Side side, int lane)
         {
+            string id = Wants(st, side, lane);
+            // A squad the scenario has not given it: riflemen, which every deck has.
+            var card = Deck.Find(side, id);
+            if (card != null && !Deck.Has(st, side, card)) return side == Side.Us ? "us-rifle" : "vc-squad";
+            return id;
+        }
+
+        private static string Wants(SimState st, Side side, int lane)
+        {
             string listed = Arms.Raised(st, side).Card;
             if (st.CommandRng.Next() < Tune.CommandWhim) return listed;
             var v = Look(st, side, lane);
@@ -211,7 +220,7 @@ namespace LanesOfVietnam.Sim
         }
 
         private static bool Affords(SimState st, Side side, Card card, double cost)
-            => card != null && st.Cp[(int)side] >= cost && Deck.CooldownLeft(st, side, card) == 0;
+            => card != null && Deck.Has(st, side, card) && st.Cp[(int)side] >= cost && Deck.CooldownLeft(st, side, card) == 0;
 
         /// <summary>With few men on the map it buys men first: a call-in then only from points to spare.</summary>
         private static bool Spare(SimState st, Side side, double cost)
@@ -240,8 +249,8 @@ namespace LanesOfVietnam.Sim
             if (!Level(st, side)) return false;
             var air = Deck.Find(side, "us-airstrike"); var arty = Deck.Find(side, "us-arty");
             double cp = st.Cp[(int)side];
-            if (Deck.CooldownLeft(st, side, air) == 0 && cp < air.Cost && Cluster(st, side, Tune.StrikeRadius, Tune.StrikeClear, false, out _, out _) >= Tune.StrikeMen) return true;
-            if (Deck.CooldownLeft(st, side, arty) == 0 && cp < arty.Cost && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out _, out _) >= Tune.BarrageMen) return true;
+            if (Deck.Has(st, side, air) && Deck.CooldownLeft(st, side, air) == 0 && cp < air.Cost && Cluster(st, side, Tune.StrikeRadius, Tune.StrikeClear, false, out _, out _) >= Tune.StrikeMen) return true;
+            if (Deck.Has(st, side, arty) && Deck.CooldownLeft(st, side, arty) == 0 && cp < arty.Cost && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out _, out _) >= Tune.BarrageMen) return true;
             return false;
         }
 

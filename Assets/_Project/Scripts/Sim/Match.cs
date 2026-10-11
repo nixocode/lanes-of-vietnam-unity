@@ -63,7 +63,33 @@ namespace LanesOfVietnam.Sim
     /// How long a match is meant to run — a setting, by the owner's answer of
     /// 2026-09-28. It scales morale drain, the clock the match runs on.
     /// </summary>
-    public enum MatchLength { Skirmish, Standard, Siege }
+    public enum MatchLength { Skirmish, Standard, Long }
+
+    /// <summary>
+    /// How a match is won, besides breaking the enemy's will or killing his last man (PLAN §12.27, S3).
+    ///
+    ///   Standard  nothing else: the baseline
+    ///   Siege     a clock, and it is the defender's: he wins when it runs out, and the attacker has to
+    ///             break him first
+    ///   Assault   a clock, the defender's again, and ground: the attacker wins the moment the positions
+    ///             he was sent for are his in every lane at once (<see cref="MatchOptions.Objectives"/>)
+    /// </summary>
+    public enum MatchMode { Standard, Siege, Assault }
+
+    /// <summary>
+    /// What a scenario gives one side that it does not give the other (PLAN §12.27, S2). As shares of
+    /// the match's own values, so the game's dials (difficulty, length) still turn the whole: its income
+    /// against <see cref="MatchOptions.CpRate"/>, the points it opens with against
+    /// <see cref="MatchOptions.StartCp"/>, how fast its will runs out against
+    /// <see cref="MatchOptions.MoraleRate"/>; and the men it opens with, at least (0: the match's
+    /// <see cref="MatchOptions.OpeningStrength"/>). As it stands here the two sides are alike, which is
+    /// the baseline.
+    /// </summary>
+    public sealed class Means
+    {
+        public double Income = 1, Purse = 1, Will = 1;
+        public int Opening;
+    }
 
     public sealed class MatchOptions
     {
@@ -130,6 +156,25 @@ namespace LanesOfVietnam.Sim
         /// game sets this so the lengths on the start screen are the lengths played. The baseline's: 1.
         /// </summary>
         public double MoraleRate = 1;
+        /// <summary>What a scenario gives each side that it does not give the other. The baseline's: the two alike.</summary>
+        public Means UsMeans = new Means(), VcMeans = new Means();
+        /// <summary>Each side's cards, by id, where a scenario gives it fewer than its side has. Null: all of them.</summary>
+        public string[] UsDeck, VcDeck;
+        /// <summary>How the match is won. The baseline's: Standard.</summary>
+        public MatchMode Mode;
+        /// <summary>
+        /// The side that comes on: it moves up while the other holds, in the opening of any match, and in a
+        /// siege or an assault it is the one with something to take. The baseline's: the VC, who infiltrate
+        /// while the Americans hold.
+        /// </summary>
+        public Side Attacker = Side.Vc;
+        /// <summary>The clock of a siege or an assault, in seconds. When it runs out the defender has won.</summary>
+        public double ClockSeconds;
+        /// <summary>
+        /// An assault's ground: the positions (cover ids) the attacker has to have, all at once. Null: the
+        /// defender's last position in each lane (<see cref="Match.LastLine"/>).
+        /// </summary>
+        public int[] Objectives;
         /// <summary>
         /// The side a person is playing, if one is: its plan raises no squads
         /// for it, because its points are his to spend. (Left to the plan, a
@@ -180,7 +225,7 @@ namespace LanesOfVietnam.Sim
         public static double LengthScale(MatchLength l) => l switch
         {
             MatchLength.Skirmish => Tune.LengthSkirmish,
-            MatchLength.Siege => Tune.LengthSiege,
+            MatchLength.Long => Tune.LengthLong,
             _ => Tune.LengthStandard,
         };
 
@@ -264,8 +309,21 @@ namespace LanesOfVietnam.Sim
                 Cohesion = opts.Cohesion,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
+                Mode = opts.Mode, Attacker = opts.Attacker,
+                ClockTicks = opts.Mode == MatchMode.Standard ? 0 : (int)JsMath.Round(opts.ClockSeconds * Tune.TickHz),
             };
-            st.Cp[0] = st.Cp[1] = opts.StartCp;
+            // (A share of one is the value itself, to the bit: with the two sides alike nothing here has moved.)
+            foreach (var side in Sides)
+            {
+                var has = side == Side.Us ? opts.UsMeans : opts.VcMeans;
+                st.Cp[(int)side] = opts.StartCp * has.Purse;
+                st.Income[(int)side] = has.Income;
+                st.Will[(int)side] = has.Will;
+                // Its cards: those the scenario names, and no others.
+                var deck = side == Side.Us ? opts.UsDeck : opts.VcDeck;
+                if (deck != null)
+                    foreach (var card in Deck.For(side)) st.Barred[(int)side][card.Index] = Array.IndexOf(deck, card.Id) < 0;
+            }
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
@@ -290,19 +348,57 @@ namespace LanesOfVietnam.Sim
             int opens = Fortune.OpeningLane(st);
             foreach (var side in Sides)
             {
+                var has = side == Side.Us ? opts.UsMeans : opts.VcMeans;
+                int strength = has.Opening > 0 ? has.Opening : opts.OpeningStrength;
                 int placed = 0, lane = opens;
-                while (placed < opts.OpeningStrength)
+                while (placed < strength)
                 {
                     double x = st.Front[(int)side] + Combat.Advance(side) * rng.Range(-6, 6);
                     var sq = SpawnSquad(st, side, lane % Tune.Lanes.Length, x, rng);
                     placed += Squads.Roster(st, sq.Id).Count;
                     lane++;
                     // Senses: the side that opens holding opens in its positions.
-                    if (st.Senses && st.Fieldcraft && side == Side.Us && opts.Us.UseCover) Senses.Settle(st, sq);
+                    if (st.Senses && st.Fieldcraft && side != st.Attacker && (side == Side.Us ? opts.Us : opts.Vc).UseCover) Senses.Settle(st, sq);
                 }
             }
+            // An assault's ground: the positions it was given, or the defender's last in each lane.
+            if (st.Mode == MatchMode.Assault) st.Objectives = opts.Objectives != null ? (int[])opts.Objectives.Clone() : LastLine(st, Combat.Other(st.Attacker));
             return st;
         }
+
+        /// <summary>
+        /// A side's position in each lane, counted from its own end of the map: its last (back = 0), the one
+        /// before it (1), and so on. Cover ids, a lane each; a lane with none that far back is left out.
+        /// </summary>
+        public static int[] LastLine(SimState st, Side side, int back = 0) => LastLine(st.Cover, side, back);
+
+        public static int[] LastLine(IReadOnlyList<Cover> cover, Side side, int back = 0)
+        {
+            var line = new List<int>();
+            double dir = Combat.Advance(side);
+            var inLane = new List<Cover>();
+            for (int lane = 0; lane < Tune.Lanes.Length; lane++)
+            {
+                inLane.Clear();
+                foreach (var c in cover) if (Math.Abs(c.Z - Tune.Lanes[lane]) <= 4.5) inLane.Add(c);
+                // From the side's own end: the Americans' is the west, the least x.
+                inLane.Sort((a, b) => (a.X * dir).CompareTo(b.X * dir));
+                if (back < inLane.Count) line.Add(inLane[back].Id);
+            }
+            return line.ToArray();
+        }
+
+        /// <summary>An assault's ground is taken: every position it is for is the attacker's, at once.</summary>
+        public static bool Taken(SimState st)
+        {
+            if (st.Objectives.Length == 0) return false;
+            foreach (int id in st.Objectives)
+                if (id < 0 || id >= st.Cover.Count || st.Cover[id].Owner != st.Attacker) return false;
+            return true;
+        }
+
+        /// <summary>Seconds left on a siege's or an assault's clock; -1 with no clock.</summary>
+        public static double ClockLeft(SimState st) => st.ClockTicks <= 0 ? -1 : Math.Max(0, st.ClockTicks - st.Tick) * Tune.Dt;
 
         /// <summary>Original squad sizes, for the break test.</summary>
         public static Dictionary<int, int> OriginalStrengths(SimState st)
@@ -580,7 +676,7 @@ namespace LanesOfVietnam.Sim
                 for (int i = 0; i < st.Men.Count; i++)
                 {
                     var m = st.Men[i];
-                    if (m.Alive && m.Side == Side.Vc && m.Seen) { spotted = true; break; }
+                    if (m.Alive && m.Side == st.Attacker && m.Seen) { spotted = true; break; }
                 }
                 if (spotted || st.Tick >= Tune.OpeningMaxSeconds * Tune.TickHz)
                 {
@@ -589,7 +685,7 @@ namespace LanesOfVietnam.Sim
                     st.Events.Add(new SimEvent
                     {
                         Kind = EventKind.FirstContact, Tick = st.Tick,
-                        Side = spotted ? Side.Us : Side.Vc, Id = -1,
+                        Side = spotted ? Combat.Other(st.Attacker) : st.Attacker, Id = -1,
                     });
                 }
             }
@@ -611,7 +707,7 @@ namespace LanesOfVietnam.Sim
                 // script. It does not survive the squad breaking — see OrderSquad.
                 sq.Order = sq.PlayerOrder
                     ?? (opening
-                        ? (sq.Side == Side.Us ? Order.Hold : Order.Advance)
+                        ? (sq.Side != st.Attacker ? Order.Hold : Order.Advance)
                         : st.Senses ? sq.Order : DecideOrder(st, sq, plan, original, ix));
                 // Part 2 (MatchOptions.Senses): the squad's own task, from what it has spotted, in place of the policy.
                 if (st.Senses && !opening)
@@ -729,7 +825,7 @@ namespace LanesOfVietnam.Sim
                     if (m.Alive && m.Side == side) lead = Math.Max(lead, m.X * dir);
                 }
                 if (lead > double.NegativeInfinity) st.Front[(int)side] = lead * dir;
-                st.Cp[(int)side] += st.CpRate * Tune.Dt;
+                st.Cp[(int)side] += st.CpRate * st.Income[(int)side] * Tune.Dt;
             }
             // Ground conceded costs morale: how far the enemy's lead man has come
             // past the midline into my half. Comparing the two fronts directly
@@ -744,7 +840,7 @@ namespace LanesOfVietnam.Sim
                 double penetration = Math.Max(0, st.Front[(int)enemy] * Combat.Advance(enemy));
                 if (penetration > 0)
                 {
-                    double loss = penetration * Tune.MoralePerGround * Tune.Dt * st.MoraleScale;
+                    double loss = penetration * Tune.MoralePerGround * Tune.Dt * st.MoraleScale * st.Will[(int)side];
                     st.Morale[(int)side] = Math.Max(0, st.Morale[(int)side] - loss);
                     st.MoraleLostToGround[(int)side] += loss;
                 }
@@ -758,7 +854,7 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Events[i];
                 if (e.Kind != EventKind.Kill) continue;
-                double hit = Tune.MoralePerCasualty * st.MoraleScale;
+                double hit = Tune.MoralePerCasualty * st.MoraleScale * st.Will[(int)e.Side];
                 st.Morale[(int)e.Side] = Math.Max(0, st.Morale[(int)e.Side] - hit);
                 st.MoraleLostToCasualties[(int)e.Side] += hit;
                 st.Events.Add(new SimEvent
@@ -838,6 +934,19 @@ namespace LanesOfVietnam.Sim
                     End(st, Combat.Other(side), $"{Name(side)} wiped out");
                     return;
                 }
+            }
+            // An assault: the ground it was for is the attacker's, in every lane at once.
+            if (st.Mode == MatchMode.Assault && Taken(st))
+            {
+                End(st, st.Attacker, $"{Name(st.Attacker)} took the line");
+                return;
+            }
+            // A siege or an assault: the clock is the defender's. He is still there when it runs out.
+            if (st.ClockTicks > 0 && st.Tick >= st.ClockTicks)
+            {
+                var held = Combat.Other(st.Attacker);
+                End(st, held, st.Mode == MatchMode.Assault ? $"{Name(held)} held the line" : $"{Name(held)} held out");
+                return;
             }
             if (st.Tick >= cap)
             {

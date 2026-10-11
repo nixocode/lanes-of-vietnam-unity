@@ -637,7 +637,7 @@ namespace LanesOfVietnam.Sim
 
         public const double LengthSkirmish = 1.55;  // ~2 min
         public const double LengthStandard = 1.0;   // ~3.5 min
-        public const double LengthSiege = 0.40;     // ~8 min
+        public const double LengthLong = 0.40;     // ~8 min
     }
 
     /// <summary>

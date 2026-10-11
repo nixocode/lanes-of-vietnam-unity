@@ -565,11 +565,11 @@ namespace LanesOfVietnam.Tests
         {
             yield return LoadAndDeploy();
             var screens = Object.FindAnyObjectByType<Screens>();
-            Assert.AreEqual(GameRoot.Difficulty.Veteran, Root.Level);
-            Assert.AreEqual(GameRoot.CostFor(GameRoot.Difficulty.Veteran), Root.Options.MusterCost);
+            Assert.AreEqual(Difficulty.Veteran, Root.Level);
+            Assert.AreEqual(GameRoot.CostFor(Difficulty.Veteran), Root.Options.MusterCost);
             Assert.AreEqual(GameRoot.RateFor(MatchLength.Standard), Root.Options.MoraleRate);
-            Assert.Greater(GameRoot.CostFor(GameRoot.Difficulty.Recruit), GameRoot.CostFor(GameRoot.Difficulty.Veteran));
-            Assert.Greater(GameRoot.CostFor(GameRoot.Difficulty.Veteran), GameRoot.CostFor(GameRoot.Difficulty.Elite));
+            Assert.Greater(GameRoot.CostFor(Difficulty.Recruit), GameRoot.CostFor(Difficulty.Veteran));
+            Assert.Greater(GameRoot.CostFor(Difficulty.Veteran), GameRoot.CostFor(Difficulty.Elite));
             foreach (var id in new[] { "level-recruit", "level-veteran", "level-elite" })
                 Assert.IsTrue(screens.Buttons.ContainsKey(id), $"the start screen has no {id} button");
             // A press as the panel delivers it: the button's own click.
@@ -581,13 +581,13 @@ namespace LanesOfVietnam.Tests
             }
             screens.ToMenu();
             Press(screens.Buttons["level-elite"]);
-            Press(screens.Buttons["len-siege"]);
+            Press(screens.Buttons["len-long"]);
             Assert.IsTrue(screens.Buttons["level-elite"].ClassListContains("on") && !screens.Buttons["level-veteran"].ClassListContains("on"));
             screens.Deploy(); screens.Skip();
             yield return null;
-            Assert.AreEqual(GameRoot.Difficulty.Elite, Root.Level);
-            Assert.AreEqual(GameRoot.CostFor(GameRoot.Difficulty.Elite), Root.Options.MusterCost, "the level chosen is not the match's");
-            Assert.AreEqual(GameRoot.RateFor(MatchLength.Siege), Root.Options.MoraleRate);
+            Assert.AreEqual(Difficulty.Elite, Root.Level);
+            Assert.AreEqual(GameRoot.CostFor(Difficulty.Elite), Root.Options.MusterCost, "the level chosen is not the match's");
+            Assert.AreEqual(GameRoot.RateFor(MatchLength.Long), Root.Options.MoraleRate);
             screens.ToMenu();
             Press(screens.Buttons["level-veteran"]);
             Press(screens.Buttons["len-standard"]);
