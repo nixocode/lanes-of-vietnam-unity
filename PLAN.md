@@ -3294,6 +3294,54 @@ what there is. A man stepping onto the platform still has no clip of his
 own (`ladder_top`). Not played by the owner.
 
 
+### 12.38 The second security check, and the demo brought up to date (2026-10-11)
+
+The owner: "when this is done do a security check and push to the live URL.
+Make sure we are super safe, hide emails and personal info obviously."
+
+**What was checked,** on the build of §12.37 as `tools/deploy.sh` stages it
+(78 files, 35.2 MB), before anything went up:
+
+- **What is in it.** The three packed files were unpacked and searched,
+  with the page, the loader and the sound list: no e-mail address, no home
+  folder (only the engine's own `/home/web_user`), none of the owner's
+  names or the project folder's, no key or token. The 71 sound files carry
+  no name or address in their tags. The page says `DefaultCompany`.
+- **Whom it talks to.** Two requests in the whole game, both for its own
+  sounds from its own address; the content policy allows no other, and
+  nothing is stored but the settings and which tutor lines have been seen.
+  No `eval`, no `innerHTML`, no cookie.
+- **What a link can make it do.** `perf`, `seed`, `ff`, `off`, `card`,
+  `scale`, `speed` and the new `post`: each is parsed as a number or looked
+  up in a list; none reaches the page.
+- **The repository** (public): no tracked file with an address, a home
+  folder or a name in it; nothing secret tracked; `Builds/` ignored. The
+  fourteen commits since the last push are by GitHub's no-reply address.
+
+**Deployed** with `tools/deploy.sh prod` to
+https://lanes-of-vietnam-65.vercel.app, and checked there: each of the six
+build files is the staged one byte for byte; the headers are served (the
+content policy with the page's script by its hash, no sniffing, no framing,
+no referrer, same-origin opener and resource, HSTS, `noindex`); the
+compressed files say they are Brotli; `size.json`, `vercel.json`,
+`.vercel`, `.git`, the plan and every folder answer 404. Run for a minute
+in headless Chrome: it starts, plays, sends a team up the tower, and logs
+no error and no request refused.
+
+**What is still exposed, and is the owner's to decide.** The repository's
+history on GitHub, as it has been public since September, has two personal
+Gmail addresses as the author of 126 commits (everything before
+2026-10-09). The site shows neither. Taking them out of the repository
+means rewriting every branch's history and pushing it over what is there:
+it cannot be undone, anyone who has cloned or forked it keeps the old one,
+and GitHub itself keeps the old commits reachable by their ids until its
+support is asked to clear them. Not done without his word.
+
+Also his: `polish` is sixteen commits ahead of what is on GitHub and has
+not been pushed; a commit's message carries the link of the session that
+made it, which only his account can open.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.
