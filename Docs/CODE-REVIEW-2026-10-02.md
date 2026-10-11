@@ -4,7 +4,7 @@ Asked for by the owner after playtest 7 (PLAN §12.22): "frames have taken a
 hit … way more bugs when walking, sliding around … review the code to fix
 performance and animation and AI awareness of the whole codebase. Make a
 report + fixes that don't break the build. Remove all the code that isn't
-needed." The version before any of this is `daccef6`, on GitHub, as asked.
+needed." The version before any of this is `c4315d8`, on GitHub, as asked.
 
 Every number here was measured, in the WebGL build, in headless Chrome on the
 owner's machine (M4 Pro, ANGLE Metal), at the resolution his screen gives the
@@ -15,7 +15,7 @@ X cost" is the difference between two runs of one build.
 
 ## The result
 
-| | before (`daccef6`) | after |
+| | before (`c4315d8`) | after |
 |---|---|---|
 | frame, mean | 10.7 ms | **4.5 ms** |
 | frame, median | 10.5 ms | 4.0 ms |
@@ -151,7 +151,7 @@ that the legs do not account for. On the same match, old code against new:
 - **The sprite soldiers and the capsule soldiers** (`ArmyView`, some 230 lines; the
   scene builder's wiring; `?perf=sprites`): two stand-ins nothing had drawn
   since the 3D men. With them their atlases (`Art/Soldiers`, 21 MB of source,
-  4.8 MB of the download) and five stand-in materials. In git at `daccef6`.
+  4.8 MB of the download) and five stand-in materials. In git at `c4315d8`.
 - **The grey-box ridges** (`WorldDressing.Ridges`): a stand-in for the
   mountains, which are in the repository.
 - **Members nothing referenced:** `Combat.CanEngage`, `Ground.NormalAt` and

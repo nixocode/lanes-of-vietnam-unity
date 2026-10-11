@@ -1274,7 +1274,7 @@ the M79 and the squad lists adjusted, 51.0% over 96 seeds (§10a).
 
 *Its "next" list is superseded by §12.25 (2026-10-05).*
 
-**In the build** (commit `90a256f`, local; WebGL 29.85 MB; EditMode 50/50,
+**In the build** (commit `68f2781`, local; WebGL 29.85 MB; EditMode 50/50,
 PlayMode 14/14; real Chrome about 6.5 ms a frame):
 
 | asked for | state |
@@ -1413,7 +1413,7 @@ schedule from the seed, sight scaled through Senses, sky, rain, a rain bed);
 
 ### 12.19 Playtest 6: the Senses build (2026-10-02, evening)
 
-The owner played commit `643230f`. His notes, and where each goes. This
+The owner played commit `c1fac55`. His notes, and where each goes. This
 section is worked through before phase 2 of §12.18; phases 2 to 6 follow it
 unchanged.
 
@@ -1597,7 +1597,7 @@ every class its job; phase 5, weather.
 
 ### 12.22 Playtest 7: the phase 2 build (owner, 2026-10-02)
 
-The owner played the phase 2 build (`daccef6`, the first he has seen with
+The owner played the phase 2 build (`c4315d8`, the first he has seen with
 Gunnery's movement in it) and said, in his words:
 
 1. "Seems like frames have taken a hit."
@@ -1671,7 +1671,7 @@ The owner, after playtest 7: review the whole codebase for performance,
 animation and AI awareness; a report and fixes that do not break the build;
 remove the code that is not needed. The report is
 `Docs/CODE-REVIEW-2026-10-02.md`; this is what it comes to. The version before
-it is `daccef6`, pushed first, as he asked.
+it is `c4315d8`, pushed first, as he asked.
 
 Measured in the WebGL build, headless Chrome, at the owner's screen (2592 x
 1370; every figure before this section was taken at 1843 x 913, where the
@@ -1715,7 +1715,7 @@ nothing since Senses; the two lanes as separate fights (§12.19).
 
 ### 12.24 Playtest 8: the review build (owner, 2026-10-03)
 
-The owner played `f76b5e3` (the review and playtest 7's pace) and wrote, in
+The owner played `d748356` (the review and playtest 7's pace) and wrote, in
 his words:
 
 1. "Camera zooms only into 1 spot (when zooming), you should be able to zoom
@@ -1827,8 +1827,8 @@ The owner asked for a new plan: the targets and objectives from here. It
 supersedes the "next" lists of §12.17 and §12.18, which playtests 5 to 8,
 the code review and three new rules (Senses, Gunnery, Ammo) have overtaken.
 
-**Where it stands.** The build is `6bdf5d8` (playtest 8, §12.24): local, not
-yet played by the owner; GitHub is at `3998aeb`. EditMode 64/64, PlayMode
+**Where it stands.** The build is `4010db8` (playtest 8, §12.24): local, not
+yet played by the owner; GitHub is at `7c816e9`. EditMode 64/64, PlayMode
 17/17, a 25.08 MB download, 4.4 to 4.6 ms a frame at the owner's 2592 x 1370.
 
 - **Part 1, the slice**, is nearly whole. It still lacks:
@@ -1863,7 +1863,7 @@ push waits for his word.
 
 #### M0. Playtest 9 (now)
 
-The owner plays `6bdf5d8`. He checks, in this order:
+The owner plays `4010db8`. He checks, in this order:
 
 1. the sliding: aiming with the upper body, stepping round to turn;
 2. the pace;
@@ -1942,7 +1942,7 @@ UIAudit row for any new card.
 
 ### 12.26 Playtest 9: the playtest 8 build (owner, 2026-10-08)
 
-The owner played `6bdf5d8` and wrote, in his words:
+The owner played `4010db8` and wrote, in his words:
 
 1. "Too many grenades."
 2. "Need more walk variations."
@@ -1971,7 +1971,7 @@ Organised by what has to change:
 | F | **Walks that differ** (2) | view | As far as it goes without new clips. |
 
 **What he saw, measured** (`simcs brain`, a new command; six seeds, a
-minute of fighting, on `6bdf5d8`):
+minute of fighting, on `4010db8`):
 
 - two enemy squads within 30 m of each other in one lane: 129.6
   squad-seconds with no fire between them, against 127.8 fighting;
@@ -2253,8 +2253,8 @@ the end of §12.27's work.
 | | | |
 |---|---|---|
 | 1 | The Mixamo batch (P6) | **not done.** It needs the owner signed in at mixamo.com and the Chrome extension connected; twice it was not. Nothing was downloaded |
-| 2 | Launcher sounds and music (P7) | done, `2053651` |
-| 3 | The bound order out (P3) | done, `2053651` |
+| 2 | Launcher sounds and music (P7) | done, `1c93d3b` |
+| 3 | The bound order out (P3) | done, `1c93d3b` |
 | 4 | `polish` pushed to GitHub | done with this commit, after the check below |
 
 #### The security check
@@ -3330,8 +3330,9 @@ no error and no request refused.
 
 **What is still exposed, and is the owner's to decide.** The repository's
 history on GitHub, as it has been public since September, has two personal
-Gmail addresses as the author of 126 commits (everything before
-2026-10-09). The site shows neither. Taking them out of the repository
+Gmail addresses as the author of 63 commits (everything before
+2026-10-09; this said 126, which counted each twice, as author and as
+committer). The site shows neither. Taking them out of the repository
 means rewriting every branch's history and pushing it over what is there:
 it cannot be undone, anyone who has cloned or forked it keeps the old one,
 and GitHub itself keeps the old commits reachable by their ids until its
@@ -3550,6 +3551,102 @@ to 5.4 was taken on a busy machine and was owed again: this is it.)
 - **Next in the plan:** Phase M. M0, the world built from a map and a
   theatre, needs nothing from him. Ia Drang waits on its reference frame
   (§12.14 Q4) and his yes for a sky.
+
+
+### 12.40 The addresses out of the history, everything pushed, the demo brought up to date (2026-10-11)
+
+The owner: "remove the gmail adresses, you did the security check right so
+push everything to the live vercel demo is eveyrhting is safe. Also push
+to git. Lets have this latest version if safe, live and playable".
+
+#### The addresses
+
+63 commits, every one before 2026-10-09, carried one of two personal Gmail
+addresses as author and as committer. Nothing else in the repository did:
+searched over the whole history (`git log --all -G`), no commit message
+and no file has an address in it, none a home folder, none a key or a
+token, and no licensed file was ever tracked.
+
+- **Kept first:** everything as it was, in one file
+  (`git bundle create Logs/history-rewrite/before-2026-10-11.bundle
+  --all`, 295 MB, verified complete), with where each branch pointed and
+  the list of old ids against new beside it. `Logs/` is ignored: this is
+  on the Mac only. It has the addresses in it, and is his to delete when he
+  is content.
+- **Rewritten:** `git filter-branch --env-filter` over `main`, `polish`,
+  `scenarios` and the tag: an author's or a committer's address at
+  gmail.com becomes GitHub's no-reply address, which the commits since
+  2026-10-09 already carried. The name on them (Nico), the dates, the
+  messages and the files are untouched. Checked: 83 commits before and 83
+  after; the files, the dates and the message of each the same, in order;
+  166 of 166 author and committer entries the no-reply address. The tag
+  `sim-parity-baseline` (local, never pushed) was tagged by the old
+  address, and is made again as it was.
+- **Pushed:** `main` and `polish` over what GitHub had (with a lease on
+  what was there), `scenarios` new. `main` has the files it had: nothing
+  has been merged into it. Asked of GitHub afterwards (`gh api
+  .../commits?sha=<branch>`): every commit of the three branches, the
+  no-reply address.
+- **Every commit's id changed.** The eighteen ids this document, ASSETS.md,
+  the code review and the cloud briefs name are brought up to the new
+  ones.
+
+**What GitHub still serves, and what would end it.** GitHub keeps a commit
+no branch reaches: the old tip of `main` still opens there by its id, and
+its `.patch` page still shows the address; the repository's public
+activity feed lists old ids, for ninety days. So the addresses are gone
+from every branch and from anything a visitor or a clone sees, and are
+still to be had by someone who goes looking with an old id. Nobody has
+forked the repository (no forks, no stars, no pull requests, no
+releases). Two ways to end it, both the owner's:
+
+1. delete the repository on GitHub and make it again under the same name,
+   then push these three branches. Immediate and complete, and nothing is
+   lost with it but the old commits. The sign-in on the Mac cannot delete a
+   repository: it needs him, once (`gh auth refresh -h github.com -s
+   delete_repo`, or the button in the repository's settings);
+2. ask GitHub Support to clear the unreachable commits and their cached
+   pages (its "removing sensitive data" request). No deletion; it takes
+   them days.
+
+#### The third security check, and the demo
+
+The build of §12.39 (from `scenarios`, built 2026-10-11T11:34Z), as
+`tools/deploy.sh` stages it (78 files, 35.1 MB), by §12.38's checks:
+
+- **What is in it.** The three packed files unpacked and searched with the
+  page, the loader and the sound list, as one-byte text and as two-byte: no
+  e-mail address, no home folder (the engine's own `/home/web_user`), none
+  of the owner's names, his handle or the project folder's name, no key,
+  token or session link. The 71 sound files carry no tag that names
+  anyone. The page says `DefaultCompany`.
+- **Whom it names and whom it talks to.** The hosts in it are the fonts'
+  designers and licences, the music's licence, the engine's manual, and two
+  browser bug trackers in the loader's comments; none is contacted. The
+  loader fetches the build's own files and nothing else.
+- **What a link can make it do.** One new parameter, `scenario`: looked up
+  in the list of scenarios, and anything not in it is the firebase. It does
+  not reach the page.
+
+**Deployed** with `tools/deploy.sh prod` to
+https://lanes-of-vietnam-65.vercel.app and checked there: the page, the
+loader, the three packed files, the sound list and two of the sounds are
+the staged ones byte for byte; the headers are served (the content policy,
+no sniffing, no framing, no referrer, same-origin opener and resource,
+HSTS, `noindex`); the packed files say they are Brotli; `size.json`,
+`vercel.json`, `.vercel`, `.git`, `.env`, the documents and every folder
+answer 404; a request in another site's name is given no leave. Run for 75
+seconds in headless Chrome on The Wire (`?perf=1&seed=3&
+scenario=the-wire`): it plays, mean 4.5 ms and 6.0 at the 95th percentile,
+no error and nothing refused.
+
+#### Still the owner's
+
+- Which of the two ways above, if either.
+- `main` is still playtest 8's build: what reaches it is his to say. The
+  demo is `scenarios`.
+- A commit's message carries the link of the session that made it, which
+  only his account opens.
 
 
 ### 12.13 Corrections to earlier sections

@@ -4,11 +4,13 @@ A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
 owner's playtests in order and what was built for each. The plan from here is
 §12.27: polish, then scenarios on the firebase map, then maps one at a time,
-and what the owner still has to decide. The latest work is §12.29 to §12.39 (fire control,
+and what the owner still has to decide. The latest work is §12.29 to §12.40 (fire control,
 the Mixamo batches, rounds seen to land, ballistics, what a round and a burst do to a
 man, the watchtower, the computer's commander, squads that keep together, and Phase S:
 the map and the scenario as data, a siege and an assault, four operations on the firebase,
-on the branch `scenarios`).
+on the branch `scenarios`, which is what the demo serves; and the history rewritten on
+2026-10-11 to take personal addresses out of it: a commit id written down before that day is
+not one the repository has).
 
 ## What runs where
 

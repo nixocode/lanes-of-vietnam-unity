@@ -267,7 +267,7 @@ massif's eastern foot, looking along a heading of **262°**.
 The baked sprite soldiers (`Assets/_Project/Art/Soldiers/`: two atlases a
 side and their layouts) left the project in the code review of 2026-10-02
 (`Docs/CODE-REVIEW-2026-10-02.md`, PLAN §12.23): nothing had drawn them since
-the 3D men of the next section. They are in git at `daccef6`. What follows is
+the 3D men of the next section. They are in git at `c4315d8`. What follows is
 kept because the 3D men's interim clips (`soldier_poses.fbx`) are made from
 the same poses and the same motion capture.
 
