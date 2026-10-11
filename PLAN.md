@@ -3342,6 +3342,216 @@ not been pushed; a commit's message carries the link of the session that
 made it, which only his account can open.
 
 
+### 12.39 Phase S: scenarios on the firebase (2026-10-11)
+
+The owner, with playtest 10's notes: "When these are done resume with the
+plan objectives." The next of them is §12.27's Phase S: the machinery for
+scenarios, proved on the map there is, and three new things to play on it.
+Branch `scenarios`, from `polish`. No new art, no download.
+
+#### S1. The map as data (`Sim/Maps.cs`, new)
+
+The firebase was written into `Sim/Map.cs` as code. It is a `MapDef` now:
+its cover pieces, the shape of its ground, its crater bands, the bank
+between the lanes, its posts; with `Maps.Firebase`, `Maps.All` and
+`Maps.ById`. `Map.Cover()`, `Map.Ground()` and the rest stay as the
+firebase's, so the tests, `simcs` and the view read as before. A match
+takes its bank and its posts from its map (`MatchOptions.Map`; null is the
+firebase): `Gunnery` reads the match's own bank, not the firebase's
+constants. The lanes' positions and the half-length are still the
+project's, as the plan said. *Gate:* every pin unchanged (below).
+
+#### S2. The scenario as data (`Sim/Scenario.cs`, new)
+
+A `Scenario` is what the player is told (title, date line, briefing, his
+orders), its map, how it is won and against what clock, the side that
+comes on and the side that is his, and what each side has that the other
+has not. `Scenario.Options(seed, player, level, length)` gives the match:
+every Part 2 rule on and the game's economy, which `GameRoot.NewMatch` had
+written inline. The game's dials (`CpRate`, `StartCp`, `OpeningStrength`,
+`CostFor`, `RateFor`) are kept there now, so `simcs` measures with the
+numbers the game plays at instead of a copy of them; `GameRoot.CostFor` and
+`RateFor` are still what the game calls, and still carry their history.
+`Difficulty` is the simulation's.
+
+What the simulation gained for it, all of it the baseline's unless a
+scenario says otherwise:
+
+- **A side's means** (`MatchOptions.UsMeans`, `VcMeans`): its income, the
+  points it opens with and how fast its will runs out, each as a share of
+  the match's own value, and the men it opens with. As shares, so the
+  difficulty and the length still turn the whole. A share of one is the
+  value itself to the bit, which is why no pin moved.
+- **The side that comes on** (`MatchOptions.Attacker`). The opening was
+  written for one case: the VC move up, the Americans hold, contact is a
+  VC seen. It is the attacker who moves and the defender who holds and
+  opens in his positions; the VC by default, as ever.
+- **A side's deck** (`UsDeck`, `VcDeck`): the cards it has. A card it has
+  not got cannot be bought ("not in this operation"), and the computer's
+  commander neither raises it nor plays it. No scenario bars a card yet,
+  and the HUD does not yet hide one that is barred.
+- Weather and time of day are named in the record and do nothing: their
+  rules come with the maps that need them.
+
+#### S3. Two modes (`MatchMode`, in `Match.CheckOver` with the others)
+
+- **Siege.** A clock, and it is the defender's: he wins when it runs out
+  ("us held out"). The attacker has to break him first.
+- **Assault.** The clock again ("vc held the line"), and ground: the
+  attacker wins the moment the positions he was sent for are his in every
+  lane at once ("us took the line"). Whose a position is, is what
+  Fieldcraft already kept (`Cover.Owner`): it is taken by having men in it
+  with none of the enemy's, and stays taken until he does the same.
+  `Match.LastLine(side, back)` gives a side's line counted from its own
+  end of the map; `Match.Taken` says when the attacker has all of it.
+
+Against a clock the side that holds is given the plan that holds
+(`Plan.Defend`: its squads go to cover and stay), the player's side as
+much as the computer's; an order from him is still obeyed.
+
+The start screen's eight-minute length was called SIEGE. It is LONG
+(`MatchLength.Long`), so one word does not mean two things; `simcs` takes
+`long` for it, and still `siege`.
+
+**Where this is not the plan's words.** The plan had the attacker take
+"the defender's last position in both lanes". Measured (`simcs scenario
+firebase 48 mode=assault attacker=us back=0 ...`), that is 5 matches in 48
+won by the line: his reinforcements arrive in his last position, and by
+the time the attackers are that far up the map he has broken anyway (ground
+given up costs will). First Light's line is the one in front of his last
+(`LineBack = 1`: the trench in the far lane, the berm in the near), which
+leaves him somewhere to counter-attack from. And without a rule for will,
+a defender's broke long before a clock mattered: a siege's and an
+assault's sides are given will that lasts longer (`Means.Will`), so that
+it is the clock and the line that decide.
+
+#### S4. Measured (`simcs scenario`, new)
+
+`simcs scenario [id] [seeds]`: every scenario, each side it offers, each
+difficulty, played by the player who buys a line squad whenever he can
+afford one and does nothing else; his wins, how long it took, how it
+ended. The numbers to try can be given in place of the scenario's own
+(`clock=`, `income=`, `will=`, `open=`, `purse=`, `back=`, `mode=`,
+`attacker=`), which is how each of these was arrived at. Wins of 48
+against a Recruit, a Veteran and the Elite:
+
+| scenario | plays | Recruit | Veteran | Elite | how the Veteran's 48 ended |
+|---|---|---|---|---|---|
+| the firebase | US | 42 | 32 | 30 | 32 by breaking him, 16 broken |
+| | VC | 43 | 29 | 21 | 29 and 19 |
+| The Wire | US | 45 | 33 | 25 | 33 held out, 15 broken before the clock |
+| First Light | US | 44 | 34 | 24 | 20 took the line, 14 broke him or left him no men, 12 lost to the clock, 2 broken |
+| The Earth Fights | VC | 41 | 33 | 16 | 33 by breaking him, 15 broken |
+
+The gate was 28 to 40 of 48 against a Veteran, winnable against the Elite
+and losable against a Recruit: each is inside it. The firebase's row is
+what `simcs player 48 34 rate=0.9 ... commander cohesion` gave before
+there were scenarios (32 and 29), which is the check that
+`Scenario.Options` is the match the game had. (The gate's "on each side"
+is read as the side a scenario gives the player: three of the four are
+one side's.)
+
+`simcs audit` reaches the three new endings; it also reaches `Posted`,
+which it had not since the watchtower (nothing in it sent a squad up: it
+does now).
+
+#### S6. The four operations
+
+- **The Firebase.** The match as it always was: either side, any length.
+- **The Wire** (siege, as the Americans, 5 minutes). The VC open with
+  twelve men to eight and are paid half as much again; both sides' will
+  lasts longer (0.6), so it is the clock that decides.
+- **First Light** (assault, as the Americans, 7 minutes). The VC open dug
+  in on their line; the Americans open with twelve men and are paid 1.4 to
+  0.9; will at half speed on both sides.
+- **The Earth Fights** (standard, as the VC). The Americans are paid a
+  fifth more; the VC open with twice the points, for the ground, and
+  their will lasts longer (0.65).
+
+The titles are §12.27's working titles and the briefings are written here,
+in the voice of the 2D game's campaign (place, date and unit on one line;
+two short paragraphs; orders with a diamond). "The Earth Fights" is the 2D
+campaign's Cu Chi operation: when that map comes the title is its, and
+this one wants another.
+
+#### S5. The view
+
+- **The start screen** has an OPERATION row, and the chosen operation's
+  briefing in a panel beside it: title, date line, briefing, orders. An
+  operation that is one side's greys the other side; one with a clock, or a
+  length of its own, greys the lengths.
+- **The HUD** has the clock over the orders line in a siege or an assault,
+  in the player's terms ("HOLD UNTIL RELIEVED · 4:32", "TAKE THE LINE 1/2
+  · 6:10"), red in its last minute. A siege and an assault have their own
+  field orders (`FieldOrders.For(scenario, side)`).
+- **The positions an assault is for** wear a gold edge on their plates and
+  are always shown.
+- **The opening's radio call and the ending's title** are the scenario's:
+  "THE FIREBASE HOLDS", "THE LINE IS TAKEN", "THE ATTACK IS CALLED OFF".
+  The line under it is the simulation's own reason, as before.
+- A capture or the probe can name the scenario (`scenario=first-light`,
+  `?perf=1&scenario=the-wire`).
+
+#### Pins
+
+Unchanged, `simcs hash` before and after every step: `hash 1` 4390 ticks,
+final `2256114725u`; `... ammo map` 2725, `988759736u`; `... tactics
+fortune map` 2719, `4215652832u`; `... firecontrol map` 5070,
+`1731903378u`; `... ballistics map` 3493, `2457736883u`; `... vantage
+aiposts map` 4236, `1179344068u`; `... vantage commander map` 5206,
+`4057359457u`; `... vantage commander cohesion map` 2524, `3667431746u`;
+`hash 7 ... cohesion` 6409, `795505337u`. Determinism ok.
+
+New, by `simcs scenario hash N` (each scenario against a Veteran with
+nobody playing): the firebase seed 1, 5924 ticks, final `200793914u`; The
+Wire seed 1, 6000 ticks ("us held out"), `3885593046u`, and seed 7, 4422
+("us morale broke"), `3201476268u`; First Light seed 1, 3709,
+`800917681u`, and seed 7, 6516, `2864221065u`; The Earth Fights seed 1,
+9080, `2805131492u`.
+
+New files: `Sim/Maps.cs`, `Sim/Scenario.cs`.
+
+#### Tests, the build, frame time
+
+EditMode 102 of 102 (twelve new: the map, six pins, and a test for each
+of the scenario's rules); PlayMode 23 of 23 (one new: the operations, the
+clock, the line's plates, the endings), the capture test skipped as it is
+without a capture. The start screen and the HUD were looked at:
+`captures/s5_start_wire.png`, `s5_start_light.png`, `s5_start_earth.png`,
+`s5_first_light.png` (`tools/capture.sh "seed=5,tick=1500,x=24,ui=1,
+scenario=first-light,out=..."`, and `screen=start`).
+
+The WebGL build is 29.3 MB to start (`size.json`; the budget is 45).
+Frame time in that build, in headless Chrome at 2592 x 1370 with the
+display awake, seven readings each: the firebase (`?perf=1&seed=3`) mean
+4.4 to 5.5 ms, 95th percentile 6.0 to 7.0; First Light
+(`&scenario=first-light`) mean 4.1 to 4.2 ms, 95th percentile 5.0 to 6.0, with
+no error logged. The budget is 6 and 8.3. (§12.37's 5.3
+to 5.4 was taken on a busy machine and was owed again: this is it.)
+
+#### What is left, and what is the owner's
+
+- **To play:** the three operations, on the build served at
+  `http://127.0.0.1:8065/`. What to look at: whether five minutes of siege
+  and seven of assault are the right lengths; whether the line reads on
+  the field (the gold edge on two plates and the count on the clock are
+  all that mark it); that a side told to hold stays where it goes to
+  ground until he orders it on.
+- **My readings, his to correct:** the assault's line one back from the
+  last position; will that lasts longer against a clock; the gate taken
+  from the side each scenario gives; the titles, dates and briefings.
+- **Not built:** the HUD hiding a card a scenario bars (none does); the
+  line marked on the tactical strip; the other side of a timed scenario
+  (the VC in The Wire, the defence in First Light), which is neither
+  offered nor measured.
+- **His word needed:** nothing here is on GitHub (`scenarios` is four
+  commits on from `polish`, which is sixteen ahead of what is there), and
+  the demo is still §12.37's build.
+- **Next in the plan:** Phase M. M0, the world built from a map and a
+  theatre, needs nothing from him. Ia Drang waits on its reference frame
+  (§12.14 Q4) and his yes for a sky.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

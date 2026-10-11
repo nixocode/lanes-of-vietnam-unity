@@ -4,9 +4,11 @@ A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
 owner's playtests in order and what was built for each. The plan from here is
 §12.27: polish, then scenarios on the firebase map, then maps one at a time,
-and what the owner still has to decide. The latest work is §12.29 to §12.37 (fire control,
+and what the owner still has to decide. The latest work is §12.29 to §12.39 (fire control,
 the Mixamo batches, rounds seen to land, ballistics, what a round and a burst do to a
-man, the watchtower, the computer's commander, squads that keep together).
+man, the watchtower, the computer's commander, squads that keep together, and Phase S:
+the map and the scenario as data, a siege and an assault, four operations on the firebase,
+on the branch `scenarios`).
 
 ## What runs where
 
@@ -36,6 +38,8 @@ dotnet tools/simcs/bin/Release/net8.0/simcs.dll audit
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics map
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 48 34 rate=0.9 tactics fortune firecontrol ballistics vantage commander cohesion
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll shape 20 2400 20 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion tempo
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll scenario 48
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll scenario hash 1
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll muddle 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll brain 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
@@ -64,6 +68,9 @@ and say so:
   (every rule up to the commander, on `polish`): 5206 ticks, final `4057359457u`.
 - `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion map`
   (the game, on `polish`): 2524 ticks, final `3667431746u`.
+- `scenario hash 1` (on `scenarios`: each operation as the game plays it against a Veteran, with
+  nobody playing): the firebase 5924 ticks, final `200793914u`; The Wire 6000, `3885593046u`;
+  First Light 3709, `800917681u`; The Earth Fights 9080, `2805131492u`.
 
 ## Rules this project keeps
 
@@ -75,6 +82,13 @@ and say so:
   Vantage, Commander, Cohesion: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
+- **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and
+  what it changes in a match is an option that defaults to the baseline: a
+  side's `Means`, its deck, the `Attacker`, the `MatchMode` and its clock. The
+  game's dials (cost by difficulty, rate by length, the economy) are kept in
+  `Scenario`, so `simcs scenario` measures with the numbers the game plays at.
+  A scenario's numbers are measured with it (48 seeds: 28 to 40 wins against a
+  Veteran) and its pin recorded with `simcs scenario hash`.
 - **Pinned hashes** in `Assets/_Project/Tests/EditMode/SimTests.cs` are
   recorded with `simcs hash`. When a change is meant to move a layer, record
   the new values and say why in the commit; the Mac runs the tests.

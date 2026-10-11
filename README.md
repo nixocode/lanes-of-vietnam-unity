@@ -27,6 +27,7 @@ tools/unity.sh -nographics -runTests -testPlatform EditMode -testResults "$PWD/L
 # the simulation without Unity, on the editor's bundled .NET 8
 tools/simcs/run.sh seeds 48 ceiling floor     # a balance block, with a Wilson interval
 tools/simcs/run.sh audit                      # every event and ending reachable
+tools/simcs/run.sh scenario 48                # every operation, side and difficulty: who wins, how, how long
 tools/simcs/run.sh determinism
 tools/simcs/run.sh bench
 
@@ -87,9 +88,10 @@ reference/TARGET.jpg             the specification for the look
 | Commander | the computer's side commands as the player does: where its next squad goes and which, its cards (artillery, air strikes, smoke, a medevac; traps and tunnels), its levers (PLAN §12.31, §12.36) |
 | Cohesion | a squad keeps together: a closer file, a lead man who waits for the last, stragglers who run, halves that are two groups, an assault that is everyone at once (PLAN §12.37) |
 | Full screen | FULL on the top bar, on the start screen and in the settings; Alt+Enter (PLAN §12.37) |
-| Tests | EditMode 90/90, PlayMode 22/22 (PLAN §12.37), 2026-10-11 |
+| Scenarios | the map and the scenario as data; a siege (a clock that is the defender's) and an assault (a line to take in both lanes at once); four operations on the firebase, chosen on the start screen with their briefings: the firebase, The Wire, First Light, The Earth Fights; each measured winnable (PLAN §12.39, on the branch `scenarios`) |
+| Tests | EditMode 102/102, PlayMode 23/23 (PLAN §12.39), 2026-10-11 |
 
-The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.29 (fire control), §12.30 (the Mixamo batches) and §12.32 (rounds that are seen to land); §12.31 is the computer's commander, begun and not yet on.
+The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.34 to §12.37 (what a round and a burst do to a man, the watchtower, the computer's commander, squads that keep together), all on the branch `polish` and in the demo, and §12.39: Phase S, the scenarios, on the branch `scenarios`.
 
 ## Direction
 

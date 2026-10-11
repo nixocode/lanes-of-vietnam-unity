@@ -37,7 +37,8 @@ namespace LanesOfVietnam.SimCs
     ///                                  the man it was fired at and the men it could have been, where men die, assaults
     ///
     /// Flags are the rules by name (frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol commander ballistics vantage), and
-    /// `tempo` for the game's own economy.
+    /// `tempo` for the game's own economy. `scenario=<id>` in their place, wherever a command takes them through the game's match
+    /// (watch, aware, muddle, brain, shape, gunplay, command, blasts): that scenario as the game plays it.
     /// </summary>
     public static class Program
     {
@@ -601,6 +602,15 @@ namespace LanesOfVietnam.SimCs
 
         private static MatchOptions Game(int seed, string[] a)
         {
+            // `scenario=<id>`: the scenario as the game plays it against a Veteran with nobody playing, in place of the flags.
+            string named = a.Where(x => x.StartsWith("scenario=")).Select(x => x.Substring(9)).FirstOrDefault();
+            if (named != null)
+            {
+                var sc = Scenarios.ById(named) ?? throw new ArgumentException($"no scenario called \"{named}\" ({string.Join(" | ", Scenarios.All.Select(x => x.Id))})");
+                var so = sc.Options(seed, null, Difficulty.Veteran);
+                foreach (var x in a) if (x.StartsWith("rate=")) so.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
+                return so;
+            }
             var o = new MatchOptions
             {
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,

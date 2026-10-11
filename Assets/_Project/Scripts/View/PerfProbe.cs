@@ -143,7 +143,8 @@ namespace LanesOfVietnam.View
             var root = GameRoot.Instance;
             yield return null;
             var screens = FindAnyObjectByType<Screens>();
-            if (screens != null) { screens.ChooseSide(Side.Us); screens.Deploy(); screens.Skip(); }
+            // (The scenario the address named, if it named one: `?perf=1&scenario=first-light`.)
+            if (screens != null) { screens.ChooseScenario(root.Scenario); screens.ChooseSide(Side.Us); screens.Deploy(); screens.Skip(); }
             int ff = int.TryParse(Param("ff"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 600;
             // post=us-sniper (with a short ff): a squad sent up the watchtower in the build itself, and what is drawn
             // of it said once a second: MatchOptions.Vantage, PLAN §12.35.
