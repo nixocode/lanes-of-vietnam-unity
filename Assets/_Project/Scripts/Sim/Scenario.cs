@@ -65,10 +65,10 @@ namespace LanesOfVietnam.Sim
         public const int OpeningStrength = 4;
 
         /// <summary>What a squad costs the computer.</summary>
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 42 : d == Difficulty.Elite ? 28 : 34;
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 44 : d == Difficulty.Elite ? 29 : 35;
 
         /// <summary>How fast will runs out, against the length setting's own rate.</summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Long ? 1.35 : 0.9;
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.25 : l == MatchLength.Long ? 1.5 : 0.95;
 
         /// <summary>
         /// The match: this scenario, on this seed, with the player on <paramref name="player"/> (null: nobody
@@ -84,7 +84,7 @@ namespace LanesOfVietnam.Sim
                 Seed = seed, Map = Map, Cover = Map.Cover(), Length = len,
                 Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true,
                 Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
-                Vantage = true, Commander = true, Cohesion = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true,
                 CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
                 MusterCost = CostFor(level), MoraleRate = RateFor(len),
                 Player = player,
@@ -107,14 +107,15 @@ namespace LanesOfVietnam.Sim
     /// <summary>
     /// The scenarios there are (PLAN §12.27, S6): the firebase as it always was, and three more on the same
     /// ground. Each one's numbers were measured with <c>simcs scenario</c> against the player who buys a line
-    /// squad whenever he can afford one and does nothing else, over 48 seeds: what he won is written by each.
+    /// squad whenever he can afford one and does nothing else: what he won is written by each (of 48 seeds
+    /// when they were made, PLAN §12.39; of 192 since Bearing, PLAN §12.41, which moved every one of them).
     /// </summary>
     public static class Scenarios
     {
         /// <summary>
         /// The match the game had before there were scenarios: either side, any length, both sides alike.
-        /// (`simcs scenario firebase 48`: as the Americans 42, 32 and 30 of 48 against a Recruit, a Veteran and
-        /// the Elite; as the VC 43, 29 and 21.)
+        /// (`simcs scenario firebase 192`: as the Americans 170, 125 and 96 of 192 against a Recruit, a Veteran and
+        /// the Elite; as the VC 139, 111 and 76.)
         /// </summary>
         public static readonly Scenario Firebase = new Scenario
         {
@@ -126,7 +127,7 @@ namespace LanesOfVietnam.Sim
         /// <summary>
         /// A siege, as the Americans: five minutes to hold against an enemy who opens with half as many men
         /// again and is paid half as much again. Both sides' will lasts longer than in a standard match, so
-        /// it is the clock that decides. (`simcs scenario the-wire 48`: 45, 33 and 25 of 48.)
+        /// it is the clock that decides. (`simcs scenario the-wire 192`: 173, 141 and 119 of 192.)
         /// </summary>
         public static readonly Scenario TheWire = new Scenario
         {
@@ -141,8 +142,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>
         /// An assault, as the Americans: seven minutes to take the line in front of the enemy's last, the
         /// trench in the far lane and the berm in the near, and have both at once. They open dug in; the
-        /// Americans open with three squads and are paid more. (`simcs scenario first-light 48`: 44, 34 and 24
-        /// of 48; against a Veteran 20 by taking the line, 14 by breaking him or leaving him no men.)
+        /// Americans open with three squads and are paid more. (`simcs scenario first-light 192`: 181, 137 and 117
+        /// of 192; against a Veteran 68 by taking the line, 69 by breaking him or leaving him no men.)
         /// </summary>
         public static readonly Scenario FirstLight = new Scenario
         {
@@ -155,9 +156,10 @@ namespace LanesOfVietnam.Sim
         };
 
         /// <summary>
-        /// A standard match, as the VC, against an enemy with more of everything: the Americans are paid a
-        /// fifth more. The VC open with twice the points, for the ground, and their will lasts longer.
-        /// (`simcs scenario earth-fights 48`: 41, 33 and 16 of 48.)
+        /// A standard match, as the VC, against an enemy with more of everything: the Americans are paid 1.15
+        /// to the VC's 1 (a fifth more until Bearing, PLAN §12.41: at 1.2 the VC player won 108 of 192 against a
+        /// Veteran). The VC open with twice the points, for the ground, and their will lasts longer.
+        /// (`simcs scenario earth-fights 192`: 141, 125 and 71 of 192.)
         /// </summary>
         public static readonly Scenario EarthFights = new Scenario
         {
@@ -165,7 +167,7 @@ namespace LanesOfVietnam.Sim
             Briefing = "The Americans have built their firebase on ground your people have farmed, dug and fought over for twenty years. They have artillery on call and aircraft overhead, and more of everything except one thing: they do not know where you are.\n\nYou have no guns to answer theirs. You have the ground. Let them walk onto it.",
             Orders = new[] { "Break the Americans' will", "Lay traps ahead of their advance [Q] [W] [E]", "Dig a tunnel [R] to come up where they do not expect you" },
             Attacker = Side.Vc, Plays = Side.Vc, Length = MatchLength.Standard,
-            Us = new Means { Income = 1.2 },
+            Us = new Means { Income = 1.15 },
             Vc = new Means { Purse = 2, Will = 0.65 },
         };
 

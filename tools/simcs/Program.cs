@@ -60,6 +60,7 @@ namespace LanesOfVietnam.SimCs
                     "wander" => Wander(args),
                     "muddle" => Muddle(args),
                     "shape" => Shape(args),
+                    "smooth" => Smooth(args),
                     "aware" => Aware(args),
                     "brain" => Brain(args),
                     "blasts" => Blasts(args),
@@ -176,7 +177,7 @@ namespace LanesOfVietnam.SimCs
             var usPlan = Plan.ByName(a.Length > 2 && a[2] != "game" ? a[2] : "ceiling");
             // "game": the match as the game (and a capture of it) plays it, every rule on and its own economy.
             var m = a.Contains("game")
-                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion")).ToArray()))
+                ? new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tempo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x == "bearing")).ToArray()))
                 : new LiveMatch(new MatchOptions { Seed = seed, Us = usPlan, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms });
             var areas = new List<(int tick, double x, double z)>();
             var grenades = new List<(int tick, double x, double z)>();
@@ -212,10 +213,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Bearing = bearing });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -297,7 +298,7 @@ namespace LanesOfVietnam.SimCs
             var dist = new Dictionary<Weapon, double>(); var far = new Dictionary<Weapon, double>(); var kills = new Dictionary<Weapon, int>();
             for (int seed = seed0; seed < seed0 + seeds; seed++)
             {
-                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion")).ToArray()));
+                var m = new LiveMatch(Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x == "bearing")).ToArray()));
                 var st = m.State;
                 int from = 0;
                 while (!st.Over && st.Tick < m.Cap)
@@ -364,7 +365,7 @@ namespace LanesOfVietnam.SimCs
                 var each = new List<double>();
                 for (int seed = 1; seed <= seeds; seed++)
                 {
-                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x.StartsWith("rate="))).ToArray());
+                    var o = Game(seed, new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "tactics" || x == "fortune" || x == "firecontrol" || x == "commander" || x == "ballistics" || x == "vantage" || x == "aiposts" || x == "cohesion" || x == "bearing" || x.StartsWith("rate="))).ToArray());
                     o.CpRate = 1.6; o.StartCp = 20; o.OpeningStrength = 4; o.MusterCost = muster;      // GameRoot's
                     o.Player = style == "left to the plan" ? (Side?)null : side;
                     var m = new LiveMatch(o);
@@ -408,7 +409,7 @@ namespace LanesOfVietnam.SimCs
             var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
             int seed0 = nums.Length > 0 ? nums[0] : 1, seeds = nums.Length > 1 ? nums[1] : 24;
             string cardId = a.FirstOrDefault(x => x.StartsWith("us-") || x.StartsWith("vc-")) ?? "us-sniper";
-            var flags = new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tactics", "fortune", "firecontrol", "ballistics", "tempo", "vantage" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "commander" || x == "cohesion")).ToArray();
+            var flags = new[] { "fieldcraft", "arms", "senses", "gunnery", "ammo", "tactics", "fortune", "firecontrol", "ballistics", "tempo", "vantage" }.Concat(a.Where(x => x == "skirmish" || x == "siege" || x == "long" || x == "commander" || x == "cohesion" || x == "bearing")).ToArray();
             Console.WriteLine($"  {cardId}, seeds {seed0} to {seed0 + seeds - 1}, the American player buying line squads besides:");
             foreach (bool up in new[] { true, false })
             {
@@ -616,7 +617,7 @@ namespace LanesOfVietnam.SimCs
                 Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Length = MatchLength.Standard,
                 Frag = !a.Contains("nofrag"), SquadSmoke = !a.Contains("nosmoke"), Drill = !a.Contains("nodrill"),
                 Fieldcraft = a.Contains("fieldcraft"), Arms = a.Contains("arms"), Senses = a.Contains("senses"), Gunnery = a.Contains("gunnery"), Ammo = a.Contains("ammo"),
-                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"), Commander = a.Contains("commander"), Ballistics = a.Contains("ballistics"), Vantage = a.Contains("vantage"), ComputerPosts = a.Contains("aiposts"), Cohesion = a.Contains("cohesion"),
+                Tactics = a.Contains("tactics"), Fortune = a.Contains("fortune"), FireControl = a.Contains("firecontrol"), Commander = a.Contains("commander"), Ballistics = a.Contains("ballistics"), Vantage = a.Contains("vantage"), ComputerPosts = a.Contains("aiposts"), Cohesion = a.Contains("cohesion"), Bearing = a.Contains("bearing"),
             };
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
@@ -650,15 +651,19 @@ namespace LanesOfVietnam.SimCs
                 foreach (var arg in a)
                 {
                     if (!arg.StartsWith("man=")) continue;
+                    if (int.Parse(arg.Substring(4)) >= st.Men.Count) continue;
                     var p = st.Men[int.Parse(arg.Substring(4))];
                     var q = st.Squads[p.Squad];
                     var foe = st.Men.Where(e => e.Alive && e.Side != p.Side).OrderBy(e => Combat.Dist(p, e)).FirstOrDefault();
                     var quarry = p.Alive && st.Fieldcraft ? Fieldcraft.Quarry(st, p, q) : null;
-                    Console.WriteLine($"  t{st.Tick} man {p.Id} {(p.Alive ? "" : "DEAD ")}{p.X,6:F2},{p.Z,6:F2} {p.Posture,-8} pin {p.Pin:F2} rest {p.Rest,3} cd {p.Cooldown,2} cover {p.Cover,2} place {p.Place}@{p.PlaceCover} rank {p.Rank}{(p.Vault > 0 ? " vault" : "")}{(p.Reloading > 0 ? " reload" : "")} | sq{q.Id} {q.Order} {q.Task} tgt {q.Target} anchor {q.AnchorX:F1},{q.AnchorZ:F1} {(q.Halted ? "halt" : "go")} threat {q.Threat} | quarry {(quarry == null ? "-" : quarry.Id.ToString())} nearest {(foe == null ? "-" : $"{foe.Id} at {foe.X:F1},{foe.Z:F1} {Combat.Dist(p, foe):F1} m")}");
+                    // (His place, as near as it can be said from outside: his place in cover, or his rank's behind the anchor.)
+                    double pdir = Combat.Advance(p.Side);
+                    double sx = p.Place >= 0 && p.PlaceCover >= 0 ? Fieldcraft.PlaceOf(st.Cover[p.PlaceCover], p.Place, pdir).X : q.AnchorX - pdir * p.Rank * Cohesion.Gap(st, q);
+                    Console.WriteLine($"  t{st.Tick} man {p.Id} {(p.Alive ? "" : "DEAD ")}{p.X,6:F2},{p.Z,6:F2} {p.Posture,-8} pin {p.Pin:F2} rest {p.Rest,3} cd {p.Cooldown,2} cover {p.Cover,2} place {p.Place}@{p.PlaceCover} rank {p.Rank}{(p.Vault > 0 ? " vault" : "")}{(p.Reloading > 0 ? " reload" : "")} | sq{q.Id} {q.Order} {q.Task} tgt {q.Target} anchor {q.AnchorX:F1},{q.AnchorZ:F1} {(q.Halted ? "halt" : "go")} threat {q.Threat} | quarry {(quarry == null ? "-" : quarry.Id.ToString())} nearest {(foe == null ? "-" : $"{foe.Id} at {foe.X:F1},{foe.Z:F1} {Combat.Dist(p, foe):F1} m")} | place x {sx:F1} ({(sx - p.X) * pdir:+0.0;-0.0} m on) dwell {p.Dwell} wait {p.Wait} still {(p.Still ? 1 : 0)} turn {(Tactics.Turn(st, q, p) ? 1 : 0)} seen {(q.ThreatSeen ? 1 : 0)}");
                 }
                 if (a.Any(x => x.StartsWith("man="))) continue;
                 if ((st.Tick - from) % every != 0) continue;
-                Console.WriteLine($"  t{st.Tick} {st.Phase} morale {st.Morale[0]:F2}/{st.Morale[1]:F2} smoke {st.Areas.Count(x => x.Kind == AreaKind.Smoke)}");
+                Console.WriteLine($"  t{st.Tick} {st.Phase} morale {st.Morale[0]:F2}/{st.Morale[1]:F2} smoke {st.Areas.Count(x => x.Kind == AreaKind.Smoke)} barrages {st.Areas.Count(x => x.Kind == AreaKind.Barrage)} traps {st.Areas.Count(x => x.Kind == AreaKind.Trap)}");
                 foreach (var sq in st.Squads)
                 {
                     var men = Squads.Roster(st, sq.Id);
@@ -1028,6 +1033,232 @@ namespace LanesOfVietnam.SimCs
             foreach (var kv in setOffs.OrderByDescending(k => k.Value).Take(12)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / (manSeconds / 60),5:F2}");
             Console.WriteLine("  one man walking alone, % of squad time, by what the squad is at:");
             foreach (var kv in singles.OrderByDescending(k => k.Value).Take(10)) Console.WriteLine($"      {kv.Key,-70} {100 * kv.Value / squadSeconds,5:F1}");
+            return 0;
+        }
+
+        /// <summary>
+        /// How a man moves, set against how a man does (the owner, 2026-10-11: "improve gameplay. Make it smooth
+        /// like real life"). `smooth [seed] [ticks] [seeds] [flags]`; with `strip`, the men of the first match
+        /// drawn a line each, a letter a quarter of a second (- on his feet and moving; on his feet and still S, or
+        /// r getting up, c climbing, b barred, t waiting his turn, f waiting for his file, o for the other half,
+        /// ! pinned; K on a knee, k moving on it; P flat, p crawling).
+        ///   a posture kept   how long he stays as he is before he changes, and how often it is under two seconds
+        ///   up for nothing   he gets to his feet and is down again having gone less than a metre and a half
+        ///   bobbing          down, up and down again (or flat, a knee, flat) inside three seconds
+        ///   a move           from setting off to stopping (a stop under a quarter of a second is not one): how far, how long
+        ///   a stutter        a stop of under a second between two moves the same way
+        ///   a lurch          his speed changing by half a metre a second or more between two steps of one move
+        /// </summary>
+        private static int Smooth(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seed0 = nums.Length > 0 ? nums[0] : 3, ticks = nums.Length > 1 ? nums[1] : 2400, seeds = nums.Length > 2 ? nums[2] : 1;
+            bool strip = a.Contains("strip");
+            double manSeconds = 0, changes = 0, shortHolds = 0, holds = 0, nothing = 0, bobs = 0, moves = 0, shortMoves = 0, briefMoves = 0, metres = 0, moveSeconds = 0, stutters = 0, lurches = 0;
+            var time = new Dictionary<string, double>();
+            var heldFor = new Dictionary<string, List<double>>();
+            var whyNothing = new Dictionary<string, double>();
+            var whyBob = new Dictionary<string, double>();
+            var whyShort = new Dictionary<string, double>();
+            var whyStutter = new Dictionary<string, double>();
+            var lengths = new List<double>();
+            double stood = 0;
+            var whyStood = new Dictionary<string, double>();
+            var whyBrief = new Dictionary<string, double>();
+            var whyLurch = new Dictionary<string, double>();
+            double lying = 0, shortOf = 0;
+            var whyShortOf = new Dictionary<string, double>();
+            var whyLying = new Dictionary<string, double>();
+            double halted = 0;
+            int shown = 0;
+            var whyHalted = new Dictionary<string, double>();
+            for (int seed = seed0; seed < seed0 + seeds; seed++)
+            {
+                var m = new LiveMatch(Game(seed, a));
+                var st = m.State;
+                // By man: his posture and the tick he took it; the two before it and when; where he was when he got up.
+                var held = new Dictionary<int, (Posture p, int since, Posture before, int beforeSince, Posture first, int firstSince)>();
+                var rose = new Dictionary<int, (double x, double z, bool on)>();
+                // His move: where and when it began, the ticks since he last stepped, the last step's speed, and its way.
+                var move = new Dictionary<int, (double x, double z, int from, int idle, double v, double hx, double hz, bool on)>();
+                var last = new Dictionary<int, (int tick, double hx, double hz)>();
+                var lines = new Dictionary<int, System.Text.StringBuilder>();
+                for (int t = 0; t < ticks && !st.Over; t++)
+                {
+                    var was = st.Men.Where(x => x.Alive).ToDictionary(x => x.Id, x => (x.X, x.Z));
+                    m.Step();
+                    if (st.Phase != Phase.Fight) continue;
+                    foreach (var p in st.Men)
+                    {
+                        if (!p.Alive || !was.TryGetValue(p.Id, out var w)) continue;
+                        var sq = st.Squads[p.Squad];
+                        if (sq.Post >= 0) continue;
+                        manSeconds += Tune.Dt;
+                        double dx = p.X - w.X, dz = p.Z - w.Z, step = Math.Sqrt(dx * dx + dz * dz), v = step / Tune.Dt;
+                        bool moving = step > 0.01;
+                        string doing = (sq.Order == Order.Fallback ? "falling back" : sq.Task.ToString()) + (p.Pin >= Tune.PinDrop ? ", pinned" : "");
+                        string state = (p.Posture == Posture.Standing ? "on his feet" : p.Posture == Posture.Crouched ? "on a knee" : "flat") + (moving ? ", moving" : ", still");
+                        time[state] = time.GetValueOrDefault(state) + Tune.Dt;
+                        // On his feet and not going anywhere, with the enemy about: why.
+                        if (p.Posture == Posture.Standing && !moving && (sq.Task != SquadTask.March || sq.Order == Order.Fallback))
+                        {
+                            stood += Tune.Dt;
+                            string wk = $"{p.Idle,-10} {doing}";
+                            whyStood[wk] = whyStood.GetValueOrDefault(wk) + Tune.Dt;
+                        }
+                        // And on the march, his squad going: a man who stops in the middle of it.
+                        else if (p.Posture == Posture.Standing && !moving && !sq.Halted && sq.Order != Order.Hold)
+                        {
+                            halted += Tune.Dt;
+                            string wk = $"{p.Idle,-10} {(p.Place >= 0 ? "to a place in cover" : p.Cover >= 0 ? "in cover" : "in the open")}";
+                            // `show=Blocked` names the first of a kind, to be watched (`simcs watch seed from to 1 man=N`).
+                            string asked = a.FirstOrDefault(x => x.StartsWith("show="))?.Substring(5);
+                            if (asked != null && p.Idle.ToString() == asked && shown++ < 12) Console.WriteLine($"    seed {seed} t{st.Tick} man {p.Id} sq{sq.Id} {sq.Task} cover {p.Cover} place {p.Place}@{p.PlaceCover} rank {p.Rank} {p.X:F1},{p.Z:F1}");
+                            whyHalted[wk] = whyHalted.GetValueOrDefault(wk) + Tune.Dt;
+                        }
+                        if (strip && seed == seed0)
+                        {
+                            if (!lines.TryGetValue(p.Id, out var sb)) lines[p.Id] = sb = new System.Text.StringBuilder(new string(' ', Math.Max(0, (st.Tick - st.ContactTick) / 5)));
+                            if (st.Tick % 5 == 0)
+                            {
+                                char c = p.Posture == Posture.Standing ? 'S' : p.Posture == Posture.Crouched ? 'K' : 'P';
+                                // (On his feet and still: getting up r, climbing c, barred b, waiting his turn t or for his file f or the other half o.)
+                                if (c == 'S' && !moving)
+                                    c = p.Idle == Idle.Rising ? 'r' : p.Idle == Idle.Climbing ? 'c' : p.Idle == Idle.Blocked ? 'b' : p.Idle == Idle.HisTurn ? 't'
+                                      : p.Idle == Idle.FileWait ? 'f' : p.Idle == Idle.OtherHalf ? 'o' : p.Idle == Idle.Pinned ? '!' : 'S';
+                                else if (moving) c = c == 'S' ? '-' : char.ToLower(c);
+                                sb.Append(c);
+                            }
+                        }
+                        // Down and still while his squad is closing or going in: what keeps him there.
+                        if (p.Posture != Posture.Standing && !moving && (sq.Task == SquadTask.Close || sq.Task == SquadTask.Assault) && sq.Order != Order.Fallback)
+                        {
+                            lying += Tune.Dt;
+                            string wk = $"{sq.Task,-8} {p.Idle}";
+                            whyLying[wk] = whyLying.GetValueOrDefault(wk) + Tune.Dt;
+                        }
+                        // Down and still in the open, with a place in cover he has not got to: what keeps him from it.
+                        if (p.Posture != Posture.Standing && !moving && p.Cover < 0 && p.Place >= 0 && p.PlaceCover >= 0 && sq.Order != Order.Fallback)
+                        {
+                            shortOf += Tune.Dt;
+                            string wk = $"{(sq.Order == Order.Fallback ? "falling back" : sq.Task.ToString()),-10} {p.Idle}";
+                            whyShortOf[wk] = whyShortOf.GetValueOrDefault(wk) + Tune.Dt;
+                        }
+                        // --- his posture
+                        if (!held.TryGetValue(p.Id, out var h)) h = (p.Posture, -1, p.Posture, -1, p.Posture, -1);
+                        if (h.p != p.Posture)
+                        {
+                            changes++;
+                            double kept = h.since < 0 ? 99 : (st.Tick - h.since) * Tune.Dt;
+                            if (h.since >= 0) holds++;
+                            if (kept < 2)
+                            {
+                                shortHolds++;
+                                string shk = $"{h.before} > {h.p} > {p.Posture}  {doing}";
+                                whyBrief[shk] = whyBrief.GetValueOrDefault(shk) + 1;
+                            }
+                            string hk = h.p == Posture.Standing ? "on his feet" : h.p == Posture.Crouched ? "on a knee" : "flat";
+                            if (!heldFor.TryGetValue(hk, out var hl)) heldFor[hk] = hl = new List<double>();
+                            if (h.since >= 0) hl.Add(kept);
+                            bool up = p.Posture == Posture.Standing, wasUp = h.p == Posture.Standing;
+                            if (up) rose[p.Id] = (p.X, p.Z, true);
+                            else if (wasUp && rose.TryGetValue(p.Id, out var r) && r.on)
+                            {
+                                // Down again: how far did being up take him?
+                                if (Math.Sqrt((p.X - r.x) * (p.X - r.x) + (p.Z - r.z) * (p.Z - r.z)) < 1.5) { nothing++; whyNothing[doing] = whyNothing.GetValueOrDefault(doing) + 1; }
+                                rose[p.Id] = (0, 0, false);
+                            }
+                            // Back to how he was two changes ago, all of it inside three seconds.
+                            if (p.Posture == h.before && h.beforeSince >= 0 && (st.Tick - h.beforeSince) * Tune.Dt <= 3 && h.beforeSince != h.since)
+                            {
+                                bobs++;
+                                string bk = $"{h.before} > {h.p} > {p.Posture}  {doing}";
+                                whyBob[bk] = whyBob.GetValueOrDefault(bk) + 1;
+                            }
+                            h = (p.Posture, st.Tick, h.p, h.since, h.before, h.beforeSince);
+                        }
+                        held[p.Id] = h;
+                        // --- his moves
+                        if (!move.TryGetValue(p.Id, out var mv)) mv = (p.X, p.Z, st.Tick, 0, 0, 0, 0, false);
+                        if (moving)
+                        {
+                            if (!mv.on)
+                            {
+                                // Off again under a second after he stopped, the same way: a stutter.
+                                if (last.TryGetValue(p.Id, out var l) && (st.Tick - l.tick) * Tune.Dt < 1 && l.hx * dx + l.hz * dz > 0)
+                                {
+                                    stutters++;
+                                    string sk = $"{doing,-22} {(sq.Halted ? "halted" : "going ")} {(p.Place >= 0 ? "to a place in cover" : p.Cover >= 0 ? "in cover" : "in the open")}";
+                                    whyStutter[sk] = whyStutter.GetValueOrDefault(sk) + 1;
+                                }
+                                mv = (w.X, w.Z, st.Tick, 0, v, dx, dz, true);
+                            }
+                            else if (mv.idle == 0 && Math.Abs(v - mv.v) >= 0.5)
+                            {
+                                lurches++;
+                                string lk = $"{(v > mv.v ? "faster" : "slower")}  {doing,-20} {(p.Cover >= 0 ? "in cover" : "in the open")}";
+                                whyLurch[lk] = whyLurch.GetValueOrDefault(lk) + 1;
+                                if (a.Contains("show=lurch") && shown++ < 14) Console.WriteLine($"    seed {seed} t{st.Tick} man {p.Id} sq{sq.Id} {sq.Task} {mv.v:F2} > {v:F2} m/s pace {p.Pace:F2} cover {p.Cover} vault {p.Vault} pin {p.Pin:F2}");
+                            }
+                            mv.idle = 0; mv.v = v; mv.hx = dx; mv.hz = dz;
+                        }
+                        else if (mv.on && ++mv.idle >= 5)
+                        {
+                            // The move is over (it ended five ticks ago).
+                            double far = Math.Sqrt((p.X - mv.x) * (p.X - mv.x) + (p.Z - mv.z) * (p.Z - mv.z)), took = (st.Tick - 5 - mv.from + 1) * Tune.Dt;
+                            moves++; metres += far; moveSeconds += took; lengths.Add(far);
+                            if (took < 1) briefMoves++;
+                            if (far < 1.5)
+                            {
+                                shortMoves++;
+                                string mk = $"{doing,-22} {(sq.Halted ? "halted" : "going ")} {(p.Place >= 0 ? "to a place in cover" : p.Cover >= 0 ? "in cover" : "in the open")}";
+                                whyShort[mk] = whyShort.GetValueOrDefault(mk) + 1;
+                            }
+                            last[p.Id] = (st.Tick - 5, mv.hx, mv.hz);
+                            mv.on = false;
+                        }
+                        move[p.Id] = mv;
+                    }
+                }
+                if (strip && seed == seed0)
+                    foreach (var sq in st.Squads.Take(8))
+                    {
+                        Console.WriteLine($"  squad {sq.Id} {sq.Side} lane {sq.Lane}, a letter a quarter of a second from first contact:");
+                        foreach (var p in st.Men.Where(x => x.Squad == sq.Id)) if (lines.TryGetValue(p.Id, out var sb)) Console.WriteLine($"    {p.Id,3} {sb}");
+                    }
+            }
+            double mm = manSeconds / 60;
+            Console.WriteLine($"  seeds {seed0}..{seed0 + seeds - 1}, {mm:F0} man-minutes in the fight; a man, a minute:");
+            Console.WriteLine("  his time:");
+            foreach (var kv in time.OrderByDescending(k => k.Value)) Console.WriteLine($"      {kv.Key,-22} {100 * kv.Value / manSeconds,5:F1}%");
+            Console.WriteLine($"  on his feet and still, in contact   {stood / mm,5:F1} s of a man's minute");
+            foreach (var kv in whyStood.OrderByDescending(k => k.Value).Take(12)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  down and still, his squad closing or going in   {lying / mm,5:F1} s of a man's minute");
+            foreach (var kv in whyLying.OrderByDescending(k => k.Value).Take(12)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  down in the open short of his place in cover   {shortOf / mm,5:F1} s of a man's minute");
+            foreach (var kv in whyShortOf.OrderByDescending(k => k.Value).Take(10)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  on his feet and still, his squad marching   {halted / mm,5:F1} s of a man's minute");
+            foreach (var kv in whyHalted.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-44} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  changes posture          {changes / mm,5:F1}   ({100 * shortHolds / Math.Max(1, holds):F0}% of them after under 2 s as he was)");
+            foreach (var kv in heldFor.OrderBy(k => k.Key))
+            {
+                var l = kv.Value; l.Sort();
+                Console.WriteLine($"      {kv.Key,-12} kept {l[l.Count / 2],5:F1} s (the middle one), a quarter under {l[l.Count / 4]:F1} s, under 2 s {100.0 * l.Count(x => x < 2) / l.Count:F0}%");
+            }
+            Console.WriteLine($"  as he was under 2 s      {shortHolds / mm,5:F2}   (how he was before > how he was briefly > what he changed to)");
+            foreach (var kv in whyBrief.OrderByDescending(k => k.Value).Take(12)) Console.WriteLine($"      {kv.Key,-56} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  up for nothing           {nothing / mm,5:F2}");
+            foreach (var kv in whyNothing.OrderByDescending(k => k.Value).Take(6)) Console.WriteLine($"      {kv.Key,-40} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  bobbing                  {bobs / mm,5:F2}");
+            foreach (var kv in whyBob.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-56} {kv.Value / mm,5:F2}");
+            lengths.Sort();
+            Console.WriteLine($"  moves                    {moves / mm,5:F1}   {metres / Math.Max(1, moves):F1} m and {moveSeconds / Math.Max(1, moves):F1} s each; the middle one {(lengths.Count > 0 ? lengths[lengths.Count / 2] : 0):F1} m");
+            Console.WriteLine($"      under a metre and a half {shortMoves / mm,5:F2}   under a second {briefMoves / mm,5:F2}");
+            foreach (var kv in whyShort.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"          {kv.Key,-56} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  stutters                 {stutters / mm,5:F2}");
+            foreach (var kv in whyStutter.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / mm,5:F2}");
+            Console.WriteLine($"  lurches                  {lurches / mm,5:F2}");
+            foreach (var kv in whyLurch.OrderByDescending(k => k.Value).Take(8)) Console.WriteLine($"      {kv.Key,-60} {kv.Value / mm,5:F2}");
             return 0;
         }
 
@@ -1880,9 +2111,9 @@ namespace LanesOfVietnam.SimCs
         private static int Seeds(string[] a)
         {
             // Rule flags anywhere after the count: "frag" turns grenades on.
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion");
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), tempo = a.Contains("tempo"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing");
             string lengthName = a.Contains("skirmish") ? "skirmish" : a.Contains("siege") || a.Contains("long") ? "siege" : "standard";
-            a = a.Where(x => x != "frag" && x != "long" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "skirmish" && x != "siege").ToArray();
+            a = a.Where(x => x != "frag" && x != "long" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "tempo" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "skirmish" && x != "siege").ToArray();
             int count = int.Parse(a[1]);
             long smokes = 0;
             double lostCas = 0, lostGround = 0;
@@ -1898,7 +2129,7 @@ namespace LanesOfVietnam.SimCs
             for (int s = from; s < from + count; s++)
             {
                 var t0 = sw.Elapsed.TotalMilliseconds;
-                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion };
+                var mo = new MatchOptions { Seed = s, Us = us, Vc = vc, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Bearing = bearing };
                 if (lengthName == "skirmish") mo.Length = MatchLength.Skirmish; else if (lengthName == "siege") mo.Length = MatchLength.Long;
                 if (tempo) { mo.CpRate = 1.6; mo.StartCp = 20; mo.OpeningStrength = 4; mo.MusterCost = 29; mo.MoraleRate = GameRate(mo.Length); }
                 var r = Match.Run(mo);

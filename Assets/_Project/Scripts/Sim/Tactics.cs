@@ -118,6 +118,10 @@ namespace LanesOfVietnam.Sim
             // On his feet, running, and nearly there: he does not stop two paces short of his place.
             // (Further, when it is a place in cover he is running for: he does not kneel in the open six metres from a wall.)
             if (m.Posture == Posture.Standing && m.Rest == 0 && away <= (toCover ? Tune.BoundFinishCover : Tune.BoundFinish)) return false;
+            // Bearing: nor does a man lying in the open a few paces short of his place in cover wait his turn to get to it.
+            if (st.Bearing && Bearing.ForCover(m, away, toCover)) return false;
+            // Bearing: a man who has got to his feet in his turn has his run, though the turn ends under him.
+            if (st.Bearing && m.Posture == Posture.Standing && m.Dwell < Gunnery.RiseTicks(m.Before) + Tune.BoundWorth) return false;
             return !Turn(st, sq, m);
         }
 

@@ -137,6 +137,9 @@ namespace LanesOfVietnam.View
         /// With Cohesion (PLAN §12.37) the computer's squads fight as squads, and at 32 he won 53 and 48 of 96. Measured
         /// with the same and `cohesion`: 86 and 80 of 96 against a Recruit (42), 62 and 56 against a Veteran (34), 55
         /// and 39 against the Elite (28).
+        /// With Bearing (PLAN §12.41) men stay down longer and a fight is slower to decide, and at 34 he won 110 and 109
+        /// of 192. Measured over 192 seeds with `player 192 N rate=0.95 ... commander cohesion bearing`: 125 and 111
+        /// against a Veteran (35), 96 and 76 against the Elite (29); and a Recruit is 44 (at 43, 151 and 139).
         /// </summary>
         /// <remarks>The numbers themselves are kept in Sim/Scenario.cs, where the headless tool reads the ones the game plays at.</remarks>
         public static double CostFor(Difficulty d) => Scenario.CostFor(d);
@@ -160,7 +163,10 @@ namespace LanesOfVietnam.View
         /// 187 to 226. With Cohesion, PLAN §12.37, squads stay longer where they have gone to ground: a siege at 1.15
         /// ran seven to nine and three quarter minutes again, and at 1.35 (`player 48 34 siege rate=1.35 ... commander
         /// cohesion`) five to eight and a half; a skirmish 127 to 147 s and a standard match 197 to 228 at the rates
-        /// they had.)
+        /// they had. With Bearing, PLAN §12.41, men who stay down are hit less and a match ran a tenth longer: the
+        /// rates are 1.25, 0.95 and 1.5 (`player 96 35 [skirmish|long] rate=N ... cohesion bearing`), at which a
+        /// skirmish runs 126 to 159 s, a standard match 201 to 296 with nobody buying and 201 to 242 with a player
+        /// who does, a long one four and three quarters to seven and a half minutes.)
         /// </summary>
         public static double RateFor(MatchLength l) => Scenario.RateFor(l);
 
@@ -182,7 +188,7 @@ namespace LanesOfVietnam.View
             Seed = seed ?? ChooseSeed();
             // The match is the scenario's (Sim/Scenario.cs): its map, its mode and clock, what each side has, every
             // Part 2 rule on (grenades and squad smoke, Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics,
-            // Fortune, FireControl, Ballistics, Vantage, the computer's commander, Cohesion) and the game's tempo
+            // Fortune, FireControl, Ballistics, Vantage, the computer's commander, Cohesion, Bearing) and the game's tempo
             // (the owner, playtest 4: "points are gained too slow. Too many soldiers at the start"): each side
             // opens with one squad, points come in at CpRate with StartCp in hand, and the player's own side
             // raises nothing by itself: it had been spending his points for him, a squad every time he reached
@@ -212,6 +218,7 @@ namespace LanesOfVietnam.View
                 Options.Vantage = cap.Vantage ?? true;
                 Options.Commander = cap.Commander ?? true;
                 Options.Cohesion = cap.Cohesion ?? true;
+                Options.Bearing = cap.Bearing ?? true;
             }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

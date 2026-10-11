@@ -551,6 +551,25 @@ namespace LanesOfVietnam.Sim
         public const double StallMetres = 1.0;
         public const int StallTicks = 70;
 
+        // --- how a man carries himself (MatchOptions.Bearing) --------------------------------
+
+        /// <summary>Ticks a man who has gone flat stays flat before he comes back onto a knee, where he does at all (3 s).</summary>
+        public const int StayFlat = TickHz * 3;
+        /// <summary>Ticks a man who has got down stays down before he gets up to go again (2 s), and ticks after a round last came near him before he does (1 s).</summary>
+        public const int StayDown = TickHz * 2, RiseClear = TickHz;
+        /// <summary>Ticks a man out of contact has been at rest before he takes a knee (2 s; in contact it is RestToKneel).</summary>
+        public const int RestToKneelQuiet = TickHz * 2;
+        /// <summary>
+        /// Ticks of running a man's getting up is for (1.5 s: three metres at the double): he does not get up with
+        /// less of his half's turn left than it takes him to be on his feet and that; and once he is on them he has
+        /// that long, though the turn ends under him.
+        /// </summary>
+        public const int BoundWorth = 30;
+        /// <summary>Ticks a man on his feet waits for a man of his own who bars his way before he gets down where he is (0.4 s).</summary>
+        public const int BalkTicks = 8;
+        /// <summary>How fast a man gathers pace and how fast he slows, m/s a second; and the least he goes at while he is going, m/s.</summary>
+        public const double Gather = 3.2, Ease = 4.0, PaceLeast = 0.5;
+
         // --- a post up high (MatchOptions.Vantage) -----------------------------------------
 
         /// <summary>Ticks a man takes up a post's ladder (8 s), and between one man starting up it and the next (3 s).</summary>

@@ -63,6 +63,31 @@ namespace LanesOfVietnam.Sim
     /// <summary>A called-in effect: a circle on the map with a clock on it.</summary>
     public enum AreaKind { Barrage, Smoke, Trap }
 
+    /// <summary>Why a man did not take a step in a tick (<see cref="Man.Idle"/>).</summary>
+    public enum Idle : byte
+    {
+        /// <summary>He stepped.</summary>
+        No,
+        /// <summary>Kept down by fire.</summary>
+        Pinned,
+        /// <summary>Climbing into a trench or out of one.</summary>
+        Climbing,
+        /// <summary>Getting to his feet; or down, and a man who is down stays where he is.</summary>
+        Rising, Down,
+        /// <summary>At his place, or near enough to it.</summary>
+        AtPlace,
+        /// <summary>His place is a few paces behind him: he waits for his file to come up.</summary>
+        FileWait,
+        /// <summary>The other half of his squad is moving, and he is covering it.</summary>
+        OtherHalf,
+        /// <summary>Waiting his turn to set off behind the man ahead.</summary>
+        HisTurn,
+        /// <summary>A man of his own side is in his way and there is no way round him.</summary>
+        Blocked,
+        /// <summary>Bearing: he has only just got down; rounds are landing by him; there is too little of his half's turn left to get up for.</summary>
+        JustDown, UnderFire, TurnEnding,
+    }
+
     public sealed class Man
     {
         public int Id;
@@ -156,6 +181,17 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks he still waits before he sets off, after the man ahead of him has (MatchOptions.Gunnery).</summary>
         public int Wait;
+
+        /// <summary>How fast he is going, m/s: he gathers pace and slows into his place (MatchOptions.Bearing).</summary>
+        public double Pace;
+        /// <summary>Ticks he has been on his feet with a man of his own side in his way and no way round (MatchOptions.Bearing).</summary>
+        public int Balk;
+
+        /// <summary>
+        /// Why he did not take a step this tick (<see cref="Idle"/>): for the measures (`simcs smooth`), which
+        /// cannot see inside his move. No rule reads it and it is not hashed.
+        /// </summary>
+        public Idle Idle;
 
         /// <summary>
         /// What he is like, against the ordinary man's 1 (MatchOptions.Fortune): how well he shoots, how
@@ -501,6 +537,8 @@ namespace LanesOfVietnam.Sim
         public double BankZ, BankHeight, BankPhase;
         /// <summary>Part 2 rule: a squad keeps together and makes up its mind (<see cref="Sim.Cohesion"/>). Off is the baseline.</summary>
         public bool Cohesion;
+        /// <summary>Part 2 rule: a man keeps the way he has gone down, gets up only for a move he can make, and gathers pace (<see cref="Sim.Bearing"/>). Off is the baseline.</summary>
+        public bool Bearing;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

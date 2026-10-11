@@ -115,6 +115,8 @@ namespace LanesOfVietnam.View
         public bool? Commander;
         /// <summary>A squad keeps together and makes up its mind (MatchOptions.Cohesion); the game's default (on) if not given.</summary>
         public bool? Cohesion;
+        /// <summary>A man keeps the way he has gone down, gets up only for a move he can make, and gathers pace (MatchOptions.Bearing); the game's default (on) if not given.</summary>
+        public bool? Bearing;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -180,6 +182,7 @@ namespace LanesOfVietnam.View
                     case "vantage": c.Vantage = v == "1" || v == "true"; break;
                     case "commander": c.Commander = v == "1" || v == "true"; break;
                     case "cohesion": c.Cohesion = v == "1" || v == "true"; break;
+                    case "bearing": c.Bearing = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

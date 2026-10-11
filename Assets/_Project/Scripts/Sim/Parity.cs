@@ -119,6 +119,8 @@ namespace LanesOfVietnam.Sim
             if (st.Commander) { h = MixI(h, st.TrapAt[0]); h = MixI(h, st.TrapAt[1]); }
             if (st.Cohesion)
                 foreach (var s in st.Squads) { h = MixD(h, s.ProgressX); h = MixI(h, s.ProgressAt); }
+            if (st.Bearing)
+                foreach (var m in st.Men) { h = MixD(h, m.Pace); h = MixI(h, m.Balk); }
             if (st.Vantage)
             {
                 foreach (var m in st.Men) { h = MixD(h, m.High); h = MixI(h, m.Climb); }

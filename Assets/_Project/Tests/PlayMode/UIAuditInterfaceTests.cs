@@ -348,11 +348,14 @@ namespace LanesOfVietnam.Tests
 
             // Held, a position fills with men and they stay; the plate counts them. (With Senses the
             // squad opens the match in a position, and the lever pulled to Go above may have sent it on:
-            // the one held here is the first at or ahead of its lead man with room for three.)
+            // the one held here is the first with room for three that the squad has not yet gone by.)
             // (Fortune: the match opens in either lane, so the position is one in the lane his men are in.)
-            double lead = st.Men.Where(m => m.Alive && m.Side == Side.Us).Max(m => m.X);
-            int lane = st.Squads[st.Men.First(m => m.Alive && m.Side == Side.Us).Squad].Lane;
-            var trench = positions.Where(c => System.Math.Abs(c.Z - Tune.Lanes[lane]) < 4.5 && c.Capacity >= 3 && c.X + c.Length * 0.5 >= lead - 1).OrderBy(c => c.X).First();
+            // (Bearing: by where the squad is, as the lever's own rule has it (Fieldcraft.HeldAhead), not by its lead
+            // man: men who gather pace are further behind their squad's place for them, and a trench the lead man
+            // was still in could be one the squad had already left.)
+            var mine = st.Squads[st.Men.First(m => m.Alive && m.Side == Side.Us).Squad];
+            int lane = mine.Lane;
+            var trench = positions.Where(c => System.Math.Abs(c.Z - Tune.Lanes[lane]) < 4.5 && c.Capacity >= 3 && Fieldcraft.StopX(c, 1) >= mine.AnchorX - 0.5).OrderBy(c => c.X).First();
             hud.Positions.Pull(trench.Id, Lever.Hold);
             yield return null;
             Root.Driver.FastForward(300);

@@ -127,6 +127,9 @@ namespace LanesOfVietnam.Sim
             return lead - dir * number * Tune.SpawnGap;
         }
 
+        /// <summary>Metres a man keeps from a man of his own side.</summary>
+        private const double Room = 0.7;
+
         /// <summary>
         /// A step, kept clear of friends: a man does not walk onto another. In
         /// the open he goes round him, keeping his distance (the part of the
@@ -136,7 +139,6 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static bool Clear(SimState st, Man m, ref double nx, ref double nz, double step)
         {
-            const double Room = 0.7;
             Man f = Blocker(st, m, nx, nz, Room);
             if (f == null) return false;
             double sx = nx - m.X, sz = nz - m.Z;
@@ -159,8 +161,32 @@ namespace LanesOfVietnam.Sim
                 double turn = m.Id < f.Id ? 1 : -1;
                 sx = -fz * turn * step; sz = fx * turn * step;
             }
+            else if (st.Bearing)
+            {
+                // Bearing: round him at his own pace, not at what is left of it (a man going by another's shoulder
+                // went at a fifth of his speed for a step, and at all of it the next).
+                double len = Math.Sqrt(sx * sx + sz * sz), rx = sx / len * step, rz = sz / len * step;
+                if (Blocker(st, m, m.X + rx, m.Z + rz, Room) == null) { sx = rx; sz = rz; }
+            }
             if (Blocker(st, m, m.X + sx, m.Z + sz, Room) == null) { nx = m.X + sx; nz = m.Z + sz; }
             return true;
+        }
+
+        /// <summary>
+        /// Is his way to (<paramref name="tx"/>, <paramref name="tz"/>) barred: would his next step that way be
+        /// stopped by a man of his own side who is at rest, with no way round him? (In a trench, where it is the man with the
+        /// place behind his own, they change places, as <see cref="Clear"/> has them do.)
+        /// </summary>
+        public static bool Barred(SimState st, Man m, double tx, double tz, double speed)
+        {
+            double dx = tx - m.X, dz = tz - m.Z, d = JsMath.Hypot(dx, dz);
+            if (d < 1e-9) return false;
+            double step = Math.Min(d, speed * Tune.Dt);
+            double nx = m.X + dx / d * step, nz = m.Z + dz / d * step;
+            // (A man who is himself on the move is not in the way: he will have gone on.)
+            Man f = Blocker(st, m, nx, nz, Room);
+            if (f == null || f.Rest == 0) return false;
+            return Clear(st, m, ref nx, ref nz, step) && nx == m.X && nz == m.Z;
         }
 
         private static Man Blocker(SimState st, Man m, double nx, double nz, double room)

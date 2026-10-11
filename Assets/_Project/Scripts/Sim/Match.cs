@@ -138,6 +138,8 @@ namespace LanesOfVietnam.Sim
         public MapDef Map;
         /// <summary>Part 2: a squad keeps together (a closer file, a lead man who waits, stragglers who run, no walking into a friend) and makes up its mind (Cohesion). False is the parity baseline.</summary>
         public bool Cohesion;
+        /// <summary>Part 2: a man keeps the way he has gone down, gets up only for a move he can make now, and gathers pace and slows into his place (Bearing). False is the parity baseline.</summary>
+        public bool Bearing;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -307,6 +309,7 @@ namespace LanesOfVietnam.Sim
                 Ballistics = opts.Ballistics,
                 Vantage = opts.Vantage,
                 Cohesion = opts.Cohesion,
+                Bearing = opts.Bearing,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -459,6 +462,7 @@ namespace LanesOfVietnam.Sim
         private static void MoveMan(SimState st, Man m, Squad sq, Slot slot, Plan plan)
         {
             double dir = Combat.Advance(m.Side);
+            m.Idle = Idle.No;
 
             // Posture, with one dwell where every input funnels through
             // (§9 finding 3).
@@ -468,7 +472,12 @@ namespace LanesOfVietnam.Sim
             Man quarry = null;
             if (st.Fieldcraft)
             {
-                if (m.Vault > 0) { m.Vault--; climbing = true; }
+                if (m.Vault > 0)
+                {
+                    m.Vault--; climbing = true;
+                    // Bearing: over the parapet, he goes on: he does not wait his turn again on the far side of it.
+                    if (st.Bearing && st.Gunnery) m.Wait = -1;
+                }
                 quarry = Fieldcraft.Quarry(st, m, sq);
             }
             // Always the slot. Cover is reached by moving the anchor.
@@ -489,10 +498,18 @@ namespace LanesOfVietnam.Sim
                 double behind = (m.X - tx) * dir;
                 // (Tactics: and waiting, he stands where he is. Following his file's line across the lane while
                 // it came up to him, he shuffled a pace to one side and back.)
-                if (behind > 0 && behind < Tune.FileWait) { tx = m.X; if (st.Tactics) tz = m.Z; }
+                if (behind > 0 && behind < Tune.FileWait) { tx = m.X; if (st.Tactics) tz = m.Z; m.Idle = Idle.FileWait; }
             }
             // Tactics: in contact a squad moves by halves. It is the other half's turn: he stays where he is, down, and fires.
-            if (st.Tactics && quarry == null && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; }
+            if (st.Tactics && quarry == null && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
+            // Bearing: down, he gets up only for a move he can make now; on his feet with his way barred, he does not stand there.
+            bool sapper = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen;
+            if (st.Bearing && quarry == null && !sapper)
+            {
+                var why = Bearing.WhyDown(st, sq, m, tx, tz, slot.InCover);
+                if (why != Idle.No) { tx = m.X; tz = m.Z; m.Idle = why; }
+                else if (Bearing.Balked(st, sq, m, tx, tz)) { tx = m.X; tz = m.Z; m.Idle = Idle.Blocked; }
+            }
 
             var want = Posture.Standing;
             if (m.Pin >= Tune.PinStop) want = Posture.Prone;
@@ -532,6 +549,8 @@ namespace LanesOfVietnam.Sim
             // except a sapper coming up unseen.
             bool stalking = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen && quarry == null && sq.Order != Order.Fallback && m.Pin < Tune.PinDrop;
             if (st.Gunnery) want = Gunnery.Carry(st, m, sq, want, quarry != null, stalking, JsMath.Hypot(tx - m.X, tz - m.Z));
+            // Bearing: and a man who is flat is not got onto a knee and put flat again.
+            if (st.Bearing) want = Bearing.Keep(st, m, sq, want, quarry == null && sq.Order != Order.Fallback && !stalking);
             if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
             {
                 // Gunnery: getting up to go, a man waits his turn, the lead man first: a squad does not rise as one.
@@ -553,6 +572,7 @@ namespace LanesOfVietnam.Sim
             // placed in whatever he is lying behind, so only movement is skipped.
             bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback;
             double wasX = m.X, wasZ = m.Z;
+            bool stepped = false, waited = false;
             // Gunnery: getting to his feet takes its time, and a man who is down stays where he is.
             bool held = st.Gunnery && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
             if (!pinnedDown && !climbing && !held)
@@ -584,9 +604,12 @@ namespace LanesOfVietnam.Sim
                     if (m.Wait == 0 && m.Rest >= Tune.RestToKneel) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
                     if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; waiting = true; }
                 }
+                waited = waiting && d > slack;
                 if (d > slack && !waiting)
                 {
-                    double stepLen = Math.Min(d, speed * Tune.Dt);
+                    stepped = true;
+                    // Bearing: he gathers pace, and slows into his place.
+                    double stepLen = st.Bearing ? Bearing.Stride(m, speed, d) : Math.Min(d, speed * Tune.Dt);
                     // (Senses: men running to their places in the strongpoint behind go round each other too.)
                     if (st.Fieldcraft && (sq.Order != Order.Fallback || (st.Senses && sq.Target >= 0)))
                     {
@@ -596,6 +619,8 @@ namespace LanesOfVietnam.Sim
                         // where the squad's next place is): he waits beside him. Sliding round him to a
                         // place he could not take, he swung about sixty times a minute.
                         if (blocked && st.Senses && quarry == null && d <= Tune.SetOff + 0.7) { nx = m.X; nz = m.Z; m.Still = true; }
+                        // Bearing: going round a man he loses pace, and gathers it again.
+                        if (blocked && st.Bearing) m.Pace = Math.Min(m.Pace, JsMath.Hypot(nx - m.X, nz - m.Z) / Tune.Dt);
                         m.X = nx; m.Z = nz;
                     }
                     else
@@ -607,6 +632,13 @@ namespace LanesOfVietnam.Sim
                 m.X = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, m.X));
             }
             m.Rest = m.X != wasX || m.Z != wasZ ? 0 : m.Rest + 1;
+            if (st.Bearing && m.Rest > 0) m.Pace = 0;
+            // (For the measures: why he did not step.)
+            if (m.Rest == 0) m.Idle = Idle.No;
+            else if (pinnedDown) m.Idle = Idle.Pinned;
+            else if (climbing) m.Idle = Idle.Climbing;
+            else if (held) m.Idle = m.Posture == Posture.Standing ? Idle.Rising : m.Idle == Idle.No ? Idle.Down : m.Idle;
+            else if (m.Idle == Idle.No) m.Idle = stepped ? Idle.Blocked : waited ? Idle.HisTurn : Idle.AtPlace;
             // (On his way: his turn is spent, and he waits again the next time his squad stops and goes.)
             if (m.Rest == 0 && m.Wait < 0) m.Wait = 0;
             Squads.PushTrail(m);
