@@ -89,9 +89,10 @@ reference/TARGET.jpg             the specification for the look
 | Cohesion | a squad keeps together: a closer file, a lead man who waits for the last, stragglers who run, halves that are two groups, an assault that is everyone at once (PLAN §12.37) |
 | Full screen | FULL on the top bar, on the start screen and in the settings; Alt+Enter (PLAN §12.37) |
 | Scenarios | the map and the scenario as data; a siege (a clock that is the defender's) and an assault (a line to take in both lanes at once); four operations on the firebase, chosen on the start screen with their briefings: the firebase, The Wire, First Light, The Earth Fights; each measured winnable (PLAN §12.39, on the branch `scenarios`) |
-| Tests | EditMode 102/102, PlayMode 23/23 (PLAN §12.39), 2026-10-11 |
+| Bearing | how a man carries himself: one who is flat stays flat until he gets up to go, he gets up for a move he can make now and has his run, he makes for cover that is close, and he gathers pace and slows into his place; half as many changes of posture a minute (PLAN §12.41, on the branch `smooth`) |
+| Tests | EditMode 105/105, PlayMode 23/23 (PLAN §12.41), 2026-10-11 |
 
-The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.34 to §12.37 (what a round and a burst do to a man, the watchtower, the computer's commander, squads that keep together), all on the branch `polish` and in the demo, and §12.39: Phase S, the scenarios, on the branch `scenarios`.
+The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.34 to §12.37 (what a round and a burst do to a man, the watchtower, the computer's commander, squads that keep together), all on the branch `polish`; §12.39: Phase S, the scenarios, on the branch `scenarios`, which is what the demo serves; and §12.41: Bearing, on the branch `smooth`, not yet in the demo.
 
 ## Direction
 

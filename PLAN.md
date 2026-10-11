@@ -3649,6 +3649,237 @@ no error and nothing refused.
   only his account opens.
 
 
+### 12.41 Bearing: how a man carries himself (2026-10-11)
+
+The owner: "Next follow plan and improve gameplay. Make it smooth like real
+life." Branch `smooth`, from `scenarios`. No new art, no download.
+
+**My reading, his to correct.** He did not say what he saw. I took "smooth
+like real life" to be about the men: that a man in this game does things a
+man does not (bobs up and down, gets to his feet for nothing, starts and
+stops at full speed), and looked for it in numbers before touching
+anything. The plan's own next step, Phase M (M0, the world built from a
+map), is not begun: this took the session.
+
+#### Measured first (`simcs smooth`, new)
+
+`simcs smooth [seed] [ticks] [seeds] [flags]` follows every man tick by
+tick; with `strip` it draws the men of one match a line each, a letter a
+quarter of a second, which is how each of these was found. A man, a minute
+of the fight, on the build of §12.39:
+
+- he changed posture 12.5 times, four in ten of them inside two seconds of
+  the last. Once flat he stayed flat 1.4 s (the middle one of them), on a
+  knee 2.2 s;
+- he was down, up and down again inside three seconds 1.9 times;
+- he got to his feet and went down again having gone under a metre and a
+  half 0.87 times;
+- 0.89 of his 4.7 moves were under a metre and a half;
+- his speed changed by half a metre a second or more between two steps of
+  one move 2.4 times, and every move began and ended at full speed.
+
+Traced to single men: a man flat in the open was told onto a knee whenever
+his squad's place for it moved and flat again when it stopped, though he had
+not stirred; a man put flat by fire came up the moment his fear dipped under
+one line and went down at the next round; a man got to his feet in the last
+second of his half's turn to move and knelt again when it ended; a man in a
+trench stood behind the man in front for the four seconds of his turn, every
+turn, because he could not pass him; a new squad stood, knelt for two
+seconds and stood again before it marched; and a man going round another
+went at a fifth of his speed for one step and all of it the next.
+
+#### The rule: `MatchOptions.Bearing` (`Sim/Bearing.cs`, new), on in the game
+
+- **Down is down.** A man who is flat stays flat until he gets up to go.
+  Only a man with a place in cover comes back onto a knee to fire over it,
+  and only when the fire has let him be and he has been flat three seconds;
+  a man behind a machine gun or a scope stays behind it. Going to ground in
+  the open where his squad is fighting from, he lies flat at once, not by
+  way of a knee. Out of contact, a halt of under two seconds is not worth a
+  knee.
+- **Up is to go.** He gets to his feet for a move he can make now: when he
+  has been down two seconds, no round has come near him for one, there is
+  enough of his half's turn left to get up and cover three metres in, and no
+  man of his own at rest bars the way. One who is up and barred gets down
+  where he is. Once on his feet he has his run, though his half's turn ends
+  under him.
+- **For cover.** A man lying in the open within six metres of his place in
+  cover waits for neither his turn nor the fire to let up: the fire is why
+  he goes.
+- **Pace.** He gathers pace over his first half second (3.2 m/s a second)
+  and slows into his place; a change of pace is taken over a few steps; he
+  goes round a man of his own at his own pace; and he does not wait his turn
+  again on the far side of a parapet he has just climbed.
+
+| a man, a minute of the fight, `simcs smooth` | seeds 20 to 39, tuned on | | seeds 60 to 99, not | |
+|---|---|---|---|---|
+| | off | on | off | on |
+| changes of posture | 12.5 | 7.4 | 12.0 | 7.3 |
+| of them inside two seconds of the last | 44% | 11% | 41% | 11% |
+| flat, he stays flat (the middle one), s | 1.4 | 5.4 | 1.5 | 5.8 |
+| on a knee, he stays on it, s | 2.2 | 4.0 | 2.5 | 4.1 |
+| a posture kept under two seconds | 5.04 | 0.69 | 4.50 | 0.71 |
+| down, up and down again inside three seconds | 2.04 | 0.07 | 1.77 | 0.08 |
+| up, and down again having gone nowhere | 0.89 | 0.41 | 0.89 | 0.45 |
+| moves, and how far each | 4.4 of 6.3 m | 4.1 of 6.4 m | 4.7 of 6.2 m | 4.2 of 6.5 m |
+| moves under a metre and a half | 0.81 | 0.66 | 0.96 | 0.76 |
+| moves under a second | 0.96 | 0.56 | 1.06 | 0.63 |
+| his speed lurching in the middle of a move | 2.12 | 0.01 | 2.17 | 0.01 |
+| on his feet and still with the enemy about, s | 4.8 | 4.1 | 5.2 | 4.1 |
+| of his time, flat | 14% | 23% | 12% | 24% |
+
+Seeds 60 to 99 by the older measures, off and on: a man turned about 8.5
+and 7.3 times a minute (`simcs muddle`); walked five metres and came back
+1.5 and 1.4, a squad went to and fro 1.8 and 1.5, lanes quiet 30.8 and 30.7
+squad-seconds, men not fighting 21% and 20% (`simcs brain`); assaults 2.99
+and 2.94 a minute, costing the squad going in 0.51 and 0.39 men and the
+enemy 0.32 and 0.42 (`simcs gunplay`).
+
+**What the numbers say against it** (the same forty seeds, off and on):
+
+- a squad that says it is closing or going in, with its middle not a metre
+  further on in three seconds: 18.6 and 26.3 squad-seconds a minute
+  (`simcs shape`). Men who lie flat take 1.2 s to get up and wait out the
+  fire first, so a squad's closing has longer pauses in it; the tag over it
+  says CLOSING through them;
+- squads one in another 5.4 and 7.8 squad-seconds a minute;
+- men at rest in the open within four metres of cover with a place free
+  117.7 and 142.7 man-seconds a minute (`simcs brain`);
+- a squad changes its task 8.2 and 8.4 times a minute; a stop of under a
+  second in a move, 0.18 and 0.19: neither is better;
+- fewer grenades (3.9 and 3.2 a minute: a man who is flat does not throw)
+  and fewer men killed (9.5 and 8.9).
+
+**Built, measured and left out:**
+
+- a man not getting up for a place a man of his own was resting on. Men
+  were up for nothing no less often, and the American player won 89 matches
+  of 192 against a Veteran where he won 113 without it (`simcs scenario
+  firebase 192 level=veteran`, at the costs of §12.39): his squads, raised
+  one behind another, lay behind each other's places;
+- five seconds, not three and a half, before a squad that is closing and
+  going nowhere stops saying so (eighty seeds: 7.9 changes of task a minute
+  against 8.5, and 33.5 squad-seconds of closing and not moving against
+  28.6: one for the other);
+- a man stopping on a knee, not flat, between his squad's bounds whatever
+  the ground: no measure moved.
+
+#### Balance (`simcs player`, `simcs scenario`)
+
+Men who stay down are hit less, and a fight is slower to decide. At
+§12.39's numbers (a squad at 34, will at 0.9) over 192 seeds, the player who
+buys line squads won 123 and 115 against a Veteran with the rule off and 110
+and 111 with it on (the gate is 112 to 160), and a standard match ran 252
+and 210 s where it had run 229 and 198 (`player 192 34 rate=0.9 ...
+cohesion [bearing]`).
+
+| what a squad costs the computer (`player 192 N rate=0.95 ... cohesion bearing`) | he wins, of 192 |
+|---|---|
+| 44, the Recruit (it was 42; at 43, 151 and 139) | 170 and 139 (`scenario firebase 192`) |
+| 35, the Veteran (34; at 34 and this rate, 110 and 109; at 36, 145 and 129) | 125 and 111 |
+| 29, the Elite (28) | 96 and 76 |
+
+Will runs out at 1.25, 0.95 and 1.5 (they were 1.15, 0.9 and 1.35): a
+skirmish runs 126 to 159 s, a standard match 201 to 242 with a player who
+buys and 296 with nobody buying, a long one 281 to 458 (`player 96 35
+[skirmish|long] rate=N ...`).
+
+Every scenario's numbers moved with the men. As they now stand (`simcs
+scenario 192`: wins of 192 against a Recruit, a Veteran and the Elite; the
+gate against a Veteran is 112 to 160):
+
+| scenario | plays | Recruit | Veteran | Elite | how the Veteran's 192 ended |
+|---|---|---|---|---|---|
+| the firebase | US | 170 | 125 | 96 | 125 by breaking him or leaving him no men, 66 broken, 1 to the cap |
+| | VC | 139 | 111 | 76 | 111 and 81 |
+| The Wire | US | 173 | 141 | 119 | 141 held out, 51 broken before the clock |
+| First Light | US | 181 | 137 | 117 | 68 took the line, 69 broke him or left him no men, 51 lost to the clock, 4 broken |
+| The Earth Fights | VC | 141 | 125 | 71 | 125 by breaking him, 67 broken |
+
+The Earth Fights is the one scenario whose own numbers changed: the
+Americans are paid 1.15, not 1.2 (at 1.2 the VC player won 108 of 192
+against a Veteran). The firebase as the VC is one win under the gate, as it
+was on it before (56 of 96, §12.37): left.
+
+#### The view
+
+Nothing new to draw, and nothing changed in `View/` but the rule's switch
+for a capture (`bearing=0`). The motion audit on the same match (seed 3, to
+tick 1800), the rule off and on: travelling on a knee or flat 1.5% and 0.4%
+of travelling; sideways or backwards 0.5% and 0.3%; walking on the spot 0.2%
+and 0.1%; ground covered without the legs 5 m of 886 and 1 m of 753. One
+thing is a little worse: a man moving slower than his legs start at (0.05 to
+0.4 m/s, in the first and last tenth of a second of a move) is carried 431
+cm in all against 251.
+
+#### Pins, tests, the build, frame time
+
+Every older pin holds with the rule off, `simcs hash` before and after
+every step: `hash 1` 4390 ticks, final `2256114725u`; `... ammo map` 2725,
+`988759736u`; `... tactics fortune map` 2719, `4215652832u`; `...
+firecontrol map` 5070, `1731903378u`; `... ballistics map` 3493,
+`2457736883u`; `... vantage aiposts map` 4236, `1179344068u`; `... vantage
+commander map` 5206, `4057359457u`; `... commander cohesion map` 2524,
+`3667431746u`; `hash 7 ... cohesion` 6409, `795505337u`. Determinism ok.
+
+New:
+
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics
+  fortune firecontrol ballistics vantage commander cohesion bearing map`
+  (the game): 7104 ticks, `2865253007u`, `2221089145u`, `465850309u`;
+- `hash 7 drill ... cohesion bearing`: 4723 ticks, `587953012u`,
+  `409920569u`, `2681455398u`;
+- `scenario hash N`, every one of them new, since a scenario is played
+  with the rule and at the new costs: the firebase seed 1, 4297 ticks,
+  final `3054897140u`; The Wire seed 1, 5402 ("us morale broke"),
+  `3894234249u`, and seed 2, 6000 ("us held out"), `3854724538u`; First
+  Light seed 7, 3909 ("us took the line"), `3743531399u`, and seed 2, 8400
+  ("vc held the line"), `593968409u`; The Earth Fights seed 1, 3427,
+  `3886742372u`.
+
+EditMode 105 of 105 (three new: the two pins, and the rule part by part and
+over whole matches). PlayMode 23 of 23, the capture test skipped as it is
+without a capture. One PlayMode test was changed: the lever test held "the
+first position at or ahead of the squad's lead man", and men who gather pace
+are further behind their squad's place for them, so the trench it chose
+could be one the squad had already left; it chooses by where the squad is
+now, as the lever's own rule does.
+
+The WebGL build is 29.32 MB to start (`size.json`; the budget is 45), 36.85
+in all. Frame time in that build, in headless Chrome at 2592 x 1370 with the
+display awake, twelve readings a run: First Light (`?perf=1&seed=3&
+scenario=first-light`) mean 4.1 to 4.2 ms, 95th percentile 5 to 7; the
+firebase (`?perf=1&seed=3`), two runs alike, mean 4.2 to 5.6 ms in ten
+readings and **6.1 to 6.3 ms, 95th percentile 11, in two** (the budget is 6
+and 8.3). Those two are the ten seconds after the computer's artillery
+lands in view: with the effects off (`&off=combat`) the same ten seconds
+read 4.2 ms. The men cost what they did (army view 0.21 to 0.33 ms a
+frame). So a barrage on screen costs two milliseconds a frame at his screen;
+it has since §12.36, and no measured match had one in view until this one.
+
+New files: `Sim/Bearing.cs`. `Man.Idle` (why a man did not step this tick)
+is for `simcs smooth` alone: no rule reads it and it is not hashed.
+
+#### What is left, and what is the owner's
+
+- **To play:** the build served at `http://127.0.0.1:8065/`. What to look
+  at: whether men now read as men (down for seconds at a time, up to run
+  and down again), or whether fights have gone slow; a squad tagged CLOSING
+  that lies still; men lying in the open short of a wall.
+- **My numbers, his to turn** (`Tune`, "how a man carries himself"): three
+  seconds flat before a knee; two seconds down before getting up, one after
+  a round; how fast a man gathers pace.
+- **Not done:** the barrage's two milliseconds; the tag that says CLOSING
+  through a pause; nobody has watched it move but in strips and the audit's
+  numbers. Not played by the owner.
+- **His word needed:** nothing here is on GitHub or the demo, which still
+  serves §12.39's build. `smooth` is two commits on from `scenarios`, and
+  `scenarios` one (§12.40's write-up) on from what GitHub has.
+- **Next in the plan:** Phase M, M0 first (the world from a map and a
+  theatre), which needs nothing from him. Of Phase P: every class its job
+  (P2), the guns (P4), call-ins you watch arrive (P5), the stranger test.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.
