@@ -3337,7 +3337,7 @@ it cannot be undone, anyone who has cloned or forked it keeps the old one,
 and GitHub itself keeps the old commits reachable by their ids until its
 support is asked to clear them. Not done without his word.
 
-Also his: `polish` is sixteen commits ahead of what is on GitHub and has
+Also his: `polish` is fifteen commits ahead of what is on GitHub and has
 not been pushed; a commit's message carries the link of the session that
 made it, which only his account can open.
 
