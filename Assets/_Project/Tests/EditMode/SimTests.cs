@@ -2256,6 +2256,144 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(0, Captain.Lane(fresh, Side.Us));
         }
 
+        // --- Part 2: a squad that keeps together, behind MatchOptions.Cohesion (the owner, 2026-10-11: "tons of wandering, weird formations") -----
+
+        private static MatchOptions Kept(int seed, bool onMap = true, bool tempo = false)
+        {
+            var o = Commanded(seed, onMap, tempo);
+            o.Cohesion = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion [map]`.</summary>
+        [TestCase(1, true, 2524, 4003524403u, 2835978446u, 3667431746u, "us morale broke")]
+        [TestCase(7, false, 6409, 2203668929u, 2326381529u, 795505337u, "us morale broke")]
+        public void With_cohesion_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Cohesion, "cohesion must be off unless asked for");
+            var (a, m) = Played(Kept(seed, asTheGame));
+            var (b, _) = Played(Kept(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>A squad's length along its lane, a lead man 5 m out by himself, and a man 6 m behind the middle of his squad: over whole matches.</summary>
+        private static (double length, double alone, double behind) Shape(Func<int, MatchOptions> options)
+        {
+            double length = 0, squadTicks = 0, alone = 0, behind = 0, manTicks = 0;
+            for (int seed = 3; seed <= 6; seed++)
+            {
+                var m = new LiveMatch(options(seed));
+                var st = m.State;
+                while (!st.Over && st.Tick < 3000)
+                {
+                    m.Step();
+                    if (st.Phase != Phase.Fight) continue;
+                    foreach (var sq in st.Squads)
+                    {
+                        if (sq.Order == Order.Fallback || sq.Post >= 0) continue;
+                        var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).OrderBy(x => x.X * Combat.Advance(sq.Side)).ToList();
+                        if (men.Count < 3) continue;
+                        squadTicks++; manTicks += men.Count;
+                        length += Math.Abs(men[men.Count - 1].X - men[0].X);
+                        if (Math.Abs(men[men.Count - 1].X - men[men.Count - 2].X) >= 5) alone++;
+                        double mid = men[men.Count / 2].X;
+                        behind += men.Count(x => (mid - x.X) * Combat.Advance(sq.Side) > 6);
+                    }
+                }
+            }
+            return (length / squadTicks, alone / squadTicks, behind / manTicks);
+        }
+
+        /// <summary>
+        /// The owner, 2026-10-11: "AI also needs work, still tons of wandering, weird formations". Measured, a squad
+        /// of five was strung out over eight to ten metres with its lead man out alone and men walking up one at
+        /// a time. With the rule a man follows the man ahead at 1.7 m, not 2.6; the squad goes no faster than its
+        /// last man; a man left behind runs to his place; closing by halves, the halves are two groups; a squad
+        /// goes in all together, and only when half of it can; and one that is going in and going nowhere stops
+        /// saying so. Over whole matches squads are shorter by a quarter and more, and a lead man is out alone and
+        /// a man is left behind half as often.
+        /// </summary>
+        [Test]
+        public void With_cohesion_a_squad_keeps_together_and_goes_in_together()
+        {
+            var plain = Match.Create(Commanded(3, tempo: true));
+            var st = Match.Create(Kept(3, tempo: true));
+            var sq = st.Squads.First(q => q.Side == Side.Vc);
+            sq.Halted = false;
+            Assert.AreEqual(Tune.SlotGap, Cohesion.Gap(plain, plain.Squads[0]), "without the rule the file is not what it was");
+            Assert.AreEqual(Tune.FileMarch, Cohesion.Gap(st, sq));
+            sq.Halted = true;
+            Assert.AreEqual(Tune.FileClosed, Cohesion.Gap(st, sq), "halted in the open it does not close up");
+            Assert.Less(Tune.FileClosed, Tune.FileMarch);
+            Assert.Less(Tune.FileMarch, Tune.SlotGap);
+
+            // By halves: the two men at the head of the file, and the rest. (Without the rule, every other man.)
+            var five = Enumerable.Range(0, 5).Select(r => new Man { Rank = r }).ToList();
+            Assert.AreEqual(Tactics.Turn(st, sq, five[0]), Tactics.Turn(st, sq, five[1]), "the two at the head do not move together");
+            Assert.AreEqual(Tactics.Turn(st, sq, five[2]), Tactics.Turn(st, sq, five[4]));
+            Assert.AreEqual(Tactics.Turn(st, sq, five[2]), Tactics.Turn(st, sq, five[3]));
+            Assert.AreNotEqual(Tactics.Turn(st, sq, five[1]), Tactics.Turn(st, sq, five[2]), "the two halves move at once");
+            Assert.AreNotEqual(Tactics.Turn(plain, plain.Squads[0], five[0]), Tactics.Turn(plain, plain.Squads[0], five[1]));
+
+            // Going in: half of it, and two of them, on their feet or able to be.
+            foreach (var x in five) x.Pin = 0;
+            Assert.IsTrue(Cohesion.Ready(five));
+            five[0].Pin = five[1].Pin = Tune.PinDrop;
+            Assert.IsTrue(Cohesion.Ready(five), "three of five up, and it will not go");
+            five[2].Pin = Tune.PinDrop;
+            Assert.IsFalse(Cohesion.Ready(five), "two of five up, and it goes in");
+            Assert.IsFalse(Cohesion.Ready(new List<Man> { new Man { Pin = Tune.PinDrop }, new Man() }), "one of a pair goes in by himself");
+            Assert.IsTrue(Cohesion.Ready(new List<Man> { new Man() }));
+
+            // Closing or going in, and going nowhere: after three and a half seconds it says so.
+            sq.AnchorX = 10;
+            Cohesion.Start(st, sq);
+            st.Tick += Tune.StallTicks - 1;
+            Assert.IsFalse(Cohesion.Stalled(st, sq));
+            st.Tick += 1;
+            Assert.IsTrue(Cohesion.Stalled(st, sq), "a squad going nowhere is not stalled");
+            sq.AnchorX -= Tune.StallMetres;
+            Assert.IsFalse(Cohesion.Stalled(st, sq), "a metre further on, and it is still stalled");
+
+            // The tail: on the march, with its last man kept where he is, the squad does not walk away from him.
+            // (Once it meets the enemy it takes cover, where each man has a place of his own, wherever the last is.)
+            var gone = new double[2];
+            foreach (bool rule in new[] { false, true })
+            {
+                var o = rule ? Kept(4, tempo: true) : Commanded(4, tempo: true);
+                o.Player = Side.Us;                      // (the Americans raise nobody, and stay in their wire through the opening)
+                var m = new LiveMatch(o);
+                var s2 = m.State;
+                var vc = s2.Squads.First(q => q.Side == Side.Vc);
+                var men = s2.Men.Where(x => x.Squad == vc.Id).ToList();
+                var last = men.OrderBy(x => x.X).Last();     // the VC go toward -x: the last man is the one furthest east
+                double held = last.X;
+                for (int t = 0; t < 400 && vc.Task == SquadTask.March; t++)
+                {
+                    last.X = held;
+                    m.Step();
+                    last.X = held;
+                    if (vc.Task == SquadTask.March) gone[rule ? 1 : 0] = Math.Max(gone[rule ? 1 : 0], held - men.Where(x => x.Alive).Min(x => x.X));
+                }
+            }
+            // (A file's own length and the slack, and what a place in the cover it passes may add.)
+            Assert.Less(gone[1], (5 - 1) * Tune.FileMarch + Tune.TailSlack + 3.0, "the squad walked away from its last man");
+            Assert.Greater(gone[0], gone[1] + 0.8, "the test's premise: without the rule it goes further from him");
+
+            // And over whole matches.
+            var was = Shape(seed => Commanded(seed, tempo: true));
+            var now = Shape(seed => Kept(seed, tempo: true));
+            Assert.Less(now.length, was.length * 0.8, $"squads are no shorter: {was.length:F1} m, {now.length:F1} m");
+            Assert.Less(now.alone, was.alone * 0.75, $"a lead man is out alone as often: {was.alone:P1}, {now.alone:P1}");
+            Assert.Less(now.behind, was.behind * 0.75, $"men are left behind as often: {was.behind:P1}, {now.behind:P1}");
+        }
+
         [Test]
         public void A_broken_squad_takes_no_orders_and_a_player_commands_only_his_own()
         {

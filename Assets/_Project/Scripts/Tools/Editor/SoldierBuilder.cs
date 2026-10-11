@@ -451,6 +451,15 @@ namespace LanesOfVietnam.Tools
                 // "Climbing Up Wall" goes up a wall twice a man's height. Its rise is left in the
                 // root with its travel: a trench's own depth is the climb, and ArmyView gives it.
                 if (role == "trench_out" || role == "ladder_climb") { c.lockRootHeightY = false; c.heightFromFeet = true; }
+                // The ladder's climb is authored a metre up its ladder and with its back to where our men face:
+                // from his feet, then, not from the file's own height (he rode up the tower a metre above his rung,
+                // the owner, 2026-10-11: "the climb up the ladder needs some work"), and turned about.
+                if (role == "ladder_climb")
+                {
+                    c.keepOriginalPositionY = false;
+                    c.keepOriginalOrientation = false;
+                    c.rotationOffset = (blade.HasValue ? blade.Value * OrientationSign : 0f) + 180f;
+                }
                 c.lockRootPositionXZ = !travels; c.keepOriginalPositionXZ = !travels;
                 mi.clipAnimations = new[] { c };
                 mi.SaveAndReimport();

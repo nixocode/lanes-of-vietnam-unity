@@ -62,5 +62,24 @@ mergeInto(LibraryManager.library, {
   LovInput_SteerX: function () { var I = window.LovInput; if (!I) return 0; var v = I.steerX; I.steerX = 0; return v; },
   LovInput_SteerY: function () { var I = window.LovInput; if (!I) return 0; var v = I.steerY; I.steerY = 0; return v; },
   LovInput_Steering: function () { var I = window.LovInput; return I && I.steering ? 1 : 0; },
-  LovInput_CanvasWidth: function () { return Module.canvas.getBoundingClientRect().width; }
+  LovInput_CanvasWidth: function () { return Module.canvas.getBoundingClientRect().width; },
+
+  // The whole page full screen, or back (FullScreen.cs). Called from the game's own frame, which is inside
+  // the moment after a click or a key in which a page may ask; refused, nothing happens.
+  LovInput_Fullscreen: function (on) {
+    try {
+      var d = document, e = d.documentElement;
+      var now = d.fullscreenElement || d.webkitFullscreenElement;
+      if (on && !now) {
+        var ask = e.requestFullscreen || e.webkitRequestFullscreen;
+        var p = ask ? ask.call(e, { navigationUI: 'hide' }) : null;
+        if (p && p.catch) p.catch(function () {});
+      } else if (!on && now) {
+        var leave = d.exitFullscreen || d.webkitExitFullscreen;
+        var q = leave ? leave.call(d) : null;
+        if (q && q.catch) q.catch(function () {});
+      }
+    } catch (x) {}
+  },
+  LovInput_IsFullscreen: function () { return (document.fullscreenElement || document.webkitFullscreenElement) ? 1 : 0; }
 });

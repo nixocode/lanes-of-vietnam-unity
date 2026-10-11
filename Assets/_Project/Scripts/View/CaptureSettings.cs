@@ -111,6 +111,8 @@ namespace LanesOfVietnam.View
         public bool? Vantage;
         /// <summary>The computer's side commands (MatchOptions.Commander); the game's default (on) if not given.</summary>
         public bool? Commander;
+        /// <summary>A squad keeps together and makes up its mind (MatchOptions.Cohesion); the game's default (on) if not given.</summary>
+        public bool? Cohesion;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -174,6 +176,7 @@ namespace LanesOfVietnam.View
                     case "ballistics": c.Ballistics = v == "1" || v == "true"; break;
                     case "vantage": c.Vantage = v == "1" || v == "true"; break;
                     case "commander": c.Commander = v == "1" || v == "true"; break;
+                    case "cohesion": c.Cohesion = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

@@ -568,6 +568,8 @@ namespace LanesOfVietnam.Sim
                     }
                 }
             }
+            // Cohesion: no faster than its last man.
+            if (st.Cohesion) Cohesion.Hold(st, sq, live, was, dir);
             sq.AnchorX = Math.Max(-Tune.HalfLength, Math.Min(Tune.HalfLength, sq.AnchorX));
         }
 
@@ -614,13 +616,13 @@ namespace LanesOfVietnam.Sim
                     // No place left for him: he waits behind it, in his file.
                     into.Add(new Slot
                     {
-                        X = tc.X - dir * (tc.Length * 0.5 + 1.5 + waiting * Tune.SlotGap),
+                        X = tc.X - dir * (tc.Length * 0.5 + 1.5 + waiting * Cohesion.Gap(st, sq)),
                         Z = tc.Z + FileZ(sq) + side,
                     });
                     waiting++;
                     continue;
                 }
-                into.Add(new Slot { X = sq.AnchorX - dir * m.Rank * Tune.SlotGap, Z = sq.AnchorZ + FileZ(sq) + side });
+                into.Add(new Slot { X = sq.AnchorX - dir * m.Rank * Cohesion.Gap(st, sq), Z = sq.AnchorZ + FileZ(sq) + side });
             }
         }
 
@@ -644,7 +646,8 @@ namespace LanesOfVietnam.Sim
             // the moment he was pinned.)
             bool goingIn = st.Senses && sq.Task == SquadTask.Assault && sq.Order != Order.Hold;
             // FireControl: and it goes in by halves: one rushes while the other, down, fires over it; then the other.
-            if (goingIn && st.FireControl && !Tactics.Turn(st, sq, m)) goingIn = false;
+            // (Cohesion: all of it that can: one man in four going in by himself is no assault.)
+            if (goingIn && st.FireControl && !st.Cohesion && !Tactics.Turn(st, sq, m)) goingIn = false;
             // (Tactics: the last ten metres. Further off the squad comes on by bounds, half of it firing.)
             if (goingIn) reach = st.Tactics ? Tune.RushFrom : Tune.AssaultReach + Tune.ChargeRange;
             Man best = null;

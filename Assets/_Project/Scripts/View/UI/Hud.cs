@@ -174,6 +174,8 @@ namespace LanesOfVietnam.View.UI
             AddButton(buttons, "speed", "1×", CycleSpeed);
             AddButton(buttons, "snd", "SND", () => Sound = !Sound);
             AddButton(buttons, "mus", "MUS", () => Music = !Music);
+            // The picture to the whole screen, and back (the owner, 2026-10-11; Alt and Enter do it too).
+            AddButton(buttons, "full", "FULL", FullScreen.Toggle);
             AddButton(buttons, "settings", "⚙", () => SettingsRequested?.Invoke());
             vc.Add(buttons);
             top.Add(vc);
@@ -380,6 +382,7 @@ namespace LanesOfVietnam.View.UI
             Buttons["speed"].EnableInClassList("on", Root.Speed > 1f);
             Buttons["snd"].EnableInClassList("on", Sound);
             Buttons["mus"].EnableInClassList("on", Music);
+            Buttons["full"].EnableInClassList("on", FullScreen.On);
 
             // With nothing in hand, the card the pointer is on says what it buys; in hand, where it goes.
             var hint = (Deployer.Armed, Deployer.HasTarget, Deployer.TargetLane * 10 + Deployer.TargetPost, HoveredCard);

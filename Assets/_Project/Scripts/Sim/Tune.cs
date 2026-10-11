@@ -535,12 +535,30 @@ namespace LanesOfVietnam.Sim
         /// <summary>A stray round's chance against the chance the firer would have had firing at that man (shared among a burst's rounds).</summary>
         public const double StrayShare = 1.0;
 
+        // --- a squad that keeps together (MatchOptions.Cohesion) ----------------------------
+
+        /// <summary>Metres from a man to the man behind him in his file: on the move, and closed up at a halt in the open (it was 2.6 either way).</summary>
+        public const double FileMarch = 1.7, FileClosed = 1.3;
+        /// <summary>The squad's anchor goes no further ahead of its last man than the file's own length and this.</summary>
+        public const double TailSlack = 3.0;
+        /// <summary>Moving by halves, the men of this rank and behind are the second half.</summary>
+        public const int LeadElement = 2;
+        /// <summary>Further than this from his place, a man on his feet runs to it.</summary>
+        public const double RejoinBeyond = 3.5;
+        /// <summary>Ticks a squad that has gone to ground stays before it closes or goes in (8 s; it was 4), and one that is spent and has run before it runs again (5 s; 2).</summary>
+        public const int SteadyFirefight = TickHz * 8, SteadyRegroup = TickHz * 5;
+        /// <summary>Closing or going in, and not this many metres further on in this many ticks (3.5 s): it goes to ground.</summary>
+        public const double StallMetres = 1.0;
+        public const int StallTicks = 70;
+
         // --- a post up high (MatchOptions.Vantage) -----------------------------------------
 
         /// <summary>Ticks a man takes up a post's ladder (8 s), and between one man starting up it and the next (3 s).</summary>
         public const int ClimbTicks = TickHz * 8, LadderGap = TickHz * 3;
         /// <summary>Within this of the ladder's foot a man is at it; and metres between men on the platform.</summary>
         public const double PostArrive = 0.35, PostSpacing = 1.0;
+        /// <summary>Metres between the men waiting their turn at the ladder.</summary>
+        public const double PostQueue = 0.9;
         /// <summary>From up there a rifle reaches this many times as far (an M16, 52 m) and a machine gun this many (an M60, 61 m); a sniper's rifle, the whole map.</summary>
         public const double PostReach = 2.6, PostGunReach = 2.05, PostSniperReach = 95;
         /// <summary>And hits this many times as often: a rifle, a machine gun (rested on the bags, firing down a lane), a sniper's rifle (no oftener: what he gains is the map).</summary>

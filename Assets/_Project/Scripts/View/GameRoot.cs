@@ -133,10 +133,13 @@ namespace LanesOfVietnam.View
         /// worth more to it: at 29 the same player won 29 and 22 of 48. Measured over 96 seeds with `player 96 N
         /// rate=0.9 tactics fortune firecontrol ballistics vantage commander`: 78 and 83 of 96 against a Recruit
         /// (40), 62 and 71 against a Veteran (32), 54 and 44 against the Elite (26).
+        /// With Cohesion (PLAN §12.37) the computer's squads fight as squads, and at 32 he won 53 and 48 of 96. Measured
+        /// with the same and `cohesion`: 86 and 80 of 96 against a Recruit (42), 62 and 56 against a Veteran (34), 55
+        /// and 39 against the Elite (28).
         /// </summary>
         public enum Difficulty { Recruit, Veteran, Elite }
 
-        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 40 : d == Difficulty.Elite ? 26 : 32;
+        public static double CostFor(Difficulty d) => d == Difficulty.Recruit ? 42 : d == Difficulty.Elite ? 28 : 34;
 
         /// <summary>
         /// How fast will runs out, against the length setting's own rate. The settings were calibrated
@@ -154,9 +157,12 @@ namespace LanesOfVietnam.View
         /// minutes, one in six of them to the twelve-minute cap. With the commander, PLAN §12.36, a siege at 1.0 ran
         /// seven and three quarters to ten minutes, more of them to the cap; at 1.15 (`player 48 32 siege rate=1.15
         /// ... commander`) five and a half to nine. The other two hold: a skirmish 119 to 147 s, a standard match
-        /// 187 to 226.)
+        /// 187 to 226. With Cohesion, PLAN §12.37, squads stay longer where they have gone to ground: a siege at 1.15
+        /// ran seven to nine and three quarter minutes again, and at 1.35 (`player 48 34 siege rate=1.35 ... commander
+        /// cohesion`) five to eight and a half; a skirmish 127 to 147 s and a standard match 197 to 228 at the rates
+        /// they had.)
         /// </summary>
-        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.15 : 0.9;
+        public static double RateFor(MatchLength l) => l == MatchLength.Skirmish ? 1.15 : l == MatchLength.Siege ? 1.35 : 0.9;
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 
@@ -213,6 +219,10 @@ namespace LanesOfVietnam.View
                 // and which, its side's cards (strikes, smoke and a medevac; traps and tunnels), its levers. On in the
                 // game. (The player's own side is his: it plays nothing for him.)
                 Commander = CaptureSettings.Active?.Commander ?? true,
+                // Cohesion (Part 2): a squad keeps together (a closer file, a lead man who waits for the last, a
+                // straggler who runs, no walking into a friend who has gone to ground) and makes up its mind. On in
+                // the game.
+                Cohesion = CaptureSettings.Active?.Cohesion ?? true,
                 // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
                 // the start"). Each side opens with one squad, not eighteen men; points come in at
                 // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had

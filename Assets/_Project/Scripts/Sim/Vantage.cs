@@ -253,9 +253,24 @@ namespace LanesOfVietnam.Sim
                 }
                 else if (!sq.Leaving)
                 {
-                    // On the ground: to the foot of the ladder, and up when it is clear.
-                    double dx = post.FootX - m.X, dz = post.FootZ - m.Z, d = JsMath.Hypot(dx, dz);
-                    if (d <= Tune.PostArrive)
+                    // On the ground: to the ladder, in a line. The next man up goes to its foot and up when it is
+                    // clear; the others wait behind him a pace apart, along the lane's own direction and on his
+                    // side's end of it. (All of them went to its foot, and a squad of five stood on one spot: the
+                    // owner, 2026-10-11.)
+                    int ahead = 0;
+                    for (int j = 0; j < live.Count; j++)
+                        if (live[j] != m && live[j].High <= 0 && live[j].Climb == 0 && live[j].Rank < m.Rank) ahead++;
+                    double tx = post.FootX - Combat.Advance(sq.Side) * ahead * Tune.PostQueue, tz = post.FootZ;
+                    double dx = tx - m.X, dz = tz - m.Z, d = JsMath.Hypot(dx, dz);
+                    if (ahead > 0)
+                    {
+                        if (d > 0.05 && m.Pin < Tune.PinDrop && m.Posture == Posture.Standing)
+                        {
+                            double step = Math.Min(d, Tune.SpeedWalk * Tune.Dt);
+                            m.X += dx / d * step; m.Z += dz / d * step;
+                        }
+                    }
+                    else if (d <= Tune.PostArrive)
                     {
                         if (m.Pin < Tune.PinDrop && LadderClear(live))
                         {

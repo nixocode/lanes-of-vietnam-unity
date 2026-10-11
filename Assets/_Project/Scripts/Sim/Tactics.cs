@@ -111,6 +111,8 @@ namespace LanesOfVietnam.Sim
         public static bool Waits(SimState st, Squad sq, Man m, double tx, double tz, bool toCover)
         {
             if (!Bounds(st, sq)) return false;
+            // Cohesion: going in, everyone who can goes: it is a rush, not a turn each.
+            if (st.Cohesion && sq.Task == SquadTask.Assault) return false;
             double away = JsMath.Hypot(tx - m.X, tz - m.Z);
             if (away <= Tune.SetOff) return false;
             // On his feet, running, and nearly there: he does not stop two paces short of his place.
@@ -119,8 +121,12 @@ namespace LanesOfVietnam.Sim
             return !Turn(st, sq, m);
         }
 
-        /// <summary>Whose turn it is to move: the even ranks', then the odd ranks', a bound at a time.</summary>
-        public static bool Turn(SimState st, Squad sq, Man m) => ((st.Tick + sq.Id * 13) / Tune.BoundTicks + m.Rank) % 2 == 0;
+        /// <summary>
+        /// Whose turn it is to move: the even ranks', then the odd ranks', a bound at a time. (Cohesion: the two men
+        /// at the head of the file, then the rest: two groups, not every other man of it.)
+        /// </summary>
+        public static bool Turn(SimState st, Squad sq, Man m)
+            => ((st.Tick + sq.Id * 13) / Tune.BoundTicks + (st.Cohesion ? (m.Rank >= Tune.LeadElement ? 1 : 0) : m.Rank)) % 2 == 0;
 
         // --- keep off -----------------------------------------------------------------
 

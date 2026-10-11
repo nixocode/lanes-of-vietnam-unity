@@ -3158,6 +3158,142 @@ commander does not use the bound of §12.29's covering fire to time a
 strike, or lift one for its own assault. Not played by the owner.
 
 
+### 12.37 Playtest 10: the ladder, squads that keep together, full screen (2026-10-11)
+
+The owner, on the build of §12.36: "the climb up the ladder needs some
+work. AI also needs work, still tons of wandering, weird formations etc.
+Also need a fullscreen mode for chrome."
+
+#### The ladder
+
+Looked at close (`tools/strip.sh "seed=3,tick=80,x=-39,dolly=0.72,
+call=us-rifle:2:0:5"`, and `SoldierPreview.RenderLadder`, new), four things
+were wrong, and each is put right:
+
+- **Five men on one spot.** Every man of the squad walked to the foot of
+  the ladder and stood there. They wait in a line now, a pace apart, along
+  the lane behind the ladder; the man at its head goes up when it is clear
+  and the rest step forward (`Vantage.Move`, `Tune.PostQueue`).
+- **A man riding up it, standing, a metre above his rung, side on.** The
+  clip is authored a metre up its own ladder and facing the other way from
+  our men: it was imported from the file's height and at the file's
+  heading. It is taken from his feet now and turned about (`SoldierBuilder`,
+  `ladder_climb`): he faces the ladder and goes up it hand over hand.
+- **His rifle waved about** with every reach, in the hand that was on the
+  rungs. It is slung across his back while he climbs (`SoldierFigure`).
+- **Put on the platform** from the top rung. He steps over onto it in 0.6 s
+  (`ArmyView.StepOff`).
+
+#### The squads: `MatchOptions.Cohesion` (`Sim/Cohesion.cs`, new), on in the game
+
+**Measured first** (`simcs shape 20 2400 20 <the game's flags>`, new:
+twenty matches, what a squad looks like and how often it changes its
+mind), and one squad followed tick by tick (`simcs watch 3 700 1500 20
+...`): a squad of five strung out over eight to ten metres, its lead man
+going in 8 m ahead of three who stayed, men walking up one at a time for
+ten seconds, a squad saying it was going in for nine seconds and going
+nowhere, squads standing one in another.
+
+**The rules:**
+
+- a man follows the man ahead at 1.7 m on the move, not 2.6, and a squad
+  halted in the open closes up to 1.3;
+- the squad goes no faster than its last man: its anchor waits when he is
+  more than the file's length and 3 m behind it;
+- a man more than 3.5 m from his place runs to it;
+- closing by halves, the halves are the two men at the head of the file
+  and the rest, not every other man of it;
+- going in, everyone who can goes at once, and only when half the squad
+  can;
+- a squad that has gone to ground stays eight seconds before it closes or
+  goes in (four), one that is spent and has run five before it runs again
+  (two); and one that is closing or going in and has not made a metre in
+  three and a half seconds goes to ground.
+
+| a minute of fighting, `simcs shape` | seeds 20 to 39, tuned on | | seeds 60 to 79, not | |
+|---|---|---|---|---|
+| | off | on | off | on |
+| a squad's length in a firefight, m | 7.4 | 5.7 | 7.3 | 5.6 |
+| on the march | 8.2 | 5.5 | 7.9 | 5.4 |
+| closing | 10.1 | 7.0 | 9.7 | 6.5 |
+| men left 6 m behind, of man time | 5.2% | 1.4% | 5.4% | 1.8% |
+| a lead man 5 m out alone, of squad time | 9.4% | 3.5% | 9.4% | 4.2% |
+| one man walking while the rest are still | 13.6% | 9.5% | 13.6% | 8.7% |
+| squads one in another, squad-seconds | 16.4 | 5.0 | 15.5 | 4.5 |
+| closing or going in and not moving, squad-seconds | 27.3 | 16.7 | 25.9 | 21.5 |
+| a squad changes its task, times | 7.7 | 8.3 | 7.6 | 8.4 |
+
+Going in (`simcs gunplay`): 3.5 assaults a minute of 8.9 s each become 2.7
+of 5.8 s; an assault costs the squad going in 0.57 men and the enemy 0.35
+(0.49 and 0.42 before): quicker, and no cheaper.
+
+**What the numbers say against it.** A squad changes its task as often as
+it did: the changes are mostly the fight's own sequence (it closes 1.7
+times a minute), not dithering, and the longer wait did not reduce them. A
+man still gets up and moves about four times a minute. And of the men
+walking alone, most are going to a place in cover one after another.
+
+**Built, measured and left out:** a squad stopping in support behind a
+squad of its own side that had gone to ground ahead of it. Squads stood
+one in another a third as often, and one match in five ran to the
+twelve-minute cap, nobody able to mass for an assault (`player 24 32 ...
+cohesion`, the American player won 6 of 24). The longer wait in a firefight
+does most of what it did for that.
+
+**Balance** (`simcs player 96 N rate=0.9 tactics fortune firecontrol
+ballistics vantage commander cohesion`; a squad that fights as a squad is
+worth more to the computer, and at the Veteran's 32 the player won 53 and
+48 of 96):
+
+| what a squad costs the computer | he wins, of 96 |
+|---|---|
+| 42, the Recruit (it was 40) | 86 and 80 |
+| 34, the Veteran (32) | 62 and 56 |
+| 28, the Elite (26) | 55 and 39 |
+
+A skirmish runs 127 to 147 s and a standard match 197 to 228 at the rates
+they had. A siege at 1.15 ran to the cap again; at 1.35 (`player 48 34
+siege rate=1.35 ...`) it runs 293 to 520 s, and that is its rate. The
+watchtower at these (`post 1 48 <card> commander cohesion`): a line-squad
+buyer wins 32 of 48, with a sniper team on it 42, an M60 team 38, a rifle
+squad 36.
+
+#### Full screen
+
+A FULL button on the top bar, FULL SCREEN on the start screen and in the
+settings, and Alt and Enter (`View/FullScreen.cs`, new; `LovInput.jslib`).
+The page itself is asked, in the game's own frame: Unity's own request is
+put off to the next click, so a button for it took two. Esc leaves it, as
+in any page.
+
+#### Checks
+
+Every older pin holds with the flag off (`hash 1` 4390 ticks,
+`2256114725u`; `hash 1 ... vantage commander map` 5206, `4057359457u`), and
+the tower's pins did not move with the queue. New pins:
+
+- `1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+  firecontrol ballistics vantage commander cohesion map` (the game): 2524
+  ticks, `4003524403u`, `2835978446u`, `3667431746u`;
+- `7 drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
+  ballistics vantage commander cohesion`: 6409 ticks, `2203668929u`,
+  `2326381529u`, `795505337u`.
+
+EditMode 90/90 (three new: the pins; and the rule, part by part and over
+whole matches). PlayMode 22/22 (the top bar's FULL and its two other
+buttons added to the interface audit). WebGL 29.33 MB initial, 36.86 MB in
+all. Frame time 5.3 to 5.4 ms, 7 to 9 ms at the 95th percentile, at 2592 x
+1370: taken with the machine busy (Chrome, `suggestd` and an inference
+service at 35 to 67% of a core each), so it is not to be set against
+§12.36's 4.3 to 4.4. The game's own share did not move (army view 0.30 to
+0.48 ms a frame, combat view 0.08 to 0.16). To be taken again on a quiet
+machine.
+
+**Not done.** Nobody has watched it move but in strips: the numbers are
+what there is. A man stepping onto the platform still has no clip of his
+own (`ladder_top`). Not played by the owner.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

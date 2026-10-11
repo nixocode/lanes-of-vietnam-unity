@@ -169,6 +169,12 @@ namespace LanesOfVietnam.View
         private float[] _height = new float[0];
         /// <summary>Metres above the ground he is drawn: up a post's ladder or on its platform (MatchOptions.Vantage).</summary>
         private float[] _high = new float[0];
+        /// <summary>Stepping off the top of a ladder onto the platform: where he was drawn against where he now is, and the seconds of it left.</summary>
+        private Vector2[] _stepFrom = new Vector2[0];
+        private float[] _stepLeft = new float[0];
+        private bool[] _wasOnLadder = new bool[0];
+        /// <summary>Seconds a man takes from the top rung to his place on the platform.</summary>
+        public const float StepOff = 0.6f;
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
         public const float FrontRange = 45f, ClimbRate = 3.2f;
         /// <summary>Degrees his front has to move before he turns to it, and how fast he turns (degrees a second).</summary>
@@ -232,6 +238,9 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _pivot, n);
                 System.Array.Resize(ref _height, n);
                 System.Array.Resize(ref _high, n);
+                System.Array.Resize(ref _stepFrom, n);
+                System.Array.Resize(ref _stepLeft, n);
+                System.Array.Resize(ref _wasOnLadder, n);
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
@@ -464,6 +473,21 @@ namespace LanesOfVietnam.View
                 // A dead man who has fallen and lies still is a mesh where he lies: there is nothing to do for him.
                 if (!m.Alive && !jump && _figures[i] != null && _figures[i].Baked) { Drawn++; continue; }
                 var (x, z) = d.Position(i);
+                // Vantage: off the top of a post's ladder he steps over onto its platform; he is not put there.
+                bool laddered = m.Alive && m.Climb != 0;
+                if (_wasOnLadder[i] && !laddered && m.Alive && m.High > 0 && !jump && i < _drawn.Length)
+                {
+                    _stepFrom[i] = new Vector2(_drawn[i].x - (float)x, _drawn[i].y - (float)z);
+                    _stepLeft[i] = StepOff;
+                }
+                _wasOnLadder[i] = laddered;
+                if (_stepLeft[i] > 0f)
+                {
+                    _stepLeft[i] = jump || !m.Alive ? 0f : Mathf.Max(0f, _stepLeft[i] - dt);
+                    float k = _stepLeft[i] / StepOff;
+                    k = k * k * (3f - 2f * k);
+                    x += _stepFrom[i].x * k; z += _stepFrom[i].y * k;
+                }
                 if (m.Alive)
                 {
                     // A trench is one man wide: in it he is drawn on its line, and while he

@@ -246,7 +246,8 @@ namespace LanesOfVietnam.Tests
             hud.CycleSpeed(); hud.CycleSpeed(); yield return null;
             Assert.AreEqual(1f, Root.Speed, "speed did not come back round to 1×"); Assert.AreEqual("1×", b["speed"].text);
 
-            foreach (var id in new[] { "snd", "mus" })
+            // (FULL is the picture to the whole screen, the owner, 2026-10-11: outside a browser it only says so.)
+            foreach (var id in new[] { "snd", "mus", "full" })
             {
                 bool before = b[id].ClassListContains("on");
                 using (var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled()) { e.target = b[id]; b[id].SendEvent(e); }
@@ -258,6 +259,16 @@ namespace LanesOfVietnam.Tests
             }
 
             var screens = Object.FindAnyObjectByType<Screens>();
+            // Full screen is one thing with three buttons to it: the top bar's, the settings', the start screen's.
+            Assert.IsFalse(FullScreen.On);
+            FullScreen.Toggle();
+            yield return null; yield return null;
+            Assert.IsTrue(FullScreen.On);
+            Assert.IsTrue(b["full"].ClassListContains("on"), "the top bar does not say the game is full screen");
+            Assert.IsTrue(screens.Buttons["full"].ClassListContains("on") && screens.Buttons["full-start"].ClassListContains("on"), "nor do the settings and the start screen");
+            FullScreen.Toggle();
+            yield return null; yield return null;
+            Assert.IsFalse(b["full"].ClassListContains("on") || screens.Buttons["full"].ClassListContains("on"), "full screen was left and its buttons still say it");
             using (var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled()) { e.target = b["settings"]; b["settings"].SendEvent(e); }
             yield return null;
             Assert.AreEqual(FlowState.Paused, screens.State, "the settings button did not open settings");

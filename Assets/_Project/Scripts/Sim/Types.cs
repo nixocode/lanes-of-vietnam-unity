@@ -274,6 +274,9 @@ namespace LanesOfVietnam.Sim
         /// not also give would be a second set of rules to get wrong.
         /// </summary>
         public Order? PlayerOrder;
+        /// <summary>Where its anchor last was a metre further on while it was closing or going in, and the tick it was (MatchOptions.Cohesion).</summary>
+        public double ProgressX;
+        public int ProgressAt;
         /// <summary>The post it is on or on its way to (an index into <see cref="SimState.Posts"/>), or -1 (MatchOptions.Vantage).</summary>
         public int Post = -1;
         /// <summary>Told to come down from its post, and doing so (MatchOptions.Vantage).</summary>
@@ -480,6 +483,8 @@ namespace LanesOfVietnam.Sim
         public bool Ballistics;
         /// <summary>Part 2 rule: a squad can be posted up high, and sees and shoots from there as nobody on the ground can (<see cref="Sim.Vantage"/>). Off is the baseline.</summary>
         public bool Vantage;
+        /// <summary>Part 2 rule: a squad keeps together and makes up its mind (<see cref="Sim.Cohesion"/>). Off is the baseline.</summary>
+        public bool Cohesion;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

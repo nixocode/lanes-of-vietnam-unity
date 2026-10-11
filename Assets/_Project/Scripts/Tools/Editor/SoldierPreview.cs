@@ -274,6 +274,23 @@ namespace LanesOfVietnam.Tools
             States = orig; Own = null; Hurt = null;
         }
 
+        /// <summary>
+        /// A man on the watchtower's ladder, through the climb (SoldierFigure.Ladder), to see which way the clip
+        /// faces him and what his hands do: captures/soldiers/us_a_ladder.png. He stands facing +x as every
+        /// column does; the ladder would be in front of him.
+        /// </summary>
+        public static void RenderLadder()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            var states = new System.Collections.Generic.List<(string, float, int, bool, bool, int, float)>();
+            var hurt = new System.Collections.Generic.List<System.Action<SoldierFigure>>();
+            foreach (float t in new[] { 0.3f, 0.6f, 0.9f, 1.2f, 1.5f, 1.8f }) { states.Add(($"ladder {t:F1}", 0f, 0, false, false, 0, t)); hurt.Add(f => f.Ladder(true)); }
+            States = states.ToArray(); Hurt = hurt.ToArray();
+            Sheet("us_a", 1.6f, "_ladder", 1.25f);
+            States = orig; Hurt = null;
+        }
+
         private static void Sheet(string side, float zoom = 1f, string suffix = "", float size = 0f)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);

@@ -136,6 +136,8 @@ namespace LanesOfVietnam.View.UI
             Btn(levels, "level-veteran", "VETERAN\nA FAIR FIGHT", () => ChooseLevel(GameRoot.Difficulty.Veteran), "choice");
             Btn(levels, "level-elite", "ELITE\nOUTNUMBERS YOU", () => ChooseLevel(GameRoot.Difficulty.Elite), "choice");
 
+            var view = new VisualElement(); view.AddToClassList("choice-row"); StartPanel.Add(view);
+            Btn(view, "full-start", "FULL SCREEN", FullScreen.Toggle, "choice");
             Btn(StartPanel, "deploy", "DEPLOY", () => Deploy(), "deploy");
             Text(StartPanel, "Sound starts when you deploy.", "fineprint");
             root.Add(StartPanel);
@@ -175,11 +177,12 @@ namespace LanesOfVietnam.View.UI
             Btn(toggles, "shake", "CAMERA SHAKE", () => { Root.Settings.CameraShake = !Root.Settings.CameraShake; Save(); }, "choice");
             Btn(toggles, "gore", "GORE", () => { Root.Settings.Gore = !Root.Settings.Gore; Save(); }, "choice");
             Btn(toggles, "hidehud", "HIDE HUD", () => { Root.Settings.HideHud = !Root.Settings.HideHud; Save(); }, "choice");
+            Btn(toggles, "full", "FULL SCREEN", FullScreen.Toggle, "choice");
 
             Text(SettingsPanel,
                 "KEYS   A/D or drag: pan · wheel: dolly · F: field glasses · click: select · Tab: next squad\n" +
                 "1 advance · 2 hold · 3 fall back · 0 auto · Q W E R: call-ins · Z X C V B: units\n" +
-                "P: pause · Esc: cancel / deselect / this menu",
+                "P: pause · Esc: cancel / deselect / this menu · Alt+Enter: full screen",
                 "keys");
             // The credit its licence asks for, where its author asks for it: with the settings. And the rest
             // of what the game is made from: nothing else in it requires a credit, and all of it is owed one.
@@ -331,6 +334,8 @@ namespace LanesOfVietnam.View.UI
             On("level-recruit", ChosenLevel == GameRoot.Difficulty.Recruit);
             On("level-veteran", ChosenLevel == GameRoot.Difficulty.Veteran);
             On("level-elite", ChosenLevel == GameRoot.Difficulty.Elite);
+            On("full-start", FullScreen.On);
+            On("full", FullScreen.On);
             var st = Root.Settings;
             if (st == null) return;
             On("q-low", st.Quality == QualityTier.Low);
@@ -342,17 +347,22 @@ namespace LanesOfVietnam.View.UI
             On("hidehud", st.HideHud);
         }
 
+        private bool _fullShown;
+
         private void Update()
         {
             float dt = Time.unscaledDeltaTime;
             var st = Root.Driver?.State;
+            // Full screen, from any screen: Alt and Enter. (And its buttons lit while it is, however it was left.)
+            if (FullScreen.KeyDown) FullScreen.Toggle();
+            if (FullScreen.On != _fullShown) { _fullShown = FullScreen.On; SyncChoices(); }
             switch (State)
             {
                 case FlowState.Start:
                     // The live scene behind the menu, slowly panning down the line.
                     _panT += dt;
                     Root.CameraRig.Focus(Mathf.Sin(_panT * 0.035f) * 34f);
-                    if (Input.GetKeyDown(KeyCode.Return)) Deploy();
+                    if (Input.GetKeyDown(KeyCode.Return) && !FullScreen.AltHeld) Deploy();
                     break;
 
                 case FlowState.Opening:

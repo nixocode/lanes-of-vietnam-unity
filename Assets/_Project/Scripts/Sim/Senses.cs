@@ -313,6 +313,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>It goes in when the enemy in front of it is beaten down or badly outnumbered, and it is not.</summary>
         private static bool CanAssault(SimState st, Squad sq, IReadOnlyList<Man> live, double pin)
         {
+            // Cohesion: and with at least half of its own men able to get up and go.
+            if (st.Cohesion && !Cohesion.Ready(live)) return false;
             // FireControl: beaten down man by man, and no machine gun of his still up.
             if (st.FireControl) return FireControl.GoesIn(st, sq, live, pin);
             if (!sq.Assaults || !sq.ThreatSeen || pin >= Tune.PinDrop) return false;
@@ -369,7 +371,8 @@ namespace LanesOfVietnam.Sim
                     // With the enemy beyond its weapons it has no fight to stay for: it goes on as soon as it has its breath.
                     // Told to hold the position it is in (its lever), it holds it: it does not close or go in.
                     if (Held(st, sq)) break;
-                    if (held < Tune.FirefightMin && !(plan.Advance && sq.ThreatGap > sq.Reach + Tune.ContactPast)) break;
+                    // (Cohesion: it stays where it has gone to ground twice as long before it moves again.)
+                    if (held < (st.Cohesion ? Tune.SteadyFirefight : Tune.FirefightMin) && !(plan.Advance && sq.ThreatGap > sq.Reach + Tune.ContactPast)) break;
                     if (CanAssault(st, sq, live, pin)) task = SquadTask.Assault;
                     else if (plan.Advance && pin < Tune.PinDrop && !LeadPinned(live) && ShouldClose(st, sq, live, held)) task = SquadTask.Close;
                     break;
@@ -380,12 +383,16 @@ namespace LanesOfVietnam.Sim
                     else if (pin >= Tune.PinStop || (held >= Tune.ContactTicks && LeadPinned(live))) task = SquadTask.Firefight;
                     else if (held >= Tune.TaskMin && sq.Halted) task = SquadTask.Firefight;
                     else if (held >= Tune.CloseMax) task = SquadTask.Firefight;
+                    // Cohesion: closing, and going nowhere: it stops saying so.
+                    else if (st.Cohesion && Cohesion.Stalled(st, sq)) task = SquadTask.Firefight;
                     break;
                 case SquadTask.Assault:
                     if (Held(st, sq)) task = SquadTask.Firefight;
                     else if (!threat) task = SquadTask.March;
                     else if (pin >= (Tune.PinDrop + Tune.PinStop) * 0.5) task = SquadTask.Firefight;      // it falters
                     else if (held >= Tune.AssaultMax && !(st.FireControl ? FireControl.GoesIn(st, sq, live, pin, committed: true) : CanAssault(st, sq, live, pin))) task = SquadTask.Firefight;
+                    // Cohesion: going in, and going nowhere: it falters.
+                    else if (st.Cohesion && Cohesion.Stalled(st, sq)) task = SquadTask.Firefight;
                     break;
                 case SquadTask.Withdraw:
                     bool there = sq.Target >= 0 && sq.Halted;
@@ -399,7 +406,7 @@ namespace LanesOfVietnam.Sim
                     // Spent: it holds what it ran to, and runs again only if it is beaten down again.
                     // (One that was only ordered back, and is whole, goes on when it has its breath.)
                     if (!broken) { if (held >= Tune.FirefightMin) task = SquadTask.March; }
-                    else if (plan.Withdraw && held >= Tune.TaskMin && pin >= Tune.PinStop)
+                    else if (plan.Withdraw && held >= (st.Cohesion ? Tune.SteadyRegroup : Tune.TaskMin) && pin >= Tune.PinStop)
                     {
                         task = SquadTask.Withdraw;
                         sq.Rallied = false;
@@ -452,6 +459,7 @@ namespace LanesOfVietnam.Sim
             var was = sq.Task;
             sq.Task = task;
             sq.TaskSince = st.Tick;
+            if (st.Cohesion && (task == SquadTask.Close || task == SquadTask.Assault)) Cohesion.Start(st, sq);
             if (!st.Fieldcraft || !plan.UseCover) return;
             double dir = Combat.Advance(sq.Side);
             var tc = sq.Target >= 0 && sq.Target < st.Cover.Count ? st.Cover[sq.Target] : null;

@@ -4,9 +4,9 @@ A real-time lane-tactics game in Unity 6 (6000.6.3f1), built for WebGL. Read
 `README.md` first, then `PLAN.md` §12.17 onward: the sections after it are the
 owner's playtests in order and what was built for each. The plan from here is
 §12.27: polish, then scenarios on the firebase map, then maps one at a time,
-and what the owner still has to decide. The latest work is §12.29 to §12.36 (fire control,
+and what the owner still has to decide. The latest work is §12.29 to §12.37 (fire control,
 the Mixamo batches, rounds seen to land, ballistics, what a round and a burst do to a
-man, the watchtower, the computer's commander).
+man, the watchtower, the computer's commander, squads that keep together).
 
 ## What runs where
 
@@ -34,7 +34,8 @@ dotnet build tools/simcs/SimCs.csproj -c Release
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll determinism
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll audit
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics map
-dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 48 32 rate=0.9 tactics fortune firecontrol ballistics vantage commander
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll player 48 34 rate=0.9 tactics fortune firecontrol ballistics vantage commander cohesion
+dotnet tools/simcs/bin/Release/net8.0/simcs.dll shape 20 2400 20 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion tempo
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll aware 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll muddle 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
 dotnet tools/simcs/bin/Release/net8.0/simcs.dll brain 3 2400 6 fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics tempo
@@ -60,7 +61,9 @@ and say so:
   more hashed): 3493 ticks, final `2586780023u`. With `aiposts` (the computer mans its tower,
   which the game does not do): 4236 ticks, final `1179344068u`.
 - `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander map`
-  (the game, on `polish`): 5206 ticks, final `4057359457u`.
+  (every rule up to the commander, on `polish`): 5206 ticks, final `4057359457u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion map`
+  (the game, on `polish`): 2524 ticks, final `3667431746u`.
 
 ## Rules this project keeps
 
@@ -69,7 +72,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander: all on in the game). With a
+  Vantage, Commander, Cohesion: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **Pinned hashes** in `Assets/_Project/Tests/EditMode/SimTests.cs` are

@@ -930,6 +930,14 @@ namespace LanesOfVietnam.View
                 Chest.rotation = Quaternion.AngleAxis(24f * Mathf.Sin(Mathf.PI * (1f - _lunge)), transform.right) * Chest.rotation;
             if (Rifle == null || HandR == null || HandL == null || Rifle.transform.parent == transform) return;
             var r = Rifle.transform;
+            if (_onLadder && Chest != null && Hips != null)
+            {
+                // On a ladder his hands are on the rungs: the rifle is slung across his back, muzzle up over
+                // his left shoulder. (In his hand it was waved about with every reach.)
+                Vector3 up = (Chest.position - Hips.position).normalized, fwd = transform.forward, side = Vector3.Cross(up, fwd).normalized;
+                Lay(up * 0.9f - side * 0.45f, Chest.position - fwd * 0.2f - up * 0.28f + side * 0.12f);
+                return;
+            }
             if (_posture == 2 && _speed > 0.05f && LowerArmR != null)
             {
                 // Crawling: cradled along the right forearm, muzzle ahead of the hand.

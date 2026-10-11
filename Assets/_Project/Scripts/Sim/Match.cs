@@ -108,6 +108,8 @@ namespace LanesOfVietnam.Sim
         public bool Ballistics;
         /// <summary>Part 2: a squad can be posted up high (the firebase's watchtower), and sees and shoots from there as nobody on the ground can (Vantage). False is the parity baseline.</summary>
         public bool Vantage;
+        /// <summary>Part 2: a squad keeps together (a closer file, a lead man who waits, stragglers who run, no walking into a friend) and makes up its mind (Cohesion). False is the parity baseline.</summary>
+        public bool Cohesion;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -257,6 +259,7 @@ namespace LanesOfVietnam.Sim
                 Commander = opts.Commander,
                 Ballistics = opts.Ballistics,
                 Vantage = opts.Vantage,
+                Cohesion = opts.Cohesion,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
             };
@@ -458,6 +461,8 @@ namespace LanesOfVietnam.Sim
                 if (st.Gunnery && m.Posture == Posture.Standing) speed = Gunnery.Pace(sq);
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
+                // Cohesion: a man left behind runs to his place.
+                if (st.Cohesion && m.Posture == Posture.Standing && quarry == null && d > Tune.RejoinBeyond) speed = Math.Max(speed, Tune.SpeedRush);
                 // With drill a man close enough to his place stays put (falling back, he always moves).
                 // Fieldcraft: and once at rest he stays at rest until his place has moved a good pace off,
                 // then goes all the way to it: no shuffling a step at a time after a slot that drifts.
