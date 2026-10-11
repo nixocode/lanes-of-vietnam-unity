@@ -62,7 +62,7 @@ namespace LanesOfVietnam.Sim
         {
             double dx = Math.Abs(a.X - b.X), dz = Math.Abs(a.Z - b.Z);
             if (dx * dx + dz * dz <= Tune.ChargeRange * Tune.ChargeRange) return true;
-            return Sightline(a, b);
+            return Sightline(st, a, b);
         }
 
         // The bank between the lanes (Ground: BermZ, BermHeight, BermGate), in the simulation's own arithmetic:
@@ -96,16 +96,30 @@ namespace LanesOfVietnam.Sim
         /// it crosses: two men standing see over it; a man down behind it is out of sight of the other lane,
         /// and so is everyone from him; in a gap it hides nobody.
         /// </summary>
-        public static bool Sightline(Man a, Man b)
+        public static bool Sightline(Man a, Man b) => Sightline(BankZ, BankHeight, BankPhase, a, b);
+
+        /// <summary>The same, over the bank of the map the match is played on (PLAN §12.27, S1: the map as data).</summary>
+        public static bool Sightline(SimState st, Man a, Man b) => Sightline(st.BankZ, st.BankHeight, st.BankPhase, a, b);
+
+        /// <summary>The bank's height at x on the match's own map.</summary>
+        public static double Bank(SimState st, double x) => Bank(st.BankHeight, st.BankPhase, x);
+
+        private static double Bank(double height, double phase, double x)
         {
-            double za = a.Z - BankZ, zb = b.Z - BankZ;
+            double gaps = JsMath.Sin(x * 0.019 + phase) * 0.5 + 0.5;
+            return height * Math.Max(0, Math.Min(1, (gaps - 0.34) * 3.2));
+        }
+
+        private static bool Sightline(double bankZ, double bankHeight, double bankPhase, Man a, Man b)
+        {
+            double za = a.Z - bankZ, zb = b.Z - bankZ;
             if (za * zb >= 0) return true;
             double t = za / (za - zb);
             double x = a.X + (b.X - a.X) * t;
             // (Vantage: a man up on a post looks from up there, and is looked at up there. On the ground his height is 0.)
             double eyes = Eyes(a.Posture) + a.High, top = Top(b.Posture) + b.High;
             double line = eyes + (top - eyes) * t;
-            return line > Bank(x);
+            return line > Bank(bankHeight, bankPhase, x);
         }
 
         /// <summary>Has he been still long enough to fire?</summary>

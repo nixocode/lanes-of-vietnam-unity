@@ -1106,6 +1106,61 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The map as data (PLAN §12.27, S1). The firebase is a map among the maps now, and everything that read
+        /// it as code reads the same from it: its cover, its craters, banks and trenches, its tower. A match
+        /// takes its bank from its map, and the bank it takes is the one the ground is built with: where the
+        /// ground's bank stands the simulation's stands, to the height, and where the ground's has a gap so has it.
+        /// </summary>
+        [Test]
+        public void The_firebase_is_a_map_among_the_maps_and_a_match_takes_its_bank_and_its_posts_from_its_map()
+        {
+            Assert.AreSame(Maps.Firebase, Maps.ById("firebase"));
+            Assert.IsNull(Maps.ById("no such map"));
+            Assert.Contains(Maps.Firebase, Maps.All);
+
+            var cover = Map.Cover(); var its = Maps.Firebase.Cover();
+            Assert.AreEqual(17, cover.Count);
+            Assert.AreEqual(cover.Count, its.Count);
+            for (int i = 0; i < cover.Count; i++)
+            {
+                Assert.AreEqual(i, its[i].Id);
+                Assert.AreEqual(cover[i].Kind, its[i].Kind);
+                Assert.AreEqual(cover[i].X, its[i].X);
+                Assert.AreEqual(cover[i].Z, its[i].Z);
+                Assert.AreEqual(cover[i].Length, its[i].Length);
+                Assert.AreEqual(cover[i].Capacity, its[i].Capacity);
+                if (i > 0) Assert.GreaterOrEqual(its[i].X, its[i - 1].X, "the map's cover is not in order along the lanes");
+            }
+            Assert.AreNotSame(Maps.Firebase.Cover()[0], Maps.Firebase.Cover()[0], "a map hands out the same cover twice: a match would change the map");
+            Assert.AreEqual(Map.Craters().Count, Maps.Firebase.Craters().Count);
+            Assert.AreEqual(Map.Mounds().Count, Maps.Firebase.Mounds().Count);
+            Assert.AreEqual(Map.Trenches().Count, Maps.Firebase.Trenches().Count);
+            Assert.AreEqual(1, Maps.Firebase.PostList().Count);
+            Assert.AreEqual(Map.TowerX, Maps.Firebase.PostList()[0].X);
+
+            // The bank the simulation reads is the bank the ground has.
+            var ground = Maps.Firebase.Ground();
+            var st = Match.Create(Loaded(3, tempo: true));
+            Assert.AreEqual(ground.Params.BermZ, st.BankZ);
+            Assert.AreEqual(ground.Params.BermHeight, st.BankHeight);
+            for (double x = -60; x <= 60; x += 0.5)
+            {
+                Assert.AreEqual(ground.Params.BermHeight * ground.BermGate(x), Gunnery.Bank(st, x), 1e-9, $"the bank at {x}");
+                Assert.AreEqual(Gunnery.Bank(x), Gunnery.Bank(st, x), $"the firebase's bank at {x}");
+            }
+
+            // And a map with another bank gives the match that one: here, none at all, so nobody is hidden by it.
+            var flat = new MapDef { Id = "flat", Name = "FLAT", Pieces = Maps.Firebase.Pieces, GroundShape = new GroundParams { BermHeight = 0 } };
+            var o = Loaded(3, tempo: true); o.Map = flat; o.Cover = flat.Cover();
+            var on = Match.Create(o);
+            Assert.AreEqual(0, on.BankHeight);
+            Assert.AreEqual(0, on.Posts.Count, "a map with no tower gave the match one");
+            Man At(double x, double z, Posture p) => new Man { X = x, Z = z, Posture = p };
+            for (double x = -40; x <= 40; x += 2.5)
+                Assert.IsTrue(Gunnery.Sightline(on, At(x, Tune.Lanes[0], Posture.Prone), At(x, Tune.Lanes[1], Posture.Prone)), $"no bank, and it hid a man at {x}");
+        }
+
+        /// <summary>
         /// The owner, playtest 8: "US soldiers all climb up exactly at the same time ... change that so it's not so
         /// coordinated." When a squad that has been at rest goes, its men get up and set off one after another.
         /// </summary>

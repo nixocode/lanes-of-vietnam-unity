@@ -108,6 +108,8 @@ namespace LanesOfVietnam.Sim
         public bool Ballistics;
         /// <summary>Part 2: a squad can be posted up high (the firebase's watchtower), and sees and shoots from there as nobody on the ground can (Vantage). False is the parity baseline.</summary>
         public bool Vantage;
+        /// <summary>The map the match is played on: its bank and its posts (its cover is <see cref="Cover"/>, as ever). Null is the firebase.</summary>
+        public MapDef Map;
         /// <summary>Part 2: a squad keeps together (a closer file, a lead man who waits, stragglers who run, no walking into a friend) and makes up its mind (Cohesion). False is the parity baseline.</summary>
         public bool Cohesion;
         /// <summary>
@@ -269,7 +271,9 @@ namespace LanesOfVietnam.Sim
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             if (opts.Commander) st.CommandRng = rng.Fork("commander");
-            if (opts.Vantage) st.Posts = Map.Posts();
+            var map = opts.Map ?? Maps.Firebase;
+            (st.BankZ, st.BankHeight, st.BankPhase) = map.Bank();
+            if (opts.Vantage) st.Posts = map.PostList();
             st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
             st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
 

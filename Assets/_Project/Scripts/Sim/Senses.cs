@@ -82,7 +82,7 @@ namespace LanesOfVietnam.Sim
             double dx = observer.X - target.X, dz = observer.Z - target.Z;
             if (dx * dx + dz * dz > r * r) return false;
             // Gunnery: and not through the bank between the lanes.
-            if (st.Gunnery && !Gunnery.Sightline(observer, target)) return false;
+            if (st.Gunnery && !Gunnery.Sightline(st, observer, target)) return false;
             return !Combat.SmokeBlocks(st, observer.X, observer.Z, target.X, target.Z);
         }
 

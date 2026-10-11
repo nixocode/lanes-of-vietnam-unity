@@ -483,6 +483,8 @@ namespace LanesOfVietnam.Sim
         public bool Ballistics;
         /// <summary>Part 2 rule: a squad can be posted up high, and sees and shoots from there as nobody on the ground can (<see cref="Sim.Vantage"/>). Off is the baseline.</summary>
         public bool Vantage;
+        /// <summary>The bank between the lanes on the map this match is played on: where it runs, how high, where its gaps fall (<see cref="MapDef.Bank"/>).</summary>
+        public double BankZ, BankHeight, BankPhase;
         /// <summary>Part 2 rule: a squad keeps together and makes up its mind (<see cref="Sim.Cohesion"/>). Off is the baseline.</summary>
         public bool Cohesion;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
