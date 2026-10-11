@@ -28,6 +28,8 @@ namespace LanesOfVietnam.View.UI
         public MoraleBar VcMorale { get; private set; }
         public TacticalStrip Strip { get; private set; }
         public Label OrdersLine { get; private set; }
+        /// <summary>A siege's or an assault's clock, and how much of an assault's line is taken. Hidden in a standard match.</summary>
+        public Label ClockLine { get; private set; }
         public Label CpValue { get; private set; }
         public Label TutorLine { get; private set; }
         public Label ArmedHint { get; private set; }
@@ -123,7 +125,8 @@ namespace LanesOfVietnam.View.UI
 
         private void Build(VisualElement root)
         {
-            Orders = new FieldOrders(Root.PlayerSide);
+            Orders = new FieldOrders(Root.Scenario, Root.PlayerSide);
+            _clockShown = int.MinValue; _heldShown = -1;
             Tutor = new Tutor();
 
             var ui = new VisualElement { name = "lov-root", pickingMode = PickingMode.Ignore };
@@ -157,6 +160,10 @@ namespace LanesOfVietnam.View.UI
                 Diamonds.Add(d);
             }
             centre.Add(diamonds);
+            ClockLine = new Label("") { name = "clock" };
+            ClockLine.AddToClassList("clock");
+            ClockLine.style.display = DisplayStyle.None;
+            centre.Add(ClockLine);
             OrdersLine = new Label("ORDERS") { name = "orders" };
             OrdersLine.AddToClassList("orders");
             centre.Add(OrdersLine);
@@ -282,6 +289,34 @@ namespace LanesOfVietnam.View.UI
             Cards.Add(v);
         }
 
+        private int _clockShown = int.MinValue, _heldShown = -1;
+
+        /// <summary>
+        /// The clock of a siege or an assault, in the player's terms: what it is counting down to for him. Written
+        /// when the second changes, or the line does.
+        /// </summary>
+        private void RefreshClock(SimState st)
+        {
+            if (st.ClockTicks <= 0) { ClockLine.style.display = DisplayStyle.None; return; }
+            ClockLine.style.display = DisplayStyle.Flex;
+            int left = Mathf.CeilToInt((float)Match.ClockLeft(st));
+            int held = st.Mode == MatchMode.Assault ? FieldOrders.Held(st) : 0;
+            if (left == _clockShown && held == _heldShown) return;
+            _clockShown = left; _heldShown = held;
+            ClockLine.text = ClockText(st, Root.PlayerSide, left, held);
+            ClockLine.EnableInClassList("low", left <= 60);
+        }
+
+        /// <summary>"HOLD THE FIREBASE 4:32", "TAKE THE LINE 1/2 · 6:10": the clock as the side sees it.</summary>
+        public static string ClockText(SimState st, Side side, int left, int held)
+        {
+            string t = $"{left / 60}:{left % 60:00}";
+            bool attacking = side == st.Attacker;
+            if (st.Mode == MatchMode.Assault)
+                return $"{(attacking ? "TAKE THE LINE" : "HOLD THE LINE")} {(attacking ? held : st.Objectives.Length - held)}/{st.Objectives.Length} · {t}";
+            return attacking ? $"BREAK THEM BEFORE {t}" : $"HOLD UNTIL RELIEVED · {t}";
+        }
+
         private void AddButton(VisualElement parent, string id, string text, System.Action onClick)
         {
             var b = new Button(onClick) { name = $"btn-{id}", text = text };
@@ -338,6 +373,7 @@ namespace LanesOfVietnam.View.UI
 
             Orders.Update(st);
             OrdersLine.text = Orders.Line;
+            RefreshClock(st);
 
             Positions.Update();
             Tags.Update();

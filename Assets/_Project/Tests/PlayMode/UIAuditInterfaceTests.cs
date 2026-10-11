@@ -554,6 +554,108 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The operations (PLAN §12.27, S5). The start screen lists them, with the chosen one's briefing beside
+        /// it; an operation that is one side's is played from that side, and one with a clock keeps its own
+        /// length. In the match a siege or an assault has its clock on the HUD in the player's terms, its own
+        /// field orders, and gold on the positions an assault is for; and the ending says how it ended.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_start_screen_lists_the_operations_and_a_timed_one_has_its_clock_on_the_hud()
+        {
+            yield return LoadAndDeploy();
+            var screens = Object.FindAnyObjectByType<Screens>();
+            void Press(UnityEngine.UIElements.Button b)
+            {
+                using var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled();
+                e.target = b;
+                b.SendEvent(e);
+            }
+            // As it was: the firebase, no clock.
+            Assert.AreSame(Scenarios.Firebase, Root.Scenario);
+            yield return null;
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, HudOf.ClockLine.style.display.value, "a standard match has a clock on its HUD");
+
+            screens.ToMenu();
+            yield return null;
+            foreach (var sc in Scenarios.All)
+                Assert.IsTrue(screens.Buttons.ContainsKey($"op-{sc.Id}"), $"the start screen has no button for {sc.Id}");
+            Assert.AreSame(Scenarios.Firebase, screens.ChosenScenario);
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, screens.BriefPanel.style.display.value, "the briefing is not beside the start screen");
+            Assert.AreEqual(Scenarios.Firebase.Title, screens.BriefTitle.text);
+            Assert.IsTrue(screens.Buttons["op-firebase"].ClassListContains("on"));
+
+            // The Wire: the Americans', five minutes, a siege.
+            Press(screens.Buttons["op-the-wire"]);
+            Assert.AreSame(Scenarios.TheWire, screens.ChosenScenario);
+            Assert.IsTrue(screens.Buttons["op-the-wire"].ClassListContains("on") && !screens.Buttons["op-firebase"].ClassListContains("on"));
+            Assert.AreEqual(Scenarios.TheWire.Title, screens.BriefTitle.text);
+            Assert.AreEqual(Scenarios.TheWire.DateLine, screens.BriefMeta.text);
+            StringAssert.Contains("Hold until the clock runs out", screens.BriefOrders.text);
+            Assert.IsTrue(screens.Buttons["side-us"].enabledSelf);
+            Assert.IsFalse(screens.Buttons["side-vc"].enabledSelf, "an operation that is the Americans' offers the VC");
+            Assert.IsFalse(screens.Buttons["len-long"].enabledSelf, "an operation with a clock offers a length");
+            screens.ChooseSide(Side.Vc);
+            Assert.AreEqual(Side.Us, screens.ChosenSide, "the side it does not offer was chosen");
+            screens.Deploy(); screens.Skip();
+            yield return null;
+            yield return null;
+            Assert.AreSame(Scenarios.TheWire, Root.Scenario);
+            Assert.AreEqual(Side.Us, Root.PlayerSide);
+            Assert.AreEqual(MatchMode.Siege, Root.Options.Mode);
+            Assert.AreSame(Plan.Defend, Root.Options.Us);
+            var st = Root.Driver.State;
+            Assert.AreEqual((int)(Scenarios.TheWire.ClockSeconds * Tune.TickHz), st.ClockTicks);
+            var hud = HudOf;
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, hud.ClockLine.style.display.value, "a siege has no clock on its HUD");
+            StringAssert.StartsWith("HOLD UNTIL RELIEVED · ", hud.ClockLine.text);
+            Assert.AreEqual("HOLD UNTIL RELIEVED · 5:00", Hud.ClockText(st, Side.Us, 300, 0));
+            Assert.AreEqual("BREAK THEM BEFORE 0:59", Hud.ClockText(st, Side.Vc, 59, 0));
+            StringAssert.Contains("DEPLOY A RIFLE SQUAD", hud.OrdersLine.text);
+            Assert.AreEqual(6, hud.Orders.Count, "the siege's own field orders are not the ones shown");
+            StringAssert.Contains("RELIEF IS FIVE MINUTES OUT", Screens.Radio(Root.Scenario, Side.Us));
+
+            // First Light: an assault. The line's two positions wear gold, and the clock counts them.
+            screens.ToMenu();
+            Press(screens.Buttons["op-first-light"]);
+            screens.Deploy(); screens.Skip();
+            yield return null;
+            yield return null;
+            st = Root.Driver.State;
+            hud = HudOf;
+            Assert.AreEqual(MatchMode.Assault, st.Mode);
+            Assert.AreEqual(Side.Us, st.Attacker);
+            Assert.AreEqual(2, st.Objectives.Length);
+            Assert.AreEqual(2, hud.Positions.Plates.Count(p => p.Objective), "the line's positions are not marked");
+            foreach (var p in hud.Positions.Plates)
+                Assert.AreEqual(p.Objective, p.ClassListContains("objective"));
+            StringAssert.StartsWith("TAKE THE LINE 0/2 · ", hud.ClockLine.text);
+            Assert.AreEqual("TAKE THE LINE 1/2 · 6:05", Hud.ClockText(st, Side.Us, 365, 1));
+            Assert.AreEqual("HOLD THE LINE 1/2 · 6:05", Hud.ClockText(st, Side.Vc, 365, 1));
+            st.Cover[st.Objectives[0]].Owner = Side.Us;
+            Assert.AreEqual(1, FieldOrders.Held(st));
+            st.Cover[st.Objectives[0]].Owner = null;
+
+            // How it ended, in the fight's own words.
+            Assert.AreEqual("THE LINE IS TAKEN", Screens.OutcomeOf(new SimState { Reason = "us took the line", Winner = Side.Us, Attacker = Side.Us }));
+            Assert.AreEqual("THE ATTACK IS CALLED OFF", Screens.OutcomeOf(new SimState { Reason = "vc held the line", Winner = Side.Vc, Attacker = Side.Us }));
+            Assert.AreEqual("THE FIREBASE HOLDS", Screens.OutcomeOf(new SimState { Reason = "us held out", Winner = Side.Us }));
+            Assert.AreEqual("THEIR LINE IS BROKEN", Screens.OutcomeOf(new SimState { Reason = "vc morale broke", Winner = Side.Us, Attacker = Side.Us }));
+            Assert.AreEqual("THE LINE HELD", Screens.OutcomeOf(new SimState { Reason = "vc morale broke", Winner = Side.Us }));
+            Assert.AreEqual("THE WIRE IS BREACHED", Screens.OutcomeOf(new SimState { Reason = "us morale broke", Winner = Side.Vc }));
+
+            // And back: the firebase is either side's, any length.
+            screens.ToMenu();
+            Press(screens.Buttons["op-firebase"]);
+            Assert.IsTrue(screens.Buttons["side-vc"].enabledSelf && screens.Buttons["len-long"].enabledSelf, "the firebase is still held to another operation's side or length");
+            screens.Deploy(); screens.Skip();
+            yield return null;
+            yield return null;
+            Assert.AreSame(Scenarios.Firebase, Root.Scenario);
+            Assert.AreEqual(MatchMode.Standard, Root.Options.Mode);
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, HudOf.ClockLine.style.display.value);
+        }
+
+        /// <summary>
         /// A match a new player can read (PLAN §12.18 phase 2): the start screen
         /// sets how hard the enemy is and the game plays at the rates measured
         /// for it; every card says what it buys; and a squad has a tag that

@@ -16,6 +16,8 @@ namespace LanesOfVietnam.View.UI
         public readonly Label Count;
         public readonly Button LeverButton;
         public Lever Shown { get; private set; } = Lever.Auto;
+        /// <summary>One of the positions an assault is for (SimState.Objectives).</summary>
+        public bool Objective { get; internal set; }
         /// <summary>Whether the pointer is on it (within PositionPlates.HoverRadius of it).</summary>
         public bool Hovered { get; internal set; }
         /// <summary>Where it sits in the panel, shown or not.</summary>
@@ -119,6 +121,9 @@ namespace LanesOfVietnam.View.UI
             {
                 if (!Fieldcraft.IsPosition(c)) continue;
                 var p = new PositionPlate(c, Pull);
+                // An assault's ground: the positions it is for wear a gold edge, and are always shown.
+                p.Objective = System.Array.IndexOf(st.Objectives, c.Id) >= 0;
+                if (p.Objective) p.AddToClassList("objective");
                 _layer.Add(p);
                 Plates.Add(p);
             }
@@ -177,9 +182,9 @@ namespace LanesOfVietnam.View.UI
                 if (!seen || float.IsNaN(w) || w <= 0) { p.style.display = DisplayStyle.None; p.Hovered = false; continue; }
                 p.Centre = new Vector2(vp.x * w, (1 - vp.y) * h - 23);
                 p.Hovered = Vector2.Distance(p.Centre, pointer) < HoverRadius;
-                bool shown = Fieldcraft.Built(c) || mine > 0 || p.Shown != Lever.Auto || p.Hovered;
+                bool shown = Fieldcraft.Built(c) || mine > 0 || p.Shown != Lever.Auto || p.Hovered || p.Objective;
                 p.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
-                p.style.opacity = p.Hovered ? 1f : Faded;
+                p.style.opacity = p.Hovered || p.Objective ? 1f : Faded;
                 if (shown) p.MoveTo(p.Centre.x - 46, p.Centre.y - 23);
             }
         }

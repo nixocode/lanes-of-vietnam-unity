@@ -33,10 +33,18 @@ namespace LanesOfVietnam.View.UI
         public Side ChosenSide { get; private set; } = Side.Us;
         public MatchLength ChosenLength { get; private set; } = MatchLength.Standard;
         public Difficulty ChosenLevel { get; private set; } = Difficulty.Veteran;
+        /// <summary>The operation chosen (PLAN §12.27, Phase S): the firebase, until another is.</summary>
+        public Scenario ChosenScenario { get; private set; } = Scenarios.Firebase;
 
         public VisualElement StartPanel { get; private set; }
         public VisualElement SettingsPanel { get; private set; }
         public VisualElement EndPanel { get; private set; }
+        /// <summary>The chosen operation's briefing, beside the start screen: its title, its date line, the briefing and the orders.</summary>
+        public VisualElement BriefPanel { get; private set; }
+        public Label BriefTitle { get; private set; }
+        public Label BriefMeta { get; private set; }
+        public Label BriefText { get; private set; }
+        public Label BriefOrders { get; private set; }
         public Label Subtitle { get; private set; }
         public Label EndTitle { get; private set; }
         public Label EndReason { get; private set; }
@@ -52,6 +60,7 @@ namespace LanesOfVietnam.View.UI
         private IReadOnlyList<LiveMatch.Applied> _lastLog;
         private MatchLength _lastLength;
         private Difficulty _lastLevel;
+        private Scenario _lastScenario;
         private Side _lastSide;
         private int _lastSeed;
 
@@ -118,6 +127,16 @@ namespace LanesOfVietnam.View.UI
             Text(StartPanel, "LANES OF VIETNAM '65", "title");
             Text(StartPanel, "A FIREBASE IN THE CENTRAL HIGHLANDS · 1965", "kicker");
 
+            // The operations: the firebase as it always was, and the scenarios fought on it. Its briefing is beside.
+            Text(StartPanel, "OPERATION", "field");
+            var ops = new VisualElement(); ops.AddToClassList("choice-row"); StartPanel.Add(ops);
+            foreach (var sc in Scenarios.All)
+            {
+                var it = sc;
+                var b = Btn(ops, $"op-{sc.Id}", $"{sc.Title}\n{Kind(sc)}", () => ChooseScenario(it), "choice");
+                b.AddToClassList("op");
+            }
+
             Text(StartPanel, "YOUR SIDE", "field");
             var sides = new VisualElement(); sides.AddToClassList("choice-row"); StartPanel.Add(sides);
             Btn(sides, "side-us", "US / ARVN\nHOLD THE FIREBASE", () => ChooseSide(Side.Us), "choice");
@@ -141,7 +160,34 @@ namespace LanesOfVietnam.View.UI
             Btn(StartPanel, "deploy", "DEPLOY", () => Deploy(), "deploy");
             Text(StartPanel, "Sound starts when you deploy.", "fineprint");
             root.Add(StartPanel);
+
+            BriefPanel = new VisualElement { name = "brief" };
+            BriefPanel.AddToClassList("screen");
+            BriefPanel.AddToClassList("brief");
+            BriefTitle = Text(BriefPanel, "", "brief-title");
+            BriefMeta = Text(BriefPanel, "", "kicker");
+            BriefText = Text(BriefPanel, "", "brief-text");
+            BriefOrders = Text(BriefPanel, "", "brief-orders");
+            root.Add(BriefPanel);
             SyncChoices();
+        }
+
+        /// <summary>What a side is there to do in an operation, under its name on its button.</summary>
+        public static string Task(Scenario sc, Side side)
+        {
+            if (sc.Mode == MatchMode.Siege) return side == sc.Attacker ? "BREAK IN" : "HOLD OUT";
+            if (sc.Mode == MatchMode.Assault) return side == sc.Attacker ? "TAKE THEIR LINE" : "HOLD THE LINE";
+            return side == Side.Us ? "HOLD THE FIREBASE" : "TAKE IT";
+        }
+
+        /// <summary>What kind of fight an operation is, under its name on its button.</summary>
+        public static string Kind(Scenario sc)
+        {
+            string side = sc.Plays == Side.Us ? "US" : sc.Plays == Side.Vc ? "VC" : "EITHER SIDE";
+            int min = (int)(sc.ClockSeconds / 60);
+            return sc.Mode == MatchMode.Siege ? $"SIEGE · {min} MIN · {side}"
+                 : sc.Mode == MatchMode.Assault ? $"ASSAULT · {min} MIN · {side}"
+                 : side;
         }
 
         private void BuildSettings(VisualElement root)
@@ -218,7 +264,7 @@ namespace LanesOfVietnam.View.UI
         {
             switch (screen)
             {
-                case "start": Enter(FlowState.Start); break;
+                case "start": ChooseScenario(Root.Scenario); Enter(FlowState.Start); break;
                 case "settings": Enter(FlowState.Playing); Enter(FlowState.Paused); break;
                 case "end":
                     if (Root.Driver.State.Over) ShowEnding(Root.Driver.State);
@@ -228,14 +274,22 @@ namespace LanesOfVietnam.View.UI
 
         // --- actions ------------------------------------------------------------
 
-        public void ChooseSide(Side s) { ChosenSide = s; SyncChoices(); }
-        public void ChooseLength(MatchLength l) { ChosenLength = l; SyncChoices(); }
+        /// <summary>An operation that is one side's is played from that side: the other is not offered.</summary>
+        public void ChooseSide(Side s) { if (ChosenScenario.Offers(s)) ChosenSide = s; SyncChoices(); }
+        /// <summary>An operation with a length of its own (a clock, or one it names) keeps it.</summary>
+        public void ChooseLength(MatchLength l) { if (ChosenScenario.Length == null) ChosenLength = l; SyncChoices(); }
+        public void ChooseScenario(Scenario sc)
+        {
+            ChosenScenario = sc ?? Scenarios.Firebase;
+            if (ChosenScenario.Plays.HasValue) ChosenSide = ChosenScenario.Plays.Value;
+            SyncChoices();
+        }
         public void ChooseLevel(Difficulty d) { ChosenLevel = d; SyncChoices(); }
 
         /// <summary>Start the chosen match and play the opening. Deploy is also the gesture that lets a browser start audio.</summary>
         public void Deploy()
         {
-            Root.NewMatch(ChosenSide, ChosenLength, level: ChosenLevel);
+            Root.NewMatch(ChosenSide, ChosenLength, level: ChosenLevel, scenario: ChosenScenario);
             Enter(FlowState.Opening);
         }
 
@@ -259,7 +313,7 @@ namespace LanesOfVietnam.View.UI
 
         public void ToMenu()
         {
-            Root.NewMatch(ChosenSide, ChosenLength, level: ChosenLevel);
+            Root.NewMatch(ChosenSide, ChosenLength, level: ChosenLevel, scenario: ChosenScenario);
             Enter(FlowState.Start);
         }
 
@@ -267,7 +321,7 @@ namespace LanesOfVietnam.View.UI
         public void WatchReplay()
         {
             if (_lastLog == null) return;
-            Root.NewMatch(_lastSide, _lastLength, _lastSeed, _lastLog, _lastLevel);
+            Root.NewMatch(_lastSide, _lastLength, _lastSeed, _lastLog, _lastLevel, _lastScenario);
             Enter(FlowState.Playing);
         }
 
@@ -304,6 +358,7 @@ namespace LanesOfVietnam.View.UI
         {
             State = s;
             StartPanel.style.display = s == FlowState.Start ? DisplayStyle.Flex : DisplayStyle.None;
+            BriefPanel.style.display = s == FlowState.Start ? DisplayStyle.Flex : DisplayStyle.None;
             SettingsPanel.style.display = s == FlowState.Paused ? DisplayStyle.Flex : DisplayStyle.None;
             EndPanel.style.display = s == FlowState.Over ? DisplayStyle.Flex : DisplayStyle.None;
             bool play = s == FlowState.Playing || s == FlowState.Opening;
@@ -326,11 +381,30 @@ namespace LanesOfVietnam.View.UI
         {
             if (Buttons.Count == 0) return;
             void On(string id, bool on) { if (Buttons.TryGetValue(id, out var b)) b.EnableInClassList("on", on); }
+            foreach (var sc in Scenarios.All) On($"op-{sc.Id}", sc == ChosenScenario);
+            // What the operation settles is not his to choose: the side it is played from, a length of its own.
+            void Offer(string id, bool on) { if (Buttons.TryGetValue(id, out var b)) b.SetEnabled(on); }
+            Offer("side-us", ChosenScenario.Offers(Side.Us));
+            Offer("side-vc", ChosenScenario.Offers(Side.Vc));
+            // And what each side is there to do, under its name.
+            if (Buttons.TryGetValue("side-us", out var usBtn)) usBtn.text = "US / ARVN\n" + Task(ChosenScenario, Side.Us);
+            if (Buttons.TryGetValue("side-vc", out var vcBtn)) vcBtn.text = "VC / NVA\n" + Task(ChosenScenario, Side.Vc);
+            bool anyLength = ChosenScenario.Length == null;
+            Offer("len-skirmish", anyLength); Offer("len-standard", anyLength); Offer("len-long", anyLength);
+            if (BriefTitle != null && _briefFor != ChosenScenario)
+            {
+                _briefFor = ChosenScenario;
+                BriefTitle.text = ChosenScenario.Title;
+                BriefMeta.text = ChosenScenario.DateLine;
+                BriefText.text = ChosenScenario.Briefing;
+                BriefOrders.text = string.Join("\n", ChosenScenario.Orders.Select(o => "◆ " + o));
+            }
             On("side-us", ChosenSide == Side.Us);
             On("side-vc", ChosenSide == Side.Vc);
-            On("len-skirmish", ChosenLength == MatchLength.Skirmish);
-            On("len-standard", ChosenLength == MatchLength.Standard);
-            On("len-long", ChosenLength == MatchLength.Long);
+            var length = ChosenScenario.Length ?? ChosenLength;
+            On("len-skirmish", anyLength && length == MatchLength.Skirmish);
+            On("len-standard", anyLength && length == MatchLength.Standard);
+            On("len-long", anyLength && length == MatchLength.Long);
             On("level-recruit", ChosenLevel == Difficulty.Recruit);
             On("level-veteran", ChosenLevel == Difficulty.Veteran);
             On("level-elite", ChosenLevel == Difficulty.Elite);
@@ -348,6 +422,7 @@ namespace LanesOfVietnam.View.UI
         }
 
         private bool _fullShown;
+        private Scenario _briefFor;
 
         private void Update()
         {
@@ -373,9 +448,7 @@ namespace LanesOfVietnam.View.UI
                     float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_openingT / OpeningSeconds));
                     Root.CameraRig.Focus(Mathf.Lerp(OpeningFromX, OpeningToX, k), instant: true);
                     Subtitle.text = Root.Settings.Subtitles && _openingT > 1.2f && _openingT < 6.5f
-                        ? (Root.PlayerSide == Side.Us
-                            ? "RADIO — ALL STATIONS, THIS IS BRAVO SIX. MOVEMENT IN THE TREELINE. STAND TO."
-                            : "RADIO — THE AMERICANS ARE ASLEEP IN THEIR HOLES. MOVE UP THROUGH THE GRASS. NO ONE FIRES.")
+                        ? Radio(Root.Scenario, Root.PlayerSide)
                         : "";
                     if (_openingT >= OpeningSeconds || Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0)) Skip();
                     break;
@@ -398,6 +471,32 @@ namespace LanesOfVietnam.View.UI
             }
         }
 
+        /// <summary>The radio's call as the match opens: the scenario's own, where it has one.</summary>
+        public static string Radio(Scenario sc, Side side)
+        {
+            if (sc == Scenarios.TheWire) return "RADIO — ALL STATIONS, BRAVO SIX. THEY ARE IN THE WIRE. RELIEF IS FIVE MINUTES OUT. HOLD.";
+            if (sc == Scenarios.FirstLight) return "RADIO — BRAVO SIX TO ALL PLATOONS. THE LINE IS IN THE TREES AHEAD. MOVE UP. TAKE IT.";
+            if (sc == Scenarios.EarthFights) return "RADIO — THEY HAVE THE SKY. WE HAVE THE GROUND. LET THEM COME ON TO IT.";
+            return side == Side.Us
+                ? "RADIO — ALL STATIONS, THIS IS BRAVO SIX. MOVEMENT IN THE TREELINE. STAND TO."
+                : "RADIO — THE AMERICANS ARE ASLEEP IN THEIR HOLES. MOVE UP THROUGH THE GRASS. NO ONE FIRES.";
+        }
+
+        /// <summary>
+        /// How it ended, in the fight's own terms: a clock that ran out and a line that was taken say so; else
+        /// whose will broke, as the side that was coming on or the side that was holding.
+        /// </summary>
+        public static string OutcomeOf(SimState st)
+        {
+            if (st.Reason != null && st.Reason.EndsWith("took the line")) return "THE LINE IS TAKEN";
+            if (st.Reason != null && st.Reason.EndsWith("held the line")) return "THE ATTACK IS CALLED OFF";
+            if (st.Reason != null && st.Reason.EndsWith("held out")) return "THE FIREBASE HOLDS";
+            if (st.Winner == null) return "NEITHER SIDE BROKE";
+            // The Americans coming on (an assault of theirs): it is the enemy's line that breaks, or their attack.
+            if (st.Attacker == Side.Us) return st.Winner == Side.Us ? "THEIR LINE IS BROKEN" : "THE ATTACK IS BROKEN";
+            return st.Winner == Side.Us ? "THE LINE HELD" : "THE WIRE IS BREACHED";
+        }
+
         /// <summary>
         /// Two endings, not one card with the winner swapped in: the two sides
         /// were playing for different things. The US holds the firebase or
@@ -411,11 +510,10 @@ namespace LanesOfVietnam.View.UI
                 _lastSide = Root.PlayerSide;
                 _lastLength = Root.Options.Length;
                 _lastLevel = Root.Level;
+                _lastScenario = Root.Scenario;
                 _lastSeed = Root.Seed;
             }
-            Outcome = st.Winner == Side.Us ? "THE LINE HELD"
-                    : st.Winner == Side.Vc ? "THE WIRE IS BREACHED"
-                    : "NEITHER SIDE BROKE";
+            Outcome = OutcomeOf(st);
             EndTitle.text = Outcome;
             EndTitle.EnableInClassList("us", st.Winner == Side.Us);
             EndTitle.EnableInClassList("vc", st.Winner == Side.Vc);

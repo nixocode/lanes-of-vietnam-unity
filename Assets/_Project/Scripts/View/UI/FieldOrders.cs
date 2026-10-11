@@ -35,6 +35,44 @@ namespace LanesOfVietnam.View.UI
 
         public static IReadOnlyList<Step> For(Side side) => side == Side.Us ? Us : Vc;
 
+        /// <summary>A scenario's own orders for the side, where it has them; else the side's.</summary>
+        public static IReadOnlyList<Step> For(Scenario scenario, Side side)
+        {
+            if (scenario == Scenarios.TheWire && side == Side.Us) return Wire;
+            if (scenario == Scenarios.FirstLight && side == Side.Us) return Light;
+            return For(side);
+        }
+
+        // The Wire: a siege. Dig in, use what the firebase has, and be there when the clock runs out.
+        private static readonly Step[] Wire =
+        {
+            new Step { Text = "DEPLOY A RIFLE SQUAD INTO A LANE [Z]", Mark = "deployed" },
+            new Step { Text = "HOLD A STRONGPOINT — PULL ITS LEVER [H]", Mark = "lever:hold" },
+            new Step { Text = "CALL A FIRE MISSION ON THEIR ADVANCE [Q]", Mark = "call:us-arty" },
+            new Step { Text = "PUT A TEAM UP THE WATCHTOWER", Done = st => Any(st, m => m.Side == Side.Us && m.High > 0) },
+            new Step { Text = "ONE MINUTE MORE", Done = st => st.ClockTicks > 0 && Match.ClockLeft(st) <= 60 },
+            new Step { Text = "HOLD", Done = st => st.Over },
+        };
+
+        // First Light: an assault. Fire on the line, then go in, and have both ends of it at once.
+        private static readonly Step[] Light =
+        {
+            new Step { Text = "DEPLOY A RIFLE SQUAD INTO A LANE [Z]", Mark = "deployed" },
+            new Step { Text = "PUT FIRE ON THEIR LINE", Done = st => Any(st, m => m.Side == Side.Vc && m.Pin >= Tune.PinDrop) },
+            new Step { Text = "SMOKE THE GROUND IN FRONT OF IT [W]", Mark = "call:us-smoke" },
+            new Step { Text = "SEND THEM OVER THE TOP [G]", Mark = "lever:go" },
+            new Step { Text = "TAKE ONE END OF THE LINE", Done = st => Held(st) >= 1 },
+            new Step { Text = "TAKE BOTH — AND HOLD BOTH", Done = st => Match.Taken(st) },
+        };
+
+        /// <summary>How many of an assault's positions the attacker has now.</summary>
+        public static int Held(SimState st)
+        {
+            int n = 0;
+            foreach (int id in st.Objectives) if (st.Cover[id].Owner == st.Attacker) n++;
+            return n;
+        }
+
         private static readonly Step[] Us =
         {
             new Step { Text = "DEPLOY A RIFLE SQUAD INTO A LANE [Z]", Mark = "deployed" },
@@ -62,13 +100,17 @@ namespace LanesOfVietnam.View.UI
         }
 
         private readonly Side _side;
+        private readonly IReadOnlyList<Step> _steps;
         private readonly HashSet<string> _marks = new HashSet<string>();
         private readonly bool[] _done;
 
-        public FieldOrders(Side side)
+        public FieldOrders(Side side) : this(null, side) { }
+
+        public FieldOrders(Scenario scenario, Side side)
         {
             _side = side;
-            _done = new bool[For(side).Count];
+            _steps = For(scenario, side);
+            _done = new bool[_steps.Count];
         }
 
         public void Mark(string mark) => _marks.Add(mark);
@@ -76,7 +118,7 @@ namespace LanesOfVietnam.View.UI
         /// <summary>Re-evaluate against the state. Completed steps stay completed.</summary>
         public void Update(SimState st)
         {
-            var steps = For(_side);
+            var steps = _steps;
             for (int i = 0; i < steps.Count; i++)
             {
                 if (_done[i]) continue;
@@ -99,7 +141,7 @@ namespace LanesOfVietnam.View.UI
             {
                 // Written once for each order, not once a frame.
                 if (_line != null) return _line;
-                var steps = For(_side);
+                var steps = _steps;
                 for (int i = 0; i < steps.Count; i++)
                 {
                     if (!_done[i]) return _line = $"ORDERS {i + 1}/{steps.Count} — {steps[i].Text}";

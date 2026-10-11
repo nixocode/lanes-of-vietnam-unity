@@ -67,6 +67,8 @@ namespace LanesOfVietnam.View
             new System.Collections.Generic.List<(string, int, double, int)>();
         /// <summary>The plans each side plays in the capture's match (Plan.ByName); null keeps the game's ceiling.</summary>
         public string UsPlan, VcPlan;
+        /// <summary>The scenario to play, by its id (scenario=first-light); the firebase if not given.</summary>
+        public string Scenario;
         /// <summary>Grenades on or off for the capture's match; null keeps the game's (on).</summary>
         public bool? Frag;
         /// <summary>Frames per second of match time between frames, for watching motion; 0 freezes time (the default).</summary>
@@ -146,6 +148,7 @@ namespace LanesOfVietnam.View
                     case "groundgrad": c.GroundGrad = float.Parse(v, inv); break;
                     case "plantbias": c.PlantBias = float.Parse(v, inv); break;
                     case "usplan": c.UsPlan = v; break;
+                    case "scenario": c.Scenario = v; break;
                     case "frag": c.Frag = v == "1" || v == "true"; break;
                     case "movie": c.Movie = float.Parse(v, inv); break;
                     case "sat": c.Sat = float.Parse(v, inv); break;

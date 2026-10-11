@@ -73,7 +73,8 @@ namespace LanesOfVietnam.View
             Settings = GameSettings.Load();
             Settings.ApplyQuality();
 
-            NewMatch(PlayerSide, MatchLength.Standard, cap?.Seed);
+            // A capture or the frame-time probe may name the scenario (scenario=the-wire); else the firebase.
+            NewMatch(PlayerSide, MatchLength.Standard, cap?.Seed, scenario: Scenarios.ById(cap?.Scenario ?? PerfProbe.Param("scenario") ?? "firebase"));
 
             if (cap != null)
             {
@@ -137,6 +138,7 @@ namespace LanesOfVietnam.View
         /// with the same and `cohesion`: 86 and 80 of 96 against a Recruit (42), 62 and 56 against a Veteran (34), 55
         /// and 39 against the Elite (28).
         /// </summary>
+        /// <remarks>The numbers themselves are kept in Sim/Scenario.cs, where the headless tool reads the ones the game plays at.</remarks>
         public static double CostFor(Difficulty d) => Scenario.CostFor(d);
 
         /// <summary>
@@ -164,75 +166,56 @@ namespace LanesOfVietnam.View
 
         public Difficulty Level { get; private set; } = Difficulty.Veteran;
 
+        /// <summary>The scenario being played (PLAN §12.27, Phase S). The firebase, until another is chosen.</summary>
+        public Scenario Scenario { get; private set; } = Scenarios.Firebase;
+
         public void NewMatch(Side player, MatchLength length, int? seed = null,
                              System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null,
-                             Difficulty level = Difficulty.Veteran)
+                             Difficulty level = Difficulty.Veteran, Scenario scenario = null)
         {
+            var cap = CaptureSettings.Active;
+            Scenario = scenario ?? Scenarios.Firebase;
+            // A scenario that is one side's to play is played from that side.
+            if (!Scenario.Offers(player)) player = Scenario.Plays.Value;
             PlayerSide = player;
             Level = level;
             Seed = seed ?? ChooseSeed();
-            Options = new MatchOptions
+            // The match is the scenario's (Sim/Scenario.cs): its map, its mode and clock, what each side has, every
+            // Part 2 rule on (grenades and squad smoke, Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics,
+            // Fortune, FireControl, Ballistics, Vantage, the computer's commander, Cohesion) and the game's tempo
+            // (the owner, playtest 4: "points are gained too slow. Too many soldiers at the start"): each side
+            // opens with one squad, points come in at CpRate with StartCp in hand, and the player's own side
+            // raises nothing by itself: it had been spending his points for him, a squad every time he reached
+            // 22. A capture and the frame-time probe have no player, so there both sides raise their own.
+            // (The computer does not man the watchtower itself: measured, a Vietnamese player's game goes from 17
+            // wins in 24 to 5. It does raise a marksman against a tower the player has manned.)
+            bool nobody = cap != null || PerfProbe.Param("perf") != null;
+            Options = Scenario.Options(Seed, nobody ? (Side?)null : player, level, length);
+            // The simulation's default stays the parity baseline; a capture can turn any rule off (frag=0), and
+            // give a side a plan by name.
+            if (cap != null)
             {
-                Seed = Seed,
-                Us = CaptureSettings.Active?.UsPlan != null ? Plan.ByName(CaptureSettings.Active.UsPlan) : Plan.Ceiling,
-                Vc = CaptureSettings.Active?.VcPlan != null ? Plan.ByName(CaptureSettings.Active.VcPlan) : Plan.Ceiling,
-                Cover = Map.Cover(), Length = length,
-                // Grenades and squad smoke (PLAN §12.8, Part 2): on in the game. The sim's default
-                // stays the parity baseline; a capture can turn it off (frag=0).
-                Frag = CaptureSettings.Active?.Frag ?? true,
-                SquadSmoke = CaptureSettings.Active?.SquadSmoke ?? true,
-                // Drill (Part 2): orders that stand and men who keep their places. On in the game.
-                Drill = CaptureSettings.Active?.Drill ?? true,
-                // Fieldcraft (Part 2): squads that stop short of the enemy, places in cover, melee, levers. On in the game.
-                Fieldcraft = CaptureSettings.Active?.Fieldcraft ?? true,
-                // Arms (Part 2): every man his weapon, every card its squad, every fight at its weapons' distance. On in the game.
-                Arms = CaptureSettings.Active?.Arms ?? true,
-                // Senses (Part 2): squads that spot each other, fire only at what they have spotted, go to
-                // ground at contact and hold one task at a time. On in the game.
-                Senses = CaptureSettings.Active?.Senses ?? true,
-                // Gunnery (Part 2): fire down the lane only, from a knee or flat and never on the move; a
-                // man gets up to move and runs; every round lands somewhere. On in the game.
-                Gunnery = CaptureSettings.Active?.Gunnery ?? true,
-                // Ammo (Part 2): rounds counted, magazines and reloads, machine guns in bursts, launcher rounds
-                // carried, a squad's grenades one at a time. On in the game.
-                Ammo = CaptureSettings.Active?.Ammo ?? true,
-                // Tactics (Part 2): a squad opens fire when it sees the enemy and closes by bounds, half of it firing; a
-                // sniper keeps his distance; a man carries one grenade. On in the game.
-                Tactics = CaptureSettings.Active?.Tactics ?? true,
-                // Fortune (Part 2): men who differ, pauses that vary, the lucky long shot, an opening that is drawn. On in the game.
-                Fortune = CaptureSettings.Active?.Fortune ?? true,
-                // FireControl (Part 2): a man fires at the enemy he is likeliest to hit and a squad spreads its fire; fire that
-                // is kept up keeps heads down; a squad works up to an assault and goes in by halves on a beaten enemy; a
-                // rocket is for a group. On in the game.
-                FireControl = CaptureSettings.Active?.FireControl ?? true,
-                // Ballistics (Part 2): a round that misses its man comes down somewhere, and may hit the man who is there; a
-                // burst is its rounds, walked along its line. On in the game.
-                Ballistics = CaptureSettings.Active?.Ballistics ?? true,
-                // Vantage (Part 2): a rifle squad, a machine gun's team or a sniper's can be sent up the firebase's
-                // watchtower, and sees and shoots from there as nobody on the ground can. On in the game. (The
-                // computer does not man the tower itself: measured, a Vietnamese player's game goes from 17 wins in
-                // 24 to 5. It does raise a sniper against a tower the player has manned.)
-                Vantage = CaptureSettings.Active?.Vantage ?? true,
-                // Commander (Part 2): the computer's side commands, as the player does his: where its next squad goes
-                // and which, its side's cards (strikes, smoke and a medevac; traps and tunnels), its levers. On in the
-                // game. (The player's own side is his: it plays nothing for him.)
-                Commander = CaptureSettings.Active?.Commander ?? true,
-                // Cohesion (Part 2): a squad keeps together (a closer file, a lead man who waits for the last, a
-                // straggler who runs, no walking into a friend who has gone to ground) and makes up its mind. On in
-                // the game.
-                Cohesion = CaptureSettings.Active?.Cohesion ?? true,
-                // The game's tempo (the owner, playtest 4: "points are gained too slow. Too many soldiers at
-                // the start"). Each side opens with one squad, not eighteen men; points come in at
-                // CpRate with StartCp in hand; and the player's own side raises nothing by itself: it had
-                // been spending his points for him, a squad every time he reached 22. A capture and the
-                // frame-time probe have no player, so there both sides raise their own.
-                CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength, MusterCost = CostFor(level),
-                MoraleRate = RateFor(length),
-                Player = CaptureSettings.Active != null || PerfProbe.Param("perf") != null ? (Side?)null : player,
-            };
+                if (cap.UsPlan != null) Options.Us = Plan.ByName(cap.UsPlan);
+                if (cap.VcPlan != null) Options.Vc = Plan.ByName(cap.VcPlan);
+                Options.Frag = cap.Frag ?? true;
+                Options.SquadSmoke = cap.SquadSmoke ?? true;
+                Options.Drill = cap.Drill ?? true;
+                Options.Fieldcraft = cap.Fieldcraft ?? true;
+                Options.Arms = cap.Arms ?? true;
+                Options.Senses = cap.Senses ?? true;
+                Options.Gunnery = cap.Gunnery ?? true;
+                Options.Ammo = cap.Ammo ?? true;
+                Options.Tactics = cap.Tactics ?? true;
+                Options.Fortune = cap.Fortune ?? true;
+                Options.FireControl = cap.FireControl ?? true;
+                Options.Ballistics = cap.Ballistics ?? true;
+                Options.Vantage = cap.Vantage ?? true;
+                Options.Commander = cap.Commander ?? true;
+                Options.Cohesion = cap.Cohesion ?? true;
+            }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();
-            Debug.Log($"[LOV] match seed {Seed}, {player} ({length}){(replay != null ? ", replay" : "")}");
+            Debug.Log($"[LOV] match seed {Seed}, {Scenario.Id}, {player} ({Options.Length}){(replay != null ? ", replay" : "")}");
             MatchStarted?.Invoke();
         }
 

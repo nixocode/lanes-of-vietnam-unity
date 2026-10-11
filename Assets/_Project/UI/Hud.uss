@@ -67,6 +67,15 @@
     -unity-text-align: middle-center;
 }
 
+/* A siege's or an assault's clock, over the orders. */
+.clock {
+    -unity-font-definition: url("Fonts/StardosStencil-Bold.ttf");
+    font-size: 22px; letter-spacing: 4px;
+    color: rgb(240, 229, 198);
+    -unity-text-align: middle-center;
+}
+.clock.low { color: rgb(232, 120, 88); }
+
 .strip {
     width: 356px; height: 80px; margin-top: 8px;
     background-color: rgb(28, 27, 24);
@@ -248,7 +257,24 @@
     padding: 30px 38px;
     display: none;
 }
-.start { left: 120px; top: 150px; width: 700px; }
+.start { left: 120px; top: 96px; width: 700px; }
+/* The chosen operation's briefing, beside the start screen. */
+.brief { left: 850px; top: 96px; width: 560px; }
+.brief-title {
+    -unity-font-definition: url("Fonts/BlackOpsOne-Regular.ttf");
+    font-size: 34px; letter-spacing: 2px; color: rgb(230, 215, 187);
+}
+.brief-text {
+    -unity-font-definition: url("Fonts/CourierPrime-Regular.ttf");
+    font-size: 17px; color: rgb(226, 216, 190); white-space: normal; margin-bottom: 16px;
+}
+.brief-orders {
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 16px; color: rgb(222, 188, 106); white-space: normal;
+}
+/* An operation's button: four to the row. */
+.choice.op { min-width: 140px; width: 140px; font-size: 17px; padding: 4px 4px; }
+.choice:disabled { opacity: 0.35; }
 .settings { left: 540px; right: 540px; top: 150px; }
 .end { left: 380px; right: 380px; top: 210px; align-items: center; }
 
@@ -329,6 +355,8 @@
     border-width: 1px; border-color: rgb(84, 82, 66);
     border-radius: 2px;
 }
+/* A position an assault is for. */
+.plate.objective { border-width: 2px; border-color: rgb(222, 188, 106); }
 .plate-flag {
     width: 9px; height: 44px;
     background-color: rgb(70, 68, 60);
