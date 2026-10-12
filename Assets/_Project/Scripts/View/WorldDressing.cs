@@ -471,28 +471,52 @@ namespace LanesOfVietnam.View
             // The watchtower: real elevation for whoever holds it. Its top sits
             // about 7 degrees above the horizon, as the reference's does.
             // (Behind the far lane, not astride it: its legs stood where that lane's squads form up.)
-            double tx = -39, tz = Tune.Lanes[1] - 5.6;
+            double tx = Map.TowerX, tz = Map.TowerZ;
             float ty = (float)g.HeightAt(tx, tz);
-            if (!Prop(g, "firebase", "tower", tx, tz))
-            for (int i = 0; i < 4; i++)
+            if (Structures.Ready)
             {
-                double lx = tx + (i % 2 == 0 ? -1.3 : 1.3), lz = tz + (i < 2 ? -1.3 : 1.3);
-                Prim(PrimitiveType.Cube, Coords.World(lx, lz, ty + 4.2f), new Vector3(0.28f, 8.4f, 0.28f), Timber, "tower leg");
+                // Built, and in members (they come apart when it is brought down). Its middle stands behind
+                // where its men stand, so that they are half a metre inside its front rail and the ladder
+                // they climb comes up through the deck before them.
+                double mz = tz - StructureSet.TowerBehind;
+                float foot = (float)g.HeightAt(tx, mz);
+                foreach (string member in StructureSet.TowerMembers)
+                    Structures.Place(transform, _built, member, Coords.World(tx, mz, foot), 0f);
+                if (Bags.Ready)
+                {
+                    // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
+                    float deck = foot + TowerDeck;
+                    Bags.Wall(transform, _built, g, tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5, 0.5f, true, 2001, level: deck);
+                    Bags.Wall(transform, _built, g, tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6, 0.5f, true, 2002, level: deck);
+                    Bags.Wall(transform, _built, g, tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6, 0.5f, true, 2003, level: deck);
+                }
             }
-            if (Species("firebase") == null)
+            else
             {
+                for (int i = 0; i < 4; i++)
+                {
+                    double lx = tx + (i % 2 == 0 ? -1.3 : 1.3), lz = tz + (i < 2 ? -1.3 : 1.3);
+                    Prim(PrimitiveType.Cube, Coords.World(lx, lz, ty + 4.2f), new Vector3(0.28f, 8.4f, 0.28f), Timber, "tower leg");
+                }
                 Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 9.0f), new Vector3(3.4f, 1.3f, 3.4f), Timber, "tower cabin");
                 Prim(PrimitiveType.Cube, Coords.World(tx, tz, ty + 10.2f), new Vector3(4.0f, 0.22f, 4.0f), Timber, "tower roof");
             }
 
-            // The vehicle park inside the wire: two M35s and the jeep.
-            foreach (var (vx, vz, len, h, key) in new[] { (-33.5, -1.5, 6.7, 2.8, "m35_covered"), (-27.0, -0.8, 6.7, 2.8, "m35_open"), (-45.0, -1.0, 3.4, 1.8, "jeep") })
+            // The vehicle park inside the wire: two M35s and the jeep, each on its wheels on the ground under it,
+            // and not in a row: one truck nose to the gate, one backed in, the jeep left where it stopped.
+            foreach (var (vx, vz, yaw, len, wide, h, key) in new[] { (-34.3, -1.6, 176f, 7.0f, 2.4f, 2.9f, "m35_covered"), (-26.2, -0.9, 3f, 7.0f, 2.4f, 2.9f, "m35_open"),
+                                                                     (-45.0, -1.2, 152f, 3.6f, 1.7f, 1.8f, "jeep") })
             {
-                if (Prop(g, "firebase", key, vx, vz)) continue;
+                if (Structures.Ready && Structures.Park(transform, _built, g, key, vx, vz, yaw, len, wide) != null) continue;
                 float vy = (float)g.HeightAt(vx, vz);
-                Prim(PrimitiveType.Cube, Coords.World(vx, vz, vy + (float)h * 0.5f), new Vector3((float)len, (float)h, 2.4f), Vehicle, "vehicle");
+                Prim(PrimitiveType.Cube, Coords.World(vx, vz, vy + h * 0.5f), new Vector3(len, h, wide), Vehicle, "vehicle");
             }
         }
+
+        /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>
+        public const float TowerDeck = 8.45f;
+        /// <summary>The firebase's built things (set by GameRoot from CoverView's); not set: boxes.</summary>
+        public StructureSet Structures;
 
         /// <summary>The sandbag walls' meshes for the revetments (set by GameRoot from CoverView's); not set: boxes.</summary>
         public BagSet Bags;

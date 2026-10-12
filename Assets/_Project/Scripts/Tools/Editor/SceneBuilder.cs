@@ -129,6 +129,7 @@ namespace LanesOfVietnam.Tools
             armyGo.transform.SetParent(game.transform, false);
             var army = armyGo.AddComponent<ArmyView>();
             cover.Bags = Bags();
+            cover.Structures = Structures();
             // The men (SoldierBuilder.Build makes them).
             army.UsFigures = SoldierBuilder.Figures(SoldierBuilder.Us);
             army.VcFigures = SoldierBuilder.Figures(SoldierBuilder.Vc);
@@ -144,7 +145,8 @@ namespace LanesOfVietnam.Tools
             dress.Sandbag = cover.SandbagMaterial;
             dress.Vehicle = Lit("Vehicle", new Color(0.22f, 0.25f, 0.17f), 0.2f);
             dress.Plants = PlantSets();
-            dress.Props = new[] { PropSet("firebase") };
+            // (The firebase's tower and vehicles were cards baked here; they are meshes now: Structures.)
+            dress.Props = new PlantSet[0];
             root.Dressing = dress;
 
             // The Chu Pong massif, from real elevation data (tools/art/mountains.py).
@@ -414,6 +416,45 @@ namespace LanesOfVietnam.Tools
                 Low = meshes.Where(x => x.name.StartsWith("low")).ToArray(),
                 Material = m,
             };
+        }
+
+        /// <summary>
+        /// The firebase's built things (Art/Structures, from firebase_mesh.py): the trucks, the jeep, the
+        /// tower's members and a bunker's timbers, by name, and the two materials they wear.
+        /// </summary>
+        private static StructureSet Structures()
+        {
+            const string dir = "Assets/_Project/Art/Structures";
+            if (AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/firebase.json") == null)
+            {
+                Debug.LogWarning("[LOV] no firebase meshes: boxes stand in (run tools/blender/firebase_mesh.py)");
+                return default;
+            }
+            AssetDatabase.ImportAsset($"{dir}/firebase.fbx", ImportAssetOptions.ForceUpdate);
+            Material Worn(string name, string set)
+            {
+                foreach (var f in new[] { "albedo", "normal", "mask" }) AssetDatabase.ImportAsset($"{dir}/{set}_{f}.png", ImportAssetOptions.ForceUpdate);
+                Texture2D Tex(string f) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{set}_{f}.png");
+                var m = Mat(name, Shader.Find("Universal Render Pipeline/Lit"), null);
+                m.SetTexture("_BaseMap", Tex("albedo"));
+                m.SetColor("_BaseColor", Color.white);
+                m.SetTexture("_BumpMap", Tex("normal"));
+                m.SetFloat("_BumpScale", 1f);
+                // One mask, two readers, as the sandbags'.
+                m.SetTexture("_MetallicGlossMap", Tex("mask"));
+                m.SetTexture("_OcclusionMap", Tex("mask"));
+                m.SetFloat("_Smoothness", 1f);
+                m.SetFloat("_OcclusionStrength", 0.85f);
+                m.SetFloat("_SmoothnessTextureChannel", 0f);
+                m.EnableKeyword("_NORMALMAP");
+                m.EnableKeyword("_METALLICSPECGLOSSMAP");
+                m.EnableKeyword("_OCCLUSIONMAP");
+                EditorUtility.SetDirty(m);
+                return m;
+            }
+            var meshes = AssetDatabase.LoadAllAssetsAtPath($"{dir}/firebase.fbx").OfType<Mesh>().OrderBy(x => x.name).ToArray();
+            Debug.Log($"[LOV] firebase: {meshes.Length} meshes, {meshes.Sum(x => x.triangles.Length / 3)} triangles ({string.Join(", ", meshes.Select(x => x.name))})");
+            return new StructureSet { Meshes = meshes, Vehicles = Worn("Vehicles", "vehicles"), Timber = Worn("Structure Timber", "timber") };
         }
 
         /// <summary>A baked prop set (Art/Props): lit like the plants, without wind, leaf glow or field shade.</summary>

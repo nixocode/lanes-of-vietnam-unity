@@ -67,6 +67,7 @@ namespace LanesOfVietnam.View
             if (Dressing != null)
             {
                 Dressing.Bags = CoverView.Bags;
+                Dressing.Structures = CoverView.Structures;
                 Dressing.Build(Ground, cover, MapSeed);
             }
 

@@ -486,6 +486,25 @@ being drawn face-on.
 | `sandbags_mask.png` | `4702d50d41d1cbdee27886312823245998785c41658b48762be227d1b2f5bd23` |
 | `sandbags_weave.png` | `97bcefae516f9f9d05abe10043024aca156b90ad248a0261c56634cda2c23c93` |
 
+**The firebase's vehicles, tower and bunker timbers, built as geometry** by
+`tools/blender/firebase_mesh.py` (PLAN §12.43), 2026-10-12: two M35 trucks,
+an M151 jeep, the watchtower in six members, a bunker's posts, beam and roof
+logs. Nothing was downloaded for them. Paint, canvas, rubber and glass are
+made in the script; the timber is Poly Haven `weathered_planks` and the roof
+`corrugated_iron_02` (both CC0, already here for the cards these replace).
+The cards themselves (`Art/Props/firebase*`) are removed.
+
+| file | sha256 |
+|---|---|
+| `firebase.fbx` | `ab14b5bef6df67c446a1298ef6928cd420b4669f1398bdf05616331197e09d38` |
+| `firebase.json` | `67085266969441e9e24abf2d5f4e662f73a3102f0b3d6f8f4aae6a90024f05f8` |
+| `timber_albedo.png` | `ad0241b0a043690f76adeba39ce6109e21aec0194ce73412fed870a5a9889b16` |
+| `timber_mask.png` | `9d4c8eb6dc803ff97fe86a6a1503f5cacc1f397e97780c45e36b1c56bdb80987` |
+| `timber_normal.png` | `c680a1f67a585492c91b6dfff33fdcfe20623585ff6c2873dc39f016388e2401` |
+| `vehicles_albedo.png` | `0d715654c8cccfe842a78dd97934708a35a7093d52dc2188e57e4924379a8fcd` |
+| `vehicles_mask.png` | `fc79a0c82559aa7370397a0436e7ba61e94722ca48cd45f672340586f35c646a` |
+| `vehicles_normal.png` | `ff87722fc4711b8fba5b40503653590b7613410f9c2549c2870882db6a584f2f` |
+
 ### Props — `Assets/_Project/Art/Props/`
 
 **Sandbag walls** moved out of this folder on 2026-10-01: they are meshes now,

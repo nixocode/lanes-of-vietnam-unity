@@ -12,7 +12,8 @@ on the branch `scenarios`, which is what the demo serves; and the history rewrit
 2026-10-11 to take personal addresses out of it: a commit id written down before that day is
 not one the repository has; Bearing, how a man carries himself, on the branch `smooth`; and §12.42, the
 shot: fire and smoke from sheets, a kick and a report for every round, the barrel on the man fired at, on the
-branch `shots`, the first of six stages whose plan the owner approved on 2026-10-12).
+branch `shots`, and §12.43, the firebase's trucks, jeep, tower and bunker built as meshes, on `firebase`: the
+first two of six stages whose plan the owner approved on 2026-10-12).
 
 ## What runs where
 

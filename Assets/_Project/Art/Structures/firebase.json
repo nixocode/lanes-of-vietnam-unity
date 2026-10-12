@@ -1,0 +1,80 @@
+{
+ "deck": 8.445,
+ "top": 10.4,
+ "stand": 1.32,
+ "ladder": 1.6600000000000001,
+ "meshes": {
+  "m35_covered": {
+   "length": 7.003,
+   "width": 2.66,
+   "height": 2.877,
+   "triangles": 28984
+  },
+  "m35_open": {
+   "length": 7.003,
+   "width": 2.66,
+   "height": 2.82,
+   "triangles": 28960
+  },
+  "jeep": {
+   "length": 3.595,
+   "width": 1.835,
+   "height": 3.3,
+   "triangles": 14858
+  },
+  "tower_legs": {
+   "length": 3.34,
+   "width": 3.34,
+   "height": 8.404,
+   "triangles": 608
+  },
+  "tower_braces": {
+   "length": 3.276,
+   "width": 3.276,
+   "height": 8.283,
+   "triangles": 1936
+  },
+  "tower_deck": {
+   "length": 3.956,
+   "width": 3.856,
+   "height": 8.445,
+   "triangles": 1232
+  },
+  "tower_cabin": {
+   "length": 3.8,
+   "width": 3.8,
+   "height": 10.295,
+   "triangles": 704
+  },
+  "tower_roof": {
+   "length": 4.662,
+   "width": 4.8,
+   "height": 10.683,
+   "triangles": 2204
+  },
+  "tower_ladder": {
+   "length": 0.66,
+   "width": 0.303,
+   "height": 9.4,
+   "triangles": 1584
+  },
+  "bunker_post": {
+   "length": 0.22,
+   "width": 0.22,
+   "height": 2.2,
+   "triangles": 188
+  },
+  "bunker_beam": {
+   "length": 2.4,
+   "width": 0.2,
+   "height": 0.4,
+   "triangles": 188
+  },
+  "bunker_roof": {
+   "length": 2.376,
+   "width": 1.196,
+   "height": 0.501,
+   "triangles": 2296
+  }
+ }
+}

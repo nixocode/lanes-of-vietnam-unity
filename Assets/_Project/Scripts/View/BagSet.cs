@@ -32,8 +32,10 @@ namespace LanesOfVietnam.View
         /// drawn to the wall's height, and every other one is turned about so
         /// that no two neighbours are the same bags.
         /// </summary>
+        /// <paramref name="level"/>: the height its foot stands at, where it stands on something built (a tower's
+        /// deck) and not on the ground.
         public void Wall(Transform parent, List<Renderer> built, Ground g, double x0, double z0, double x1, double z1,
-                         float height, bool low, int seed, float lift = 0)
+                         float height, bool low, int seed, float lift = 0, float? level = null)
         {
             var set = low ? Low : Tall;
             double length = System.Math.Sqrt((x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0));
@@ -42,8 +44,8 @@ namespace LanesOfVietnam.View
             {
                 double ax = x0 + (x1 - x0) * k / n, az = z0 + (z1 - z0) * k / n;
                 double bx = x0 + (x1 - x0) * (k + 1) / n, bz = z0 + (z1 - z0) * (k + 1) / n;
-                var a = Coords.World(ax, az, (float)g.HeightAt(ax, az));
-                var b = Coords.World(bx, bz, (float)g.HeightAt(bx, bz));
+                var a = Coords.World(ax, az, level ?? (float)g.HeightAt(ax, az));
+                var b = Coords.World(bx, bz, level ?? (float)g.HeightAt(bx, bz));
                 if ((seed + k) % 2 != 0) (a, b) = (b, a);
                 var along = b - a;
                 var mesh = set[Mathf.Abs(seed * 31 + k * 7) % set.Length];

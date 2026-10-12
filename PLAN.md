@@ -4100,6 +4100,89 @@ folder, rebuilt by `slice_shots.py`: `Audio/licensed/mg1_0` to `mg1_5` and
 `smg1_0`, `smg1_1`.
 
 
+### 12.43 The firebase, built (2026-10-12)
+
+The owner, of a screenshot of the vehicle park: "the truck and the shed are
+looking so bad it's dragging the game's look... You can just build on top of
+these things but they need to be looking realistic and not like polygons";
+and of the jeep, "also fix this jeep". The second of the six stages: branch
+`firebase`, from `shots`. View only: no pin moves. No download.
+
+#### What was there, and what is
+
+The trucks, the jeep and the tower were cards: eleven boxes and ten cylinders
+photographed side on and stood up facing the lens. "The shed" was a bunker's
+roof: one cube stretched to its size on two square sticks.
+
+They are meshes now, built part by part to their real measurements by
+`tools/blender/firebase_mesh.py`, every edge rounded, then weathered from
+themselves as the sandbag walls are (dust up to the axles, earth where parts
+meet, paint chalked where it faces the sky; timber bleached on top and damp
+at its foot):
+
+- **Two M35 trucks**, 7.0 m: frame, axles on their springs, ten wheels with
+  rims and tread, bumper and brush guard, the tapered hood with its louvres,
+  headlights, the open cab with its canvas top and split windscreen, fuel
+  tank, steps, mirrors, exhaust stack, the bed with its steel sides and
+  slatted racks. One under its tarpaulin on five bows; one with the bows
+  bare, the tarpaulin rolled behind the cab and a load of crates and drums.
+  A white star on each door. 27,000 and 29,000 triangles.
+- **The M151 jeep**, 3.6 m: the tub cut down at the door with its strap, the
+  horizontal-slot grille with the lamps in it, flat hood with a star,
+  folding windscreen, four seats, wheel, radio, spare and jerrycan, antenna.
+  15,000 triangles. It is slab-sided, as the real one is; it is the one of
+  the three I am least sure he will pass.
+- **The watchtower**, in six members (legs, braces, deck, cabin, roof,
+  ladder) so that it can come apart when it is brought down (Stage 7): four
+  splayed legs, cross braces bolted where they cross, a deck of planks on
+  joists, a railed cabin under a corrugated iron roof, bags round three
+  sides of the deck. It is fitted to the simulation's post: the planks are
+  at 8.45 m; the men stand half a metre inside the front rail; the ladder
+  they climb stands on the face toward the lens and comes up through a hatch
+  in the deck, so a man on it is on the lens's side of its rungs.
+- **A bunker's roof**: a row of posts before the men and one behind, a beam
+  along each, logs laid across, two rows of bags on the logs. It sits over
+  the men (it was as deep as the ground back to the lane's wall, which can
+  be four metres: a barn).
+
+Two atlases: `vehicles` (albedo 2048, normal and mask 1024) and `timber`
+(1024). `View/StructureSet.cs` places them; a vehicle stands on its wheels,
+tipped to the ground under it. The cards (`Art/Props/firebase*`) are gone.
+
+#### Tests, flicker, the build, frame time
+
+EditMode 105 of 105, PlayMode 26 of 26 and the capture skipped. Flicker on a
+still of the firebase (`tools/capture.sh ...,frames=2`, `tools/flicker.py`):
+0.000. The WebGL build is 32.74 MB to start, 40.01 in all (it was 28.91 and
+36.18; the budget is 45). Frame time at 2592 x 1370 (`?perf=1&seed=3`,
+eighteen readings): mean 5.6 to 6.0 ms, against 5.5 to 5.9 for §12.42's
+build the same day and 5.5 with the effects off: the firebase's 84,000
+triangles cost about a tenth of a millisecond. (One run taken straight after
+the build read 8.5 to 9.9; taken again with the machine idle it read the
+above, three times.)
+
+#### Not done, of what the plan said for this stage
+
+- **The clutter** (Poly Haven crates, jerrycans, barrels, a radio, tyres)
+  and **the wire coil**: not begun.
+- **The step off the ladder onto the deck** (`ladder_top`, already fetched):
+  not wired. A man reaching the top is put on the deck as before.
+- Looked at in captures: the park, the bunker, the tower and men climbing
+  it. Not looked at: men standing on the deck among the bags.
+
+#### What is the owner's
+
+- **To look at**: `http://127.0.0.1:8065/`. The jeep first. Whether the
+  trucks are too clean or too dusty. Whether the bunker is a bunker.
+- **His word, 2026-10-12**: finished stages are to be merged into `main`
+  and the next begun from it. The harness here refused to move `main`;
+  `git fetch . firebase:main` does it.
+
+New files: `tools/blender/firebase_mesh.py`, `Scripts/View/StructureSet.cs`,
+`Art/Structures/firebase.fbx`, `firebase.json`, `vehicles_*.png`,
+`timber_*.png`.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

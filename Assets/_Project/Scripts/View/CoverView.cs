@@ -23,6 +23,8 @@ namespace LanesOfVietnam.View
         public Material TimberMaterial;
         /// <summary>The sandbag walls' meshes (sandbag_mesh.py); not set: boxes.</summary>
         public BagSet Bags;
+        /// <summary>The timbers of a bunker's roof (firebase_mesh.py); not set: a box.</summary>
+        public StructureSet Structures;
 
         public readonly List<Renderer> Built = new List<Renderer>();
 
@@ -47,7 +49,8 @@ namespace LanesOfVietnam.View
                         case CoverKind.Sandbag: Bags.Wall(transform, Built, g, w, wall, e, wall, 0.95f, false, c.Id); break;
                         case CoverKind.Bunker:
                             Bags.Wall(transform, Built, g, w, wall, e, wall, 1.45f, false, c.Id);
-                            // Timbers across on four posts, and bags on top of them: overhead cover a man can stand under.
+                            // Timbers across on posts, and bags on top of them: overhead cover a man can stand under.
+                            if (Structures.Ready) { Roof(g, c, w, e, wall); break; }
                             float depth = (float)(c.Z + 0.9 - wall) + 0.4f;
                             double mid = (c.Z + 0.9 + wall) * 0.5 - 0.2;
                             Box(g, c.X, mid, (float)c.Length + 0.6f, 0.2f, depth, TimberMaterial, $"bunker roof {c.Id}", lift: 2.05f);
@@ -77,6 +80,52 @@ namespace LanesOfVietnam.View
                         break;
                 }
             }
+        }
+
+        /// <summary>How high a bunker's posts stand, metres: its roof's logs lie on the beams across their tops.</summary>
+        public const float RoofHeight = 2.15f;
+
+        /// <summary>
+        /// A bunker's roof, built: a row of posts before the men and a row behind them against the wall, a
+        /// beam along the top of each row, logs laid side by side across the two beams, and a course of bags
+        /// on the logs. It was one cube stretched to the bunker's size, brown, on two square sticks: "the
+        /// shed" of the owner's note of 2026-10-12. The roof is level, a man's height and a bit over the
+        /// ground the men stand on; each post is as long as the ground under it asks.
+        /// </summary>
+        private void Roof(Ground g, Cover c, double w, double e, double wall)
+        {
+            // Over the men, not over the whole of the ground back to the lane's wall: that may stand four
+            // metres behind them, and a roof that deep was a barn.
+            double front = c.Z + 0.9, back = System.Math.Max(wall + 0.5, c.Z - 1.7), mid = (front + back) * 0.5;
+            double x0 = w - 0.1, x1 = e + 0.1;
+            float top = (float)g.HeightAt(c.X, c.Z) + RoofHeight;
+            int bays = Mathf.Max(1, Mathf.RoundToInt((float)(x1 - x0) / 2.8f));
+            for (int k = 0; k <= bays; k++)
+            {
+                double px = x0 + (x1 - x0) * k / bays;
+                foreach (double pz in new[] { front, back })
+                {
+                    float foot = (float)g.HeightAt(px, pz);
+                    Structures.Place(transform, Built, "bunker_post", Coords.World(px, pz, foot), 53f * (k + c.Id) + (pz == front ? 0f : 140f),
+                                     new Vector3(1f, (top - foot) / RoofHeight, 1f));
+                }
+            }
+            // The beams and the logs come in runs, laid end to end and drawn out to the bunker's length.
+            float length = (float)(x1 - x0) + 0.5f;
+            int runs = Mathf.Max(1, Mathf.RoundToInt(length / StructureSet.Run));
+            float each = length / runs, deep = (float)(front - back) + 0.6f;
+            for (int k = 0; k < runs; k++)
+            {
+                double rx = (x0 + x1) * 0.5 - length * 0.5 + each * (k + 0.5);
+                bool turned = (k + c.Id) % 2 == 1;
+                foreach (double bz in new[] { front, back })
+                    Structures.Place(transform, Built, "bunker_beam", Coords.World(rx, bz, top - 0.05f), turned ? 180f : 0f, new Vector3(each / StructureSet.Run, 1f, 1f));
+                Structures.Place(transform, Built, "bunker_roof", Coords.World(rx, mid, top + 0.04f), turned ? 180f : 0f,
+                                 new Vector3(each / StructureSet.Run, 1f, deep / StructureSet.LogDepth));
+            }
+            // Bags on the logs, along the front and a second row behind it.
+            Bags.Wall(transform, Built, g, w - 0.2, front - 0.15, e + 0.2, front - 0.15, 0.45f, true, c.Id + 7, level: top + 0.2f);
+            Bags.Wall(transform, Built, g, w + 0.1, mid - 0.1, e - 0.1, mid - 0.1, 0.45f, true, c.Id + 11, level: top + 0.2f);
         }
 
         /// <summary>How far behind a lane's middle its walls are drawn: clear of the files, which reach 1.9 m from it.</summary>
