@@ -162,6 +162,12 @@ namespace LanesOfVietnam.Tools
             var combat = game.AddComponent<CombatView>();
             combat.Glow = Mat("FX Glow", Shader.Find("LOV/FX Glow"), null);
             combat.Smoke = Mat("FX Smoke", Shader.Find("LOV/FX Smoke"), null);
+            // Their sheets of fire and of smoke (tools/art/fx_atlas.py).
+            var fire = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/FX/fx_glow.png");
+            var smoke = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/FX/fx_smoke.png");
+            if (fire == null || smoke == null) Debug.LogWarning("[LOV] no effect sheets: the fighting is drawn with nothing (run tools/art/fx_atlas.py)");
+            combat.Glow.SetTexture("_MainTex", fire);
+            combat.Smoke.SetTexture("_MainTex", smoke);
             combat.Marks = Mat("Ground Mark", Shader.Find("LOV/Ground Mark"), null);
             // Sound, from the same events (PLAN §12.6; Web Audio in the browser).
             game.AddComponent<AudioView>();

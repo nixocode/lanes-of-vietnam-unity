@@ -78,12 +78,24 @@ namespace LanesOfVietnam.View.UI
             {
                 case SquadTask.Contact: return "CONTACT";
                 case SquadTask.Firefight: return held ? "HOLDING · IN A FIREFIGHT" : "IN A FIREFIGHT";
-                case SquadTask.Close: return "CLOSING";
+                // (Closing, and half of it lying where it is because rounds are landing by it: it is not going
+                // anywhere until they stop, and "CLOSING" alone over a squad lying still read as a squad that
+                // would not do as it was told. Bearing, §12.41: a man gets up only for a move he can make.)
+                case SquadTask.Close: return KeptDown(live) ? "CLOSING · UNDER FIRE" : "CLOSING";
                 case SquadTask.Assault: return "GOING IN";
                 case SquadTask.Withdraw: return "FALLING BACK";
                 case SquadTask.Regroup: return "SPENT · HOLDING";
                 default: return held || sq.Order == Order.Hold ? "HOLDING" : sq.Halted ? "WAITING" : "MOVING UP";
             }
+        }
+
+        /// <summary>Half of them or more are down and staying down for the fire (the simulation says why each man did not step: <see cref="Man.Idle"/>).</summary>
+        private static bool KeptDown(IReadOnlyList<Man> live)
+        {
+            int down = 0;
+            for (int i = 0; i < live.Count; i++)
+                if (live[i].Idle == Idle.UnderFire || live[i].Idle == Idle.Pinned) down++;
+            return live.Count > 0 && down * 2 >= live.Count;
         }
 
         public void Update()

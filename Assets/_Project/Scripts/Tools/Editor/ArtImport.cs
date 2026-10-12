@@ -130,6 +130,28 @@ namespace LanesOfVietnam.Tools
                 ti.filterMode = FilterMode.Point;
                 ti.textureCompression = TextureImporterCompression.Uncompressed;
             }
+            else if (p.StartsWith("Assets/_Project/Art/FX/") && p.EndsWith(".png"))
+            {
+                // The fighting's sheets (tools/art/fx_atlas.py): smoke as colour times
+                // alpha with its alpha, fire as colour on black. Clamped, with mips (a
+                // puff is anything from a few pixels to half the screen), and neither
+                // squared up nor scaled: the frames are found by their pixels.
+                bool smoke = p.EndsWith("fx_smoke.png");
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = TextureImporterType.Default;
+                ti.sRGBTexture = true;
+                ti.alphaSource = smoke ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
+                ti.alphaIsTransparency = false;          // the colour is already times its alpha
+                ti.npotScale = TextureImporterNPOTScale.None;
+                ti.maxTextureSize = 2048;
+                ti.mipmapEnabled = true;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Bilinear;
+                ti.anisoLevel = 1;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Terrain/ground_") && p.EndsWith(".png"))
             {
                 // One albedo (+ height in alpha) and one normal per layer

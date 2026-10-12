@@ -63,6 +63,20 @@ EVENTS = {
     "crack": [("2017/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav", 0.15, 10, 1.2),
               ("2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav", 0.3, 6, 1.2)],
 }
+# One round each of the weapons that fire bursts, cut out of takes of bursts (PLAN §12.42): the game plays
+# a report for every round of a burst at the weapon's own rate, where it used to play one recording of a
+# three-round burst whatever the burst. Inside a burst a round's tail is under the next round, so the round
+# that is kept is the last of each burst, with the tail it leaves: found by its onset, cut from just before
+# it to where it has died away. The Browning .30 cal and the take of a machine gun firing in a field stand
+# for the belt-fed guns; the PPSh for the submachine guns.
+# name: [(year/file, how many to keep, longest s)]
+SINGLES = {
+    "mg1": [("2016/M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav", 1, 0.75),
+            ("2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav", 5, 0.75)],
+    "smg1": [("2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav", 2, 0.6)],
+}
+# How loud each of those is made: the RMS of its first 120 ms, dB below full scale.
+SINGLE_DB = -16.0
 # Played whole (trimmed around its loudest moment): a fast jet over the air
 # strike, and the RTO's call at first contact.
 WHOLE = {
@@ -202,6 +216,58 @@ def events(m, sr, gap, keep, longest):
     return [(a, b) for a, b, _ in cuts]
 
 
+def last_rounds(m, sr, keep, longest):
+    """The last round of each burst in a take, with its tail: (start, end) in samples, the longest bursts first.
+
+    A round is where the 1 ms envelope jumps to three times what the 12 ms before it held, at least 35 ms
+    after the round before. Rounds closer than a quarter of a second are one burst. A burst's last round is
+    the last that comes at the burst's own rate (within a third of its middle gap): what follows it at some
+    other interval is its echo off the far side of the field, and belongs to its tail."""
+    win = max(1, int(sr * 0.001))
+    env = np.sqrt(np.convolve(m * m, np.ones(win) / win, "same"))
+    held = np.convolve(env, np.ones(int(sr * 0.012)) / int(sr * 0.012), "full")[:len(env)]
+    peak, lead = env.max(), int(sr * 0.003)
+    hits, i = [], int(sr * 0.015)
+    while i < len(env):
+        if env[i] > max(held[i - lead] * 3.0, peak * 0.12):
+            hits.append(i)
+            i += int(sr * 0.035)
+        else:
+            i += 1
+    bursts, run = [], hits[:1]
+    for a, b in zip(hits, hits[1:]):
+        if b - a < 0.25 * sr:
+            run.append(b)
+        else:
+            bursts.append(run); run = [b]
+    if run:
+        bursts.append(run)
+    cuts = []
+    for k, run in enumerate(bursts):
+        if len(run) < 3:
+            continue
+        gaps = np.diff(run)
+        mid = np.median(gaps)
+        last = 0
+        for j, g in enumerate(gaps):
+            if abs(g - mid) < mid / 3:
+                last = j + 1
+        a = run[last] - int(sr * 0.003)
+        nxt = bursts[k + 1][0] - int(sr * 0.02) if k + 1 < len(bursts) else len(m)
+        b = min(nxt, a + int(longest * sr))
+        cuts.append((len(run), a, b))
+    cuts.sort(reverse=True)
+    return [(a, b) for _, a, b in cuts[:keep]]
+
+
+def loudness(seg, sr):
+    """How loud a report is, dB below full scale: the RMS of its first 120 ms. (Every clip's peak is put at
+    -1 dB, and two reports with the same peak are not equally loud: a rifle's crack is over in a few
+    milliseconds, a machine gun's round has a body.)"""
+    body = seg[:int(sr * 0.12)]
+    return 20 * np.log10(max(np.sqrt((body ** 2).mean()), 1e-9))
+
+
 def finish(seg, sr, fade_s=0.06):
     seg = seg.copy()
     fade = min(len(seg), int(sr * fade_s))
@@ -223,6 +289,7 @@ def write_wav(path, x, sr):
 def main():
     os.makedirs(OUT, exist_ok=True)
     listing = {}
+    loud = {}
     tmp = tempfile.mkdtemp()
     for name, (folder, files, keep) in SETS.items():
         d = os.path.join(SRC, folder)
@@ -255,6 +322,7 @@ def main():
             write_wav(wav, seg, sr)
             subprocess.run(["afconvert", "-f", "m4af", "-d", "aac@44100", "-b", "128000", "-c", "1", wav, m4a], check=True)
             listing[name].append(dict(file=f"{name}_{i}.m4a", source=f"{folder}/{f} shot {k}", seconds=round(len(seg) / sr, 3)))
+        loud[name] = [loudness(seg, sr) for _, _, seg, sr in pick]
         print(f"[audio] {name}: {len(shots)} shots found in {len(takes)} takes, kept {len(pick)}: "
               f"{', '.join(str(e['seconds']) for e in listing[name])} s", flush=True)
     # --- the licensed sounds (skipped, with a note, when the sources are absent) ---
@@ -277,6 +345,20 @@ def main():
                 # From just before the onset, trimmed, faded, peak at -1 dBFS.
                 start = max(0, int(np.argmax(np.abs(m) > np.abs(m).max() * 0.02)) - int(sr * 0.005))
                 emit(name, finish(m[start:start + int(sr * keep)], sr, 0.08), sr, f)
+        for name, items in SINGLES.items():
+            for f, keep, longest in items:
+                x, sr = read_stereo(os.path.join(ART, "sonniss" + f))
+                m = x.mean(1)
+                cuts = last_rounds(m, sr, keep, longest)
+                for a_, b_ in cuts:
+                    # Each to the same loudness, not the same peak: the rounds of one burst come from different
+                    # takes, and at one peak they were up to eleven decibels apart.
+                    seg = finish(m[a_:b_], sr, min(0.25, 0.5 * (b_ - a_) / sr))
+                    seg = seg * 10 ** ((SINGLE_DB - loudness(seg, sr)) / 20)
+                    seg = seg * min(1.0, 10 ** (-1 / 20) / max(np.abs(seg).max(), 1e-6))
+                    loud.setdefault(name, []).append(loudness(seg, sr))
+                    emit(name, seg, sr, f"{f} {a_ / sr:.3f}-{b_ / sr:.3f} s")
+                print(f"[audio] {name}: {len(cuts)} single rounds from {f.split('/')[-1][:50]}", flush=True)
         for name, items in EVENTS.items():
             for f, gap, keep, longest in items:
                 x, sr = read_stereo(os.path.join(ART, "sonniss" + f))
@@ -349,6 +431,9 @@ def main():
     else:
         print("[audio] no SourceArt/audio/music: no music (tools/audio/fetch_free.sh)", flush=True)
 
+    # How loud each weapon's report comes out, for AudioView's gains (every clip peaks at -1 dB; they are not equally loud).
+    for name, dbs in loud.items():
+        print(f"[audio] loudness {name}: {np.mean(dbs):.1f} dB (first 120 ms, RMS; {', '.join(f'{d:.1f}' for d in dbs)})", flush=True)
     # A list of named sets, which Unity's JsonUtility can read (it cannot read a dict).
     with open(os.path.join(OUT, "audio.json"), "w") as f:
         json.dump(dict(sets=[dict(name=k, files=v) for k, v in listing.items()]), f, indent=1)

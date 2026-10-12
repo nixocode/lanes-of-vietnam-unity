@@ -25,7 +25,8 @@ namespace LanesOfVietnam.View
     /// <c>bloom</c>, <c>shadows</c>, <c>soft</c> (hard shadows), <c>cookie</c>
     /// (the clouds' shadows), <c>depth</c> (the depth texture), <c>hdr</c>,
     /// <c>aniso</c> (anisotropic filtering; <c>anisotex</c> leaves each texture
-    /// its own level, <c>anisoforce</c> forces every texture up), <c>hud</c>, <c>combat</c>, and <c>mat:name</c> (every
+    /// its own level, <c>anisoforce</c> forces every texture up), <c>hud</c>, <c>combat</c> (or a part of it:
+    /// <c>shake</c>, <c>flash</c>, <c>smoke</c>, <c>glow</c>, <c>marks</c>), and <c>mat:name</c> (every
     /// renderer whose material's name contains it: <c>mat:Ground</c>, which is
     /// how the ground was found to be most of the frame). <c>&amp;scale=0.8</c>
     /// sets the render scale, <c>&amp;speed=3</c> the match's, and
@@ -85,6 +86,15 @@ namespace LanesOfVietnam.View
                     case "anisotex": QualitySettings.anisotropicFiltering = AnisotropicFiltering.Enable; break;
                     case "anisoforce": QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable; break;
                     case "hud": foreach (var h in FindObjectsByType<Hud>()) h.SetVisible(false); break;
+                    // The fighting's effects, a part at a time: the camera's shake at a blast, a blast's light on the
+                    // ground, the smoke and dust, the flashes and tracers, the marks left on the ground.
+                    case "shake": if (root.CameraRig != null) root.CameraRig.NoShake = true; break;
+                    case "flash": case "smoke": case "glow": case "marks":
+                        string part = what == "flash" ? "shell flash" : what == "smoke" ? "combat smoke" : what == "glow" ? "combat light" : "ground marks";
+                        foreach (var c in FindObjectsByType<CombatView>())
+                            foreach (Transform child in c.transform)
+                                if (child.name.StartsWith(part)) child.gameObject.SetActive(false);
+                        break;
                     case "combat":
                         // (The component and what it draws, not its object: that is the game's own.)
                         foreach (var c in FindObjectsByType<CombatView>())

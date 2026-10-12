@@ -129,6 +129,8 @@ namespace LanesOfVietnam.View
         /// else up the lane. And whether he has turned to the way he is walking.
         /// </summary>
         private float[] _front = new float[0];
+        /// <summary>The enemy each man's front is: the nearest he can see, or of the squad his own is dealing with; -1 none. And the rounds of the shot he has just fired.</summary>
+        private int[] _facing = new int[0], _shotRounds = new int[0];
         private bool[] _turned = new bool[0];
         /// <summary>Whether each man struck a blow since the last frame, and the tick his climb into or out of a trench ends.</summary>
         private bool[] _struck = new bool[0];
@@ -226,6 +228,8 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _stood, n);
                 System.Array.Resize(ref _idled, n);
                 System.Array.Resize(ref _front, n);
+                System.Array.Resize(ref _facing, n);
+                System.Array.Resize(ref _shotRounds, n);
                 System.Array.Resize(ref _turned, n);
                 System.Array.Resize(ref _struck, n);
                 System.Array.Resize(ref _climbUntil, n);
@@ -335,6 +339,7 @@ namespace LanesOfVietnam.View
                 _target[e.Id] = e.Target ?? -1;
                 if (e.Id < _rounds.Length) _rounds[e.Id]++;
                 _shot[e.Id] = true;
+                _shotRounds[e.Id] = e.Id < st.Men.Count ? CombatView.Rounds(e, st.Men[e.Id]) : 1;
             }
             if (st.Tick != _speedTick)
             {
@@ -366,6 +371,7 @@ namespace LanesOfVietnam.View
                     // that has gone to ground faces what put it there.
                     int threat = st.Senses && m.Squad < st.Squads.Count ? st.Squads[m.Squad].Threat : -1;
                     bool onThreat = false;
+                    int facing = -1;
                     for (int j = 0; j < st.Men.Count; j++)
                     {
                         var o = st.Men[j];
@@ -375,9 +381,10 @@ namespace LanesOfVietnam.View
                         double dx = o.X - m.X, dz = o.Z - m.Z, d2 = dx * dx + dz * dz;
                         if (d2 < 0.01 || d2 >= FrontRange * FrontRange) continue;
                         if (theirs == onThreat && d2 >= best) continue;
-                        best = d2; onThreat = theirs;
+                        best = d2; onThreat = theirs; facing = j;
                         front = Mathf.Atan2((float)dx, (float)-dz) * Mathf.Rad2Deg;
                     }
+                    _facing[i] = facing;
                     // He does not swing his whole body for a few degrees: the nearest enemy changing
                     // between two men side by side had him twitching from one to the other.
                     if (Mathf.Abs(Mathf.DeltaAngle(_front[i], front)) > FrontSlack || _front[i] == 0f) _front[i] = front;
@@ -529,15 +536,25 @@ namespace LanesOfVietnam.View
                 _going[i] = m.Alive && pace > (_going[i] ? StopBelow : GoAbove) && (m.Posture == Posture.Standing || _moving[i]);
                 bool going = _going[i], away = going || (m.Alive && _moving[i]);
                 var way = going ? _pace[i] : new Vector2(_vx[i], _vz[i]);
+                // His rifle comes up before his first round goes, not with it: his squad is in a fight with an
+                // enemy it has in sight, and he is at rest, not hiding from fire, not reloading, with something to
+                // fire. (It came up only once he had fired: the first round of every fight left a rifle that was
+                // pointing at the ground.)
+                var sq = st.Senses && m.Squad < st.Squads.Count ? st.Squads[m.Squad] : null;
+                bool ready = m.Alive && !away && sq != null && sq.ThreatSeen && sq.Threat >= 0 && _facing[i] >= 0
+                             && (sq.Task == SquadTask.Contact || sq.Task == SquadTask.Firefight || sq.Task == SquadTask.Close || sq.Task == SquadTask.Assault)
+                             && m.Pin < Tune.PinStop && m.Climb == 0 && m.Vault == 0 && (!st.Ammo || (m.Rounds > 0 && m.Reloading == 0))
+                             && m.Weapon != Weapon.Mortar && m.Weapon != Weapon.M79 && m.Weapon != Weapon.Rpg;
+                bool fired = st.Tick - _firedAt[i] <= AimTicks;
                 // (Gunnery: nobody fires on the move, and nobody walks with his rifle in his shoulder either.)
-                bool aiming = m.Alive && st.Tick - _firedAt[i] <= AimTicks && (st.Gunnery ? !away : !away || pace < RunAbove);
+                bool aiming = m.Alive && (fired || ready) && (st.Gunnery ? !away : !away || pace < RunAbove);
                 // Where he looks and points his rifle, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
                 float yaw = _yaw[i];
                 int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
                 if (m.Alive)
                 {
                     int tg = _target[i];
-                    if (aiming && tg >= 0 && tg < st.Men.Count)
+                    if (aiming && fired && tg >= 0 && tg < st.Men.Count)
                     {
                         var (tx, tz) = Where(d, tg);
                         yaw = Mathf.Atan2((float)(tx - x), (float)-(tz - z)) * Mathf.Rad2Deg;
@@ -666,17 +683,31 @@ namespace LanesOfVietnam.View
                     // (Along his front, and about: each man looks a little to one side and the other, in his own time.)
                     float about = 28f * Mathf.Sin(now * (0.5f + 0.5f * Hash(m.Id, 20)) + 6.28f * Hash(m.Id, 21));
                     Vector3 look = eyes + Quaternion.Euler(0, _front[i] + about, 0) * Vector3.forward * 20f;
+                    // What his barrel is brought onto, and his eyes with it: the man he is firing at; before his
+                    // first round, the nearest he can see.
                     int tg = _target[i];
-                    if (aiming && tg >= 0 && tg < st.Men.Count)
+                    int onto = !aiming ? -1 : fired && tg >= 0 && tg < st.Men.Count ? tg : _facing[i];
+                    if (onto >= 0 && onto < st.Men.Count)
                     {
-                        var (tx, tz) = Where(d, tg);
-                        look = Coords.World(tx, tz, (float)g.HeightAt(tx, tz) + 1.0f);
+                        var o = st.Men[onto];
+                        var (tx, tz) = Where(d, onto);
+                        float under = (float)g.HeightAt(tx, tz) + (float)o.High;
+                        look = Coords.World(tx, tz, under + 1.0f);
+                        f.Aim(Coords.World(tx, tz, under + (o.Posture == Posture.Prone ? 0.3f : o.Posture == Posture.Crouched ? 0.95f : 1.35f)));
                     }
+                    else f.Aim(default, false);
                     bool hiding = m.Pin >= Tune.PinStop;
                     bool running = going && pace > RunAbove;
-                    f.Look(look, hiding || running ? 0f : posture == 0 ? 0.6f : 1f);
+                    // (Kept down by fire he keeps his head down, unless he is behind his sights; and lying flat it stays
+                    // low but his eyes are up: he is not face down in the dirt.)
+                    f.Look(look, running ? 0f : hiding && !aiming ? (posture == 2 ? 0.75f : 0f) : posture == 0 ? 0.6f : 1f);
                 }
-                if (_shot[i]) { f.Fire(); _shot[i] = false; }
+                if (_shot[i])
+                {
+                    int rounds = Mathf.Max(1, _shotRounds[i]);
+                    f.Fire(rounds, CombatView.RoundGap(m.Weapon, m.Side, rounds));
+                    _shot[i] = false;
+                }
                 // Pinned while still: he flinches (a moving man keeps moving; the clip would slide him).
                 if (_pinnedAt[i]) { if (!away && !jump) f.React(); _pinnedAt[i] = false; }
                 // His reload. With the ammunition rule it is the simulation's: his magazine is empty, or low in a

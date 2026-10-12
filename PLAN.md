@@ -3880,6 +3880,226 @@ is for `simcs smooth` alone: no rule reads it and it is not hashed.
   (P2), the guns (P4), call-ins you watch arrive (P5), the stranger test.
 
 
+### 12.42 The shot: what a round looks and sounds like (2026-10-12)
+
+The owner, after playing §12.41's build: "animations are starting to look
+good but the actual shots being fired need some work. Also some of the
+details like the truck and the shed are looking so bad it's dragging the
+game's look. Use proper assets or build properly, then go into plan mode and
+execute pending tasks." Asked what of a shot, he said all of it: the flash,
+smoke and brass at the muzzle; seeing the rounds go; the man who fires; the
+sound. The plan he approved has six stages (the shot; the firebase built;
+the guns sourced; call-ins you watch arrive; every class its job; the world
+from a map), a branch each. This is the first: branch `shots`, from
+`smooth`. View and sound only: no pin moves.
+
+While it was being built he added two things. A bug, with a screenshot of
+men lying in a row: "soldiers' helmets still are down when prone and need
+tilting upwards (how could they see like that?)", fixed here. And, for
+later: "the watch tower must be collapsable and fall, to RPGs and heavy
+mortars... don't always have it fall the same way, make it sandboxy", which
+is in the plan as a seventh stage, to be planned with him before it is
+built; all it changes for now is that the tower of the next stage is built
+in members that can come apart.
+
+#### Measured first
+
+One number did not exist: where a man's barrel points when he fires. The
+motion audit (`tools/unity.sh -runTests -testPlatform PlayMode -testCategory
+Motion`, written to `Logs/motion.txt`) now takes, at every shot of its 75
+seconds of seed 3, the angle between the barrel and the way to the man fired
+at. Before anything was changed: **19.4 degrees off at the middle, 43.9 at
+nine shots in ten** (214 shots; standing 26.4 of 6 shots, on a knee 25.2 of
+119, flat 11.7 of 89; across 17.4, up and down 14.7). A man firing up at the
+tower fired level, and the first round of every fight left a rifle that was
+still coming up, because it came up only once he had fired.
+
+#### Fire and smoke from sheets, not from sums
+
+Every flash was a star and every puff a blob of noise, both computed in the
+shader. They are now frames of sheets of real (simulated, filmed-looking)
+fire and smoke, each frame fading into the next by the effect's own age, so
+a capture still renders the same frame every time. The sheets are Unity
+Labs' CC0 "VFX image sequences and flipbooks" (`ASSETS.md`, "Effects"),
+packed into two atlases by `tools/art/fx_atlas.py`: `fx_smoke.png` (drawn
+over the scene: a burst of dust, a ball of fire going to smoke, smoke that
+hangs, clods and drops, a spent case) and `fx_glow.png` (added as light: the
+fire, a flame, and muzzle flashes made there from the flame's frames, eight
+tongues of gas seen from the side and eight stars seen through a flash
+hider). `View/FxSheets.cs` says where each sheet sits.
+
+What a shot is now, in `View/CombatView.cs`:
+
+- **The flash**, by weapon: a tongue of gas down the barrel, a star at the
+  muzzle (three prongs for the M16 of 1965, more and smaller for the
+  belt-fed guns' slotted hiders), and its light on the air. Six hundredths
+  of a second.
+- **Its smoke**: thrown forward with the gas, then hanging where the shot
+  was fired from and going off on the wind for two seconds. A machine gun's
+  burst leaves a bank of it. It stays where the round was fired, not on the
+  muzzle: a man who fired and got up used to take his smoke with him.
+- **Dust off the ground** in front of the muzzle of a man lying flat.
+- **The case**: out of the port to his right, tumbling, down, lying for 2.4
+  seconds (a belt-fed gun's link with it; a bolt action keeps its case).
+- **The round going**: one in five from a belt is a tracer, as before. Every
+  other round is a thin pale line, three metres of it, from the muzzle to
+  where the simulation says it went and no further, never thinner than about
+  a pixel at any zoom. (Playtest 8's "too much flash of gunfire that goes
+  up, down and sideways" was every round as bright as a tracer, with the
+  ricochets; then none were drawn; this is between.)
+- **Where it lands**: a spit of dry earth and the cloud it leaves are the
+  burst sheet played through, with clods; a sandbag gives dust, chips and
+  running sand; a man, what it did before.
+- **A shell**: a flash with flame in it, a ball of fire gone to black smoke
+  in under a second, two bursts of dark earth with jets out of them, clods,
+  and four clouds of smoke that have a body and an edge (they were eleven
+  soft blobs; a barrage was one brown fog from the grass to the sky). A
+  grenade, a launcher's round, a rocket's trail and a smoke screen likewise.
+- **Smoke too faint to see is not drawn** (9,285 puffs in the test's 1,500
+  frames).
+
+#### Each weapon at its own rate
+
+A burst's rounds were 0.085 s apart whatever fired them. They are now the
+weapon's own (`CombatView.RoundGap`): an M60 550 rounds a minute, an RPD
+650, an AK 600, an M16 700, a PPSh 900, an M3 450. The flash, the kick, the
+case and the report of every round are timed by it.
+
+One departure: the simulation's long burst close in (ten rounds from an M60
+every 0.7 s) is more than the gun fires, and drawn at the gun's rate two
+bursts would overlap; those are squeezed to fit (an M60 at 860 a minute, an
+M3 at 960, close in only). Putting that right is the simulation's `LongGap`,
+which moves pins: for the balance pass of the classes' stage.
+
+#### The man who fires
+
+- **A kick for every round** of his burst, at the gun's rate, and a long
+  burst climbs (it was one nod for ten rounds). Less of it lying down.
+- **His rifle is up before his first round**: when his squad is in a fight
+  with an enemy it has in sight and he is at rest, not hiding, not
+  reloading, with something to fire.
+- **His barrel is on the man he fires at**, up and down as well as across.
+  After the clip has posed him, his chest turns and tips to bring the rifle
+  onto the man (30 degrees across and 24 up or down standing; lying flat,
+  22 and 6, his elbows being on the ground), and the rifle is turned in his
+  hands for up to 9 degrees of what is left. Before his first round it is on
+  the nearest enemy he can see.
+- **Measured after** (the same audit): **1.8 degrees at the middle, 22.6 at
+  nine in ten** (standing 4.2, on a knee 1.9, flat 1.6). The gate was 6 at
+  the middle. The worst tenth is men still turning their feet to a man
+  further round than their chest will go.
+
+#### The bug: helmets down
+
+Lying flat, a man's neck and head were turned toward what he looked at, but
+the two limits came to 65 degrees of the 90 the prone clips need, and to
+nothing at all while he was pinned: so a row of men under fire lay with the
+crowns of their helmets to the enemy. Now, lying flat, his neck takes 34
+degrees and his head 66; pinned, he keeps his head low but up enough to see
+(three quarters of the way), and a man behind his sights has it up whether
+he is pinned or not. The audit's new line: **a man lying flat at rest has
+his face 2 degrees above the level at the middle, 13 below it at the lowest
+tenth** (2,045 looks). There is no number from before: the line is new, and
+the before is his screenshot.
+
+#### The sound
+
+One report for every round of a burst, at the gun's rate, where it used to
+be one recording of a three-round burst whatever the burst. The single
+rounds are cut from the recordings already on disk (`tools/audio/
+slice_shots.py`, `last_rounds`): the last round of each burst, with the tail
+it leaves, six of the machine gun's and two of the PPSh's. A gun keeps one
+of them from burst to burst. The rounds after the first are asked for at
+once and kept apart by the browser's own audio clock (`LovAudio.jslib`, a
+delay), since a frame is too coarse for a gun's rhythm. Past 220 m a burst
+is one recording as before.
+
+Levelled by measurement, since nobody here can listen: every clip peaks at
+the same level, but the first 120 ms of an M16's report measures 20.1 dB
+below full scale, an AK's 18.5, the Mosin's 18.1, the PPSh's 15.6 and the
+machine gun's between 9.4 and 20.9 from take to take. The single rounds are
+cut to 16 dB, and played 2 dB over a rifle (the machine gun) and 2 dB under
+(a submachine gun's pistol round).
+
+**Nobody has listened to any of this.**
+
+#### Two leftovers
+
+- **The tag over a squad that says CLOSING while it lies still** now says
+  CLOSING · UNDER FIRE when half the squad or more is down and staying down
+  for the fire (the simulation says why each man did not step).
+- **The barrage's two milliseconds**: below.
+
+#### Tests, the build, frame time
+
+EditMode 105 of 105. PlayMode 26 of 26 and the capture skipped (it was 23):
+three new ones in `ShotTests.cs` (each weapon fires at its own rate and a
+burst is over before the next; a man is kicked seven times by seven rounds,
+at the gun's rate; in fifteen seconds of seed 3, 22 shots of 42 rounds drew
+42 flashes, rounds were seen going and cases thrown), and the sound test now
+holds each burst to a report a round, from where the gun is, each at its
+place in the burst. The motion audit's other lines are what they were.
+
+The WebGL build is 28.91 MB to start, 36.18 in all (`size.json`; the budget
+is 45).
+
+Frame time, headless Chrome at 2592 x 1370, the display awake, the firebase
+(`?perf=1&seed=3`), eighteen readings of a hundred ticks:
+
+- **Today every build reads 5.5 ms with the effects off**, this one and the
+  one on the demo (§12.39's) alike, where §12.41's read 4.2 yesterday. The
+  machine was busy (load 4 to 6); the numbers below are against 5.5, and the
+  frames come in whole milliseconds.
+- **Mean 5.5 to 5.9 ms** in all eighteen. The two readings with the
+  computer's barrage in view: **5.7 to 5.9, where they were 6.1 to 6.3
+  against 4.2**. A barrage cost two milliseconds a frame; it costs about a
+  third of one.
+- **Long frames are not gone.** In the barrage's two readings and the five
+  after it, 56 to 114 frames in about 880 take twice as long as the rest
+  (10 to 12 ms), against 24 to 46 with the effects off; the 95th percentile
+  there is 9 to 11, over the 8.3 of the budget. Switching the effects off
+  one at a time (new: `&off=shake`, `flash`, `smoke`, `glow`, `marks`)
+  shows it is the smoke alone, not the camera's shake, the blasts' lights or
+  the flashes. Drawing a third less of it, and none of the clear margin
+  round each puff, did not change the count. So these look like frames that
+  just miss the browser's own pace and wait for the next one, not frames
+  that cost twice as much; a 60 Hz screen would not show them. That is my
+  reading and it is not proved. What would settle it is the smoke drawn at
+  half the screen's resolution, which is not done.
+- The effects' own arithmetic is 0.1 to 0.2 ms a frame; the men 0.3 to 0.45.
+
+#### What is against it, and what is not done
+
+- **A round fired from down in a trench at a man in another lane goes into
+  the trench's wall**, as the trench is cut, and its line is not seen. The
+  men in a trench fire through the earth; they always have.
+- **Not looked at closely**: a machine gun's burst with its tracers, a
+  grenade, a rocket, a smoke screen. They are the rifle's code with other
+  numbers and the tests count their flashes, but the pictures looked at were
+  of rifles, impacts and a barrage.
+- **The thin thread of smoke off a hot barrel** is in the atlas and not
+  drawn. **Cases** lie 2.4 seconds and go: no brass piling up by a gun.
+- **Nobody has listened, and nobody has watched it move** but in strips of
+  frames a twentieth and a sixtieth of a second apart.
+
+#### What is the owner's
+
+- **To play and to listen to**: the build at `http://127.0.0.1:8065/`. Is a
+  rifle's shot a shot now. Is the line of a round too much or too little
+  (`TraceShare`, `Trace`, `TracePixels`). Is the gun smoke too much. Does a
+  machine gun sound like one gun firing fast or like a machine. Are the
+  rifles, the guns and the battery level with each other (`AudioView.MgGain`,
+  `SmgGain`). Do men lying down look where they are firing.
+- **His word needed**: nothing here is on GitHub or the demo.
+- **Next**: the firebase built (the trucks, the jeep, the tower, the
+  bunker's roof), which is begun.
+
+New files: `tools/art/fx_atlas.py`, `Art/FX/fx_smoke.png` and `fx_glow.png`,
+`Scripts/View/FxSheets.cs`, `Tests/PlayMode/ShotTests.cs`. In the ignored
+folder, rebuilt by `slice_shots.py`: `Audio/licensed/mg1_0` to `mg1_5` and
+`smg1_0`, `smg1_1`.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

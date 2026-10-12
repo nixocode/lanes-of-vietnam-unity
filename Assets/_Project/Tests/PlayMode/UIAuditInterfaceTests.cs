@@ -71,7 +71,7 @@ namespace LanesOfVietnam.Tests
             yield return null;
             rec.Played.Clear();
 
-            int shotsHeard = 0;
+            int shotsHeard = 0, burstsHeard = 0;
             for (int f = 0; f < 90; f++)
             {
                 int before = rec.Played.Count;
@@ -94,9 +94,29 @@ namespace LanesOfVietnam.Tests
                                   $"a {shot.name} shot from where no man carrying that weapon stands");
                     Assert.IsFalse(shot.immediate, "a rifle report skipped its travel time");
                 }
-                shotsHeard += fresh.Count;
+                // A burst: a report for each of its rounds, from where the gun is, each later than the one before
+                // by the gun's own rate of fire (the engine's clock keeps them apart, not the frame).
+                var rounds = Enumerable.Range(before, rec.Played.Count - before)
+                                       .Where(k => rec.Played[k].name.StartsWith("mg1_") || rec.Played[k].name.StartsWith("smg1_")).ToList();
+                var bursts = rounds.GroupBy(k => (rec.Played[k].x, rec.Played[k].z)).ToList();
+                foreach (var burst in bursts)
+                {
+                    var by = st.Men.FirstOrDefault(m => (m.Weapon == Weapon.M60 || m.Weapon == Weapon.Rpd || m.Weapon == Weapon.Smg)
+                                                        && System.Math.Abs(m.X - burst.Key.x) < 0.01 && System.Math.Abs(m.Z - burst.Key.z) < 0.01);
+                    Assert.IsNotNull(by, "a burst from where no man with a gun that fires bursts stands");
+                    var delays = burst.Select(k => rec.Played[k].delay).ToList();
+                    Assert.Greater(delays.Count, 1, "a burst of one report");
+                    float gap = CombatView.RoundGap(by.Weapon, by.Side, delays.Count);
+                    for (int r = 0; r < delays.Count; r++)
+                        Assert.AreEqual(r * gap, delays[r], 1e-4f, $"round {r} of a {by.Weapon}'s burst of {delays.Count} is not at its place in the burst");
+                    Assert.AreEqual(1, burst.Select(k => rec.Played[k].name).Distinct().Count(), "a burst changed guns half way");
+                    burstsHeard++;
+                }
+                Assert.LessOrEqual(fresh.Count + bursts.Count, AudioView.ShotsPerTick, $"frame {f}: {fresh.Count + bursts.Count} new shots");
+                shotsHeard += fresh.Count + bursts.Count;
             }
             Assert.Greater(shotsHeard, 0, "a firefight made no sound");
+            Debug.Log($"[LOV] heard {shotsHeard} shots, {burstsHeard} of them bursts of a report a round");
             Assert.Greater(rec.AmbienceLevel, 0f, "the jungle bed is not running");
             var cam = Root.CameraRig.Camera.transform.position;
             Assert.AreEqual(cam.x, rec.ListenerX, 0.01f, "the listener is not at the camera");

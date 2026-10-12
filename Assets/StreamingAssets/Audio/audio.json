@@ -351,6 +351,56 @@
    ]
   },
   {
+   "name": "mg1",
+   "files": [
+    {
+     "file": "licensed/mg1_0.m4a",
+     "source": "sonniss2016/M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav 0.260-1.010 s",
+     "seconds": 0.75
+    },
+    {
+     "file": "licensed/mg1_1.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 31.138-31.888 s",
+     "seconds": 0.75
+    },
+    {
+     "file": "licensed/mg1_2.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 4.873-5.206 s",
+     "seconds": 0.333
+    },
+    {
+     "file": "licensed/mg1_3.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 17.343-18.093 s",
+     "seconds": 0.75
+    },
+    {
+     "file": "licensed/mg1_4.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 44.752-45.502 s",
+     "seconds": 0.75
+    },
+    {
+     "file": "licensed/mg1_5.m4a",
+     "source": "sonniss2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav 13.526-13.763 s",
+     "seconds": 0.237
+    }
+   ]
+  },
+  {
+   "name": "smg1",
+   "files": [
+    {
+     "file": "licensed/smg1_0.m4a",
+     "source": "sonniss2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav 11.295-11.895 s",
+     "seconds": 0.6
+    },
+    {
+     "file": "licensed/smg1_1.m4a",
+     "source": "sonniss2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav 1.759-2.359 s",
+     "seconds": 0.6
+    }
+   ]
+  },
+  {
    "name": "smg",
    "files": [
     {

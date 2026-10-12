@@ -198,14 +198,49 @@ namespace LanesOfVietnam.View
         private int _reactLayer = -1;
 
         private float _recoil, _aim, _deadFor = -1f;
+        /// <summary>The rounds of his burst still to kick, the seconds between them and until the next; and how far a long burst has climbed, 0 to 1.</summary>
+        private int _kicks;
+        private float _kickGap, _kickIn, _climb;
+        /// <summary>What his barrel is brought onto (a point in the world), and whether there is anything.</summary>
+        private Vector3 _aimAt;
+        private bool _aimOn;
+        /// <summary>
+        /// The most his chest turns and tips to bring his barrel onto his man once his rifle is up, degrees
+        /// (standing, kneeling, prone: flat, his elbows are on the ground and his chest hardly tips); and
+        /// the most the rifle itself is then turned in his hands for what is left.
+        /// </summary>
+        public static readonly Vector3 AimAcross = new Vector3(30f, 30f, 22f), AimLift = new Vector3(24f, 22f, 6f);
+        public const float AimInHands = 9f;
+
+        /// <summary>
+        /// Where his barrel should point: the man he is firing at, or the one he is about to. His upper body
+        /// turns to it (<see cref="Twist"/>) and the clip holds his rifle roughly along it, but only roughly:
+        /// measured, the barrel was 19 degrees off the round's way at the middle and 44 at nine shots in ten,
+        /// and never tipped up or down at all (a man firing up at the tower fired level). The rest is made up
+        /// here, after the pose: his chest brings the rifle onto the point and his hands the last of it.
+        /// </summary>
+        public void Aim(Vector3 worldPoint, bool on = true)
+        {
+            _aimAt = worldPoint;
+            _aimOn = on;
+        }
         /// <summary>A blow hand to hand: 1 as it starts, 0 when it is over.</summary>
         private float _lunge;
         private bool _lean;
         /// <summary>Where he is looking (a point in the world) and how much of the turn he makes, 0 to 1.</summary>
         private Vector3 _lookAt;
         private float _lookWant, _look;
-        /// <summary>The most his neck and head turn off the pose's own line, degrees: prone, that is his chin off the ground.</summary>
+        /// <summary>The most his neck and head turn off the pose's own line, degrees.</summary>
         public const float MaxLook = 85f;
+        /// <summary>
+        /// Lying flat, the most his neck and his head tip back to bring his face up off the ground, degrees.
+        /// The prone clips have his face in the dirt, and the 65 degrees that <see cref="MaxLook"/> came to in
+        /// practice left it a quarter of the way down still: the owner, 2026-10-12, of a row of men lying with
+        /// the crowns of their helmets to the enemy, "how could they see like that?"
+        /// </summary>
+        public const float ProneNeck = 34f, ProneHead = 66f;
+        /// <summary>The way his face points, in the world (the motion audit holds a prone man's to the level).</summary>
+        public Vector3 Facing => Head != null ? Head.rotation * HeadForward : transform.forward;
 
         /// <summary>
         /// What he is looking at: his target, or his front. Mixamo's prone and
@@ -244,6 +279,8 @@ namespace LanesOfVietnam.View
 
         /// <summary>Fallen, still, and a plain mesh: nothing more is to be done for him.</summary>
         public bool Baked => _baked;
+        /// <summary>The kick of the round he has just fired, 1 as it goes and dying away in a twentieth of a second (for the tests).</summary>
+        public float Kick => _recoil;
 
         /// <summary>
         /// On his feet: standing, walking or running, or in the last of getting up. Not while he is
@@ -385,7 +422,21 @@ namespace LanesOfVietnam.View
             }
 
             if (Hips != null) Centre = Hips.position;
-            _recoil *= Mathf.Exp(-dt / 0.06f);
+            // A kick for every round of his burst, at the rate his weapon fires; a long burst climbs.
+            if (_kicks > 0)
+            {
+                _kickIn -= dt;
+                while (_kicks > 0 && _kickIn <= 0f)
+                {
+                    _recoil = 1f;
+                    _climb = Mathf.Min(1f, _climb + 0.16f);
+                    _kicks--;
+                    _kickIn += Mathf.Max(0.03f, _kickGap);
+                }
+            }
+            if (dead) _kicks = 0;
+            _recoil *= Mathf.Exp(-dt / 0.05f);
+            _climb *= Mathf.Exp(-dt / 0.3f);
             if (_deadFor < 0) PostPose();
             // (After his upper body has turned: the grenade is where his hand is drawn.)
             if (_inHand != null && _inHand.activeSelf)
@@ -809,10 +860,16 @@ namespace LanesOfVietnam.View
             _act = null;
         }
 
-        /// <summary>A shot: the kick of the rifle into the shoulder; a reload he was in the middle of is over.</summary>
-        public void Fire()
+        /// <summary>
+        /// A shot: the kick of the rifle into his shoulder, once for each of its rounds, <paramref name="gap"/>
+        /// seconds apart (it was one kick however many rounds the burst had: a machine gunner fired ten rounds
+        /// with one nod); a reload he was in the middle of is over.
+        /// </summary>
+        public void Fire(int rounds = 1, float gap = 0f)
         {
-            _recoil = 1f;
+            _kicks = Mathf.Max(1, rounds);
+            _kickGap = gap;
+            _kickIn = 0f;
             Calm();
             if (_reactLayer >= 0 && _deadFor < 0 && !_baked && Animator.GetCurrentAnimatorStateInfo(_reactLayer).IsName("Reload " + _posture))
                 Animator.CrossFadeInFixedTime("Calm", 0.12f, _reactLayer);
@@ -895,6 +952,9 @@ namespace LanesOfVietnam.View
         }
 
         public Vector3 MuzzlePosition => Muzzle != null ? Muzzle.position : transform.position + Vector3.up * 1.4f;
+        /// <summary>The way his barrel points, in the world: from the butt of what he carries to its muzzle (the motion audit holds it to the round's own way).</summary>
+        public Vector3 Bore => Muzzle != null && Rifle != null && (Muzzle.position - Rifle.transform.position).sqrMagnitude > 1e-6f
+            ? (Muzzle.position - Rifle.transform.position).normalized : transform.forward;
 
         private void PostPose()
         {
@@ -907,23 +967,56 @@ namespace LanesOfVietnam.View
                 var share = Quaternion.AngleAxis(turn / _spine.Length, Vector3.up);
                 for (int i = 0; i < _spine.Length; i++) _spine[i].rotation = share * _spine[i].rotation;
             }
-            if (_recoil > 0.01f && Chest != null)
-                Chest.rotation = Quaternion.AngleAxis(-5f * _recoil, transform.right) * Chest.rotation;
+            // The kick: his shoulder driven back and up by each round, less of it lying behind the gun.
+            float kick = (k == 2 ? 1.6f : 3.4f) * _recoil + (k == 2 ? 1.2f : 3.2f) * _climb;
+            if (kick > 0.01f && Chest != null)
+                Chest.rotation = Quaternion.AngleAxis(-kick, transform.right) * Chest.rotation;
             // On his feet and walking, rifle down: each man carries himself his own way, a little.
             if (_posture == 0 && _speed > 0.05f && _aim < 0.5f && Chest != null && Carriage != default)
             {
                 float much = Mathf.Clamp01(_speed / 0.6f) * (1f - 2f * _aim);
                 Chest.rotation = Quaternion.AngleAxis(Carriage.x * much, transform.right) * Quaternion.AngleAxis(Carriage.y * much, transform.forward) * Chest.rotation;
             }
+            // His barrel onto his man, as far as his chest will bring it (the rifle goes with his arms).
+            Vector3 wantBore = default;
+            float aimed = _aimOn && Rifle != null && Muzzle != null && HandR != null && HandL != null && Chest != null ? _aim : 0f;
+            if (aimed > 0.01f)
+            {
+                wantBore = _aimAt - Chest.position;
+                Vector3 hands = HandL.position - HandR.position;
+                if (wantBore.sqrMagnitude > 1f && hands.sqrMagnitude > 1e-4f)
+                {
+                    wantBore.Normalize();
+                    // Where the barrel will be once the rifle is laid along his hands (Lay).
+                    Vector3 bore = LaidAlong(hands) * Muzzle.localPosition.normalized;
+                    float across = Mathf.DeltaAngle(Mathf.Atan2(bore.x, bore.z) * Mathf.Rad2Deg, Mathf.Atan2(wantBore.x, wantBore.z) * Mathf.Rad2Deg);
+                    float lift = (Mathf.Asin(Mathf.Clamp(wantBore.y, -1f, 1f)) - Mathf.Asin(Mathf.Clamp(bore.y, -1f, 1f))) * Mathf.Rad2Deg;
+                    across = Mathf.Clamp(across, -AimAcross[k], AimAcross[k]) * aimed;
+                    lift = Mathf.Clamp(lift, -AimLift[k], AimLift[k]) * aimed;
+                    var level = new Vector3(bore.x, 0, bore.z);
+                    var axis = level.sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, level.normalized) : transform.right;
+                    Chest.rotation = Quaternion.AngleAxis(across, Vector3.up) * Quaternion.AngleAxis(-lift, axis) * Chest.rotation;
+                }
+                else aimed = 0f;
+            }
             if (_look > 0.01f && Head != null)
             {
-                // The neck takes two fifths of the turn and the head the rest, each about its own axis to the point.
                 var want = _lookAt - Head.position;
                 if (want.sqrMagnitude > 0.04f)
                 {
                     want.Normalize();
-                    if (Neck != null) Turn(Neck, want, MaxLook * 0.4f, 0.4f * _look);
-                    Turn(Head, want, MaxLook * 0.6f, _look);
+                    // Lying flat, his head comes up off the ground: his neck takes a third of it and his head the rest.
+                    // On his feet or a knee, the neck two fifths of the turn and the head the rest, each about its own axis to the point.
+                    if (k == 2)
+                    {
+                        if (Neck != null) Turn(Neck, want, ProneNeck, _look);
+                        Turn(Head, want, ProneHead, _look);
+                    }
+                    else
+                    {
+                        if (Neck != null) Turn(Neck, want, MaxLook * 0.4f, 0.4f * _look);
+                        Turn(Head, want, MaxLook * 0.6f, _look);
+                    }
                 }
             }
             if (_lunge > 0f && _lean && Chest != null)
@@ -957,6 +1050,28 @@ namespace LanesOfVietnam.View
             var held = (r.position, r.rotation);
             Lay(wl - wr, wr);
             if (w < 0.99f) r.SetPositionAndRotation(Vector3.Lerp(held.position, r.position, w), Quaternion.Slerp(held.rotation, r.rotation, w));
+            // What his chest could not bring it: the rifle turned in his hands, about his firing hand, a few degrees.
+            if (aimed > 0.01f)
+            {
+                Quaternion.FromToRotation(Bore, wantBore).ToAngleAxis(out float off, out var about);
+                if (off > 0.2f && !float.IsNaN(about.x))
+                {
+                    var grip = r.TransformPoint(RifleGripR);
+                    r.rotation = Quaternion.AngleAxis(Mathf.Min(off, AimInHands) * aimed, about) * r.rotation;
+                    r.position += grip - r.TransformPoint(RifleGripR);
+                }
+            }
+            // And the kick of each round: back along its own line into his shoulder, the muzzle up a little.
+            if (_recoil > 0.01f || _climb > 0.01f)
+            {
+                Vector3 line = Bore, side = Vector3.Cross(Vector3.up, line);
+                if (side.sqrMagnitude > 1e-4f)
+                {
+                    var grip = r.TransformPoint(RifleGripR);
+                    r.rotation = Quaternion.AngleAxis(-(1.4f * _recoil + 1.6f * _climb), side.normalized) * r.rotation;
+                    r.position += grip - r.TransformPoint(RifleGripR) - line * (0.03f * _recoil);
+                }
+            }
         }
 
         /// <summary>Turn a bone so that his face comes toward a direction: a share of the angle, and no further than a limit.</summary>
@@ -972,13 +1087,19 @@ namespace LanesOfVietnam.View
         private void Lay(Vector3 along, Vector3 grip)
         {
             var r = Rifle.transform;
+            r.rotation = LaidAlong(along);
+            r.position += grip - r.TransformPoint(RifleGripR);
+        }
+
+        /// <summary>The way the rifle is turned when it lies upright along a direction, its two grips on that line.</summary>
+        private Quaternion LaidAlong(Vector3 along)
+        {
             along.Normalize();
             Vector3 up = Vector3.ProjectOnPlane(Vector3.up, along);
             if (up.sqrMagnitude < 1e-4f) up = Vector3.ProjectOnPlane(transform.forward, along);
             Vector3 aL = (RifleGripL - RifleGripR).normalized;
             Vector3 uL = Vector3.ProjectOnPlane(RifleUp, aL);
-            r.rotation = Quaternion.LookRotation(along, up) * Quaternion.Inverse(Quaternion.LookRotation(aL, uL));
-            r.position += grip - r.TransformPoint(RifleGripR);
+            return Quaternion.LookRotation(along, up) * Quaternion.Inverse(Quaternion.LookRotation(aL, uL));
         }
 
         /// <summary>The rifle out of his hand, flat on the ground beside where it fell.</summary>

@@ -13,7 +13,8 @@ namespace LanesOfVietnam.View
     {
         void Load(string name, string url);
         bool Loaded(string name);
-        bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate);
+        /// <summary>A sound at a place; <paramref name="delay"/> seconds from now, for the rounds of a burst (kept by the engine's own clock, not the frame's).</summary>
+        bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f);
         void Listener(float x, float z);
         void Volume(float master, float effects, float ambience);
         void Ambience(string name, float level);
@@ -28,7 +29,7 @@ namespace LanesOfVietnam.View
         [DllImport("__Internal")] private static extern int LovAudio_Init(int seed);
         [DllImport("__Internal")] private static extern void LovAudio_Load(string name, string url);
         [DllImport("__Internal")] private static extern int LovAudio_Loaded(string name);
-        [DllImport("__Internal")] private static extern int LovAudio_Play(string name, float x, float z, float gain, float rate, float occluded, int immediate);
+        [DllImport("__Internal")] private static extern int LovAudio_Play(string name, float x, float z, float gain, float rate, float occluded, int immediate, float delay);
         [DllImport("__Internal")] private static extern void LovAudio_Listener(float x, float z);
         [DllImport("__Internal")] private static extern void LovAudio_Volume(float master, float effects, float ambience);
         [DllImport("__Internal")] private static extern void LovAudio_Ambience(string name, float level);
@@ -36,8 +37,8 @@ namespace LanesOfVietnam.View
         public WebSoundOut() => LovAudio_Init(20260929);
         public void Load(string name, string url) => LovAudio_Load(name, url);
         public bool Loaded(string name) => LovAudio_Loaded(name) != 0;
-        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate)
-            => LovAudio_Play(name, x, z, gain, rate, occluded, immediate ? 1 : 0) != 0;
+        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f)
+            => LovAudio_Play(name, x, z, gain, rate, occluded, immediate ? 1 : 0, delay) != 0;
         public void Listener(float x, float z) => LovAudio_Listener(x, z);
         public void Volume(float master, float effects, float ambience) => LovAudio_Volume(master, effects, ambience);
         public void Ambience(string name, float level) => LovAudio_Ambience(name, level);
@@ -45,7 +46,7 @@ namespace LanesOfVietnam.View
 #else
         public void Load(string name, string url) { }
         public bool Loaded(string name) => false;
-        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate) => false;
+        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f) => false;
         public void Listener(float x, float z) { }
         public void Volume(float master, float effects, float ambience) { }
         public void Ambience(string name, float level) { }
@@ -56,14 +57,15 @@ namespace LanesOfVietnam.View
     /// <summary>Outside a browser: keeps what it was asked to play, for the tests and the log.</summary>
     public sealed class RecordingSoundOut : ISoundOut
     {
-        public readonly List<(string name, float x, float z, float gain, bool immediate)> Played = new List<(string, float, float, float, bool)>();
+        /// <summary>What was asked for, in order; <c>delay</c> is the seconds after the asking that it was to sound (the rounds of a burst).</summary>
+        public readonly List<(string name, float x, float z, float gain, bool immediate, float delay)> Played = new List<(string, float, float, float, bool, float)>();
         public float ListenerX, ListenerZ, AmbienceLevel, MusicLevel;
         public string MusicUrl;
         public void Load(string name, string url) { }
         public bool Loaded(string name) => true;
-        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate)
+        public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f)
         {
-            Played.Add((name, x, z, gain, immediate));
+            Played.Add((name, x, z, gain, immediate, delay));
             return true;
         }
         public void Listener(float x, float z) { ListenerX = x; ListenerZ = z; }
@@ -165,9 +167,43 @@ namespace LanesOfVietnam.View
             }
         }
 
-        /// <summary>Shots played and dropped since the match began, for the log and the tests.</summary>
+        /// <summary>
+        /// One round of his weapon, where it fires bursts and there is a recording of one round of it: the
+        /// Browning .30 cal for the belt-fed guns, the PPSh for the submachine guns (an M3's .45 is that
+        /// played lower). A burst is this, once a round, at the weapon's own rate (CombatView.RoundGap).
+        /// It was one recording of a three-round burst whatever the burst: ten rounds were seen and three heard.
+        /// </summary>
+        private string Single(Man m, out float pitch, out float gain)
+        {
+            pitch = 1f; gain = 0f;
+            switch (m.Weapon)
+            {
+                case Weapon.M60: gain = MgGain; return Own("mg1", m.Id);
+                case Weapon.Rpd: gain = MgGain; pitch = 1.06f; return Own("mg1", m.Id);
+                case Weapon.Smg: gain = SmgGain; pitch = m.Side == Side.Us ? 0.8f : 1f; return Own("smg1", m.Id);
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// How loud one round of a machine gun and of a submachine gun is played, against a rifle's 0.9. By
+        /// measurement, not by ear (tools/audio/slice_shots.py prints it): the first 120 ms of an M16's report
+        /// is 20 dB below full scale and a single round's is cut to 16, so these put a machine gun's round 2 dB
+        /// over the rifle's and a submachine gun's pistol round 2 dB under it.
+        /// </summary>
+        public const float MgGain = 0.71f, SmgGain = 0.45f;
+
+        /// <summary>A man's own recording out of a set: the same one every time, so a gun sounds like itself from burst to burst.</summary>
+        private string Own(string set, int id)
+            => _sets.TryGetValue(set, out var l) && l.Count > 0 ? l[(id % l.Count + l.Count) % l.Count] : null;
+
+        /// <summary>Beyond this a burst is one recording of a burst, as before: its rounds cannot be told apart at that distance, and they are voices the near guns need.</summary>
+        public const float RoundsHeardWithin = 220f;
+
+        /// <summary>Shots played and dropped since the match began, for the log and the tests; and the reports those shots were (a burst is one shot and several reports).</summary>
         public int Played { get; private set; }
         public int Rationed { get; private set; }
+        public int Reports { get; private set; }
 
         [Serializable] private class FileEntry { public string file; }
         [Serializable] private class Set { public string name; public FileEntry[] files; }
@@ -236,7 +272,7 @@ namespace LanesOfVietnam.View
         private float Range(float a, float b) => a + (float)_rng.NextDouble() * (b - a);
 
         private UI.Hud _hud;
-        private readonly List<(Man m, float d)> _shots = new List<(Man, float)>();
+        private readonly List<(Man m, float d, int rounds)> _shots = new List<(Man, float, int)>();
         /// <summary>The pieces of music, by address (audio.json's "music" set). A match plays one of them, by its seed.</summary>
         private readonly List<string> _music = new List<string>();
         /// <summary>How loud the music is against everything else, with its slider all the way up: under the fighting, not over it.</summary>
@@ -286,7 +322,7 @@ namespace LanesOfVietnam.View
                             if (report != null && Out.Play(report, (float)m.X, (float)m.Z, 1.2f, Range(0.9f, 0.96f), 0f, false)) Played++;
                             _later.Add((Time.unscaledTime + Range(0.3f, 0.38f), report, (float)m.X + Range(-25, 25), (float)m.Z - 45f, SniperEcho));
                         }
-                        else shots.Add((m, Dist(m.X, m.Z, lx, lz)));
+                        else shots.Add((m, Dist(m.X, m.Z, lx, lz), CombatView.Rounds(e, m)));
                         // A miss near the listener: the round into the earth by its target.
                         if (e.Target is int tg && tg < st.Men.Count && Time.unscaledTime - _lastDirtAt > 0.12f
                             && !(i + 1 < ev.Count && ev[i + 1].Kind == EventKind.Kill && ev[i + 1].Id == tg)
@@ -394,12 +430,32 @@ namespace LanesOfVietnam.View
             for (int i = 0; i < shots.Count; i++)
             {
                 if (i >= ShotsPerTick) { Rationed++; continue; }
-                var (m, d) = shots[i];
+                var (m, d, rounds) = shots[i];
+                // A burst: a report for each of its rounds, at the rate the weapon fires. The first is asked
+                // for now and the rest for later, timed by the sound engine's clock: asked for a frame at a
+                // time they would come a sixtieth of a second early or late, and a gun's rhythm is its sound.
+                float pitch = 1f, loud = 0f;
+                string one = rounds > 1 && d < RoundsHeardWithin ? Single(m, out pitch, out loud) : null;
+                if (one != null)
+                {
+                    float gap = CombatView.RoundGap(m.Weapon, m.Side, rounds);
+                    pitch *= Range(0.97f, 1.03f);
+                    bool heard = false;
+                    for (int k = 0; k < rounds; k++)
+                    {
+                        // (Each round a hair apart in pitch and level: the same impulse at a fixed rate is a tone.)
+                        if (!Out.Play(one, (float)m.X, (float)m.Z, loud * Range(0.92f, 1f), pitch * Range(0.985f, 1.015f), d > 140 ? 0.5f : 0f, false, k * gap)) continue;
+                        Reports++;
+                        heard = true;
+                    }
+                    if (heard) Played++;
+                    continue;
+                }
                 string clip = Shot(m);
                 if (clip == null) continue;
                 // Pitch varies per shot: identical impulses at 20 Hz comb against
                 // each other and read as a machine, not twenty men with rifles.
-                if (Out.Play(clip, (float)m.X, (float)m.Z, 0.9f, Range(0.94f, 1.06f), d > 140 ? 0.5f : 0f, false)) Played++;
+                if (Out.Play(clip, (float)m.X, (float)m.Z, 0.9f, Range(0.94f, 1.06f), d > 140 ? 0.5f : 0f, false)) { Played++; Reports++; }
             }
         }
 

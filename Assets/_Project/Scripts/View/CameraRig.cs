@@ -59,7 +59,9 @@ namespace LanesOfVietnam.View
 #endif
         private float _trauma;
         /// <summary>A blast nearby: shake the camera, 0..1. It adds up and dies away in half a second.</summary>
-        public void Shake(float amount) { if (CaptureSettings.Active == null) _trauma = Mathf.Clamp01(_trauma + amount); }
+        public void Shake(float amount) { if (CaptureSettings.Active == null && !NoShake) _trauma = Mathf.Clamp01(_trauma + amount); }
+        /// <summary>The camera is not shaken (the frame-time probe's <c>off=shake</c>: what a blast's shake costs is a run with it against a run without).</summary>
+        public bool NoShake;
 
         /// <summary>In a browser: the pointer is dragging the camera (so the release is not a click).</summary>
         public bool BrowserDragging { get; private set; }

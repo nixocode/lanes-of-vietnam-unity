@@ -523,6 +523,63 @@ The textures are **CC0**, fetched 2026-09-30 as 2K PNG:
 | file | source | URL | licence | sha256 | fetched |
 |---|---|---|---|---|---|
 
+### Effects — `Assets/_Project/Art/FX/`
+
+**The fighting's fire and smoke**, packed by `tools/art/fx_atlas.py` (PLAN
+§12.42) from **Unity Labs' "VFX image sequences and flipbooks"**: sheets of
+frames of simulated explosions, smoke and fire that Unity released **CC0**
+(its post of 28 November 2016: "Today, we release some of these sequences
+under CC0 license so you can use them in your projects.",
+`https://unity.com/blog/engine-platform/free-vfx-image-sequences-flipbooks`,
+read 2026-10-12). Fetched 2026-10-12 from
+`https://unity3d.com/files/labs/downloads/vfx/assets01/<name>/<name>-flipbooks.zip`
+into `SourceArt/unitylabs/` (git-ignored); each archive holds the sheet as
+`.tga` and `.exr`, and the `.tga` is what is used.
+
+Until now every flash was a star and every puff a blob of noise, both computed
+in the shader. The owner, 2026-10-12: "the actual shots being fired need some
+work".
+
+| sheet | frames | what it is here |
+|---|---|---|
+| `Explosion01-light-nofire_5x5` | 25 | a burst of smoke with no fire in it: dirt kicked up by a round, a grenade's dust, the earth a shell throws, a shell's smoke, a smoke screen |
+| `Explosion00_5x5` | 25 | a ball of fire going to black smoke: the fire in a shell's burst, over the scene, and its light added on top |
+| `WispySmoke01_8x8` | 64, looping | smoke that hangs: gun smoke, a rocket's trail, a grenade's smoke |
+| `CandleSmoke01_20x4` | 80, looping | a thin thread of smoke: in the atlas, not drawn yet |
+| `FireBall01_8x8` | every other of 64, looping | a ball of flame: the flash of a shell, a grenade and a launcher, a rocket's motor |
+
+Three things in the atlases are made by the script, not copied:
+
+- **Muzzle flashes.** Eight tongues of gas seen from the side and eight stars
+  seen down the barrel or through a flash hider's slots (three to six spikes;
+  the M16 of 1965 had three prongs). Their shape is drawn, soft, by how hot
+  the gas is, and their broken edges come from frames of `FireBall01`.
+- **Specks:** four clods of earth and four drops.
+- **A spent case**, side on and a little end on.
+
+And three things are done to the sheets: the smoke is stored as colour times
+alpha (a clear texel then has no colour of its own to leak into the filtering
+round a puff's edge); the grey sheets keep their light and shade but are
+stretched to one level, so one tint gives one colour on any of them; and each
+frame of a five-by-five sheet (204.8 px) is resampled to 200 px in a 204 px
+cell, so no frame's edge is its neighbour's.
+
+Fetched and looked at, not used: `Explosion02HD_5x5` (a hotter, larger ball of
+fire: for the air strike, Stage 4), `WispySmoke03_8x8`, `FireBall03_8x8`.
+
+| file | sha256 |
+|---|---|
+| `CandleSmoke01-flipbooks.zip` (source) | `c93ac8f83e24c91d23e748fc09ab80373596a555c79b5511d9c7646db3cb3aec` |
+| `Explosion00-flipbooks.zip` (source) | `5931820e3e8f5062446b059bf4b0489a8fc56df5de35170721fe9cd4139d6d42` |
+| `Explosion01-light-nofire-flipbooks.zip` (source) | `04007bd02ee96b86eb898a08b99ae0bc70b225e5737060b6d68552cd340ddee6` |
+| `Explosion02HD-flipbooks.zip` (source, unused) | `e50413b9b7adaf2b85ee81c25fcf8e6ee9365e9912f2fa6b35875e25d5ddf3e6` |
+| `FireBall01-flipbooks.zip` (source) | `f60de3f2ce56f941d6f089ea4ea93e3ae51c63fac84c1aa0d6615022f8647010` |
+| `FireBall03-flipbooks.zip` (source, unused) | `2128c99e763974c83a64d590389398b078aecd5a088287409644fa4a65f3f3c3` |
+| `WispySmoke01-flipbooks.zip` (source) | `f9bdc88948ff18a7d3e6332b68f2f2ff17e9a64c6feb821e05388f4f23dbcff0` |
+| `WispySmoke03-flipbooks.zip` (source, unused) | `489e3158a5c082fa87d5f768bb4bd3065b595c0a0768ba63706d46cce883c69b` |
+| `fx_smoke.png` (2048 x 2048) | `8923db0ae04ee8cb1d88b7a5c41bb71076d444b838239a755a39a32531384d14` |
+| `fx_glow.png` (2048 x 1024) | `ca6ccc2250d49843cd78cf819f6681c758ab6fba50def1e451bdd7d52454490b` |
+
 ## Approved sources
 
 Checked for licence terms, not just for a CC0 badge.
@@ -530,6 +587,7 @@ Checked for licence terms, not just for a CC0 badge.
 | source | what for | licence | notes |
 |---|---|---|---|
 | Poly Haven | HDRIs, ground and bark textures, props | CC0 | Resolution tiers size the *textures*, not the mesh — check the geometry |
+| Unity Labs VFX flipbooks | Fire, smoke and explosion sprite sheets | CC0 | Unity's own blog post states the licence; the 2016 download links still answer |
 | ambientCG | PBR materials: earth, sandbag, canvas, metal | CC0 | |
 | Mixamo (Adobe) | Humanoid animation and rigging | Adobe royalty-free: use in games, no redistribution of the raw files | Needs the owner's Adobe ID |
 | Adobe Photoshop 2026 | Authored textures, atlases, portraits | our own work | Installed, scriptable |
@@ -628,6 +686,8 @@ quiet (`slice_shots.py` `events`).
 | `mg_0`, `mg_1` | `M1919A4_..._5m_behind_ORTF_...Triple_shots_x_1.wav`, `..._200m_left_behind_...` (2016, Pole Position: M1919A4 Browning .30 cal) | `35e04fb9…`, `01ecc109…` | one US man in five fires bursts |
 | `mg_2` … `mg_5` | `warfare_t2_mg_firing_close_projectile_tail_large_field_...wav` (2017, Pole Position: The Warfare Library), 4 bursts | `b7cb77aa…` | the same |
 | `smg_0`, `smg_1` | `PPSh41, Firing, t1, Burst, Long, MKH416.wav` (2020, Pole Position: PPSh-41), 2 bursts | `238ad768…` | one VC man in five |
+| `mg1_0` … `mg1_5` | the last round of the burst in the M1919A4 take at 5 m, and of the five longest bursts in the `warfare_t2_mg_firing_close...` take: one round each, with the tail it leaves (`slice_shots.py` `last_rounds`), each cut to the same loudness (−16 dB RMS over its first 120 ms) | `35e04fb9…`, `b7cb77aa…` | every round of a machine gun's burst, at the gun's own rate (PLAN §12.42) |
+| `smg1_0`, `smg1_1` | the last round of each of the two bursts in the PPSh-41 take, the same way | `238ad768…` | every round of a submachine gun's burst |
 | `crack_1` … `crack_10` | `warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav` (2017, Warfare Library), 10 events | `806acf0c…` | rounds passing a pinned man |
 | `crack_11` … `crack_16` | `PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav` (2020, PMSFX: Bullet Bys & Impacts), 6 events | `9c697f86…` | the same |
 | `thump_1` | `PM_BBI_Bullet_Impact_Hit_Body_Flesh_25.wav` (2020, PMSFX) | `0a7c2e4b…` | a man hit |

@@ -70,10 +70,33 @@ namespace LanesOfVietnam.Tests
             // Turning where he stands (his body's yaw, his aim's turn in it): seconds of it, degrees of it, and how
             // far the foot he has on the ground slides meanwhile; and drifting, travelling slower than a gait starts.
             float turning = 0, turned = 0, turnSlide = 0, drifting = 0, drift = 0, stepped = 0;
+            // Where his barrel points when he fires, against the way to the man he fires at: degrees off, by posture.
+            var offAim = new List<float>(); var offTurn = new List<float>(); var offLift = new List<float>();
+            var offBy = new[] { new List<float>(), new List<float>(), new List<float>() };
+            int fires = st.Events.Count;
+            // Where a man lying flat at rest has his face: degrees above the level (below it, he is looking at the ground).
+            var faceUp = new List<float>();
             const float dt = 1f / 60f;
             for (int frame = 0; frame < 60 * 75 && !st.Over; frame++)
             {
                 yield return null;
+                for (; fires < st.Events.Count; fires++)
+                {
+                    var e = st.Events[fires];
+                    if (e.Kind != EventKind.Fire || e.Target == null || e.Id >= st.Men.Count || e.Target.Value >= st.Men.Count) continue;
+                    var by = army.FigureOf(e.Id);
+                    var at = st.Men[e.Target.Value];
+                    if (by == null || !st.Men[e.Id].Alive) continue;
+                    var (tx, tz) = army.Where(Root.Driver, at.Id);
+                    float chest = at.Posture == Posture.Prone ? 0.3f : at.Posture == Posture.Crouched ? 0.95f : 1.35f;
+                    Vector3 way = Coords.World(tx, tz, (float)Root.Ground.HeightAt(tx, tz) + chest + (float)at.High) - by.MuzzlePosition;
+                    if (way.sqrMagnitude < 1f) continue;
+                    Vector3 bore = by.Bore;
+                    offAim.Add(Vector3.Angle(bore, way));
+                    offBy[Mathf.Clamp((int)st.Men[e.Id].Posture, 0, 2)].Add(Vector3.Angle(bore, way));
+                    offTurn.Add(Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(bore.x, bore.z) * Mathf.Rad2Deg, Mathf.Atan2(way.x, way.z) * Mathf.Rad2Deg)));
+                    offLift.Add(Mathf.Abs(Mathf.Asin(Mathf.Clamp(bore.y, -1f, 1f)) - Mathf.Asin(Mathf.Clamp(way.normalized.y, -1f, 1f))) * Mathf.Rad2Deg);
+                }
                 for (int i = 0; i < st.Men.Count; i++)
                 {
                     var m = st.Men[i];
@@ -123,6 +146,9 @@ namespace LanesOfVietnam.Tests
                                 continue;
                             }
                             float spin = Mathf.Abs(Mathf.DeltaAngle(p.Body, now.Body)) / dt;
+                            // (One sample in ten: a man lies still for a long time.)
+                            if (now.Posture == (int)Posture.Prone && state == "Prone" && speed < 0.1f && (frame + i) % 10 == 0)
+                                faceUp.Add(Mathf.Asin(Mathf.Clamp(f.Facing.y, -1f, 1f)) * Mathf.Rad2Deg);
                             // (Turning with his legs still is the slide; stepping round, his legs go with it.)
                             if (speed < 0.1f && spin > 30f)
                             {
@@ -177,13 +203,16 @@ namespace LanesOfVietnam.Tests
                 $"  turned on his heels (over 30 deg/s, legs still) {turning:F1} man-seconds, {turned:F0} degrees, the planted foot sliding {100 * turnSlide:F0} cm",
                 $"  stepping round where he stands                {stepped:F1} man-seconds",
                 $"  drifting (0.05 to 0.4 m/s, legs still)        {drifting:F1} man-seconds, {drift * 100:F0} cm",
+                $"  barrel off the round's way when he fires      {Middle(offAim):F1} degrees at the middle, {Middle(offAim, 0.9f):F1} at nine in ten, of {offAim.Count} shots (across {Middle(offTurn):F1}, up and down {Middle(offLift):F1})",
+                $"    standing {Middle(offBy[(int)Posture.Standing]):F1} ({offBy[(int)Posture.Standing].Count}), on a knee {Middle(offBy[(int)Posture.Crouched]):F1} ({offBy[(int)Posture.Crouched].Count}), flat {Middle(offBy[(int)Posture.Prone]):F1} ({offBy[(int)Posture.Prone].Count})",
+                $"  a man lying flat at rest has his face          {Middle(faceUp):F0} degrees above the level at the middle, {Middle(faceUp, 0.1f):F0} at the lowest tenth, of {faceUp.Count} looks",
                 "  posture  gait     state                 man-seconds   moving m/s   planted foot cm/s   Speed",
             };
             foreach (var kv in seconds.OrderByDescending(k => k.Value))
                 lines.Add($"  {kv.Key,-40} {kv.Value,9:F0} {moved[kv.Key] / kv.Value,12:F2} {100 * skate[kv.Key] / kv.Value,14:F0} {param[kv.Key] / kv.Value,12:F2}");
             Directory.CreateDirectory("Logs");
             File.WriteAllLines("Logs/motion.txt", lines);
-            foreach (var l in lines.Take(9)) Debug.Log("[LOV] " + l);
+            foreach (var l in lines.Take(12)) Debug.Log("[LOV] " + l);
 
             Assert.Greater(manSeconds, 600, "hardly anyone was watched");
             Assert.Less(gliding / Mathf.Max(1, travelling), 0.02f, "men are travelling on a knee or flat (see Logs/motion.txt)");
@@ -191,6 +220,14 @@ namespace LanesOfVietnam.Tests
             Assert.Less(onTheSpot / Mathf.Max(1, atRest), 0.03f, "men at rest are walking on the spot (see Logs/motion.txt)");
             // (It was 4.9% before the drawn men followed the simulation's instead of being put where it had them.)
             Assert.Less(carried / Mathf.Max(1, travelled), 0.02f, "men are being carried over ground their legs do not cover (see Logs/motion.txt)");
+        }
+
+        /// <summary>The value a share of the way up a list (the middle, by default); nothing in it, nothing.</summary>
+        private static float Middle(List<float> of, float share = 0.5f)
+        {
+            if (of.Count == 0) return 0f;
+            var sorted = of.OrderBy(x => x).ToList();
+            return sorted[Mathf.Clamp(Mathf.FloorToInt(share * sorted.Count), 0, sorted.Count - 1)];
         }
     }
 }

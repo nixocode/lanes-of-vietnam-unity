@@ -28,7 +28,7 @@ mergeInto(LibraryManager.library, {
     if (typeof window === 'undefined' || !(window.AudioContext || window.webkitAudioContext)) return 0;
     var A = window.LovAudio = {
       ctx: new (window.AudioContext || window.webkitAudioContext)(),
-      buffers: {}, voices: 0, maxVoices: 32,
+      buffers: {}, voices: 0, maxVoices: 48,
       listenerX: 0, listenerZ: 44, ambience: null, ambienceGain: null,
       SPEED: 343, REF: 40, NEAR: 60, ABSORB: 120, MAX: 900
     };
@@ -111,7 +111,9 @@ mergeInto(LibraryManager.library, {
 
   // Play a loaded sound at a world position. Returns 1 if it sounded, 0 if it
   // was dropped: not loaded, out of range, or over the voice cap.
-  LovAudio_Play: function (namePtr, x, z, gain, rate, occluded, immediate) {
+  // delay: seconds from now, besides the time the sound takes to arrive: the rounds of a burst are asked
+  // for together and kept apart by this clock, which does not wait on a frame.
+  LovAudio_Play: function (namePtr, x, z, gain, rate, occluded, immediate, delay) {
     var A = window.LovAudio; if (!A || A.ctx.state !== 'running') return 0;
     var buf = A.buffers[UTF8ToString(namePtr)]; if (!buf) return 0;
     var dx = x - A.listenerX, dz = z - A.listenerZ;
@@ -122,7 +124,7 @@ mergeInto(LibraryManager.library, {
     var cutoff = Math.max(180, Math.min(20000, 20000 * Math.exp(-d / scale)));
     var g1 = Math.min(1, A.REF / Math.max(A.REF, d));
     var wetAmt = Math.min(0.85, 0.06 + d / 420);
-    var at = ctx.currentTime + (immediate ? 0 : Math.max(0, d - A.NEAR) / A.SPEED);
+    var at = ctx.currentTime + Math.max(0, delay || 0) + (immediate ? 0 : Math.max(0, d - A.NEAR) / A.SPEED);
 
     var src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
     var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 0.4;
