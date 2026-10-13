@@ -1,0 +1,59 @@
+{
+ "weapons": {
+  "m16": {
+   "length": 0.986,
+   "triangles": 5000,
+   "source_triangles": 24618
+  },
+  "ak": {
+   "length": 0.88,
+   "triangles": 5000,
+   "source_triangles": 9152
+  },
+  "sks": {
+   "length": 1.02,
+   "triangles": 5000,
+   "source_triangles": 26458
+  },
+  "m60": {
+   "length": 1.105,
+   "triangles": 7000,
+   "source_triangles": 113594
+  },
+  "rpd": {
+   "length": 1.037,
+   "triangles": 6500,
+   "source_triangles": 35656
+  },
+  "ppsh": {
+   "length": 0.843,
+   "triangles": 5000,
+   "source_triangles": 13503
+  },
+  "m3": {
+   "length": 0.757,
+   "triangles": 4999,
+   "source_triangles": 19183
+  },
+  "m40": {
+   "length": 1.117,
+   "triangles": 4999,
+   "source_triangles": 14860
+  },
+  "mosin": {
+   "length": 1.232,
+   "triangles": 4999,
+   "source_triangles": 17718
+  },
+  "m79": {
+   "length": 0.731,
+   "triangles": 5000,
+   "source_triangles": 8451
+  },
+  "rpg": {
+   "length": 0.95,
+   "triangles": 5000,
+   "source_triangles": 10294
+  }
+ }
+}

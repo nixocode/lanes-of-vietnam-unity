@@ -117,7 +117,10 @@ namespace LanesOfVietnam.View.UI
             "ANIMATION Adobe Mixamo; mocap.cs.cmu.edu (created with funding from NSF EIA-0196217) · " +
             "SOUND Sonniss #GameAudioGDC, The Free Firearm Sound Library (CC0), US armed forces footage (public domain)\n" +
             "GROUND, PLANTS, SKY Poly Haven and ambientCG (CC0) · TERRAIN SRTM (NASA/USGS) via AWS Terrain Tiles · " +
-            "BODIES MakeHuman (CC0) · TYPE Black Ops One, Bebas Neue, Courier Prime, Stardos Stencil (SIL Open Font License 1.1)";
+            "BODIES MakeHuman (CC0) · TYPE Black Ops One, Bebas Neue, Courier Prime, Stardos Stencil (SIL Open Font License 1.1)\n" +
+            // The weapons: each its author's, under CC BY 4.0, changed here (turned, scaled, thinned, re-baked): ASSETS.md.
+            "WEAPONS (Sketchfab, CC BY 4.0, adapted) M16A1 SeveN-Models · AK-47 billyjackman3d · SKS haoliu95 · M60 studiolab.dev · " +
+            "RPD Polly_Hermiston · PPSh-41 Artem.Goyko · M3 XxRxX · Hunting Rifle Tnkii · Mosin PU Kazches · M79 denis1.eremin · RPG-7 javadbayat";
 
         private void BuildStart(VisualElement root)
         {

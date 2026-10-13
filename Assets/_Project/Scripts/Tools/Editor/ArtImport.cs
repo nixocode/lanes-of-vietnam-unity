@@ -117,6 +117,22 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
+            else if (p.StartsWith("Assets/_Project/Art/Weapons/guns_") && p.EndsWith(".png"))
+            {
+                // The sourced weapons' atlas (tools/blender/weapons_import.py): colour, a cell a weapon.
+                ti.textureShape = TextureImporterShape.Texture2D;
+                ti.textureType = TextureImporterType.Default;
+                ti.sRGBTexture = true;
+                ti.alphaSource = TextureImporterAlphaSource.None;
+                ti.maxTextureSize = 2048;
+                ti.mipmapEnabled = true;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Trilinear;
+                ti.anisoLevel = 2;
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.crunchedCompression = true;
+                ti.compressionQuality = CrunchQuality;
+            }
             else if (p.StartsWith("Assets/_Project/Art/Weapons/") && p.EndsWith(".png"))
             {
                 // The weapons' palette (tools/blender/weapons.py): a texel a material, read exactly.

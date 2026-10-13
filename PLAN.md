@@ -4183,6 +4183,79 @@ New files: `tools/blender/firebase_mesh.py`, `Scripts/View/StructureSet.cs`,
 `timber_*.png`.
 
 
+### 12.44 The guns, sourced (2026-10-13)
+
+The owner, shown the sheet of the weapons built here from prisms and rods:
+"No those guns don't look detailed enough. We want almost replicas, source
+them online." The third stage: branch `guns`, from `firebase`. View only:
+no pin moves. Eleven downloads, with his sign-in, all in the list he approved.
+
+#### What was fetched, and what was done to it
+
+Eleven models from Sketchfab, each CC BY 4.0, each the first choice of the
+plan: the M16A1, AK-47, SKS, M60, RPD, PPSh-41, M3, a scoped bolt-action
+hunting rifle standing for the M40, the Mosin with its PU scope, the M79 and
+the RPG-7 (`ASSETS.md` has each author, page and hash; the authors are named
+in the game's settings, as the licence asks). They came every way up and at
+any size, from 8,000 triangles to 115,000, each with its own textures.
+
+`tools/blender/weapons_import.py` keeps the weapon alone (a file's second
+rifle, loose cartridges, the round leaving a muzzle and the RPG's rocket are
+left out), turns it to the frame the built weapons were in (bore along x
+from the butt, top up), scales it to its real length, thins it to 5,000
+triangles (7,000 the M60, 6,500 the RPD) and bakes its colour, with the
+shade of its own hollows, onto one 2048 atlas. Which end is the muzzle and
+which side is up are guessed from its shape and put right by hand where the
+guess was wrong (four of eleven). The five markers a man holds it by are
+where they were, so the men's hands are where they were. The mortar's tube
+is still the one built here.
+
+`SoldierBuilder` puts each in place of the built one of the same name, with
+its own material; nothing else changed.
+
+#### Tests, the build, frame time
+
+EditMode 105 of 105. PlayMode 26 of 26 and the capture skipped; one run of
+it failed one test that has nothing to do with this (`UIAuditTests`, "order
+Hold did not reach squad 0") and passed when run again: it plays a match of
+a seed it does not fix. The aim line is what it was (1.8 degrees at the
+middle). The WebGL build is **36.03 MB to start, 43.31 in all: the budget is
+45**, and this stage took 3.3 of it. Frame time at 2592 x 1370
+(`?perf=1&seed=3`), eight readings: mean 4.2 to 4.6 ms, 95th percentile 5 to
+8 (the machine reads as it did before the 12th again; §12.42 and §12.43's
+5.5 was the day).
+
+#### Against it, and not done
+
+- **Looked at**: all eleven side by side in Blender, and Americans standing
+  with the M16 at the closest zoom. **Not looked at in the game**: the other
+  ten in a man's hands, any of them lying flat or fired, the left hand on
+  each fore-end. The grips are where the built weapons had them, not where
+  each model's own are.
+- **The RPG is unloaded**: its rocket came lying beside it and is left out.
+- **The SKS has a small pin-up decal** on its stock, as its author made it:
+  a few pixels at the closest zoom. To paint out if he does not want it.
+- **No ejection-port marker**: a case still leaves from a place worked out
+  from the muzzle.
+- **The launcher's burst by its round** (the plan's last item of this
+  stage): not done.
+- **The build has 1.7 MB left** of its 45. The next stage's aircraft and
+  sounds will not fit without something giving: the guns' atlas at 1024, or
+  the vehicles'.
+
+#### What is the owner's
+
+- **To look at**: `http://127.0.0.1:8065/`, zoomed in on a man of each kind.
+- **Noted for later, at his word** ("maybe also use this opportunity to re
+  look at some of the soldiers scaling as sometimes they miss facial
+  features and look weird"): the soldiers' faces. In the plan, after this
+  stage; a screenshot of one that looks wrong would say where to start.
+- `main` is still where it was: `git fetch . guns:main` brings it to here.
+
+New files: `tools/blender/weapons_import.py`, `Art/Weapons/guns.fbx`,
+`guns_albedo.png`, `guns.json`, `Guns.mat`.
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

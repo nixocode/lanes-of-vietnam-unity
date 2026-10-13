@@ -855,6 +855,34 @@ namespace LanesOfVietnam.Tools
                     InHandRot = Quaternion.identity,
                 });
             }
+            // The sourced weapons (tools/blender/weapons_import.py) take the place of those built here, name for
+            // name, with their own material; what has no sourced model (the mortar's tube) stays as it was.
+            var guns = AssetDatabase.LoadAssetAtPath<GameObject>($"{WeaponDir}/guns.fbx");
+            if (guns != null)
+            {
+                AssetDatabase.ImportAsset($"{WeaponDir}/guns_albedo.png", ImportAssetOptions.ForceUpdate);
+                string gp = $"{WeaponDir}/Guns.mat";
+                var gm = AssetDatabase.LoadAssetAtPath<Material>(gp);
+                if (gm == null) { gm = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Guns" }; AssetDatabase.CreateAsset(gm, gp); }
+                gm.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{WeaponDir}/guns_albedo.png"));
+                gm.SetColor("_BaseColor", Color.white);
+                gm.SetFloat("_Metallic", 0.35f);
+                gm.SetFloat("_Smoothness", 0.42f);
+                EditorUtility.SetDirty(gm);
+                foreach (var mf in guns.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    var w = mf.transform;
+                    Vector3 At(string key) => Vector3.Scale(w.Find($"{w.name}.{key}").localPosition, w.localScale);
+                    list.RemoveAll(x => x.Name == w.name);
+                    list.Add(new SoldierFigure.Carried
+                    {
+                        Name = w.name, Mesh = mf.sharedMesh, Material = gm,
+                        GripR = At("hold_r"), GripL = At("hold_l"), Muzzle = At("muzzle"), Up = (At("up") - At("butt")).normalized,
+                        InHandRot = Quaternion.identity,
+                    });
+                }
+                Debug.Log($"[LOV] sourced weapons: {string.Join(", ", guns.GetComponentsInChildren<MeshFilter>(true).Select(x => x.name))}");
+            }
             if (list.Count == 0)
                 Debug.LogWarning("[LOV] weapons.fbx holds no meshes: " + string.Join(", ", model.GetComponentsInChildren<Transform>(true).Select(x => x.name).Take(12)));
             return list.OrderBy(x => x.Name).ToArray();

@@ -58,6 +58,8 @@ namespace LanesOfVietnam.View
         {
             public string Name;
             public Mesh Mesh;
+            /// <summary>What it wears, if not the material the weapons built here share: the sourced weapons' atlas.</summary>
+            public Material Material;
             public Vector3 GripR, GripL, Up, Muzzle, InHandPos;
             public Quaternion InHandRot;
         }
@@ -77,7 +79,8 @@ namespace LanesOfVietnam.View
                 if (Arms[i].Name != weapon || Rifle == null) continue;
                 var a = Arms[i];
                 Rifle.GetComponent<MeshFilter>().sharedMesh = a.Mesh;
-                if (ArmsMaterial != null) Rifle.sharedMaterial = ArmsMaterial;
+                if (a.Material != null) Rifle.sharedMaterial = a.Material;
+                else if (ArmsMaterial != null) Rifle.sharedMaterial = ArmsMaterial;
                 RifleGripR = a.GripR; RifleGripL = a.GripL; RifleUp = a.Up;
                 RifleInHandPos = a.InHandPos; RifleInHandRot = a.InHandRot;
                 if (Muzzle != null) Muzzle.localPosition = a.Muzzle;

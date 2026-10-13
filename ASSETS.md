@@ -447,6 +447,38 @@ the grip from. `captures/weapons.png` shows them side on.
 | `weapons.fbx` | `6c7e91484cda7be2d107509b5164d341b638ab0934354e6d3ba1de34477e0f91` |
 | `weapons_palette.png` | `8211ab0b7173fcc264b8f80a57b535d9eab0eeaecb60365d44508ad6102732c3` |
 
+**The weapons, sourced** (PLAN §12.44), 2026-10-13. The owner, of the weapons built here: "those guns
+don't look detailed enough. We want almost replicas, source them online". Eleven models from Sketchfab, each
+**CC BY 4.0** (checked on each model's page through Sketchfab's API the day it was fetched: licence `by`,
+downloadable), fetched with the owner's sign-in as the 1024 or 2048 GLB into `SourceArt/sketchfab/` (git-ignored).
+`tools/blender/weapons_import.py` keeps the weapon alone, turns it to this game's frame, scales it to its real
+length, thins it, and bakes its colour onto one atlas. The authors are credited in the game's settings, as the
+licence asks; the derived meshes and atlas are in the repository, which CC BY allows with that credit.
+
+| weapon | model and author | page | triangles | length m | sha256 of the download |
+|---|---|---|---|---|---|
+| `m16` | "M16A1" by SeveN-Models | `https://sketchfab.com/3d-models/a27a642fea8c465a910ee5b6df0efd85` | 24618 → 5000 | 0.986 | `bae5de95f4b3fb3c5488fdad88e4eb83011ff2249a0cce089af493d1807fb01f` |
+| `ak` | "AK-47 - Game Ready Assault Rifle Weapon" by billyjackman3d | `https://sketchfab.com/3d-models/dc58144409534abbb60970638d171f9f` | 9152 → 5000 | 0.88 | `f682bf46b0b00a69658c2c1fba1d4a17e61c180778b4da79e7ef9c241a27990f` |
+| `sks` | "Type 56 Carbine / SKS" by haoliu95 | `https://sketchfab.com/3d-models/d5fc1eb5bbd549b7818a63f4decaa86f` | 26458 → 5000 | 1.02 | `9cdd9fa48777e82e435177718c5517fc35aa569d6652b6c9edc9f6ecabc50953` |
+| `m60` | "M60 Machine Gun" by studiolab.dev | `https://sketchfab.com/3d-models/b0bcc1b6363744d096b1b51c619d79d5` | 113594 → 7000 | 1.105 | `ee9ce944c1e85526902cb7f5af275af6fb9430f2f3e74060ce4880fd5d9a77fc` |
+| `rpd` | "RPD Hand Machinegun" by Polly_Hermiston | `https://sketchfab.com/3d-models/6e6b6f55c3544bb6a817b51b82a42a76` | 35656 → 6500 | 1.037 | `0001342d7e7395cf2f19b1e53abc7a18699d3cb5339bbd6868652a74c0a1f0a1` |
+| `ppsh` | "PPSh-41" by Artem.Goyko | `https://sketchfab.com/3d-models/089bdfb09ada407da3e75cfcbe2180fe` | 13503 → 5000 | 0.843 | `31e19f3cdd5b56740d87f81d7c47e4e4ed0b99885d68ca0df443d70f396dd966` |
+| `m3` | "M3 ("Grease gun")" by XxRxX | `https://sketchfab.com/3d-models/3d30b825985647ef80662b84a498449c` | 19183 → 4999 | 0.757 | `57bca349af1dec14eca945f1a4fb67bdc3fd832a1f6996ebf64cfa38c1e8344c` |
+| `m40` | "Hunting Rifle" by Tnkii | `https://sketchfab.com/3d-models/5df7cc598b134b1cb19d41669df05c4b` | 14860 → 4999 | 1.117 | `98a0077d9c7cdb6ce0a2d225de732cf6408f11a77d156092951f40936b9b15dd` |
+| `mosin` | "Mosin Nagant M91 30 PU sniper" by Kazches | `https://sketchfab.com/3d-models/47e79809ba174f1c8d15954b38102309` | 17718 → 4999 | 1.232 | `f1c6b0a03ab2a7af5f73489940de712de1109db9045ba5cb66403926eafe3ec4` |
+| `m79` | "M79 Grenade Launcher" by denis1.eremin | `https://sketchfab.com/3d-models/f1309916894a45e3ae6eb24f17f728d4` | 8451 → 5000 | 0.731 | `ba1e02d806002aba0f71c539cf2ef57a0bf1f50d7a7f05be6c844d38842f1180` |
+| `rpg` | "RPG 7 ( Free Model )" by javadbayat | `https://sketchfab.com/3d-models/99c0af8a1803490a86edc48cd3bfc700` | 10294 → 5000 | 0.95 | `0f007c55ba2764767cb53daf134ca2a0528c94b1958e08bcec2512759aab9b2e` |
+
+What was changed, as the licence asks to be said: each was reoriented, scaled, reduced in triangles and re-baked
+to a shared atlas; the M16's second rifle, the SKS's loose cartridges, the M60's bullet and the RPG's rocket were
+left out. The "Hunting Rifle" stands for the Marines' M40 (a Remington 700 with a scope; no free M40 was found).
+The SKS carries a small decal on its stock as its author made it. The mortar's tube is still the one built here.
+
+| file | sha256 |
+|---|---|
+| `guns.fbx` | `7f015db2b894cf8dd0b7772a37d6098f241bef82b6f08ed02fb3586ba077a00b` |
+| `guns_albedo.png` | `6ef9baa32f612f2bfddb5452712355d3047b008cca20cc97afe1b01a6266fb22` |
+
 ### Structures — `Assets/_Project/Art/Structures/`
 
 **Sandbag walls, built as geometry** by `tools/blender/sandbag_mesh.py`

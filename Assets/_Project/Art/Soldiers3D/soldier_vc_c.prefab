@@ -98,7 +98,8 @@ MonoBehaviour:
   RifleInHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   Arms:
   - Name: ak
-    Mesh: {fileID: -4809502389200715378, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -4809502389200715378, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.25, y: -0.104, z: 0}
     GripL: {x: -0.535, y: -0.0869, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -106,7 +107,8 @@ MonoBehaviour:
     InHandPos: {x: -0.22485049, y: -0.1424907, z: 0.04954381}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: m16
-    Mesh: {fileID: -3658404682748835264, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -3658404682748835264, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.268, y: -0.1, z: 0}
     GripL: {x: -0.585, y: -0.08098, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -114,7 +116,8 @@ MonoBehaviour:
     InHandPos: {x: -0.23231444, y: -0.15935162, z: 0.04960872}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: m3
-    Mesh: {fileID: 2754585627051190158, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: 2754585627051190158, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.286, y: -0.086, z: 0}
     GripL: {x: -0.45, y: -0.07616, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -122,7 +125,8 @@ MonoBehaviour:
     InHandPos: {x: -0.23218326, y: -0.18195866, z: 0.046625167}
     InHandRot: {x: -0.4448713, y: 0.88144845, z: 0.12154034, w: -0.10181822}
   - Name: m40
-    Mesh: {fileID: -7707210830492641638, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -7707210830492641638, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.276, y: -0.092, z: 0}
     GripL: {x: -0.6, y: -0.07256, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -130,7 +134,8 @@ MonoBehaviour:
     InHandPos: {x: -0.23090595, y: -0.1704207, z: 0.04774066}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: m60
-    Mesh: {fileID: 4319440526440242126, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: 4319440526440242126, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.222, y: -0.104, z: 0}
     GripL: {x: -0.64, y: -0.07892, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -138,7 +143,8 @@ MonoBehaviour:
     InHandPos: {x: -0.20851395, y: -0.11983845, z: 0.047545806}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: m79
-    Mesh: {fileID: 8779036877458597403, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: 8779036877458597403, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.268, y: -0.09, z: 0}
     GripL: {x: -0.5, y: -0.07608, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -147,6 +153,7 @@ MonoBehaviour:
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: mortar
     Mesh: {fileID: -4927902933930157329, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Material: {fileID: 0}
     GripR: {x: -0.26, y: -0.06, z: 0}
     GripL: {x: -0.56, y: -0.042, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -154,7 +161,8 @@ MonoBehaviour:
     InHandPos: {x: -0.19726644, y: -0.17586477, z: 0.03684371}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: mosin
-    Mesh: {fileID: 3166402890799535854, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: 3166402890799535854, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.244, y: -0.086, z: 0}
     GripL: {x: -0.62, y: -0.06344, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -162,7 +170,8 @@ MonoBehaviour:
     InHandPos: {x: -0.2076787, y: -0.14798006, z: 0.043628242}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: ppsh
-    Mesh: {fileID: -3311819593020789841, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -3311819593020789841, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.24, y: -0.088, z: 0}
     GripL: {x: -0.5, y: -0.0724, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -170,7 +179,8 @@ MonoBehaviour:
     InHandPos: {x: -0.20686385, y: -0.14359482, z: 0.043952513}
     InHandRot: {x: -0.44487134, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: rpd
-    Mesh: {fileID: 528491375982451074, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: 528491375982451074, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.236, y: -0.1, z: 0}
     GripL: {x: -0.64, y: -0.07576, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -178,15 +188,17 @@ MonoBehaviour:
     InHandPos: {x: -0.21364427, y: -0.13346308, z: 0.047325414}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: rpg
-    Mesh: {fileID: -9101383393770162903, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -9101383393770162903, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.462, y: -0.072, z: 0}
     GripL: {x: -0.63, y: -0.06192, z: 0}
     Up: {x: 0, y: 1, z: 0}
-    Muzzle: {x: -1.34, y: 0, z: 0}
+    Muzzle: {x: -0.95, y: 0, z: 0}
     InHandPos: {x: -0.32423654, y: -0.3323895, z: 0.05491581}
     InHandRot: {x: -0.4448713, y: 0.8814484, z: 0.12154034, w: -0.10181822}
   - Name: sks
-    Mesh: {fileID: -2862743625792731552, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+    Mesh: {fileID: -2862743625792731552, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
+    Material: {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
     GripR: {x: -0.24, y: -0.086, z: 0}
     GripL: {x: -0.56, y: -0.0668, z: 0}
     Up: {x: 0, y: 1, z: 0}
@@ -1805,7 +1817,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7871498380224971112}
-  m_Mesh: {fileID: -4809502389200715378, guid: 24387a6b4768b47eaaf47c4f6ffe821a, type: 3}
+  m_Mesh: {fileID: -4809502389200715378, guid: d4feb0f5390814adb9234fcd2e63c4eb, type: 3}
 --- !u!23 &6485157964632521880
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1831,7 +1843,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 813ea907b48314d3582c7cfb1e13c887, type: 2}
+  - {fileID: 2100000, guid: c1131a95866ec4778b47dd38e9543964, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
