@@ -73,6 +73,7 @@ namespace LanesOfVietnam.Sim
                 h = MixI(h, a.Id); h = MixI(h, (int)a.Kind); h = MixI(h, (int)a.Side);
                 h = MixD(h, a.X); h = MixD(h, a.Z); h = MixD(h, a.Radius); h = MixI(h, a.Ticks);
                 h = MixI(h, a.Next); h = MixD(h, a.Power);
+                if (st.Inbound) { h = MixI(h, a.Wait); h = MixI(h, a.Call); }
             }
             // Part 2 state, hashed only when its rule is on, so the baseline's
             // hashes are the ones the TypeScript original produced.

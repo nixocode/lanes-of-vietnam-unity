@@ -2654,18 +2654,99 @@ namespace LanesOfVietnam.Tests
             Assert.Less(now.lurches, was.lurches * 0.2, $"a man's speed lurches as often: {was.lurches:F2} a minute, {now.lurches:F2}");
         }
 
+        // --- Part 2: a call-in on its way, behind MatchOptions.Inbound (PLAN §12.45) -----------------------
+
+        private static MatchOptions Called(int seed, bool onMap = true)
+        {
+            var o = Borne(seed, onMap);
+            o.Inbound = true;
+            return o;
+        }
+
+        /// <summary>Recorded by `tools/simcs/run.sh hash N [frag smoke] drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound [map]`.</summary>
+        [TestCase(1, true, 5581, 2865253007u, 2221089145u, 591451121u, "vc morale broke")]
+        [TestCase(7, false, 5440, 587953012u, 1132564249u, 4590224u, "us morale broke")]
+        public void With_call_ins_inbound_a_match_is_pinned_and_still_a_pure_function_of_its_seed(
+            int seed, bool asTheGame, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Inbound, "inbound must be off unless asked for");
+            var (a, m) = Played(Called(seed, asTheGame));
+            var (b, _) = Played(Called(seed, asTheGame));
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        /// <summary>
+        /// A call takes its time: the guns 3.5 s with a ranging round a second before, the jet 5 s, smoke 2.5 s,
+        /// the medevac 8 s. Until it is in, nothing of it is on the ground: no shell, no smoke to hide behind, no
+        /// steadier line. Without the rule each lands in the tick it is called, as it always did.
+        /// </summary>
+        [Test]
+        public void A_call_in_arrives_when_it_arrives_and_not_before()
+        {
+            foreach (bool inbound in new[] { false, true })
+            {
+                var lm = new LiveMatch(new MatchOptions { Seed = 2, Us = Plan.NoReinforce, Vc = Plan.NoReinforce, Inbound = inbound });
+                var st = lm.State;
+                st.Cp[(int)Side.Us] = 1000;
+                int Shells() => st.Events.Count(e => e.Kind == EventKind.Shell);
+                lm.Issue(Command.Buy(Side.Us, "us-arty", 0, 10));
+                lm.Step();
+                var guns = st.Areas.Single(a => a.Kind == AreaKind.Barrage);
+                if (!inbound)
+                {
+                    Assert.AreEqual(0, guns.Wait);
+                    Assert.IsFalse(st.Events.Any(e => e.Kind == EventKind.CallIn), "a call was announced with the rule off");
+                    for (int t = 0; t < 4; t++) lm.Step();
+                    Assert.Greater(Shells(), 0, "with the rule off the guns' rounds land at once");
+                    continue;
+                }
+                var call = st.Events.Single(e => e.Kind == EventKind.CallIn);
+                Assert.AreEqual(Inbound.Guns, call.Rounds);
+                Assert.AreEqual(Tune.GunsWait, (int)call.Amount.Value, "the call does not say how long");
+                int at = st.Tick;
+                while (Shells() == 0 && st.Tick < at + 400) lm.Step();
+                Assert.GreaterOrEqual(st.Tick - at, Tune.GunsWait - 1, "the guns' rounds landed before the guns could have fired them");
+                Assert.LessOrEqual(st.Tick - at, Tune.GunsWait + 3);
+                var ranging = st.Events.Single(e => e.Kind == EventKind.CallIn && e.Rounds == Inbound.Ranging);
+                Assert.AreEqual(Tune.RangingAhead, (int)ranging.Amount.Value, "the ranging round is not a second ahead of the rest");
+
+                // Smoke that has not landed hides nobody; a medevac steadies the line when it is in.
+                lm.Issue(Command.Buy(Side.Us, "us-smoke", 1, 0));
+                lm.Step();
+                var smoke = st.Areas.Single(a => a.Kind == AreaKind.Smoke);
+                Assert.AreEqual(Tune.SmokeWait - 1, smoke.Wait, 1);
+                int life = smoke.Ticks;
+                for (int t = 0; t < Tune.SmokeWait - 5; t++) lm.Step();
+                Assert.Greater(smoke.Wait, 0);
+                Assert.AreEqual(life, smoke.Ticks, "smoke that has not landed is burning down");
+                foreach (var m in st.Men.Where(m => m.Alive && m.Side == Side.Us)) m.Pin = 0.9;
+                double was = st.Morale[(int)Side.Us] = 0.5;
+                lm.Issue(Command.Buy(Side.Us, "us-medevac", 0, 0));
+                lm.Step();
+                Assert.AreEqual(was, st.Morale[(int)Side.Us], 0.02, "the medevac steadied the line as it was called");
+                for (int t = 0; t < Tune.DustoffWait + 2; t++) { lm.Step(); st.Cp[(int)Side.Us] = 1000; }
+                Assert.Greater(st.Morale[(int)Side.Us], was + 0.05, "the medevac never came");
+                Assert.IsFalse(st.Areas.Any(a => a.Kind == AreaKind.Relief), "the medevac is still on its way");
+            }
+        }
+
         // --- scenarios (PLAN §12.27, Phase S) -----------------------------------------------
 
         /// <summary>
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 4297, 279902521u, 3861571219u, 3054897140u, "us morale broke")]
-        [TestCase("the-wire", 1, 5402, 420051215u, 1347067570u, 3894234249u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 4023048146u, 2547134903u, 3854724538u, "us held out")]
-        [TestCase("first-light", 7, 3909, 681595836u, 4249649818u, 3743531399u, "us took the line")]
-        [TestCase("first-light", 2, 8400, 482255548u, 3244867040u, 593968409u, "vc held the line")]
-        [TestCase("earth-fights", 1, 3427, 201570083u, 892602624u, 3886742372u, "us morale broke")]
+        [TestCase("firebase", 1, 2679, 279902521u, 3713840900u, 3088575209u, "us morale broke")]
+        [TestCase("the-wire", 1, 5117, 420051215u, 783940434u, 162237126u, "us morale broke")]
+        [TestCase("the-wire", 2, 6000, 4023048146u, 1474658007u, 269110854u, "us held out")]
+        [TestCase("first-light", 7, 5683, 681595836u, 1640755834u, 3403381156u, "us took the line")]
+        [TestCase("first-light", 4, 8400, 1133907796u, 1286571271u, 3575221195u, "vc held the line")]
+        [TestCase("earth-fights", 1, 8016, 201570083u, 3842152372u, 677380328u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -2703,7 +2784,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -2719,6 +2800,7 @@ namespace LanesOfVietnam.Tests
 
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
+            kept.Inbound = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
             var (was, _) = Played(kept);
             var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));
@@ -2838,7 +2920,7 @@ namespace LanesOfVietnam.Tests
         {
             var light = Scenarios.FirstLight;
             Assert.AreEqual(MatchMode.Assault, light.Mode);
-            var o = light.Options(5, null, Difficulty.Veteran);
+            var o = light.Options(3, null, Difficulty.Veteran);
             Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
             var m = new LiveMatch(o);
             var st = m.State;
@@ -2871,7 +2953,7 @@ namespace LanesOfVietnam.Tests
             foreach (var sq in st.Squads)
                 Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
 
-            // Seed 5: the line is taken. The match ends on the tick it is, and not before.
+            // Seed 3 (it was 5 until call-ins took their time to land, PLAN §12.45): the line is taken. The match ends on the tick it is, and not before.
             while (!st.Over && st.Tick < m.Cap)
             {
                 Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
@@ -2883,8 +2965,8 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 2: it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(2, null, Difficulty.Veteran));
+            // Seed 4 (it was 2, as above): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(4, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

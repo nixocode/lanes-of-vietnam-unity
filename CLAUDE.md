@@ -12,8 +12,8 @@ on the branch `scenarios`, which is what the demo serves; and the history rewrit
 2026-10-11 to take personal addresses out of it: a commit id written down before that day is
 not one the repository has; Bearing, how a man carries himself, on the branch `smooth`; and §12.42, the
 shot: fire and smoke from sheets, a kick and a report for every round, the barrel on the man fired at, on the
-branch `shots`, and §12.43, the firebase's trucks, jeep, tower and bunker built as meshes, on `firebase`, and §12.44, the weapons sourced from Sketchfab (CC BY, credited), on `guns`: the
-first three of six stages whose plan the owner approved on 2026-10-12).
+branch `shots`, and §12.43, the firebase's trucks, jeep, tower and bunker built as meshes, on `firebase`, and §12.44, the weapons sourced from Sketchfab (CC BY, credited), on `guns`, and §12.45, call-ins that take time to arrive (the rule `Inbound`; its aircraft are not built), on
+`callins`: the first four of six stages whose plan the owner approved on 2026-10-12).
 
 ## What runs where
 
@@ -82,6 +82,10 @@ and say so:
   scenario is played with Bearing and at the costs and rates of §12.41: the firebase 4297,
   `3054897140u`; The Wire 5402, `3894234249u`; First Light 1370, `2733762918u`; The Earth
   Fights 3427, `3886742372u`.
+- `hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound map`
+  (the game, on `callins`): 5581 ticks, final `591451121u`. And `scenario hash 1` there, where a scenario is played
+  with Inbound: the firebase 2679, `3088575209u`; The Wire 5117, `162237126u`; First Light 7169, `2291021090u`;
+  The Earth Fights 8016, `677380328u`.
 
 ## Rules this project keeps
 
@@ -90,7 +94,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

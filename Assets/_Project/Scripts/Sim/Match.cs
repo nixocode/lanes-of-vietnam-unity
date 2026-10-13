@@ -140,6 +140,8 @@ namespace LanesOfVietnam.Sim
         public bool Cohesion;
         /// <summary>Part 2: a man keeps the way he has gone down, gets up only for a move he can make now, and gathers pace and slows into his place (Bearing). False is the parity baseline.</summary>
         public bool Bearing;
+        /// <summary>Part 2: a call-in takes time to arrive: the guns have to be laid, the jet has to get there (Inbound).</summary>
+        public bool Inbound;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -310,6 +312,7 @@ namespace LanesOfVietnam.Sim
                 Vantage = opts.Vantage,
                 Cohesion = opts.Cohesion,
                 Bearing = opts.Bearing,
+                Inbound = opts.Inbound,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -1114,6 +1117,12 @@ namespace LanesOfVietnam.Sim
             for (int i = st.Areas.Count - 1; i >= 0; i--)
             {
                 var a = st.Areas[i];
+                // Inbound: on its way. Nothing of it is on the ground yet.
+                if (a.Wait > 0)
+                {
+                    Inbound.Wait(st, a, i);
+                    continue;
+                }
                 a.Ticks--;
 
                 if (a.Kind == AreaKind.Barrage)

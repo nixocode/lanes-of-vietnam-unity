@@ -248,6 +248,8 @@ namespace LanesOfVietnam.View
                     case EventKind.Fire: Shot(ev, i, (float)age); break;
                     case EventKind.Shell: Explosion(e, (float)age, 1f); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
+                    // Inbound: the guns' ranging round, a second before the rest: one small burst on the aim point.
+                    case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); break;
                     case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
                     case EventKind.GrenadeBlast: GrenadeBurst(e, (float)age); break;
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
@@ -290,7 +292,7 @@ namespace LanesOfVietnam.View
                 case EventKind.Kill: return BleedsFor + 0.2f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
                 case EventKind.GrenadeBlast: return 6f;
-                case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
+                case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: case EventKind.CallIn: return (float)MaxAge;
                 default: return -1f;
             }
         }
@@ -1148,7 +1150,7 @@ namespace LanesOfVietnam.View
         {
             foreach (var ar in st.Areas)
             {
-                if (ar.Kind != AreaKind.Smoke) continue;
+                if (ar.Kind != AreaKind.Smoke || ar.Wait > 0) continue;
                 float left = (float)(ar.Ticks * Tune.Dt);
                 float density = Mathf.Clamp01(left / 4f);
                 int n = 8 + (int)(ar.Radius * 0.75);

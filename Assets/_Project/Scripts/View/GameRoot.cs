@@ -220,6 +220,7 @@ namespace LanesOfVietnam.View
                 Options.Commander = cap.Commander ?? true;
                 Options.Cohesion = cap.Cohesion ?? true;
                 Options.Bearing = cap.Bearing ?? true;
+                Options.Inbound = cap.Inbound ?? true;
             }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

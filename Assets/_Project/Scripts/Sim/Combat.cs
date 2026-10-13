@@ -124,7 +124,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
-                if (a.Kind != AreaKind.Smoke) continue;
+                if (a.Kind != AreaKind.Smoke || a.Wait > 0) continue;
                 double t = len2 > 0 ? ((a.X - ax) * dx + (a.Z - az) * dz) / len2 : 0;
                 t = t < 0 ? 0 : t > 1 ? 1 : t;
                 double cx = ax + dx * t, cz = az + dz * t;

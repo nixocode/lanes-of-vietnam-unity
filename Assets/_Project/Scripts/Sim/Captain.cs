@@ -391,7 +391,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
-                if (a.Kind == AreaKind.Smoke && JsMath.Hypot(a.X - x, a.Z - z) < a.Radius + 6) return true;
+                if (a.Kind == AreaKind.Smoke && a.Wait == 0 && JsMath.Hypot(a.X - x, a.Z - z) < a.Radius + 6) return true;
             }
             return false;
         }

@@ -397,8 +397,26 @@ namespace LanesOfVietnam.View
                     case EventKind.AreaStart:
                         // The air strike (the tight barrage): a jet low over the target.
                         var strike = st.Areas.Find(a => a.Id == e.Id);
-                        if (strike != null && strike.Kind == AreaKind.Barrage && strike.Radius <= 14 && e.X != null)
+                        // (Inbound: it was heard coming, from the call.)
+                        if (strike != null && strike.Kind == AreaKind.Barrage && strike.Radius <= 14 && e.X != null && strike.Call == 0)
                             Play(Pick("jet"), e.X.Value, e.Z.Value, 1f, Range(0.97f, 1.03f), false);
+                        break;
+                    case EventKind.CallIn:
+                        if (e.X == null) break;
+                        float lands = (float)((e.Amount ?? 0) * Tune.Dt);
+                        // The guns are heard as they fire, far behind the line, seconds before their rounds are.
+                        if (e.Rounds == Inbound.Guns || e.Rounds == Inbound.SmokeShells)
+                        {
+                            float gx = e.Side == Side.Us ? Battery.x : -Battery.x;
+                            string gun = Pick("howitzer");
+                            if (gun != null) Out.Play(gun, gx + Range(-30, 30), Battery.y + Range(-30, 30), 0.9f, Range(0.95f, 1.05f), 0f, true, Mathf.Max(0f, lands - 2.6f));
+                        }
+                        // The jet: its recording is loudest three seconds in, and that is when it is over the target.
+                        else if (e.Rounds == Inbound.Jet)
+                        {
+                            string jet = Pick("jet");
+                            if (jet != null) Out.Play(jet, (float)e.X.Value, (float)e.Z.Value, 1f, Range(0.97f, 1.03f), 0f, true, Mathf.Max(0f, lands - 3f));
+                        }
                         break;
                     case EventKind.FirstContact:
                         if (!_radioed && _root.PlayerSide == Side.Us)

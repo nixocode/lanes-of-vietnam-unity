@@ -61,7 +61,9 @@ namespace LanesOfVietnam.Sim
     public enum SquadTask { March, Contact, Firefight, Close, Assault, Withdraw, Regroup }
 
     /// <summary>A called-in effect: a circle on the map with a clock on it.</summary>
-    public enum AreaKind { Barrage, Smoke, Trap }
+    public enum AreaKind { Barrage, Smoke, Trap,
+        /// <summary>MatchOptions.Inbound: a medevac on its way; when it is in, it steadies the line and is gone.</summary>
+        Relief }
 
     /// <summary>Why a man did not take a step in a tick (<see cref="Man.Idle"/>).</summary>
     public enum Idle : byte
@@ -394,6 +396,11 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>How hard it hits. Barrage and trap.</summary>
         public double Power;
+
+        /// <summary>MatchOptions.Inbound: ticks until it arrives. Until then it is a call on the radio: it hits nobody and hides nobody.</summary>
+        public int Wait;
+        /// <summary>MatchOptions.Inbound: what was called (<see cref="Inbound"/>'s numbers), for the view: guns, a jet, smoke shells, a helicopter.</summary>
+        public int Call;
     }
 
     public enum EventKind
@@ -434,6 +441,10 @@ namespace LanesOfVietnam.Sim
         Stray,
         // Posted (MatchOptions.Vantage): squad Id has its first man up on post Target, at X, Z.
         Posted,
+        // CallIn (MatchOptions.Inbound): side has called area Id in on X, Z; it arrives in Amount ticks; Rounds
+        // says what it is (Inbound.Guns, Jet, SmokeShells, Dustoff). And, with Rounds = Inbound.Ranging, the
+        // one round the guns drop first to see where they are landing: it hurts nobody.
+        CallIn,
     }
 
     public struct SimEvent
@@ -539,6 +550,8 @@ namespace LanesOfVietnam.Sim
         public bool Cohesion;
         /// <summary>Part 2 rule: a man keeps the way he has gone down, gets up only for a move he can make, and gathers pace (<see cref="Sim.Bearing"/>). Off is the baseline.</summary>
         public bool Bearing;
+        /// <summary>Part 2 rule: a call-in takes time to arrive (<see cref="Sim.Inbound"/>). Off is the baseline: it lands the tick it is called.</summary>
+        public bool Inbound;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

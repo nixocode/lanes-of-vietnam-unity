@@ -124,7 +124,7 @@ namespace LanesOfVietnam.Tools
                 ti.textureType = TextureImporterType.Default;
                 ti.sRGBTexture = true;
                 ti.alphaSource = TextureImporterAlphaSource.None;
-                ti.maxTextureSize = 2048;
+                ti.maxTextureSize = 1024;          // a rifle is 190 pixels long at the closest zoom; at 2048 the atlas was 3 MB of a 45 MB build
                 ti.mipmapEnabled = true;
                 ti.wrapMode = TextureWrapMode.Clamp;
                 ti.filterMode = FilterMode.Trilinear;

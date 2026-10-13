@@ -4256,6 +4256,90 @@ New files: `tools/blender/weapons_import.py`, `Art/Weapons/guns.fbx`,
 `guns_albedo.png`, `guns.json`, `Guns.mat`.
 
 
+### 12.45 Call-ins that take time to arrive: the rule (2026-10-13)
+
+The fourth stage of the plan of 2026-10-12, "call-ins you watch arrive":
+branch `callins`, from `guns`. **This is the rule and its sound, not yet the
+things to watch**: no jet, no helicopter, no whistle. What is done and what
+is not are set apart below.
+
+#### The rule: `MatchOptions.Inbound` (`Sim/Inbound.cs`, new), on in the game
+
+A card's call landed in the tick it was played: the player pressed and the
+ground went up. With the rule:
+
+- **the guns** take 3.5 s to lay and fire. A second before the rest, one
+  ranging round lands on the aim point; it hurts nobody, and the men under it
+  have that second;
+- **the air strike** takes 5 s; **smoke** 2.5 s; **the medevac** 8 s, and it
+  steadies the line when it is in, not when it is called;
+- until it is in, it is a call and not an area: it hits nobody, smoke that
+  has not landed hides nobody, and its own clock has not started;
+- the call is announced (`EventKind.CallIn`, at the end of the enum; with the
+  ranging round as one of its own), and its arrival as before (`AreaStart`);
+- the computer's commander plays its cards through the same door and waits
+  as long. Traps are laid and a squad's own smoke is thrown: neither waits.
+
+No random draws. Its state is hashed only with the rule on.
+
+Sound, from what is on disk: the battery is heard firing as the call goes
+out, timed so its report is 2.6 s ahead of its rounds; the jet's recording
+starts so that its loudest moment is over the target as the bombs land. The
+ranging round is drawn (a small burst).
+
+#### Pins, tests, balance
+
+`determinism` ok; `audit`: every event fires. With the rule off every pin in
+`CLAUDE.md` is what it was (`hash 1` 2256114725u; `hash 1 ... bearing map`
+7104 ticks, 465850309u). With it on:
+
+- `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics
+  fortune firecontrol ballistics vantage commander cohesion bearing inbound
+  map`: 5581 ticks, final `591451121u`; `hash 7` of the same without `frag
+  smoke` and `map`: 5440 ticks, `4590224u`.
+- `simcs scenario hash 1` (the scenarios play with it): the firebase 2679
+  ticks, `3088575209u`; The Wire 5117, `162237126u`; First Light 7169,
+  `2291021090u`; The Earth Fights 8016, `677380328u`.
+
+EditMode 108 of 108 (it was 105): the two pins above, and a test that a call
+arrives when it arrives and not before, each of the four, and that with the
+rule off each lands at once. Six scenario pins recorded again; two tests that
+leaned on a seed's ending were given seeds that still end that way (First
+Light 3 for the line taken, 4 for the line held). PlayMode 26 of 26.
+
+Balance, `simcs scenario 192`, wins of 192 against a Veteran (the band is 112
+to 160): the firebase as US 125 (it was 110 to 127 in §12.41's blocks) and
+as VC 124; The Wire 141; First Light 137; The Earth Fights 125. **No dial was
+turned**: the delay costs the player who calls and the computer alike.
+
+The WebGL build is 31.93 MB to start, 39.20 in all. The guns' atlas is read
+at 1024 now (a rifle is 190 pixels long at the closest zoom), which gave back
+4 MB: there is room for the aircraft. Frame time: mean 4.1 to 4.4 ms.
+
+#### Not done of this stage
+
+- **The jet and the Huey**: neither is sourced nor drawn. An air strike is
+  still bursts with a jet's sound; a medevac is still nothing to see.
+- **The whistle of an incoming shell, and a rotor**: neither is on disk; two
+  downloads the owner has approved, not yet made.
+- **The radio man kneeling to call**, and any mark on the ground where a call
+  will land: not done. A player has the sound of the guns and the ranging
+  round to tell him his call is coming, and nothing else.
+- **The strike's bombs in one pass**: it is still four seconds of bursts.
+- **Not looked at in the game**: none of it. The rule is tested and measured;
+  no capture was taken of a call arriving.
+
+#### What is the owner's
+
+- **To play**: `http://127.0.0.1:8065/`. Whether 3.5 s for the guns and 5 for
+  the strike are right (`Tune.GunsWait` and the three beside it): long enough
+  to matter, short enough to use.
+- Noted in the plan for later, at his word: reloads that are seen; the
+  soldiers' faces.
+
+New files: `Sim/Inbound.cs` (its `.meta` made on this Mac).
+
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

@@ -551,6 +551,12 @@ namespace LanesOfVietnam.Sim
         public const double StallMetres = 1.0;
         public const int StallTicks = 70;
 
+        // --- a call-in on its way (MatchOptions.Inbound) -------------------------------------
+        /// <summary>Ticks from the call to the first rounds: the guns 3.5 s, the jet 5 s, smoke 2.5 s, the medevac 8 s.</summary>
+        public const int GunsWait = TickHz * 7 / 2, JetWait = TickHz * 5, SmokeWait = TickHz * 5 / 2, DustoffWait = TickHz * 8;
+        /// <summary>Ticks before the guns' rounds that their one ranging round lands.</summary>
+        public const int RangingAhead = TickHz;
+
         // --- how a man carries himself (MatchOptions.Bearing) --------------------------------
 
         /// <summary>Ticks a man who has gone flat stays flat before he comes back onto a knee, where he does at all (3 s).</summary>

@@ -144,19 +144,21 @@ namespace LanesOfVietnam.Sim
                 // very lethal per round; the air strike is short, tight and
                 // murderous.
                 case "us-arty":
-                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 17, Ticks = S * 9, Next = 1, Power = 0.30 });
+                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 17, Ticks = S * 9, Next = 1, Power = 0.30, Call = Inbound.Guns });
                     return true;
                 case "us-airstrike":
-                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = S * 4, Next = 1, Power = 0.62 });
+                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = S * 4, Next = 1, Power = 0.62, Call = Inbound.Jet });
                     return true;
                 case "us-smoke":
-                    Push(st, side, new Area { Kind = AreaKind.Smoke, X = aimX, Z = z, Radius = 14, Ticks = S * 22, Next = 0, Power = 0 });
+                    Push(st, side, new Area { Kind = AreaKind.Smoke, X = aimX, Z = z, Radius = 14, Ticks = S * 22, Next = 0, Power = 0, Call = Inbound.SmokeShells });
                     return true;
                 // Not an area: the only card that buys back something already
                 // lost. It steadies the line rather than healing anyone — there
                 // are no hit points, and a mechanic with nothing under it is
                 // worse than no mechanic.
                 case "us-medevac":
+                    // Inbound: the helicopter has to get there first.
+                    if (st.Inbound) { Push(st, side, new Area { Kind = AreaKind.Relief, X = aimX, Z = z, Radius = 0, Ticks = 1, Call = Inbound.Dustoff }); return true; }
                     st.Morale[(int)side] = Math.Min(1, st.Morale[(int)side] + 0.09);
                     foreach (var m in st.Men)
                     {
@@ -188,6 +190,15 @@ namespace LanesOfVietnam.Sim
         {
             a.Id = st.AreaId++;
             a.Side = side;
+            // Inbound: a card's call is on its way, not here. (A squad's own smoke grenade has no Call: it is thrown.)
+            if (st.Inbound && a.Call != 0)
+            {
+                a.Wait = Inbound.Ticks(a.Call);
+                st.Areas.Add(a);
+                st.Events.Add(new SimEvent { Kind = EventKind.CallIn, Tick = st.Tick, Side = side, Id = a.Id, X = a.X, Z = a.Z, Amount = a.Wait, Rounds = a.Call });
+                return;
+            }
+            a.Call = 0;
             st.Areas.Add(a);
             st.Events.Add(new SimEvent
             {
