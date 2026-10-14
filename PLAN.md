@@ -4562,6 +4562,17 @@ areas there are.
 Measured: PlayMode `Shots` 4 of 4; `CallIns` 3 of 3 (new: the SMOKE card as
 the HUD plays it). WebGL 37.07 MB to start, 44.79 in all.
 
+**A screen that arrives.** It was there whole on the tick it landed. Now a
+fire mission's four shells burst white across the target and the bank builds
+out of their smoke over three seconds; a squad's canister lies where it was
+thrown and pours its cloud out low, spreading to its screen over four
+(`CombatView.SmokeArriving`). Both captured and looked at
+(`captures/air/smoke_card.png`, `squad_smoke.png`). A squad throws its own
+smoke in 38 of 48 matches of the firebase against a Veteran, 88 grenades in
+all, the first about two minutes in (`simcs squadsmoke 48`, new). A capture
+key `squadthrow=N` runs the match on until a squad throws, and looks.
+PlayMode `Shots` and `CallIns` 7 of 7.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

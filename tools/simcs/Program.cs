@@ -66,6 +66,7 @@ namespace LanesOfVietnam.SimCs
                     "blasts" => Blasts(args),
                     "post" => PostTable(args),
                     "scenario" => ScenarioTable(args),
+                    "squadsmoke" => SquadSmokeCount(args),
                     "gunplay" => Gunplay(args),
                     "command" => Command_(args),
                     "watch" => Watch(args),
@@ -541,6 +542,37 @@ namespace LanesOfVietnam.SimCs
         /// whenever he can afford one and does nothing else. How often he wins, how long it took, and how the
         /// matches ended. `scenario [id] [seeds]`, and the numbers to try in place of the scenario's own.
         /// </summary>
+        /// <summary>
+        /// `squadsmoke N`: how often a squad throws its own smoke grenade, in the firebase as the game plays it against
+        /// a Veteran with nobody playing, over N seeds; and where in the match the first one comes.
+        /// </summary>
+        private static int SquadSmokeCount(string[] a)
+        {
+            int seeds = a.Length > 1 && int.TryParse(a[1], out int n) ? n : 48;
+            int thrown = 0, matches = 0, withOne = 0;
+            var first = new List<double>();
+            for (int seed = 1; seed <= seeds; seed++)
+            {
+                var m = new LiveMatch(Scenarios.Firebase.Options(seed, null, Difficulty.Veteran));
+                var seen = new HashSet<int>();
+                int here = 0;
+                while (!m.State.Over && m.State.Tick < m.Cap)
+                {
+                    m.Step();
+                    foreach (var ar in m.State.Areas)
+                        if (ar.Kind == AreaKind.Smoke && ar.Radius == Tune.SquadSmokeRadius && seen.Add(ar.Id))
+                        {
+                            here++;
+                            if (here == 1) first.Add(m.State.Tick * Tune.Dt);
+                        }
+                }
+                matches++; thrown += here; if (here > 0) withOne++;
+            }
+            Console.WriteLine($"  squad smoke: {thrown} grenades in {matches} matches; {withOne} matches with at least one" +
+                              (first.Count > 0 ? $"; the first at {first.Average():F0} s on average" : ""));
+            return 0;
+        }
+
         private static int ScenarioTable(string[] a)
         {
             var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();

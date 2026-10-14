@@ -1380,6 +1380,44 @@ namespace LanesOfVietnam.View
 
         // --- smoke screens -------------------------------------------------------------------
 
+        /// <summary>Ticks a fire mission's screen lasts (Deck: the SMOKE card), to know how long one has been down.</summary>
+        private const int SmokeCardTicks = Tune.TickHz * 22;
+
+        /// <summary>
+        /// A screen coming down: a fire mission's four shells bursting white on the ground across it, or a squad's
+        /// canister lying where it was thrown, pouring smoke out low along the ground for as long as it burns.
+        /// </summary>
+        private void SmokeArriving(Area ar, float since, bool shells)
+        {
+            if (shells)
+            {
+                for (int k = 0; k < 4; k++)
+                {
+                    float a = since - 0.18f * k;
+                    if (a < 0 || a > 1.6f) continue;
+                    int seed = ar.Id * 31 + k;
+                    double ang = H(seed, 90) * 6.2832f, r = ar.Radius * (0.25f + 0.55f * H(seed, 91));
+                    double x = ar.X + Math.Cos(ang) * r, z = ar.Z + Math.Sin(ang) * r;
+                    var p = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z));
+                    if (a < 0.1f) AddGlow(p + Vector3.up * 0.6f, 2.5f + 12f * a, Flash * (7f * (1 - a / 0.1f)), 2, H(seed, 92));
+                    float t = a / 1.6f;
+                    Dust(p + Vector3.up * (0.8f + 2.5f * t), 2.2f + 6f * t, new Color(0.86f, 0.86f, 0.84f, 0.85f * (1 - t * t)), H(seed, 93), 0.1f + 0.8f * t);
+                }
+                return;
+            }
+            // The canister, and its smoke coming out of it while it burns (half the screen's life).
+            var at = Coords.World(ar.X, ar.Z, (float)_root.Ground.HeightAt(ar.X, ar.Z) + 0.06f);
+            Show(Ordnance.Kind.Lemon, at, Quaternion.AngleAxis(90f, Vector3.forward) * Quaternion.AngleAxis(ar.Id * 47f % 360f, Vector3.up));
+            float burns = Tune.SquadSmokeTicks * (float)Tune.Dt * 0.5f;
+            if (since > burns) return;
+            for (int k = 0; k < 4; k++)
+            {
+                float phase = Mathf.Repeat(since * 1.6f + k * 0.25f, 1f);
+                Dust(at + new Vector3(0.3f + 1.6f * phase, 0.25f + 0.9f * phase, (H(ar.Id, 94 + k) - 0.5f) * 0.6f), 0.5f + 1.6f * phase,
+                     new Color(0.80f, 0.80f, 0.78f, 0.7f * (1 - phase) * (1 - since / burns * 0.5f)), H(ar.Id, 98 + k), 0.15f + 0.7f * phase);
+            }
+        }
+
         private void SmokeScreens(SimState st, double now)
         {
             foreach (var ar in st.Areas)
@@ -1387,6 +1425,13 @@ namespace LanesOfVietnam.View
                 if (ar.Kind != AreaKind.Smoke || ar.Wait > 0) continue;
                 float left = (float)(ar.Ticks * Tune.Dt);
                 float density = Mathf.Clamp01(left / 4f);
+                // How long it has been down, and how far it has built: a fire mission's shells burst and the bank
+                // builds out of their smoke over three seconds; a squad's canister pours its cloud out over four.
+                // (It was there whole on the tick it landed.)
+                bool shells = ar.Radius > Tune.SquadSmokeRadius + 1;
+                float since = (float)(((shells ? SmokeCardTicks : Tune.SquadSmokeTicks) - ar.Ticks) * Tune.Dt);
+                float built = Mathf.SmoothStep(0f, 1f, since / (shells ? 3f : 4f));
+                SmokeArriving(ar, since, shells);
                 int n = 8 + (int)(ar.Radius * 0.75);
                 for (int k = 0; k < n; k++)
                 {
@@ -1397,9 +1442,13 @@ namespace LanesOfVietnam.View
                     double z = ar.Z + Math.Sin(ang) * r;
                     // Puffs sized to the screen: a fire mission's 14 m bank or a squad's 3.5 m canister. Each a
                     // thick cloud from the middle of the burst's sheet, turning over slowly as it hangs.
-                    float size = (float)ar.Radius * (0.5f + 0.3f * H(seed, 3));
+                    // Each puff from its own start: near where a shell burst, or the canister, and out to its place.
+                    float own = Mathf.Clamp01(built * 1.4f - 0.4f * H(seed, 6));
+                    if (own <= 0) continue;
+                    if (!shells) { x = ar.X + (x - ar.X) * own; z = ar.Z + (z - ar.Z) * own; }
+                    float size = (float)ar.Radius * (0.5f + 0.3f * H(seed, 3)) * (0.3f + 0.7f * own);
                     float y = (float)_root.Ground.HeightAt(x, z) + size * (0.2f + 0.3f * H(seed, 2));
-                    Dust(Coords.World(x, z, y), size, new Color(0.60f, 0.60f, 0.58f, 0.62f * density), H(seed, 4),
+                    Dust(Coords.World(x, z, y), size, new Color(0.60f, 0.60f, 0.58f, 0.62f * density * (0.35f + 0.65f * own)), H(seed, 4),
                          0.5f + 0.14f * Mathf.Sin(t * 0.21f + 6.2832f * H(seed, 5)));
                 }
             }

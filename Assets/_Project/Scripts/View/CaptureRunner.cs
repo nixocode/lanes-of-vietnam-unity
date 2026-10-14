@@ -136,6 +136,26 @@ namespace LanesOfVietnam.View
             var cmd = FindAnyObjectByType<Commander>();
             if (cmd != null && cap.Select == -2) cmd.Cycle();
             else if (cmd != null && cap.Select >= 0) cmd.SelectSquad(cap.Select);
+            if (cap.SquadThrow >= 0)
+            {
+                // On until a squad's own smoke is down, then the glasses on it.
+                var sim = root.Driver.State;
+                Area thrown = null;
+                for (int i = 0; i < 8000 && !sim.Over && thrown == null; i++)
+                {
+                    root.Driver.FastForward(1);
+                    thrown = sim.Areas.Find(a => a.Kind == AreaKind.Smoke && a.Radius == Tune.SquadSmokeRadius && a.Ticks == Tune.SquadSmokeTicks - 1);
+                }
+                if (thrown != null)
+                {
+                    root.Driver.FastForward(cap.SquadThrow);
+                    root.CameraRig.Focus((float)thrown.X, instant: true);
+                    yield return null;
+                    var vp = cam.WorldToViewportPoint(Coords.World(thrown.X, thrown.Z, (float)root.Ground.HeightAt(thrown.X, thrown.Z) + 1f));
+                    cap.Glasses = new[] { vp.x, vp.y };
+                    Debug.Log($"[LOV] capture: a squad's smoke at {thrown.X:F1},{thrown.Z:F1}, tick {sim.Tick}");
+                }
+            }
             if (cap.Gunner)
             {
                 // The belt-fed gun that fired last, and the glasses on him.

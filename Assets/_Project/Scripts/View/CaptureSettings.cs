@@ -46,6 +46,8 @@ namespace LanesOfVietnam.View
         public float[] Glasses;
         /// <summary>Find the machine gunner who fired last and raise the field glasses on him (gunner=1): to look at a burst close.</summary>
         public bool Gunner;
+        /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
+        public int SquadThrow = -1;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
         public string Screen;
         /// <summary>Post exposure in stops, replacing the profile's for this capture; null keeps it. For tuning by measurement.</summary>
@@ -207,6 +209,7 @@ namespace LanesOfVietnam.View
                     case "ui": c.NoUi = !(v == "1" || v == "true"); break;
                     case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;
                     case "gunner": c.Gunner = v == "1" || v == "true"; break;
+                    case "squadthrow": c.SquadThrow = int.Parse(v, inv); break;
                     case "glasses":
                     {
                         var xy = v.Split(':');
