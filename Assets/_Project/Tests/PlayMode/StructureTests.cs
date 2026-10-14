@@ -47,5 +47,37 @@ namespace LanesOfVietnam.Tests
             Assert.IsTrue(stand.x > legs.min.x && stand.x < legs.max.x && stand.z > legs.min.z && stand.z < legs.max.z,
                           $"the post's men stand at {stand}, outside the tower ({legs.min} to {legs.max})");
         }
+
+        /// <summary>
+        /// The world built from a map in its theatre (PLAN §12.27, M0): taken down and built again three times, as
+        /// three changes of operation would, it stands as it stood, and leaves nothing behind (the meshes it made are
+        /// freed with it).
+        /// </summary>
+        [UnityTest, Category("Structures")]
+        public IEnumerator The_world_built_three_times_over_leaves_nothing_behind()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var root = GameRoot.Instance;
+            root.Paused = true;      // (the men left to fight would make meshes of their own: a fallen man is baked into one)
+            Assert.IsNotNull(root.WorldMap, "no world was built from a map");
+            Assert.AreEqual("highlands", root.WorldTheatre?.Id, "the firebase is not built in its theatre");
+            yield return null;
+            var had = new System.Collections.Generic.HashSet<Mesh>(Resources.FindObjectsOfTypeAll<Mesh>());
+            int meshes = had.Count, own = root.WorldMeshes;
+            int ground = root.GroundView.transform.childCount, dressing = root.Dressing.transform.childCount, cover = root.CoverView.transform.childCount;
+            Assert.Greater(own, 0, "the world made no meshes of its own (ground, dressing): nothing would be freed");
+            for (int k = 0; k < 3; k++)
+            {
+                root.BuildWorld(root.WorldMap);
+                yield return null; yield return null;
+            }
+            Assert.AreEqual(ground, root.GroundView.transform.childCount, "the ground is not as it was");
+            Assert.AreEqual(dressing, root.Dressing.transform.childCount, "the dressing is not as it was");
+            Assert.AreEqual(cover, root.CoverView.transform.childCount, "the cover is not as it was");
+            Assert.AreEqual(own, root.WorldMeshes);
+            var extra = Resources.FindObjectsOfTypeAll<Mesh>().Where(m => !had.Contains(m)).Select(m => m.name).ToList();
+            Debug.Log($"[LOV] after three rebuilds: {extra.Count} meshes more than before (of which the world's own now {own}): {string.Join(", ", extra.GroupBy(n => n).Select(g => $"{g.Key} x{g.Count()}"))}");
+            Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Mesh>().Length, meshes + 2, "three worlds' meshes are still in memory");
+        }
     }
 }

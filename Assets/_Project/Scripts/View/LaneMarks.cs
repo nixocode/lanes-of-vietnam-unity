@@ -71,6 +71,10 @@ namespace LanesOfVietnam.View
 
         private void Build(Ground g)
         {
+            // (A new ground is a new world, PLAN §12.27 M0: the meshes made for the old one go with it. The beam's quad
+            // is the caret's too: freed once.)
+            var freed = new System.Collections.Generic.HashSet<Mesh>();
+            foreach (var mf in GetComponentsInChildren<MeshFilter>(true)) if (mf.sharedMesh != null && freed.Add(mf.sharedMesh)) Destroy(mf.sharedMesh);
             foreach (Transform c in transform) Destroy(c.gameObject);
             _ground = g;
             _mpb = new MaterialPropertyBlock();

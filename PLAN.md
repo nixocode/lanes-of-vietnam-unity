@@ -4414,6 +4414,19 @@ made on this Mac).
 
 ### 12.46 Everything not done, skipped or forgotten in the stages of 2026-10-12 (written 2026-10-13)
 
+**Where the stages stand (kept up to date; last 2026-10-14):**
+
+| stage | | where |
+|---|---|---|
+| 1 | the shot | ✅ done (§12.42); leftovers below, nos. 1, 3, 8-10 |
+| 2 | the firebase, built | ✅ done (§12.43); leftovers nos. 11-16 |
+| 3 | the guns, sourced | ✅ done (§12.44); leftovers nos. 19-24, 26-28 |
+| 4 | call-ins you watch arrive | ✅ done (§12.45, §12.47), every item closed |
+| 5 | every class its job | ✅ done (§12.48) |
+| 6 | the world from a map (M0) | ✅ done (§12.50) |
+| 7 | the tower comes down | not started |
+| also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
+
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
 work. Have you been skipping so many steps on other stages? If so write down
 everything that you haven't done, forgot or skipped." This is that list,
@@ -4459,8 +4472,7 @@ for it.
     pass was made on it.
 16. No stencilled numbers or "U.S. ARMY" on the vehicles; stars only.
 17. ~~`plant_bake.py` still has the old cards' recipe.~~ Taken out (§12.47).
-18. No test was written for the new meshes (that they load, that the tower
-    stands where its post is).
+18. ~~No test was written for the new meshes.~~ `StructureTests` (§12.47).
 
 **Stage 3, the guns (`guns`, §12.44)**
 
@@ -4500,15 +4512,16 @@ for it.
 37. ~~The probe's switches.~~ `&off=aircraft`.
 38. ~~No capture, no PlayMode test.~~ Captures looked at; `CallInTests`.
 
-**Stage 5, every class its job: not started.** The mortar that sets up and
-packs up (`Emplace`); satchel charges (`Satchel`).
+**Stage 5, every class its job: done (2026-10-14, §12.48).** ~~The mortar
+that sets up and packs up (`Emplace`); satchel charges (`Satchel`).~~ Both
+built, measured, on `main`.
 
-**Stage 6, the world from a map: not started.**
+**Stage 6, the world from a map: done (2026-10-14, §12.50).**
 
 **Across all of it**
 
-39. `main` has none of this: the harness refused to move it and I went on
-    stacking branches.
+39. ~~`main` has none of this.~~ `main` is moved up to each stage as it is
+    finished (a plain fast-forward works; 2026-10-14).
 40. ~~The README says nothing of stages 2, 3 or 4.~~ It does (2026-10-14).
 41. One PlayMode test (`UIAuditTests`, "order Hold did not reach squad 0")
     fails now and then because it plays an unfixed seed. Seen, not fixed.
@@ -4767,6 +4780,64 @@ Tested (`ShotTests.Auto_quality_steps_down_when_frames_are_slow_and_back_up_when
 and looked at (the start screen). Not measured on a slow machine: there is
 none here; the frame-time probe is left at full resolution (AUTO stands
 aside while it measures).
+
+### 12.50 Stage 6: the world from a map and a theatre (M0, 2026-10-14)
+
+The plan the owner approved, Stage 6 (§12.27's M0): "`GameRoot.Awake`
+becomes `BuildWorld(map)` with a teardown; what is the firebase's alone ...
+moves into a theatre the map names; the views read it instead of
+constants." (The owner, 2026-10-14: "feel free to move into steps 6/7".)
+On the branch `world`, from `classes`. The streaming of further maps waits
+for the second map, as the plan said: until there is one there is nothing
+to stream.
+
+Built:
+
+- **A theatre** (`View/Theatre.cs`): what is a country's own: the ground's
+  material and its layers, the horizon's heights and their material, the
+  sky and its photograph, the plants and props, the sandbags, the trucks,
+  tower and bunkers, their materials, and where things grow and stand (the
+  treeline, the scrub's edges, the wire's line, the firebase's east wall,
+  the gaps left for the lanes, which were constants in `WorldDressing`). The
+  firebase's is `highlands`, the Central Highlands (`SceneBuilder` fills it
+  from what it made before). A map names its theatre (`MapDef.Theatre`).
+- **`GameRoot.BuildWorld(map)`**: takes down whatever world there is, gives
+  the views the map's theatre (`Theatre.Dress`), and builds the ground,
+  cover, horizon and dressing for that map. `NewMatch` builds the world
+  again when an operation is on another map; all four are on the firebase,
+  so today it is built once.
+- **`GameRoot.TeardownWorld()`**: every object the world's views built, and
+  the meshes they made for it (the build notes which meshes are new; a
+  mesh made at run time is not freed with its object). The lane markers
+  rebuilt themselves for a new ground and kept the old meshes: they free
+  them now.
+
+The gates:
+
+- **The firebase renders the same**: four views, seed 3 at tick 300,
+  captured before and after and differenced: 96, 4, 71 and 2 pixels of
+  1,440,000 differ, by up to 16 levels, all on the edges of men's boots and
+  a strand of wire. The same code with the scene file built again moves 11
+  pixels by 3; a capture taken twice moves none. (A first "before" set was
+  taken from the stale scene file and showed the old stand-in boxes: thrown
+  away.)
+- **Nothing left behind after changes of operation** (new probe mode
+  `?perf=1&rebuild=N`, in the browser build): ten rebuilds leave 243 meshes
+  where there were 243, and the same 108 materials, 211 textures, 1,160
+  objects, 1,636 components and 8.8 MB of managed memory; the engine's
+  native allocator keeps 2.3 MB it borrowed (1.1 after three), which a
+  browser's heap does not give back. PlayMode
+  `StructureTests.The_world_built_three_times_over_leaves_nothing_behind`.
+- **45 MB**: 37.29 MB to start, 45.01 in all (+0.01).
+- **All tests**: EditMode 116 of 116; PlayMode 35 of 35 and the capture
+  skipped. Frame time at 2592 x 1370, seed 3: mean 4.3 to 4.5 ms.
+
+The scene file `Main.unity` is committed as SceneBuilder makes it from here
+on: the committed one was playtest 7's, and twice on 2026-10-14 it gave
+work that looked wrong for a reason that was not the work (a build 5 MB
+light, captures of stand-in boxes).
+
+New files: `View/Theatre.cs`.
 
 ### 12.13 Corrections to earlier sections
 

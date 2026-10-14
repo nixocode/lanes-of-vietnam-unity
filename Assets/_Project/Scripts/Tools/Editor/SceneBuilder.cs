@@ -171,6 +171,24 @@ namespace LanesOfVietnam.Tools
             if (mount.Heights == null || mount.Layout == null) Debug.LogWarning("[LOV] no mountain data: there is no horizon (run tools/art/mountains.py)");
             root.Mountains = mount;
 
+            // The firebase's theatre, the Central Highlands (PLAN §12.27, M0): what the world is built of where a map names
+            // it. (The views keep the same, set above, for the editor's scene; the game's world takes it from here.)
+            root.Theatres = new[]
+            {
+                new Theatre
+                {
+                    Id = "highlands",
+                    Ground = ground.Material,
+                    MountainHeights = mount.Heights, MountainLayout = mount.Layout, Mountains = mount.Material,
+                    Sky = RenderSettings.skybox, SkyJson = skyLight.SkyJson,
+                    Foliage = dress.Foliage, FoliageDark = dress.FoliageDark, Wire = dress.Wire, Vehicle = dress.Vehicle,
+                    Sandbag = cover.SandbagMaterial, Timber = cover.TimberMaterial,
+                    Plants = dress.Plants, Props = dress.Props, Bags = cover.Bags, Structures = cover.Structures,
+                    TreelineZ = dress.TreelineZ, ScrubNearZ = dress.ScrubNearZ, ScrubFarZ = dress.ScrubFarZ,
+                    WireZ = dress.WireZ, FirebaseEastX = dress.FirebaseEastX, LaneGate = dress.LaneGate,
+                },
+            };
+
             // The fighting, drawn from the simulation's events (step 7).
             var combat = game.AddComponent<CombatView>();
             combat.Glow = Mat("FX Glow", Shader.Find("LOV/FX Glow"), null);

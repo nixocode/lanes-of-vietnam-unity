@@ -29,6 +29,8 @@ namespace LanesOfVietnam.Sim
     public sealed class MapDef
     {
         public string Id, Name;
+        /// <summary>The theatre it is fought in (the view's art and rules for a country): the firebase's is the Central Highlands.</summary>
+        public string Theatre = "highlands";
         public MapPiece[] Pieces = new MapPiece[0];
         /// <summary>The ground's shape: its folds, its track, the bank between the lanes.</summary>
         public GroundParams GroundShape = new GroundParams();

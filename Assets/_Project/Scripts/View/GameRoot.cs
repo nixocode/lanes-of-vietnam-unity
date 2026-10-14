@@ -29,6 +29,16 @@ namespace LanesOfVietnam.View
         public ArmyView ArmyView;
         public WorldDressing Dressing;
         public MountainView Mountains;
+        /// <summary>The theatres a map can name (SceneBuilder: the Central Highlands, the firebase's).</summary>
+        public Theatre[] Theatres = new Theatre[0];
+        /// <summary>The map the world is built for now, and the theatre it is built in.</summary>
+        public MapDef WorldMap { get; private set; }
+        public Theatre WorldTheatre { get; private set; }
+        /// <summary>Times the world has been built since load: for the memory probe and the tests.</summary>
+        public int WorldsBuilt { get; private set; }
+        private readonly System.Collections.Generic.List<Mesh> _madeMeshes = new System.Collections.Generic.List<Mesh>();
+        /// <summary>Meshes the world now standing made for itself (freed when it is taken down): for the tests.</summary>
+        public int WorldMeshes => _madeMeshes.Count;
 
         /// <summary>The map's own seed: the dressing is part of the map and never changes with the match.</summary>
         public const int MapSeed = 20260929;
@@ -59,23 +69,14 @@ namespace LanesOfVietnam.View
             var cap = CaptureSettings.Active;
             Application.targetFrameRate = -1;
 
-            Ground = Map.Ground();
-            GroundView.Build(Ground);
-            var cover = Map.Cover();
-            CoverView.Build(cover, Ground);
-            if (Mountains != null) Mountains.Build();
-            if (Dressing != null)
-            {
-                Dressing.Bags = CoverView.Bags;
-                Dressing.Structures = CoverView.Structures;
-                Dressing.Build(Ground, cover, MapSeed);
-            }
+            // A capture and the frame-time probe may name the scenario (scenario=the-wire); else the firebase.
+            var opening = Scenarios.ById(cap?.Scenario ?? PerfProbe.Param("scenario") ?? "firebase") ?? Scenarios.Firebase;
+            BuildWorld(opening.Map);
 
             Settings = GameSettings.Load();
             Settings.ApplyQuality();
 
-            // A capture or the frame-time probe may name the scenario (scenario=the-wire); else the firebase.
-            NewMatch(PlayerSide, MatchLength.Standard, cap?.Seed, scenario: Scenarios.ById(cap?.Scenario ?? PerfProbe.Param("scenario") ?? "firebase"));
+            NewMatch(PlayerSide, MatchLength.Standard, cap?.Seed, scenario: opening);
 
             if (cap != null)
             {
@@ -201,12 +202,67 @@ namespace LanesOfVietnam.View
         /// <summary>The scenario being played (PLAN §12.27, Phase S). The firebase, until another is chosen.</summary>
         public Scenario Scenario { get; private set; } = Scenarios.Firebase;
 
+        /// <summary>
+        /// Build the world for a map, in the theatre it names (PLAN §12.27, M0): its ground, its cover, its horizon and
+        /// what stands on it. Whatever world there was is taken down first. The map's own seed places its plants, so
+        /// the same map is the same world every time it is built.
+        /// </summary>
+        public void BuildWorld(MapDef map)
+        {
+            if (WorldMap != null) TeardownWorld();
+            WorldMap = map;
+            WorldTheatre = TheatreFor(map);
+            var before = new System.Collections.Generic.HashSet<Mesh>(Resources.FindObjectsOfTypeAll<Mesh>());
+            WorldTheatre?.Dress(this);
+            Ground = map.Ground();
+            GroundView.Build(Ground);
+            var cover = map.Cover();
+            CoverView.Build(cover, Ground);
+            if (Mountains != null) Mountains.Build();
+            if (Dressing != null)
+            {
+                Dressing.Bags = CoverView.Bags;
+                Dressing.Structures = CoverView.Structures;
+                Dressing.Build(Ground, cover, MapSeed);
+            }
+            // What this build made for itself, to be freed with it.
+            _madeMeshes.Clear();
+            foreach (var m in Resources.FindObjectsOfTypeAll<Mesh>()) if (!before.Contains(m)) _madeMeshes.Add(m);
+            WorldsBuilt++;
+        }
+
+        /// <summary>The theatre a map names, or the first there is (a map that names none is built in it).</summary>
+        public Theatre TheatreFor(MapDef map)
+        {
+            foreach (var t in Theatres) if (t != null && t.Id == map.Theatre) return t;
+            return Theatres.Length > 0 ? Theatres[0] : null;
+        }
+
+        /// <summary>
+        /// Take the world down: every object the world's views built, and the meshes they made for it (an object's
+        /// mesh made at run time is not freed with the object: three changes of operation were three worlds' meshes).
+        /// </summary>
+        public void TeardownWorld()
+        {
+            foreach (var view in new Component[] { GroundView, CoverView, Mountains, Dressing })
+            {
+                if (view == null) continue;
+                foreach (Transform c in view.transform) Destroy(c.gameObject);
+            }
+            foreach (var m in _madeMeshes) if (m != null) Destroy(m);
+            _madeMeshes.Clear();
+            if (CoverView != null) CoverView.Built.Clear();
+            WorldMap = null;
+        }
+
         public void NewMatch(Side player, MatchLength length, int? seed = null,
                              System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null,
                              Difficulty level = Difficulty.Veteran, Scenario scenario = null)
         {
             var cap = CaptureSettings.Active;
             Scenario = scenario ?? Scenarios.Firebase;
+            // An operation on another map is fought in another world.
+            if (WorldMap != Scenario.Map) BuildWorld(Scenario.Map);
             // A scenario that is one side's to play is played from that side.
             if (!Scenario.Offers(player)) player = Scenario.Plays.Value;
             PlayerSide = player;

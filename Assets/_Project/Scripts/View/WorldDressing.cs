@@ -46,18 +46,18 @@ namespace LanesOfVietnam.View
         /// 10-12 m crowns at 80-120 m. At -13.5 the first version filled the
         /// frame with trees, because the whole frame is 19 m tall at 57 m.
         /// </summary>
-        public const double TreelineZ = -24;
+        public double TreelineZ = -24;
 
         /// <summary>Scrub between the far lane and the treeline: bushes and grass, knee to head high.</summary>
-        public const double ScrubNearZ = -10.5, ScrubFarZ = -22;
+        public double ScrubNearZ = -10.5, ScrubFarZ = -22;
 
         /// <summary>The wire runs along the bank between the near lane and the track.</summary>
-        public const double WireZ = 3.9;
+        public double WireZ = 3.9;
 
         /// <summary>The firebase compound's east edge (sim x): it holds the west end of the map.</summary>
-        public const double FirebaseEastX = -21;
+        public double FirebaseEastX = -21;
         /// <summary>Half the width of the gap left in a wall that a lane runs through: its files and a man's length each side.</summary>
-        public const double LaneGate = 3.4;
+        public double LaneGate = 3.4;
 
         private readonly List<Renderer> _built = new List<Renderer>();
         public IReadOnlyList<Renderer> Built => _built;

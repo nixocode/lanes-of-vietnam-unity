@@ -171,6 +171,26 @@ namespace LanesOfVietnam.View
                 root.Driver.Match.Issue(Command.BuyTo(Side.Us, post, 0));
                 StartCoroutine(Posted(root));
             }
+            // rebuild=3: the world taken down and built again that many times (M0's gate: what three changes of operation
+            // leave behind), the heap and the meshes said before and after.
+            if (int.TryParse(Param("rebuild"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int rebuilds) && rebuilds > 0)
+            {
+                long Heap() => UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong();
+                yield return null; yield return null;
+                System.GC.Collect();
+                long heap0 = Heap(); int meshes0 = Resources.FindObjectsOfTypeAll<Mesh>().Length;
+                string Count() => $"materials {Resources.FindObjectsOfTypeAll<Material>().Length}, textures {Resources.FindObjectsOfTypeAll<Texture>().Length}, objects {Resources.FindObjectsOfTypeAll<GameObject>().Length}, components {Resources.FindObjectsOfTypeAll<Component>().Length}, mono {UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / 1048576.0:F1} MB";
+                string count0 = Count();
+                for (int k = 0; k < rebuilds; k++)
+                {
+                    root.BuildWorld(root.WorldMap);
+                    yield return null; yield return null;
+                }
+                System.GC.Collect();
+                yield return null;
+                long heap1 = Heap(); int meshes1 = Resources.FindObjectsOfTypeAll<Mesh>().Length;
+                Debug.Log($"[LOV] perf: world rebuilt {rebuilds} times: heap {heap0 / 1048576.0:F1} -> {heap1 / 1048576.0:F1} MB, meshes {meshes0} -> {meshes1}, the world's own {root.WorldMeshes}; before: {count0}; after: {Count()}");
+            }
             // call=us-smoke:1:0 (card:lane:x, as a capture's, without its tick): a call made as the fast-forward
             // ends, to see in the build what a capture sees in the editor.
             string call = Param("call");
