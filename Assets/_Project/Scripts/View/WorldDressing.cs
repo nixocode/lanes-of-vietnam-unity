@@ -522,6 +522,8 @@ namespace LanesOfVietnam.View
                     Structures.Place(_tower, members, member, TowerFoot, 0f);
                 var braces = members.Find(r => r != null && r.name == "tower_braces");
                 if (braces != null) Panels(braces);
+                var legs = members.Find(r => r != null && r.name == "tower_legs");
+                if (legs != null) Sections(legs);
                 if (Bags.Ready)
                 {
                     // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
@@ -620,6 +622,82 @@ namespace LanesOfVietnam.View
                     go.AddComponent<MeshRenderer>().sharedMaterials = braces.sharedMaterials;
                 }
             Destroy(braces.gameObject);
+        }
+
+        /// <summary>A point of a mesh with what it carries, to cut a mesh through.</summary>
+        private struct Vtx
+        {
+            public Vector3 P, N;
+            public Vector2 U;
+            public Vector4 T;
+            public static Vtx Lerp(Vtx a, Vtx b, float k)
+                => new Vtx { P = Vector3.Lerp(a.P, b.P, k), N = Vector3.Lerp(a.N, b.N, k).normalized, U = Vector2.Lerp(a.U, b.U, k), T = Vector4.Lerp(a.T, b.T, k) };
+        }
+
+        /// <summary>What of a polygon is above a height (or below it).</summary>
+        private static List<Vtx> Clip(List<Vtx> poly, float y, bool above)
+        {
+            var o = new List<Vtx>();
+            for (int i = 0; i < poly.Count; i++)
+            {
+                Vtx a = poly[i], b = poly[(i + 1) % poly.Count];
+                bool ina = above ? a.P.y >= y : a.P.y <= y, inb = above ? b.P.y >= y : b.P.y <= y;
+                if (ina) o.Add(a);
+                if (ina != inb) o.Add(Vtx.Lerp(a, b, (y - a.P.y) / (b.P.y - a.P.y)));
+            }
+            return o;
+        }
+
+        /// <summary>
+        /// The tower's legs cut through at the heights of its girts, a mesh a section, named "tower_legs {k}" from the
+        /// ground up: a tower that buckles breaks at the first, the section below left standing (TowerView). Left whole
+        /// if its mesh cannot be read.
+        /// </summary>
+        private static void Sections(Renderer legs)
+        {
+            var mesh = legs.GetComponent<MeshFilter>().sharedMesh;
+            if (mesh == null || !mesh.isReadable) return;
+            var v = mesh.vertices;
+            var n = mesh.normals;
+            var uv = mesh.uv;
+            var tan = mesh.tangents;
+            Vtx At(int i) => new Vtx { P = v[i], N = n.Length > i ? n[i] : Vector3.up, U = uv.Length > i ? uv[i] : Vector2.zero, T = tan.Length > i ? tan[i] : Vector4.zero };
+            float bay = TowerDeck / TowerBays;
+            for (int b = 0; b < TowerBays; b++)
+            {
+                var pv = new List<Vector3>(); var pn = new List<Vector3>(); var puv = new List<Vector2>(); var pt = new List<Vector4>();
+                var tris = new List<int>[mesh.subMeshCount];
+                for (int s = 0; s < mesh.subMeshCount; s++)
+                {
+                    tris[s] = new List<int>();
+                    var t = mesh.GetTriangles(s);
+                    for (int k = 0; k < t.Length; k += 3)
+                    {
+                        var poly = new List<Vtx> { At(t[k]), At(t[k + 1]), At(t[k + 2]) };
+                        if (b > 0) poly = Clip(poly, b * bay, true);
+                        if (b < TowerBays - 1 && poly.Count >= 3) poly = Clip(poly, (b + 1) * bay, false);
+                        if (poly.Count < 3) continue;
+                        int first = pv.Count;
+                        foreach (var q in poly) { pv.Add(q.P); pn.Add(q.N); puv.Add(q.U); pt.Add(q.T); }
+                        for (int j = 1; j + 1 < poly.Count; j++) { tris[s].Add(first); tris[s].Add(first + j); tris[s].Add(first + j + 1); }
+                    }
+                }
+                if (pv.Count == 0) continue;
+                var part = new Mesh { name = $"tower_legs {b}" };
+                part.SetVertices(pv);
+                if (n.Length > 0) part.SetNormals(pn);
+                if (uv.Length > 0) part.SetUVs(0, puv);
+                if (tan.Length > 0) part.SetTangents(pt);
+                part.subMeshCount = tris.Length;
+                for (int s = 0; s < tris.Length; s++) part.SetTriangles(tris[s], s);
+                part.RecalculateBounds();
+                var go = new GameObject(part.name);
+                go.transform.SetParent(legs.transform.parent, false);
+                go.transform.SetLocalPositionAndRotation(legs.transform.localPosition, legs.transform.localRotation);
+                go.AddComponent<MeshFilter>().sharedMesh = part;
+                go.AddComponent<MeshRenderer>().sharedMaterials = legs.sharedMaterials;
+            }
+            Destroy(legs.gameObject);
         }
 
         /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>
