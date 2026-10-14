@@ -42,6 +42,34 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// QUALITY: AUTO (the owner, 2026-10-14: friends' frames "dropped to very low"; "add the automatic detail, but
+        /// also have manual settings"): frames slower than 45 a second for a second and a half take it a step down;
+        /// frames at a 60 Hz screen's pace for six seconds take it a step up, but not back onto a step that proved too
+        /// much in the last half minute; a hitch is not the pace; it never goes below its last step.
+        /// </summary>
+        [Test, Category("Shots")]
+        public void Auto_quality_steps_down_when_frames_are_slow_and_back_up_when_they_are_not()
+        {
+            AutoQuality.Reset();
+            float t = 0f;
+            void Run(float ms, float seconds) { for (float s = 0; s < seconds; s += ms / 1000f) { t += ms / 1000f; AutoQuality.Feed(ms, t); } }
+            Run(16.7f, 10f);
+            Assert.AreEqual(AutoQuality.Top, AutoQuality.Level, "it stepped down at 60 frames a second");
+            Run(30f, 2.5f);
+            Assert.AreEqual(1, AutoQuality.Level, "30 ms frames did not take it down a step");
+            AutoQuality.Feed(500f, t += 0.5f);
+            Assert.AreEqual(1, AutoQuality.Level, "a single hitch moved it");
+            Run(16.7f, 10f);
+            Assert.AreEqual(1, AutoQuality.Level, "it went back up onto the step that was too much within half a minute");
+            Run(16.7f, 30f);
+            Assert.AreEqual(AutoQuality.Top, AutoQuality.Level, "smooth for long enough, it never went back up");
+            Run(60f, 60f);
+            Assert.AreEqual(AutoQuality.Levels.Length - 1, AutoQuality.Level, "at 16 frames a second it did not go to its last step");
+            Assert.AreEqual(0.5f, AutoQuality.Scale, 1e-6f);
+            AutoQuality.Reset();
+        }
+
+        /// <summary>
         /// The smoke is soft where it meets the ground by reading the scene's depth, so the depth must be copied before
         /// the smoke is drawn: after the opaque pass, not after the transparent one. Copied after, the smoke read a
         /// depth that was not there yet: on this Mac's renderer that is "far" and the smoke showed, so no capture or

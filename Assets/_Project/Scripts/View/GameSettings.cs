@@ -5,7 +5,8 @@ using UnityEngine.Rendering.Universal;
 
 namespace LanesOfVietnam.View
 {
-    public enum QualityTier { Low, Medium, High }
+    /// <summary>The detail the game draws at. Auto (appended: a saved choice keeps its number) is chosen by the frame time.</summary>
+    public enum QualityTier { Low, Medium, High, Auto }
 
     /// <summary>
     /// What the player can set (PLAN §12.5): quality, volumes, subtitles,
@@ -16,7 +17,8 @@ namespace LanesOfVietnam.View
     [Serializable]
     public sealed class GameSettings
     {
-        public QualityTier Quality = QualityTier.High;
+        /// <summary>Auto for anyone who has not chosen: the game finds what the machine can draw (AutoQuality).</summary>
+        public QualityTier Quality = QualityTier.Auto;
         [Range(0, 1)] public float Master = 0.9f;
         [Range(0, 1)] public float Effects = 1f;
         [Range(0, 1)] public float Music = 0.7f;
@@ -70,6 +72,11 @@ namespace LanesOfVietnam.View
             }
             switch (Quality)
             {
+                // Auto starts at the top and AutoQuality takes it down from there, a step at a time.
+                case QualityTier.Auto:
+                    AutoQuality.Reset();
+                    SetLevel(AutoQuality.Top);
+                    break;
                 case QualityTier.Low:
                     _runtimePipeline.renderScale = 0.72f;
                     _runtimePipeline.shadowDistance = 55f;
@@ -83,6 +90,15 @@ namespace LanesOfVietnam.View
                     _runtimePipeline.shadowDistance = 110f;
                     break;
             }
+        }
+
+        /// <summary>One of AutoQuality's steps: the share of the screen's pixels drawn, and how far shadows reach.</summary>
+        public static void SetLevel(int level)
+        {
+            if (_runtimePipeline == null) return;
+            var (scale, shadows) = AutoQuality.Levels[Mathf.Clamp(level, 0, AutoQuality.Levels.Length - 1)];
+            _runtimePipeline.renderScale = scale;
+            _runtimePipeline.shadowDistance = shadows;
         }
 
         /// <summary>The render scale the current tier asks for, for the audit.</summary>

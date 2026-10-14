@@ -159,6 +159,10 @@ namespace LanesOfVietnam.View.UI
             Btn(levels, "level-veteran", "VETERAN\nA FAIR FIGHT", () => ChooseLevel(Difficulty.Veteran), "choice");
             Btn(levels, "level-elite", "ELITE\nOUTNUMBERS YOU", () => ChooseLevel(Difficulty.Elite), "choice");
 
+            // How much the game draws: chosen by the frame time (AUTO), or by hand.
+            Text(StartPanel, "DETAIL", "field");
+            var quality = new VisualElement(); quality.AddToClassList("choice-row"); StartPanel.Add(quality);
+            QualityRow(quality, "qs-");
             var view = new VisualElement(); view.AddToClassList("choice-row"); StartPanel.Add(view);
             Btn(view, "full-start", "FULL SCREEN", FullScreen.Toggle, "choice");
             Btn(StartPanel, "deploy", "DEPLOY", () => Deploy(), "deploy");
@@ -204,11 +208,7 @@ namespace LanesOfVietnam.View.UI
             var s = Root.Settings ?? GameSettings.Load();
             Text(SettingsPanel, "QUALITY", "field");
             var q = new VisualElement(); q.AddToClassList("choice-row"); SettingsPanel.Add(q);
-            foreach (QualityTier t in Enum.GetValues(typeof(QualityTier)))
-            {
-                var tier = t;
-                Btn(q, $"q-{t.ToString().ToLowerInvariant()}", t.ToString().ToUpperInvariant(), () => SetQuality(tier), "choice");
-            }
+            QualityRow(q, "q-");
 
             foreach (var (id, label) in new[] { ("master", "MASTER"), ("effects", "EFFECTS"), ("music", "MUSIC"), ("ambience", "AMBIENCE"), ("voice", "VOICE") })
             {
@@ -329,6 +329,18 @@ namespace LanesOfVietnam.View.UI
             Enter(FlowState.Playing);
         }
 
+        /// <summary>The quality buttons, AUTO first: the start screen's and the settings' (ids under their own prefix).</summary>
+        private void QualityRow(VisualElement row, string prefix)
+        {
+            foreach (var t in new[] { QualityTier.Auto, QualityTier.Low, QualityTier.Medium, QualityTier.High })
+            {
+                var tier = t;
+                string label = t == QualityTier.Auto ? "AUTO\nBY THE FRAME RATE" : t.ToString().ToUpperInvariant();
+                // (Four to a row, as the operations are.)
+                Btn(row, $"{prefix}{t.ToString().ToLowerInvariant()}", label, () => SetQuality(tier), "choice").AddToClassList("op");
+            }
+        }
+
         public void SetQuality(QualityTier t)
         {
             Root.Settings.Quality = t;
@@ -416,9 +428,19 @@ namespace LanesOfVietnam.View.UI
             On("full", FullScreen.On);
             var st = Root.Settings;
             if (st == null) return;
-            On("q-low", st.Quality == QualityTier.Low);
-            On("q-medium", st.Quality == QualityTier.Medium);
-            On("q-high", st.Quality == QualityTier.High);
+            foreach (var prefix in new[] { "q-", "qs-" })
+            {
+                On(prefix + "auto", st.Quality == QualityTier.Auto);
+                On(prefix + "low", st.Quality == QualityTier.Low);
+                On(prefix + "medium", st.Quality == QualityTier.Medium);
+                On(prefix + "high", st.Quality == QualityTier.High);
+                // AUTO says what it has settled on.
+                if (Buttons.TryGetValue(prefix + "auto", out var auto))
+                {
+                    string want = st.Quality == QualityTier.Auto ? $"AUTO\nDRAWING {AutoQuality.Scale * 100:F0}%" : "AUTO\nBY THE FRAME RATE";
+                    if (auto.text != want) auto.text = want;
+                }
+            }
             On("subtitles", st.Subtitles);
             On("shake", st.CameraShake);
             On("gore", st.Gore);
@@ -426,6 +448,7 @@ namespace LanesOfVietnam.View.UI
         }
 
         private bool _fullShown;
+        private int _autoShown = -1;
         private Scenario _briefFor;
 
         private void Update()
@@ -435,6 +458,8 @@ namespace LanesOfVietnam.View.UI
             // Full screen, from any screen: Alt and Enter. (And its buttons lit while it is, however it was left.)
             if (FullScreen.KeyDown) FullScreen.Toggle();
             if (FullScreen.On != _fullShown) { _fullShown = FullScreen.On; SyncChoices(); }
+            // (AUTO's button says what it has settled on: again when it steps.)
+            if (AutoQuality.Level != _autoShown) { _autoShown = AutoQuality.Level; SyncChoices(); }
             switch (State)
             {
                 case FlowState.Start:

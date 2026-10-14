@@ -4743,6 +4743,31 @@ New files: `Sim/Satchel.cs`. What the view still lacks: the positions'
 sandbags and roofs are not seen to come down when they are breached (the
 tower's collapse, Stage 7, is where things that come apart are planned).
 
+### 12.49 Detail by the frame rate, and by hand (2026-10-14)
+
+The owner, 2026-10-14: friends playing the live demo saw "the frames dropped
+to very low"; asked whether it was the free host, and then "add the automatic
+detail, but also have manual settings". It is not the host: the game runs in
+each player's own browser on his own graphics, and Vercel only serves the
+files once; a laptop's chip can take five to ten times the 4.6 ms a frame the
+game takes on the owner's Mac, and a Retina or 4K screen has four times the
+pixels.
+
+Built: QUALITY gets **AUTO** (`AutoQuality`), the default for anyone who has
+not chosen: it watches the frame time (smoothed) and, under 45 frames a
+second for a second and a half, draws a step fewer pixels: 100, 90, 80, 70, 60
+and 50 percent of the screen's resolution in each direction, the shadows'
+reach shortened toward the bottom (110 m to 45); at a 60 Hz screen's own pace
+for six seconds it tries a step up, but not onto one that proved too much in
+the last half minute; a hitch (a tab put away) is not the pace. Its button
+says what it has settled on ("AUTO · DRAWING 80%"). The manual LOW, MEDIUM
+and HIGH stay as they were and are never changed by it. The choice is on the
+start screen now (DETAIL) as well as in the pause menu, and is saved.
+Tested (`ShotTests.Auto_quality_steps_down_when_frames_are_slow_and_back_up_when_they_are_not`)
+and looked at (the start screen). Not measured on a slow machine: there is
+none here; the frame-time probe is left at full resolution (AUTO stands
+aside while it measures).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

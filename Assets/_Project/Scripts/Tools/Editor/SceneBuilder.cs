@@ -185,6 +185,8 @@ namespace LanesOfVietnam.Tools
             Aircraft(combat);
             // Sound, from the same events (PLAN §12.6; Web Audio in the browser).
             game.AddComponent<AudioView>();
+            // QUALITY: AUTO, the resolution by the frame time.
+            game.AddComponent<AutoQuality>();
 
             var commander = game.AddComponent<Commander>();
             commander.Root = root;

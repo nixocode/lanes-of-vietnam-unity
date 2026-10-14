@@ -35,6 +35,9 @@ namespace LanesOfVietnam.View
     /// </summary>
     public sealed class PerfProbe : MonoBehaviour
     {
+        /// <summary>Measuring: AutoQuality leaves the resolution alone while it does.</summary>
+        public static bool Running { get; private set; }
+
         public static string Param(string key)
         {
             string url = Application.absoluteURL ?? "";
@@ -152,6 +155,7 @@ namespace LanesOfVietnam.View
 
         private IEnumerator Start()
         {
+            Running = true;
             var root = GameRoot.Instance;
             yield return null;
             var screens = FindAnyObjectByType<Screens>();
