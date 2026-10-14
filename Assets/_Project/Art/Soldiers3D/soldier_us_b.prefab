@@ -584,6 +584,10 @@ MonoBehaviour:
   KneelThrowLeft: 1
   Head: {fileID: 9169745990329758902}
   Neck: {fileID: 8377774803829092029}
+  RadioSet: {fileID: -1850120232344490714, guid: 054f581e89ca54bfa8c1ab8de39c514c, type: 3}
+  Handset: {fileID: -7061406104300826149, guid: 054f581e89ca54bfa8c1ab8de39c514c, type: 3}
+  RadioMaterial: {fileID: 2100000, guid: 483e28bec92f94c8d831597de31478d6, type: 2}
+  Radios: 1
   HeadForward: {x: 0.000000043305896, y: -0.00547258, z: 0.99998504}
   RifleGripR: {x: -0.268, y: -0.1, z: 0}
   RifleGripL: {x: -0.585, y: -0.08098, z: 0}

@@ -104,6 +104,45 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(combat.Puffs, before + 8, "the screen is in the simulation and no smoke is drawn for it");
         }
 
+        /// <summary>
+        /// The radio man (the owner, 2026-10-14, yes to the clip and the set): one man of each US squad carries a
+        /// PRC-77 on his back, and when his side calls, the radio man nearest where it is called to puts the handset
+        /// to his ear for a few seconds, his legs and his rifle hand doing what they were.
+        /// </summary>
+        [UnityTest, Category("CallIns")]
+        public IEnumerator The_radio_man_nearest_a_call_puts_the_handset_to_his_ear()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var army = Root.ArmyView;
+            Root.Paused = true;
+            yield return Ticks(40);
+            var st = Root.Driver.State;
+            var rto = st.Men.FirstOrDefault(m => m.Alive && ArmyView.RadioMan(st, m));
+            Assert.IsNotNull(rto, "no US squad has a radio man");
+            var f = army.FigureOf(rto.Id);
+            Assert.IsTrue(f.WearsRadio, "the radio man carries no set");
+            var set = f.GetComponentsInChildren<MeshRenderer>(true).First(r => r.name == "radio");
+            Assert.IsTrue(set.enabled && set.gameObject.activeInHierarchy, "the set is not drawn");
+            var chest = f.Chest.position;
+            Debug.Log($"[LOV] radio man {rto.Id}: chest {chest}, set {set.bounds.center} ({set.bounds.size}), facing {f.transform.forward}");
+            // (The set's own middle: its bounds take in the metre of antenna above it.)
+            var middle = set.transform.position;
+            Assert.Less(Vector3.Distance(middle, chest), 0.4f, "the set is not on his back");
+            Assert.Less(Vector3.Dot(middle - chest, f.transform.forward), -0.05f, "the set is in front of him, not on his back");
+            Assert.IsFalse(st.Men.Any(m => m.Side == Side.Vc && army.FigureOf(m.Id) != null && army.FigureOf(m.Id).WearsRadio), "a VC man carries a PRC-77");
+
+            st.Cp[(int)Side.Us] = 1000;
+            Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-smoke", rto.Z > 0 ? 0 : 1, rto.X + 15));
+            yield return Ticks(12);
+            Assert.AreEqual(rto.Id, army.Talking, "the radio man nearest the call is not the one on the radio");
+            Assert.Greater(f.OnTheRadio, 0.5f, "his handset is not up");
+            var handset = f.GetComponentsInChildren<MeshRenderer>(true).First(r => r.name == "handset");
+            Assert.IsTrue(handset.gameObject.activeInHierarchy, "the handset is not in his hand");
+            Assert.Less(Vector3.Distance(handset.bounds.center, f.Head.position), 0.35f, "the handset is not at his head");
+            yield return Ticks((int)(ArmyView.CallSeconds * Tune.TickHz) + 20);
+            Assert.Less(f.OnTheRadio, 0.5f, "he is still on the radio long after the call went out");
+        }
+
         [UnityTest, Category("CallIns")]
         public IEnumerator The_helicopter_sets_down_where_it_was_called_and_leaves()
         {

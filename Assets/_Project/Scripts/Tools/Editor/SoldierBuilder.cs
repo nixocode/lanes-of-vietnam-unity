@@ -270,9 +270,13 @@ namespace LanesOfVietnam.Tools
             // The watchtower (2026-10-10, the owner: "have a climb animation for gunners, snipers and rifle squads"):
             // up a ladder, hand over hand. Its rise stays in the root, where the game leaves it: ArmyView lifts him.
             ("ladder_climb", true, true),
+            // The radio man (2026-10-14, the owner's yes to "a Mixamo clip of a man kneeling with a handset to his ear"):
+            // nothing in the catalogue kneels with one, so a man talking on a telephone, played on his left arm and his
+            // head alone over whatever else he is doing (the "Radio" layer), six seconds of it round and round.
+            ("radio_talk", true, false),
         };
         /// <summary>Clips imported left for right, so that the hand that is free does what Mixamo's right hand does (ours holds the rifle).</summary>
-        private static readonly HashSet<string> LeftForRight = new HashSet<string> { "kneel_grenade" };
+        private static readonly HashSet<string> LeftForRight = new HashSet<string> { "kneel_grenade", "radio_talk" };
 
         /// <summary>
         /// A limb as a thing by itself: the part of his skin that follows this bone and the bones below it, as
@@ -461,6 +465,8 @@ namespace LanesOfVietnam.Tools
                     c.rotationOffset = (blade.HasValue ? blade.Value * OrientationSign : 0f) + 180f;
                 }
                 c.lockRootPositionXZ = !travels; c.keepOriginalPositionXZ = !travels;
+                // The telephone call is 37 s of a man pacing and gesturing: the six seconds of it with the handset held still.
+                if (role == "radio_talk") { c.firstFrame = 60; c.lastFrame = 240; }
                 mi.clipAnimations = new[] { c };
                 mi.SaveAndReimport();
                 var clip = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault(x => !x.name.StartsWith("__preview__"));
@@ -756,6 +762,27 @@ namespace LanesOfVietnam.Tools
                 }
             }
 
+            // --- the radio: his left arm and his head, the handset to his ear, over everything else (SoldierFigure.Talk) ---
+            if (R("radio_talk") != null)
+            {
+                var hand = new AvatarMask { name = "radio hand" };
+                for (var p = (AvatarMaskBodyPart)0; p < AvatarMaskBodyPart.LastBodyPart; p++)
+                    hand.SetHumanoidBodyPartActive(p, p is AvatarMaskBodyPart.Head or AvatarMaskBodyPart.LeftArm
+                        or AvatarMaskBodyPart.LeftFingers or AvatarMaskBodyPart.LeftHandIK);
+                AssetDatabase.AddObjectToAsset(hand, ctrl);
+                ctrl.AddLayer("Radio");
+                var rl = ctrl.layers;
+                int k = rl.Length - 1;
+                rl[k].avatarMask = hand;
+                rl[k].defaultWeight = 0f;
+                rl[k].blendingMode = AnimatorLayerBlendingMode.Override;
+                ctrl.layers = rl;
+                var talk = ctrl.layers[k].stateMachine.AddState("Talk");
+                talk.motion = C(R("radio_talk"));
+                ctrl.layers[k].stateMachine.defaultState = talk;
+                log.Add($"radio ({R("radio_talk")}, left arm and head)");
+            }
+
             EditorUtility.SetDirty(ctrl);
             Debug.Log("[LOV] controller: " + string.Join("; ", log));
             return ctrl;
@@ -886,6 +913,24 @@ namespace LanesOfVietnam.Tools
             if (list.Count == 0)
                 Debug.LogWarning("[LOV] weapons.fbx holds no meshes: " + string.Join(", ", model.GetComponentsInChildren<Transform>(true).Select(x => x.name).Take(12)));
             return list.OrderBy(x => x.Name).ToArray();
+        }
+
+        /// <summary>The radio man's set and handset (tools/blender/radio_import.py), and what they wear.</summary>
+        private static (Mesh, Mesh, Material) RadioKit()
+        {
+            string fbx = $"{WeaponDir}/radio.fbx";
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(fbx) == null) { Debug.LogWarning("[LOV] no radio.fbx: nobody carries a radio (run tools/blender/radio_import.py)"); return (null, null, null); }
+            AssetDatabase.ImportAsset($"{WeaponDir}/radio_albedo.png", ImportAssetOptions.ForceUpdate);
+            var meshes = AssetDatabase.LoadAllAssetsAtPath(fbx).OfType<Mesh>().ToArray();
+            string mp = $"{WeaponDir}/Radio.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Radio" }; AssetDatabase.CreateAsset(m, mp); }
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{WeaponDir}/radio_albedo.png"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetFloat("_Metallic", 0.1f);
+            m.SetFloat("_Smoothness", 0.32f);
+            EditorUtility.SetDirty(m);
+            return (meshes.FirstOrDefault(x => x.name == "radio"), meshes.FirstOrDefault(x => x.name == "handset"), m);
         }
 
         private static Material WeaponMaterial()
@@ -1079,6 +1124,8 @@ namespace LanesOfVietnam.Tools
                 fig.BlowFirst = have.Contains("melee_stab") ? 0 : 1;
                 fig.Climbs = have.Contains("trench_in") && have.Contains("trench_out");
                 fig.Ladders = have.Contains("ladder_climb");
+                fig.Radios = have.Contains("radio_talk");
+                (fig.RadioSet, fig.Handset, fig.RadioMaterial) = RadioKit();
                 fig.MixamoCrouch = have.Contains("kneel_idle");
                 fig.KneelThrowLeft = have.Contains("kneel_grenade");
                 fig.MixamoProne = have.Contains("prone_idle");

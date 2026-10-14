@@ -4480,15 +4480,16 @@ for it.
 28. The atlas was halved to 1024 afterwards for the build's size, without
     looking at the guns again.
 
-**Stage 4, call-ins (`callins`, §12.45): all but one item done (2026-10-14)**
+**Stage 4, call-ins (`callins`, §12.45, §12.47): done (2026-10-14)**
 
 29. ~~The jet. Not sourced, not drawn.~~ Sourced (F100, CC BY) and drawn.
 30. ~~The Huey. Not sourced, not drawn.~~ Sourced (UH-1 B, CC BY) and drawn.
 31. ~~The whistle of an incoming shell.~~ A stand-in (a pass-by played slow):
     nothing real was found. Said so in ASSETS.md.
 32. ~~A rotor's sound.~~ A Bell 222, standing in for the Huey.
-33. The radio man kneeling to make the call. **Open**: needs a Mixamo clip
-    and a radio model, downloads that need the owner's yes.
+33. ~~The radio man kneeling to make the call.~~ Built (§12.47): a PRC-77
+    on his back, the handset to his ear on a call. Kneeling only when the
+    simulation has him kneel: no Mixamo clip kneels with a handset.
 34. ~~Anything that shows where and when a call will land.~~ The HUD's tag
     over each call, with its seconds; white smoke on a strike's target and
     violet where a medevac is to land; the ranging round.
@@ -4615,6 +4616,35 @@ two older tests taught the card: every card changes the simulation, and a
 match that names no deck has every card but this one); PlayMode 32 (31
 passed, the capture skipped), the every-card test playing it through the
 HUD.
+
+**The radio man** (§12.46 no. 33, the last item of Stage 4; the owner,
+2026-10-14, yes to both downloads: "do this before we move to stage 5").
+One man of each US squad carries the radio: the second man raised, if he
+carries a rifle (the first is the squad's point man; `ArmyView.RadioMan`).
+He wears a PRC-77 high on his back between the shoulder blades, its metre
+of tape antenna up over his shoulder (sourced: "PRC-77 Military radio" by
+hurraciodurrski, CC BY; the antenna and an H-189 handset built here, the
+file has neither; `tools/blender/radio_import.py`). When his side makes a
+call, the radio man nearest where it is called to puts the handset to his
+ear for 4.5 s (`ArmyView.CallSeconds`): his left arm and his head play a
+Mixamo man on the telephone ("Talking On A Cell Phone", six seconds of it,
+imported left for right so the rifle stays in his right hand), on a layer
+of their own ("Radio") over whatever his legs and his rifle are doing; the
+handset is laid from his left ear down along his cheek. Nothing in the
+Mixamo catalogue kneels with a handset, which was what was asked: he
+kneels when the simulation has him kneel, and talks as he is. The
+computer's American calls are answered the same way.
+
+Looked at: `captures/soldiers/us_a_radio.png` (`SoldierPreview.RenderRadio`:
+the set standing, and on the radio standing, kneeling, kneeling with his
+rifle up, and lying flat). In the battle the radio man is small at the
+usual zoom. Lying flat, the set rides a little proud of his back. Tested:
+`CallInTests.The_radio_man_nearest_a_call_puts_the_handset_to_his_ear`
+(the set on his back and not before him; nobody of the VC with one; the
+radio man nearest a call on the handset, the handset at his head, and down
+again after). New files: `tools/blender/radio_import.py`,
+`Art/Weapons/radio.*`, `Assets/_Licensed/Mixamo/radio_talk.fbx` and
+`radio_grab.fbx` (licensed, not committed; `radio_grab` not used).
 
 **A round from a trench** (§12.46 no. 4): its line is drawn from the lip
 of the trench in front of the man, where the round clears the earth, not

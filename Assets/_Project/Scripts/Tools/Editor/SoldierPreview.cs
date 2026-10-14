@@ -73,6 +73,23 @@ namespace LanesOfVietnam.Tools
             States = orig;
         }
 
+        /// <summary>
+        /// The radio man: the set on his back, and the handset to his ear standing, kneeling, kneeling with his rifle
+        /// up, and lying flat: captures/soldiers/us_a_radio.png.
+        /// </summary>
+        public static void RenderRadio()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            States = new[] { ("set", 0f, 0, false, false, 0, 1f), ("talk", 0f, 0, false, false, 0, 1.2f), ("kneel talk", 0f, 1, false, false, 0, 1.2f),
+                             ("kneel aim talk", 0f, 1, true, false, 0, 1.2f), ("prone talk", 0f, 2, false, false, 0, 1.2f) };
+            Dress = Enumerable.Repeat<System.Action<SoldierFigure>>(f => f.WearRadio(), States.Length).ToArray();
+            Hurt = new System.Action<SoldierFigure>[] { null, f => f.Talk(true), f => f.Talk(true), f => f.Talk(true), f => f.Talk(true) };
+            Sheet("us_a", 1.6f, "_radio", 1.35f);
+            Hurt = null; Dress = null;
+            States = orig;
+        }
+
         /// <summary>Every weapon, in the aim, in the game's view: captures/soldiers/&lt;side&gt;_arms.png.</summary>
         public static void RenderArms()
         {
@@ -220,6 +237,8 @@ namespace LanesOfVietnam.Tools
 
         /// <summary>For RenderGore: what is done to each column's man as he is killed.</summary>
         private static System.Action<SoldierFigure>[] Hurt;
+        /// <summary>What a column's man is given before he is posed, as the game gives it when he is made (the radio).</summary>
+        private static System.Action<SoldierFigure>[] Dress;
 
         /// <summary>
         /// What a round and a burst leave on a man (the owner, 2026-10-10: "bullets hitting soldiers and blood
@@ -332,6 +351,7 @@ namespace LanesOfVietnam.Tools
                 go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, 90, 0));
                 typeof(SoldierFigure).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.Invoke(f, null);
                 if (Carry != null && !f.Carry(Carry[c])) Debug.LogWarning($"[LOV] {side} cannot carry {Carry[c]}");
+                if (Dress != null && c < Dress.Length) Dress[c]?.Invoke(f);
                 if (Own != null) { f.Gait = Own[c].gait; f.Pace = Own[c].pace; }
                 string doing = Play != null ? Play[c] : null;
                 if (s.name == "bind") goto shoot;          // as rigged: no Animator at all

@@ -399,7 +399,8 @@ for Fieldcraft on 2026-10-01, thirteen on 2026-10-09 for playtest 9, nine
 on 2026-10-10, and one more that day for the watchtower. (A second was
 fetched with it and is not yet used: `ladder_top`, "Climbing To Top:
 Climbing Up A Ladder To Standing", for a man stepping off the ladder onto
-the platform; sha256 `2f6e3987e695e258…`.)
+the platform; sha256 `2f6e3987e695e258…`.) And on 2026-10-14 two for the radio
+man; one is used.
 
 | group | roles (Mixamo clip) |
 |---|---|
@@ -415,7 +416,28 @@ the platform; sha256 `2f6e3987e695e258…`.)
 | what a man does besides (fetched 2026-10-10, on the owner's word the same day: "focus on adding animations (mixamo still open) to make it as realistic as possible") | `blast_fall` (Fall Over: "Frantically Fall Over With Rifle"; a man a burst knocks over and does not kill), `rub_eyes` (Rifle Rubbing Eyes: "Rifle Rubbing Debris From Eyes"; one a little further off), `dodge` (Dodging: "Dodging While Holding Rifle") and `kneel_hit_b` (Hit Reaction: "Hit Reaction From Rifle Crouched"): a second flinch on his feet and from a knee; `dive` (Run To Dive: "Diving From A Run Pose"; going to ground at a run); `signal_follow` and `signal_stay` (Military Signaling: "Follow" and "Stay Back" While Crouched); `idle_look` (Rifle Idle: "Rifle Idle Looking Around") and `idle_inspect` (Inspecting: "Looking At Rifle"). The fall and the dive keep their travel in the root, so they happen where the man is. Fetched and thrown away the same day, the files deleted: Rifle Punch (it came in facing a quarter turn off) and Writhing In Pain (a wounded man on his back; it would need the body held where its death left it). sha256 starts: `blast_fall` f34fed9047b42687, `rub_eyes` 3329da0c420335f4, `dodge` 57e893c74cb0438a, `kneel_hit_b` 68f10f26c5c1f8b3, `dive` 6eece194538e4618, `signal_follow` 6eba68709efe3a7b, `signal_stay` 790fd95a397d64c0, `idle_look` cd9e6814cef99e00, `idle_inspect` 59aefec545719a64 |
 | the watchtower's ladder (fetched 2026-10-10, the owner the same day: "have a climb animation for gunners, snipers and rifle squads") | `ladder_climb` (Climbing Ladder: "Climbing Up A Ladder"; looped, its rise left in the root: sha256 `ed76e5b7a74e4894…`) |
 
+| the radio man (fetched 2026-10-14, the owner the same day, yes to "a Mixamo clip of a man kneeling with a handset to his ear") | `radio_talk` (Talking On A Cell Phone: "Male Standing While Talking On A Cell Phone"; 2 to 8 s of its 37 looped, imported left for right, played on the left arm and the head alone: sha256 `729a404fcbb116f4…`). Fetched with it and not used: `radio_grab` (Hiding Grab: "Grabs Radio While Hiding", sha256 `79d0619cfdffb539…`). Nothing in the catalogue kneels with a handset. |
+
 ### Weapons — `Assets/_Project/Art/Weapons/`
+
+**The radio man's set: sourced, with its antenna and handset built** (added
+2026-10-14, on the owner's word the same day). "PRC-77 Military radio" by
+hurraciodurrski (Petr Švenda), Sketchfab, **CC BY 4.0**,
+`https://sketchfab.com/3d-models/6a922dac23c14d8eba768d06c36e7aa6`, 16,208
+triangles, the GLB with 1024 textures (sha256
+`cd66138ce60707ad9628c1d765d4dc509b64eeafceccd6bfc0a93f0fd9542a31`, in
+`SourceArt/sketchfab/radio/`, git-ignored); credited in the game's settings.
+The PRC-77 is the PRC-25 of 1965 made over in 1968: the same box to look at.
+What was changed, as the licence asks to be said: stood as it is worn, scaled
+from the file's half-centimetres to the set's 25 x 28.5 x 10.5 cm, the dial's
+glass left out, its colour re-baked with the shade of its own hollows onto a
+512 atlas; and a metre of tape antenna on its mount and an H-189 handset built
+here (the file has neither) by `tools/blender/radio_import.py`.
+
+| file | sha256 |
+|---|---|
+| `radio.fbx` | `bfa31c8271770f665540ccab241d0b7a3a4f8d79cce223816776ed2c95648504` |
+| `radio_albedo.png` | `ffc2568f589f1f8a185daa82c5853531d8a1e22e9f3dc83c33a8260f157db610` |
 
 **Built, not sourced** (`tools/blender/weapons.py`; nothing downloaded, so
 nothing to license). Every class had carried the earlier build's one rifle, a

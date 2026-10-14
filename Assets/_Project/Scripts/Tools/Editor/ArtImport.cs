@@ -117,7 +117,7 @@ namespace LanesOfVietnam.Tools
                 ti.crunchedCompression = true;
                 ti.compressionQuality = CrunchQuality;
             }
-            else if (p.StartsWith("Assets/_Project/Art/Weapons/guns_") && p.EndsWith(".png"))
+            else if ((p.StartsWith("Assets/_Project/Art/Weapons/guns_") || p.StartsWith("Assets/_Project/Art/Weapons/radio_")) && p.EndsWith(".png"))
             {
                 // The sourced weapons' atlas (tools/blender/weapons_import.py): colour, a cell a weapon.
                 ti.textureShape = TextureImporterShape.Texture2D;

@@ -45,6 +45,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
             System.Array.Clear(_rounds, 0, _rounds.Length);
             System.Array.Clear(_threw, 0, _threw.Length);
+            System.Array.Clear(_talkUntil, 0, _talkUntil.Length);
             System.Array.Clear(_reload, 0, _reload.Length);
             System.Array.Clear(_fall, 0, _fall.Length);
             System.Array.Clear(_blown, 0, _blown.Length);
@@ -75,6 +76,21 @@ namespace LanesOfVietnam.View
         private int[] _rounds = new int[0];
         /// <summary>Whether each man threw a grenade since the last frame, and how each man fell.</summary>
         private bool[] _threw = new bool[0];
+        /// <summary>The tick until which a radio man is on the handset (a call of his side's, MatchOptions.Inbound's CallIn).</summary>
+        private int[] _talkUntil = new int[0];
+        /// <summary>Seconds a radio man is on the handset for a call.</summary>
+        public const float CallSeconds = 4.5f;
+
+        /// <summary>
+        /// The man of a US squad who carries its radio: the second raised, if he carries a rifle (the first is its
+        /// point man). One a squad; the computer's and the player's alike.
+        /// </summary>
+        public static bool RadioMan(SimState st, Man m)
+            => m.Side == Side.Us && m.Weapon == Weapon.M16 && m.Id >= 1 && st.Men[m.Id - 1].Squad == m.Squad
+               && (m.Id == 1 || st.Men[m.Id - 2].Squad != m.Squad);
+
+        /// <summary>Who is on the radio now, for the tests: a man's id, or -1.</summary>
+        public int Talking { get; private set; } = -1;
         /// <summary>Whether the simulation started a reload for each man since the last frame (MatchOptions.Ammo).</summary>
         private bool[] _reload = new bool[0];
         private SoldierFigure.Fall[] _fall = new SoldierFigure.Fall[0];
@@ -217,6 +233,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _pinnedAt, n);
                 System.Array.Resize(ref _rounds, n);
                 System.Array.Resize(ref _threw, n);
+                System.Array.Resize(ref _talkUntil, n);
                 System.Array.Resize(ref _reload, n);
                 System.Array.Resize(ref _fall, n);
                 System.Array.Resize(ref _push, n);
@@ -256,6 +273,22 @@ namespace LanesOfVietnam.View
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
+                // A call going out (not the ranging round, which is the guns' own): the radio man nearest where it is
+                // called to puts the handset to his ear.
+                if (e.Kind == EventKind.CallIn && e.Rounds != Inbound.Ranging && e.X != null)
+                {
+                    int best = -1;
+                    double bd = double.MaxValue;
+                    for (int j = 0; j < st.Men.Count; j++)
+                    {
+                        var o = st.Men[j];
+                        if (!o.Alive || o.Side != e.Side || o.High > 0 || !RadioMan(st, o)) continue;
+                        double far = (o.X - e.X.Value) * (o.X - e.X.Value) + (o.Z - e.Z.Value) * (o.Z - e.Z.Value);
+                        if (far < bd) { bd = far; best = j; }
+                    }
+                    if (best >= 0 && best < _talkUntil.Length) _talkUntil[best] = e.Tick + (int)(CallSeconds * Tune.TickHz);
+                    continue;
+                }
                 if (e.Kind == EventKind.Reload && e.Id < _reload.Length) { _reload[e.Id] = true; continue; }
                 if ((e.Kind == EventKind.GrenadeBlast || e.Kind == EventKind.Shell) && e.X != null)
                 {
@@ -587,6 +620,7 @@ namespace LanesOfVietnam.View
                     f = _figures[i] = Instantiate(bodies[(int)(Hash(m.Id, 5) * bodies.Length) % bodies.Length], transform);
                     f.name = $"man {i}";
                     f.Carry(AudioView.Model(m));
+                    if (RadioMan(st, m)) f.WearRadio();
                     // His own height (and with it his stride), his own carriage on the march.
                     f.transform.localScale = Vector3.one * (0.95f + 0.09f * Hash(m.Id, 2));
                     f.Carriage = new Vector2(-2f + 8f * Hash(m.Id, 11), -3f + 6f * Hash(m.Id, 12));
@@ -741,6 +775,9 @@ namespace LanesOfVietnam.View
                 }
                 _shook[i] = 0;
                 _stood[i] = (sbyte)posture;
+                bool talking = m.Alive && i < _talkUntil.Length && st.Tick < _talkUntil[i];
+                f.Talk(talking);
+                if (talking) Talking = i; else if (Talking == i) Talking = -1;
                 if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
                 // A burst killed him: it throws him, and close enough may take a limb off him.

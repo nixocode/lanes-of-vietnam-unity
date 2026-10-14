@@ -40,6 +40,16 @@ namespace LanesOfVietnam.View
         public bool KneelThrowLeft;
         /// <summary>His head and neck, and which way his face points in the head's own space (SoldierBuilder, from the bind pose).</summary>
         public Transform Head, Neck;
+        /// <summary>
+        /// The radio man's kit (tools/blender/radio_import.py: a PRC-77, sourced, its antenna and handset built): the set
+        /// he carries on his back, the handset he talks into, their material; and whether his controller has the
+        /// handset to the ear (the "Radio" layer: his left arm and his head, over whatever else he is doing).
+        /// </summary>
+        public Mesh RadioSet, Handset;
+        public Material RadioMaterial;
+        public bool Radios;
+        /// <summary>The set's middle behind his chest bone, and above it, metres: high on his back, between the shoulder blades, as on its frame.</summary>
+        public const float RadioBehind = 0.16f, RadioUp = 0.2f;
         public Vector3 HeadForward = Vector3.forward;
         /// <summary>Where his body is (his hips), which a fall can carry a metre or two from where the sim has him.</summary>
         public Vector3 Centre { get; private set; }
@@ -305,6 +315,7 @@ namespace LanesOfVietnam.View
             Animator.enabled = false;
             _aimLayer = Animator.GetLayerIndex("Aim");
             _reactLayer = Animator.GetLayerIndex("React");
+            _radioLayer = Animator.GetLayerIndex("Radio");
             var spine = new System.Collections.Generic.List<Transform>(3);
             foreach (var b in new[] { HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.UpperChest })
             {
@@ -383,6 +394,8 @@ namespace LanesOfVietnam.View
             _speed = speed;
             _aim = Mathf.MoveTowards(_aim, aiming && !dead ? 1f : 0f, dt / 0.2f);
             if (_aimLayer >= 0) Animator.SetLayerWeight(_aimLayer, _aim);
+            _radioW = dt <= 0 ? (_talking && !dead ? 1f : 0f) : Mathf.MoveTowards(_radioW, _talking && !dead ? 1f : 0f, dt / 0.35f);
+            if (_radioLayer >= 0) Animator.SetLayerWeight(_radioLayer, _radioW);
             // (The turn into his aim is his upper body's now, with the turn to his man: PostPose.)
             Animator.transform.localRotation = Quaternion.identity;
             _twist = dt <= 0 ? _twistWant : Mathf.MoveTowardsAngle(_twist, dead ? 0f : _twistWant, TwistRate * dt);
@@ -441,6 +454,7 @@ namespace LanesOfVietnam.View
             _recoil *= Mathf.Exp(-dt / 0.05f);
             _climb *= Mathf.Exp(-dt / 0.3f);
             if (_deadFor < 0) PostPose();
+            PlaceHandset();
             // (After his upper body has turned: the grenade is where his hand is drawn.)
             if (_inHand != null && _inHand.activeSelf)
             {
@@ -914,6 +928,66 @@ namespace LanesOfVietnam.View
         /// <summary>The controller has a ladder's climb (the builder says).</summary>
         public bool Ladders;
         public const string LadderState = "Ladder";
+
+        private Transform _radioSet, _handset;
+        private int _radioLayer = -1;
+        private float _radioW;
+        private bool _talking;
+        /// <summary>He carries the set (ArmyView: one man a US rifle squad), and how far his handset is to his ear.</summary>
+        public bool WearsRadio => _radioSet != null;
+        public float OnTheRadio => _radioW;
+
+        /// <summary>Put the set on his back: behind his chest, upright, its back to his, its antenna up over his left shoulder.</summary>
+        public void WearRadio()
+        {
+            if (RadioSet == null || _radioSet != null || Chest == null) return;
+            _radioSet = Kit("radio", RadioSet).transform;
+            _radioSet.SetPositionAndRotation(Chest.position - transform.forward * (RadioBehind * transform.lossyScale.y) + transform.up * RadioUp, transform.rotation);
+            _radioSet.SetParent(Chest, true);
+            if (Handset != null && HandL != null)
+            {
+                _handset = Kit("handset", Handset).transform;
+                _handset.gameObject.SetActive(false);
+            }
+        }
+
+        private GameObject Kit(string name, Mesh mesh)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = RadioMaterial;
+            mr.shadowCastingMode = ShadowCastingMode.On;
+            return go;
+        }
+
+        /// <summary>On the radio, or not: the handset to his ear, over whatever his legs and his rifle hand are doing.</summary>
+        public void Talk(bool on) { _talking = on && Radios && _radioSet != null; }
+
+        /// <summary>
+        /// The handset in his left hand, its earpiece at his ear: from the hand toward the side of his head, drawn
+        /// while his arm is up. (Its cord to the set is not drawn.)
+        /// </summary>
+        private void PlaceHandset()
+        {
+            if (_handset == null) return;
+            bool up = _radioW > 0.6f && _deadFor < 0 && !_baked;
+            if (_handset.gameObject.activeSelf != up) _handset.gameObject.SetActive(up);
+            if (!up || Head == null) return;
+            float k = transform.lossyScale.y;
+            // His left ear: up from the head's pivot (at the base of the skull) and out to his left.
+            var ear = Head.position + Head.up * (0.07f * k) - transform.right * (0.075f * k);
+            var down = HandL.position - ear;
+            if (down.sqrMagnitude < 1e-6f) return;
+            down.Normalize();
+            // Built with its earpiece toward the mesh's -x and its cups toward +z: the earpiece at his ear, the rest
+            // down toward his hand, the cups turned in to his face.
+            var face = Head.position - ear;
+            var into = (face - Vector3.Dot(face, down) * down).normalized;
+            var x = -down;
+            _handset.SetPositionAndRotation(ear + down * (0.085f * k), Quaternion.LookRotation(into, Vector3.Cross(into, x)));
+        }
         private static readonly int LadderId = Animator.StringToHash("Ladder"), LadderPaceId = Animator.StringToHash("LadderPace");
         private bool _onLadder;
 
