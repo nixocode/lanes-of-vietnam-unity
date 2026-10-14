@@ -64,6 +64,8 @@ namespace LanesOfVietnam.View
         /// <summary>The watchtower's group (its members and its deck's bags), and the middle of its foot: for TowerView.</summary>
         public Transform Tower => _tower;
         public Vector3 TowerFoot { get; private set; }
+        /// <summary>Its legs are cut through at its first girt, so that it can break there (TowerView.Fall's buckle).</summary>
+        public bool TowerBreaks { get; private set; }
         /// <summary>The vehicles parked in the firebase: where (the world's), which way their length runs, how long, wide and tall (a tower falling on one rests on it).</summary>
         public readonly List<(Vector3 at, Vector3 along, float length, float width, float height)> Parked = new List<(Vector3, Vector3, float, float, float)>();
 
@@ -100,6 +102,7 @@ namespace LanesOfVietnam.View
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
             _tower = null;
+            TowerBreaks = false;
             Parked.Clear();
             _species = new Dictionary<string, PlantSpecies>();
             foreach (var p in (Plants ?? System.Array.Empty<PlantSet>()).Concat(Props ?? System.Array.Empty<PlantSet>()))
@@ -523,7 +526,7 @@ namespace LanesOfVietnam.View
                 var braces = members.Find(r => r != null && r.name == "tower_braces");
                 if (braces != null) Panels(braces);
                 var legs = members.Find(r => r != null && r.name == "tower_legs");
-                if (legs != null) Sections(legs);
+                if (legs != null) TowerBreaks = Sections(legs);
                 if (Bags.Ready)
                 {
                     // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
@@ -634,8 +637,8 @@ namespace LanesOfVietnam.View
                 => new Vtx { P = Vector3.Lerp(a.P, b.P, k), N = Vector3.Lerp(a.N, b.N, k).normalized, U = Vector2.Lerp(a.U, b.U, k), T = Vector4.Lerp(a.T, b.T, k) };
         }
 
-        /// <summary>What of a polygon is above a height (or below it).</summary>
-        private static List<Vtx> Clip(List<Vtx> poly, float y, bool above)
+        /// <summary>What of a polygon is above a height (or below it); the points made on the cut are added to a list.</summary>
+        private static List<Vtx> Clip(List<Vtx> poly, float y, bool above, List<Vtx> cut)
         {
             var o = new List<Vtx>();
             for (int i = 0; i < poly.Count; i++)
@@ -643,43 +646,85 @@ namespace LanesOfVietnam.View
                 Vtx a = poly[i], b = poly[(i + 1) % poly.Count];
                 bool ina = above ? a.P.y >= y : a.P.y <= y, inb = above ? b.P.y >= y : b.P.y <= y;
                 if (ina) o.Add(a);
-                if (ina != inb) o.Add(Vtx.Lerp(a, b, (y - a.P.y) / (b.P.y - a.P.y)));
+                if (ina != inb)
+                {
+                    var c = Vtx.Lerp(a, b, (y - a.P.y) / (b.P.y - a.P.y));
+                    o.Add(c);
+                    cut.Add(c);
+                }
             }
             return o;
         }
 
+        /// <summary>Where the tower breaks when it buckles, metres above its foot: its first girt (tools/blender/firebase_mesh.py, DECK / 3).</summary>
+        public const float TowerBreak = 2.8f;
+
         /// <summary>
-        /// The tower's legs cut through at the heights of its girts, a mesh a section, named "tower_legs {k}" from the
-        /// ground up: a tower that buckles breaks at the first, the section below left standing (TowerView). Left whole
+        /// The tower's legs cut through at its first girt, a mesh below and a mesh above, named "tower_legs 0" and
+        /// "tower_legs 1": a tower that buckles breaks there, the stump left standing (TowerView). Each broken end is
+        /// closed with a splintered point, so that a leg is not seen to be hollow. True if they were cut; left whole
         /// if its mesh cannot be read.
         /// </summary>
-        private static void Sections(Renderer legs)
+        private static bool Sections(Renderer legs)
         {
             var mesh = legs.GetComponent<MeshFilter>().sharedMesh;
-            if (mesh == null || !mesh.isReadable) return;
+            if (mesh == null || !mesh.isReadable) return false;
             var v = mesh.vertices;
             var n = mesh.normals;
             var uv = mesh.uv;
             var tan = mesh.tangents;
             Vtx At(int i) => new Vtx { P = v[i], N = n.Length > i ? n[i] : Vector3.up, U = uv.Length > i ? uv[i] : Vector2.zero, T = tan.Length > i ? tan[i] : Vector4.zero };
-            float bay = TowerDeck / TowerBays;
-            for (int b = 0; b < TowerBays; b++)
+            for (int b = 0; b < 2; b++)
             {
+                bool above = b == 1;
                 var pv = new List<Vector3>(); var pn = new List<Vector3>(); var puv = new List<Vector2>(); var pt = new List<Vector4>();
                 var tris = new List<int>[mesh.subMeshCount];
+                // The points on the cut, a leg at a time (the four legs are each in a quarter of the plan), with the
+                // part of the mesh they were cut from.
+                var ends = new Dictionary<(int leg, int sub), List<Vtx>>();
                 for (int s = 0; s < mesh.subMeshCount; s++)
                 {
                     tris[s] = new List<int>();
                     var t = mesh.GetTriangles(s);
+                    var cut = new List<Vtx>();
                     for (int k = 0; k < t.Length; k += 3)
                     {
-                        var poly = new List<Vtx> { At(t[k]), At(t[k + 1]), At(t[k + 2]) };
-                        if (b > 0) poly = Clip(poly, b * bay, true);
-                        if (b < TowerBays - 1 && poly.Count >= 3) poly = Clip(poly, (b + 1) * bay, false);
+                        var poly = Clip(new List<Vtx> { At(t[k]), At(t[k + 1]), At(t[k + 2]) }, TowerBreak, above, cut);
                         if (poly.Count < 3) continue;
                         int first = pv.Count;
                         foreach (var q in poly) { pv.Add(q.P); pn.Add(q.N); puv.Add(q.U); pt.Add(q.T); }
                         for (int j = 1; j + 1 < poly.Count; j++) { tris[s].Add(first); tris[s].Add(first + j); tris[s].Add(first + j + 1); }
+                    }
+                    foreach (var c in cut)
+                    {
+                        var key = ((c.P.x >= 0 ? 1 : 0) + (c.P.z >= 0 ? 2 : 0), s);
+                        if (!ends.TryGetValue(key, out var list)) ends[key] = list = new List<Vtx>();
+                        list.Add(c);
+                    }
+                }
+                // Each broken end closed: round its middle, a splinter standing out of it (up from the stump, down
+                // from the leg above it), off the middle a little, by the leg.
+                var face = above ? Vector3.down : Vector3.up;
+                foreach (var ((leg, s), list) in ends)
+                {
+                    var mid = Vector3.zero;
+                    var ring = new List<Vtx>();
+                    foreach (var c in list)
+                        if (!ring.Exists(r => (r.P - c.P).sqrMagnitude < 1e-6f)) { ring.Add(c); mid += c.P; }
+                    if (ring.Count < 3) continue;
+                    mid /= ring.Count;
+                    ring.Sort((x, y) => Mathf.Atan2(x.P.z - mid.z, x.P.x - mid.x).CompareTo(Mathf.Atan2(y.P.z - mid.z, y.P.x - mid.x)));
+                    float h = 0.05f + 0.04f * leg;
+                    var tip = mid + face * h + new Vector3(leg % 2 == 0 ? 0.04f : -0.04f, 0f, leg < 2 ? 0.03f : -0.03f);
+                    int c0 = pv.Count;
+                    pv.Add(tip); pn.Add(face); puv.Add(ring[0].U); pt.Add(ring[0].T);
+                    foreach (var r in ring) { pv.Add(r.P); pn.Add(face); puv.Add(r.U); pt.Add(r.T); }
+                    for (int j = 0; j < ring.Count; j++)
+                    {
+                        int a = c0 + 1 + j, z = c0 + 1 + (j + 1) % ring.Count;
+                        // (Unity's front faces turn clockwise as seen: from above, the ring sorted by its angle turns the other way.)
+                        if (above) { tris[s].Add(c0); tris[s].Add(a); tris[s].Add(z); }
+                        else { tris[s].Add(c0); tris[s].Add(z); tris[s].Add(a); }
                     }
                 }
                 if (pv.Count == 0) continue;
@@ -698,6 +743,7 @@ namespace LanesOfVietnam.View
                 go.AddComponent<MeshRenderer>().sharedMaterials = legs.sharedMaterials;
             }
             Destroy(legs.gameObject);
+            return true;
         }
 
         /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>

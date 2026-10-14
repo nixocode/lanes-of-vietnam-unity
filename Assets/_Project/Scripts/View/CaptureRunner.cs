@@ -176,12 +176,12 @@ namespace LanesOfVietnam.View
                 // (A few frames drawn first: the men up there are drawn up there before it goes, as in a game.)
                 for (int i = 0; i < 4; i++) yield return null;
                 int upThere = sim.Men.FindAll(m => m.Alive && m.High > 0).Count;
-                bool fell = TowerView.Bring(sim, cap.TowerFrom);
+                bool fell = TowerView.Bring(sim, cap.TowerFrom, cap.TowerBuckle < 0 ? (bool?)null : cap.TowerBuckle == 1);
                 int went = sim.Events.FindLastIndex(e => e.Kind == EventKind.Collapsed);
                 if (went >= 0 && root.Dressing != null)
                 {
                     var f = new TowerView.Fall(sim.Events[went], root.Dressing, root.Ground);
-                    Debug.Log($"[LOV] capture: {upThere} men up when it went; it goes over at {sim.Events[went].Amount:F0} degrees, strikes at {f.Hits:F2} s, "
+                    Debug.Log($"[LOV] capture: {upThere} men up when it went; it {(f.Buckle ? $"breaks at {f.Break:F1} m and" : "")} goes over at {sim.Events[went].Amount:F0} degrees, strikes at {f.Hits:F2} s, "
                               + $"lies at {f.Down * Mathf.Rad2Deg:F0} degrees, turned {f.Twist:F0}; roof {(f.RoofOff ? $"off at {f.RoofAt * Mathf.Rad2Deg:F0}" : "on")}, "
                               + $"ladder {(f.LadderOff ? $"away at {f.LadderAt * Mathf.Rad2Deg:F0}, turning {f.LadderTurn:F0}" : "with it")}");
                 }

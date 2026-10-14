@@ -55,10 +55,12 @@ namespace LanesOfVietnam.View
         /// <summary>
         /// Bring the watchtower down (MatchOptions.Destruction), then run this many ticks on and raise the field glasses on
         /// it (towerfall=30); towerfrom=degrees is the side the burst that brings it down is on (the simulation's: 0 is +x).
-        /// With call=us-mg:2:0:5 a squad is posted up it first, and comes down with it.
+        /// With call=us-mg:2:0:5 a squad is posted up it first, and comes down with it. towerbuckle=1 has it break at its
+        /// first girt, towerbuckle=0 go over whole; left out, its dice say.
         /// </summary>
         public int TowerFall = -1;
         public float TowerFrom;
+        public int TowerBuckle = -1;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
         public int SquadThrow = -1;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
@@ -241,6 +243,7 @@ namespace LanesOfVietnam.View
                     case "squadthrow": c.SquadThrow = int.Parse(v, inv); break;
                     case "towerfall": c.TowerFall = int.Parse(v, inv); break;
                     case "towerfrom": c.TowerFrom = float.Parse(v, inv); break;
+                    case "towerbuckle": c.TowerBuckle = int.Parse(v, inv); break;
                     case "glasses":
                     {
                         var xy = v.Split(':');

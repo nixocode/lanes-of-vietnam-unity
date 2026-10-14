@@ -212,10 +212,12 @@ namespace LanesOfVietnam.View
                 }
             }
             // towerfall=1: the watchtower brought down as the fast-forward ends, the camera on it (MatchOptions.Destruction,
-            // PLAN §12.51): what its fall and its dust cost; towerfrom=degrees, the side the burst is on.
+            // PLAN §12.51): what its fall and its dust cost; towerfrom=degrees, the side the burst is on; towerbuckle=1 or 0,
+            // broken at its first girt or over whole (left out, its dice say).
             if (Param("towerfall") == "1")
             {
-                bool fell = TowerView.Bring(root.Driver.State, Number("towerfrom", 0f));
+                string buckle = Param("towerbuckle");
+                bool fell = TowerView.Bring(root.Driver.State, Number("towerfrom", 0f), buckle == null ? (bool?)null : buckle == "1");
                 if (root.Dressing != null) root.CameraRig.Focus(root.Dressing.TowerFoot.x, instant: true);
                 Debug.Log($"[LOV] perf: the tower {(fell ? "brought down" : "not brought down")}");
             }

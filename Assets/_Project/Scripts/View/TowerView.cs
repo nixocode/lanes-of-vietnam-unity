@@ -16,7 +16,9 @@ namespace LanesOfVietnam.View
     /// (no physics engine: the one equation of a toppling column, stepped from the moment it went), turning about
     /// itself as it goes. Its roof may tear off and fly on, tumbling; its ladder may come away and go its own way.
     /// It strikes the ground at the angle the ground there lets it, bounces once and lies; the sandbags on its deck
-    /// spill into a heap.
+    /// spill into a heap. Or it breaks at its first girt (four falls in ten): the stump stands, and all above the
+    /// break goes over about it, quicker for being shorter, until its top is in the ground past level; its ladder
+    /// is torn away and goes on its own.
     /// </summary>
     public sealed class TowerView : MonoBehaviour
     {
@@ -26,8 +28,12 @@ namespace LanesOfVietnam.View
         private const float G = 9.81f;
         /// <summary>The column's height for the equation of its fall, metres: its legs, deck and cabin.</summary>
         private const float Column = 10.4f;
-        /// <summary>Half the width of its foot, metres (tools/blender/firebase_mesh.py: the legs' feet).</summary>
-        public const float FootHalf = 1.45f;
+        /// <summary>Half the width of its foot, and of its legs' heads under the deck, metres (tools/blender/firebase_mesh.py: the legs' feet and heads).</summary>
+        public const float FootHalf = 1.45f, HeadHalf = 1.20f;
+        /// <summary>The top of its roof and how far its eaves reach out from its middle; the same of the plate its rafters sat on (the same script).</summary>
+        private const float RoofTop = 10.6f, RoofHalf = 2.4f, CabinTop = 10.3f, CabinHalf = 1.9f;
+        /// <summary>How often a tower brought down breaks at its first girt rather than going over whole.</summary>
+        public const float BuckleOdds = 0.4f;
         /// <summary>The angle a tower lying on its side rests at with its roof on, and with its roof gone (the roof's eave reaches past the legs).</summary>
         private const float DownRoofed = 85f * Mathf.Deg2Rad, DownBare = 88.5f * Mathf.Deg2Rad;
         /// <summary>A step of the fall's equation, seconds.</summary>
@@ -40,6 +46,16 @@ namespace LanesOfVietnam.View
         {
             /// <summary>The way it goes over (the world's, level), the point it goes over about (the feet of its legs on that side), and its middle at the foot.</summary>
             public readonly Vector3 Dir, Pivot, Foot;
+            /// <summary>
+            /// It breaks at its first girt rather than going over whole: the stump stands, and all above the break goes over
+            /// about the legs on its falling side there, to lie past level with its top in the ground (or on a truck).
+            /// </summary>
+            public readonly bool Buckle;
+            /// <summary>How high it gives, metres above its foot (0: at its foot), and its middle there: what it goes over about.</summary>
+            public readonly float Break;
+            public readonly Vector3 Base;
+            /// <summary>How far out from the point it goes over about, level, its top comes down (metres): where its dust and its crash are.</summary>
+            public readonly float Reach;
             /// <summary>How far it leans as it goes and how hard the burst pushed it (radians, radians a second); the angle it lies at.</summary>
             public readonly float Lean, Kick, Down;
             /// <summary>Degrees it turns about itself by the time it is down.</summary>
@@ -56,37 +72,68 @@ namespace LanesOfVietnam.View
             public readonly int Seed;
 
             /// <summary>The fall of the tower a dressing built, on its ground (and on the vehicles parked there).</summary>
-            public Fall(SimEvent e, WorldDressing w, Ground g) : this(e, w.TowerFoot, g, w.Parked) { }
+            public Fall(SimEvent e, WorldDressing w, Ground g) : this(e, w.TowerFoot, g, w.Parked, w.TowerBreaks) { }
 
-            public Fall(SimEvent e, Vector3 foot, Ground g, IReadOnlyList<(Vector3 at, Vector3 along, float length, float width, float height)> parked = null)
+            /// <param name="breaks">Its legs are cut at its first girt (WorldDressing.TowerBreaks): it may buckle there.</param>
+            public Fall(SimEvent e, Vector3 foot, Ground g, IReadOnlyList<(Vector3 at, Vector3 along, float length, float width, float height)> parked = null,
+                        bool breaks = false)
             {
                 Seed = e.Rounds;
                 float a = (float)(e.Amount ?? 0) * Mathf.Deg2Rad;
                 Dir = new Vector3(Mathf.Cos(a), 0f, -Mathf.Sin(a));
                 Foot = foot;
-                float reach = FootHalf / Mathf.Max(Mathf.Abs(Dir.x), Mathf.Abs(Dir.z));
-                Pivot = foot + Dir * reach;
+                Buckle = breaks && Buckles(Seed);
+                Break = Buckle ? WorldDressing.TowerBreak : 0f;
+                Base = foot + Vector3.up * Break;
+                // (Its legs lean in as they rise: at the break they are nearer its middle than at its foot.)
+                float half = FootHalf - (FootHalf - HeadHalf) * Break / WorldDressing.TowerDeck;
+                float square = 1f / Mathf.Max(Mathf.Abs(Dir.x), Mathf.Abs(Dir.z));
+                Pivot = Base + Dir * (half * square);
+                _k = 3f * G / (2f * (Column - Break));
                 Lean = (2f + 2.5f * H(Seed, 1)) * Mathf.Deg2Rad;
                 Kick = 0.12f + 0.45f * H(Seed, 2);
                 Twist = (H(Seed, 3) - 0.5f) * 50f;
                 RoofOff = H(Seed, 4) < 0.6f;
                 RoofAt = (25f + 35f * H(Seed, 5)) * Mathf.Deg2Rad;
                 RoofSpin = (H(Seed, 6) < 0.5f ? -1f : 1f) * (140f + 260f * H(Seed, 7));
-                LadderOff = H(Seed, 8) < 0.7f;
-                LadderAt = (8f + 22f * H(Seed, 9)) * Mathf.Deg2Rad;
+                // (Broken under its deck, it tears its ladder away as it goes, whichever side the ladder is on.)
+                LadderOff = Buckle || H(Seed, 8) < 0.7f;
+                LadderAt = Buckle ? 0f : (8f + 22f * H(Seed, 9)) * Mathf.Deg2Rad;
                 LadderTurn = (H(Seed, 10) < 0.5f ? -1f : 1f) * (20f + 45f * H(Seed, 11));
-                // It lies at the angle the ground where it lands lets it: further over where the ground falls away.
-                float down = RoofOff ? DownBare : DownRoofed;
-                if (g != null)
+                float down, far;
+                if (!Buckle)
                 {
-                    var land = Pivot + Dir * 9.5f;
-                    float rise = (float)g.HeightAt(land.x, Coords.SimZ(land.z)) - foot.y;
-                    down -= Mathf.Atan2(rise, 9.5f);
+                    // It lies at the angle the ground where it lands lets it: further over where the ground falls away.
+                    down = RoofOff ? DownBare : DownRoofed;
+                    Reach = 9.5f;
+                    if (g != null)
+                    {
+                        var land = Pivot + Dir * Reach;
+                        float rise = (float)g.HeightAt(land.x, Coords.SimZ(land.z)) - foot.y;
+                        down -= Mathf.Atan2(rise, Reach);
+                    }
+                    far = 11.5f;
+                }
+                else
+                {
+                    // Broken, it goes over about the break until the far edge of its top (its roof's eave, or the plate
+                    // the rafters sat on) strikes the ground, past level: the ground there, the higher the sooner.
+                    float up = (RoofOff ? CabinTop : RoofTop) - Break, wide = ((RoofOff ? CabinHalf : RoofHalf) - half) * square;
+                    float r = Mathf.Sqrt(up * up + wide * wide), phi = Mathf.Atan2(wide, up), rise = 0f;
+                    down = Mathf.PI * 0.5f;
+                    for (int k = 0; k < 2; k++)
+                    {
+                        down = Mathf.Acos(Mathf.Clamp((rise - Break) / r, -1f, 1f)) - phi;
+                        var land = Pivot + Dir * (r * Mathf.Sin(down + phi));
+                        if (g != null) rise = (float)g.HeightAt(land.x, Coords.SimZ(land.z)) - foot.y;
+                    }
+                    Reach = r * Mathf.Sin(down + phi);
+                    far = r;
                 }
                 // And not through a truck: where it comes down across one, it rests on it, its lower side on the roof.
                 var across = Vector3.Cross(Vector3.up, Dir);
                 if (parked != null)
-                    for (float s = 2f; s <= 11.5f; s += 0.5f)
+                    for (float s = 2f; s <= far; s += 0.5f)
                         for (int k = -1; k <= 1; k++)
                         {
                             var p = Pivot + Dir * s + across * (1.8f * k);
@@ -94,11 +141,16 @@ namespace LanesOfVietnam.View
                             {
                                 var d = p - v.at;
                                 if (Mathf.Abs(Vector3.Dot(d, v.along)) > v.length * 0.5f || Mathf.Abs(Vector3.Dot(d, Vector3.Cross(Vector3.up, v.along))) > v.width * 0.5f) continue;
-                                float rest = Mathf.Atan2(s, Mathf.Max(0.1f, v.at.y + v.height - Pivot.y));
-                                if (rest < down) down = rest;
+                                // (Broken, it comes down on a roof below the break: over the level, by as much as the roof is lower.)
+                                float rest = Mathf.Atan2(s, Buckle ? v.at.y + v.height - Pivot.y : Mathf.Max(0.1f, v.at.y + v.height - Pivot.y));
+                                if (rest < down)
+                                {
+                                    down = rest;
+                                    if (Buckle) Reach = Mathf.Min(Reach, s);
+                                }
                             }
                         }
-                Down = Mathf.Clamp(down, 50f * Mathf.Deg2Rad, 100f * Mathf.Deg2Rad);
+                Down = Mathf.Clamp(down, 50f * Mathf.Deg2Rad, (Buckle ? 125f : 100f) * Mathf.Deg2Rad);
                 // When it reaches the angles that matter.
                 float th = Lean, w = Kick, t = 0f;
                 RoofTime = LadderTime = -1f;
@@ -106,7 +158,7 @@ namespace LanesOfVietnam.View
                 {
                     if (RoofTime < 0 && th >= RoofAt) RoofTime = t;
                     if (LadderTime < 0 && th >= LadderAt) LadderTime = t;
-                    w += K * Mathf.Sin(th) * Step;
+                    w += _k * Mathf.Sin(th) * Step;
                     th += w * Step;
                     t += Step;
                 }
@@ -115,8 +167,11 @@ namespace LanesOfVietnam.View
                 if (LadderTime < 0) LadderTime = t;
             }
 
-            /// <summary>The column's constant: its angle's acceleration is this times the sine of its angle.</summary>
-            private const float K = 3f * G / (2f * Column);
+            /// <summary>The column's constant: its angle's acceleration is this times the sine of its angle (the shorter the column, the sooner).</summary>
+            private readonly float _k;
+
+            /// <summary>Whether a fall's dice break it at its first girt (where its legs can be broken there).</summary>
+            public static bool Buckles(int seed) => H(seed, 12) < BuckleOdds;
 
             /// <summary>Its angle from upright, t seconds after it went, and how fast that angle is growing.</summary>
             public float Angle(float t, out float rate)
@@ -131,7 +186,7 @@ namespace LanesOfVietnam.View
                     return Down;
                 }
                 float th = Lean, w = Kick, s = 0f;
-                for (; s + Step <= t; s += Step) { w += K * Mathf.Sin(th) * Step; th += w * Step; }
+                for (; s + Step <= t; s += Step) { w += _k * Mathf.Sin(th) * Step; th += w * Step; }
                 th += w * (t - s);
                 rate = w;
                 return Mathf.Min(th, Down);
@@ -143,17 +198,18 @@ namespace LanesOfVietnam.View
             /// <summary>Its rotation at an angle of its fall: over toward its way, turned about itself.</summary>
             public Quaternion Turn(float angle) => Tilt(Dir, angle) * Quaternion.AngleAxis(TwistAt(angle), Vector3.up);
 
-            /// <summary>Where the tower group is put for that rotation: its foot's pivot stays where it is.</summary>
+            /// <summary>Where the tower group (or what of it is above the break) is put for that rotation: the point it goes over about stays where it is.</summary>
             public Vector3 Place(Quaternion turn, float angle)
-                => Pivot + Tilt(Dir, angle) * (Foot - Pivot) - turn * Foot;
+                => Pivot + Tilt(Dir, angle) * (Base - Pivot) - turn * Base;
         }
 
         /// <summary>
         /// Bring the tower down now, for a capture or the frame-time probe: a shell's burst at its foot from a side
         /// (degrees, the simulation's: 0 is +x, 90 is +z), enough to finish it. Never part of a match the game plays.
-        /// True if it fell.
+        /// Asked to (buckle), its dice are moved on until they break it at its first girt, or until they do not: to
+        /// capture or test each kind of fall. True if it fell.
         /// </summary>
-        public static bool Bring(SimState st, double from)
+        public static bool Bring(SimState st, double from, bool? buckle = null)
         {
             if (!st.Destruction || st.Posts.Count == 0 || st.Posts[0].Fallen) return false;
             var p = st.Posts[0];
@@ -161,6 +217,13 @@ namespace LanesOfVietnam.View
             double x = p.X + System.Math.Cos(a) * 2.5, z = p.Z + System.Math.Sin(a) * 2.5;
             st.Events.Add(new SimEvent { Kind = EventKind.Shell, Tick = st.Tick, Side = Side.Vc, Id = -1, X = x, Z = z });
             Destruction.Burst(st, x, z, 0, 5);
+            int went = st.Events.FindLastIndex(e => e.Kind == EventKind.Collapsed);
+            if (buckle.HasValue && went >= 0)
+            {
+                var e = st.Events[went];
+                while (Fall.Buckles(e.Rounds) != buckle.Value) e.Rounds++;
+                st.Events[went] = e;
+            }
             return p.Fallen;
         }
 
@@ -184,6 +247,7 @@ namespace LanesOfVietnam.View
             public Vector3 Origin;          // its place in the tower's group (the group stands at the world's origin)
             public Bounds B;                // its mesh's bounds, in its own space
             public int Face = -1, Bay = -1; // a panel of bracing
+            public int Section = -1;        // the legs below their first girt (0) or above it (1)
         }
 
         private GameRoot _root;
@@ -216,6 +280,8 @@ namespace LanesOfVietnam.View
         public Fall Current => _fall;
         /// <summary>The tower's group (null if the dressing built it as boxes).</summary>
         public Transform Group => _group;
+        /// <summary>How it stands now: the rotation of what of it is leaning or going over (all of it, or all above the break).</summary>
+        public Quaternion Over { get; private set; } = Quaternion.identity;
 
         private bool Find()
         {
@@ -233,8 +299,9 @@ namespace LanesOfVietnam.View
             {
                 var mf = c.GetComponent<MeshFilter>();
                 var r = c.GetComponent<Renderer>();
-                // (The bracing whole is gone at the end of the frame it was cut into its panels.)
-                if (mf == null || mf.sharedMesh == null || r == null || c.name == "tower_braces") continue;
+                // (The bracing whole is gone at the end of the frame it was cut into its panels; and the legs whole, cut
+                // through at its first girt.)
+                if (mf == null || mf.sharedMesh == null || r == null || c.name == "tower_braces" || c.name == "tower_legs" && _dressing.TowerBreaks) continue;
                 var p = new Piece { T = c, R = r, Origin = c.localPosition, B = mf.sharedMesh.bounds };
                 if (c.name.StartsWith("tower_braces "))
                 {
@@ -242,6 +309,7 @@ namespace LanesOfVietnam.View
                     p.Face = int.Parse(parts[1]);
                     p.Bay = int.Parse(parts[2]);
                 }
+                if (c.name.StartsWith("tower_legs ")) p.Section = int.Parse(c.name.Substring(11));
                 if (c.name == "tower_roof") _roof = p;
                 if (c.name == "tower_ladder") _ladder = p;
                 if (c.name.StartsWith("tower bags")) _bags.Add(p);
@@ -263,6 +331,7 @@ namespace LanesOfVietnam.View
             bool drawn = !Off && st.Destruction;
             // Whole: every piece where it was built.
             _group.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            Over = Quaternion.identity;
             foreach (var p in _pieces)
             {
                 p.T.SetLocalPositionAndRotation(p.Origin, Quaternion.identity);
@@ -398,7 +467,11 @@ namespace LanesOfVietnam.View
         {
             var (at, turn) = Leant(Leaning(now));
             _group.SetPositionAndRotation(at, turn);
+            Over = turn;
         }
+
+        /// <summary>A piece of the stump a tower that buckles leaves standing: its legs and bracing below its first girt.</summary>
+        private static bool Stump(Piece p) => p.Section == 0 || p.Face >= 0 && p.Bay == 0;
 
         /// <summary>Going over, and down.</summary>
         private void Down(SimState st, float now)
@@ -409,15 +482,28 @@ namespace LanesOfVietnam.View
             float th = f.Angle(t, out _);
             var turn = f.Turn(th);
             var at = f.Place(turn, th);
-            // (From the lean it had as it went, over the first moments of going: its lean's way becomes its fall's.)
+            var stand = Quaternion.identity;
+            var standAt = Vector3.zero;
+            // (From the lean it had as it went, over the first moments of going: its lean's way becomes its fall's, and
+            // a stump left standing stands up straight as the weight above it goes.)
             if (t < 0.5f)
             {
                 float k = Mathf.SmoothStep(0f, 1f, t / 0.5f);
                 var (wasAt, was) = Leant(Leaning(now - t));
                 turn = Quaternion.Slerp(was, turn, k);
                 at = Vector3.Lerp(wasAt, at, k);
+                stand = Quaternion.Slerp(was, stand, k);
+                standAt = Vector3.Lerp(wasAt, standAt, k);
             }
-            _group.SetPositionAndRotation(at, turn);
+            Over = turn;
+            if (!f.Buckle) _group.SetPositionAndRotation(at, turn);
+            else
+                // Broken at its first girt: its stump stands, and all above the break goes over about it.
+                foreach (var p in _pieces)
+                {
+                    if (Stump(p)) p.T.SetLocalPositionAndRotation(standAt + stand * p.Origin, stand);
+                    else p.T.SetLocalPositionAndRotation(at + turn * p.Origin, turn);
+                }
 
             // It strikes the ground: felt, if it is near.
             if (!_shook && t >= f.Hits)
@@ -427,7 +513,7 @@ namespace LanesOfVietnam.View
                     _root.CameraRig.Shake(0.8f * Mathf.Clamp01(1.2f - Mathf.Abs(_foot.x - _root.CameraRig.X) / 70f));
             }
             if (_roof != null && f.RoofOff && t > f.RoofTime) Roof(f, t);
-            if (_ladder != null && f.LadderOff && t > f.LadderTime && Vector3.Dot(f.Dir, SideOf(_ladder)) < 0.2f) Ladder(f, t);
+            if (_ladder != null && f.LadderOff && t > f.LadderTime && (f.Buckle || Vector3.Dot(f.Dir, SideOf(_ladder)) < 0.2f)) Ladder(f, t);
             if (t > f.Hits)
             {
                 foreach (var b in _bags) Heap(b, f, t - f.Hits);
@@ -445,8 +531,8 @@ namespace LanesOfVietnam.View
             {
                 var p = _pieces[k];
                 if (p.Face < 0 || _gone.Exists(g => g.piece == k)) continue;
-                // (Its face toward its way is under it, on the ground: that one stays.)
-                if (Vector3.Dot(Normal(p.Face), f.Dir) > 0.5f) continue;
+                // (Its face toward its way is under it, on the ground: that one stays; and so does a broken tower's stump.)
+                if (Vector3.Dot(Normal(p.Face), f.Dir) > 0.5f || f.Buckle && Stump(p)) continue;
                 picks.Add((H(f.Seed, 200 + k), k));
             }
             picks.Sort((a, b) => a.order.CompareTo(b.order));
@@ -533,17 +619,29 @@ namespace LanesOfVietnam.View
 
         /// <summary>
         /// The ladder, torn away from the deck: it goes over on its own about its foot, which kicks out behind it,
-        /// turning off the tower's way to its own, and lies.
+        /// turning off the tower's way to its own, and lies. A tower that breaks under its deck tears it away as it
+        /// starts to go: it goes over from where it stood, out from the stump on its side of it.
         /// </summary>
         private void Ladder(in Fall f, float t)
         {
             var p = _ladder;
             float t0 = f.LadderTime;
             var footLocal = new Vector3(p.B.center.x, p.B.min.y + 0.1f, p.B.center.z);
-            var foot0 = Carried(f, p, footLocal, t0);
-            float th0 = f.Angle(t0, out float w0);
-            float twist = f.TwistAt(th0);
-            var own = Quaternion.AngleAxis(f.LadderTurn, Vector3.up) * f.Dir;
+            Vector3 foot0, own;
+            float th0, w0, twist;
+            if (!f.Buckle)
+            {
+                foot0 = Carried(f, p, footLocal, t0);
+                th0 = f.Angle(t0, out w0);
+                twist = f.TwistAt(th0);
+                own = Quaternion.AngleAxis(f.LadderTurn, Vector3.up) * f.Dir;
+            }
+            else
+            {
+                foot0 = p.Origin + footLocal;
+                th0 = 0.03f; w0 = 0.3f; twist = 0f;
+                own = Quaternion.AngleAxis(f.LadderTurn * 0.5f, Vector3.up) * (SideOf(p) + 0.5f * f.Dir).normalized;
+            }
             float u = t - t0;
             // (Its own column: lighter and a little shorter, its own equation.)
             const float k = 3f * G / (2f * 9.6f);
@@ -555,7 +653,7 @@ namespace LanesOfVietnam.View
                 float after = u - s;
                 th = down - (after < 0.25f ? 0.04f * Mathf.Sin(Mathf.PI * after / 0.25f) : 0f);
             }
-            var way = Vector3.Slerp(f.Dir, own, Mathf.SmoothStep(0f, 1f, u / 0.5f)).normalized;
+            var way = f.Buckle ? own : Vector3.Slerp(f.Dir, own, Mathf.SmoothStep(0f, 1f, u / 0.5f)).normalized;
             var r = Tilt(way, th) * Quaternion.AngleAxis(twist, Vector3.up);
             var footAt = foot0 - way * (0.6f * Mathf.Min(1f, u));
             footAt.y = Mathf.Max(Ground(footAt) + 0.05f, foot0.y - 0.5f * G * u * u);

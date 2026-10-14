@@ -89,6 +89,9 @@ and say so:
 - `hash 1 ... bearing inbound map emplace satchel` (the game, on `classes`): 5581 ticks, final `1240054123u`; and
   `scenario hash 1` there: the firebase 4067 `3799276349u`; The Wire 4366 `1257355612u`; First Light 6303 `3833706783u`;
   The Earth Fights 9266 `1202707650u`.
+- `hash 1 ... bearing inbound map emplace satchel destruction` (the game, on `destruction`): 5581 ticks, final `3526591710u`;
+  and `scenario hash 1` there: the firebase 4075 `3782637812u`; The Wire 4366 `3110059397u`; First Light 6303
+  `2115725450u`; The Earth Fights 9266 `3572325795u`.
 
 ## Rules this project keeps
 
@@ -97,7 +100,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

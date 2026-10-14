@@ -4414,7 +4414,7 @@ made on this Mac).
 
 ### 12.46 Everything not done, skipped or forgotten in the stages of 2026-10-12 (written 2026-10-13)
 
-**Where the stages stand (kept up to date; last 2026-10-14, evening):**
+**Where the stages stand (kept up to date; last 2026-10-14, night):**
 
 | stage | | where |
 |---|---|---|
@@ -4424,7 +4424,7 @@ made on this Mac).
 | 4 | call-ins you watch arrive | ✅ done (§12.45, §12.47), every item closed |
 | 5 | every class its job | ✅ done (§12.48) |
 | 6 | the world from a map (M0) | ✅ done (§12.50) |
-| 7 | the tower comes down | in progress on `destruction`: the rule (85a1f9d, 892fe81) and the view (a9ff520) built and tested; open: the buckle (legs cut, 0589fde, not compiled), the balance run on 192, its PLAN section, the timber sound and a falling clip (his yes) |
+| 7 | the tower comes down | ✅ done (§12.51); two items wait on his yes: a timber sound and a falling clip |
 | also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
 
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
@@ -4838,6 +4838,134 @@ work that looked wrong for a reason that was not the work (a build 5 MB
 light, captures of stand-in boxes).
 
 New files: `View/Theatre.cs`.
+
+### 12.51 Stage 7: the tower comes down (2026-10-14)
+
+The owner, 2026-10-12: "the watch tower must be collapsable and fall, to rpgs
+and heavy mortars. Add all visual effects and proper animations. Don't always
+have it fall the same way, make it sandboxy. Just add this to the plan for now
+since we will add more layers of destruction." Added to the approved plan as
+Stage 7; on 2026-10-14 he said to go on into stages 6 and 7. On the branch
+`destruction`, from `main` (Stage 6).
+
+**The rule** (`MatchOptions.Destruction`, `Sim/Destruction.cs`), written for
+any structure, with the tower the first. A post has a strength, whole at 1. A
+burst at its foot (within 4 m, the more the closer) or one striking it when
+fired at the men up on it (within 6.5 m and at their height) takes from it: a
+rocket half, a mortar bomb a quarter, a satchel charge 0.7, a shell a third at
+a barrage's power and a bomb more; a rifle round, a hand grenade and a 40 mm
+round nothing. At nothing it falls: away from the burst that finished it,
+turned by the dice up to 40 degrees. The men on it and on its ladder come
+down with it: 65 in 100 killed, the rest flat and pinned at its foot, thrown
+clear to one side; its squad fights on from the ground, and nobody is posted
+there again (the card says "fallen"). Sappers and engineers will put a charge
+at an enemy tower's foot. New events, at the end of the enum: `Damaged` (its
+strength left, and where the burst was) and `Collapsed` (its way, in degrees,
+and a seed for the dice of how it falls). Its draws come from the grenades'
+stream, and its state is hashed only with the rule on.
+
+**What is drawn** (`View/TowerView.cs`, new):
+
+- *Hit*: darker and browner for every burst it takes; a panel of its bracing
+  blown off and down at two thirds and at a third of its strength, on the
+  face toward the burst, low for a burst on the ground and high for one at
+  its platform; a shudder at each hit; a lean away from the bursts once it is
+  badly hurt, more as it weakens.
+- *Going over*: it goes over about the feet of its legs on its falling side
+  by the equation of a toppling column, slowly and then fast (about two
+  seconds), turning about itself as it goes. From the dice: its roof may tear
+  off at 25 to 60 degrees and fly on, tumbling, to land flat; its ladder may
+  come away and go its own way; it lies at the angle the ground lets it, or
+  propped on a parked truck, bounces once and lies there for the rest of the
+  match; three panels of bracing break off it as it strikes; the deck's bags
+  spill into a heap.
+- *Or breaking* (new today, four falls in ten): it snaps at its first girt,
+  2.8 m up. The stump stands, with its bottom bay of bracing and its girt;
+  everything above the break goes over about the legs on its falling side
+  there, quicker for being shorter, until its top is in the ground past level
+  (about 103 to 110 degrees), its broken end up on the stump. Its ladder is
+  torn away as it starts and falls on its own, out from the stump. The legs
+  are cut through at the girt when the firebase is built (`WorldDressing`,
+  "tower_legs 0" and "1"), and each broken end is closed with a splintered
+  point, so a leg is never seen to be hollow.
+- *With it*: splinters at each hit; dust at its foot as its legs give; a long
+  low cloud along what came down, where and when it strikes, rolling out and
+  drifting off; earth and timber thrown where its top lands; the camera shaken
+  if it is near. The men up on it ride it a moment, are thrown, and fall to
+  where the rule puts them. Its sound: its legs giving and its crash and
+  bounce, made of sounds already in the game, slowed.
+
+Everything is worked out from the `Collapsed` event alone (`TowerView.Fall`),
+so the tower, its dust, its sound and its men fall the same fall, a capture of
+it is the same every time, and a match played again falls the same way. No
+physics engine: a physics engine running in the browser would not replay.
+
+**Measured.**
+
+- The pins, flag off, unchanged (`simcs hash 1` 2256114725u; the game's
+  without it 1240054123u). On: `simcs hash N ... bearing inbound map emplace
+  satchel destruction` seed 1, 5581 ticks, `3526591710u`; seed 7, 6520,
+  `3221027986u`. `simcs scenario hash 1` with the rule (it is on in the
+  scenarios): the firebase 4075 `3782637812u`; The Wire 4366 `3110059397u`;
+  First Light 6303 `2115725450u`; The Earth Fights 9266 `3572325795u`.
+  `determinism`: ok.
+- Balance, `simcs scenario 192 level=veteran`, as the headless player plays
+  (line squads only): with the rule and without it the same to the match:
+  firebase 126 as US and 136 as VC, The Wire 155, First Light 155, The Earth
+  Fights 148. Nobody is up the tower in those matches, so nothing aims at it:
+  `simcs towerfalls 192` has it hurt in 1 match of 192 and down in none.
+- What it does where it matters, with a player who keeps a team up the tower
+  (new: `scenario ... side=us tower=<card>`, and `nodestruction` for without
+  the rule), 192 seeds against a Veteran:
+
+  | up the tower | operation | wins with the rule | without | the tower down in | men killed by the fall |
+  |---|---|---|---|---|---|
+  | the MG team | The Wire | 173 | 180 | 70 | 115 |
+  | the MG team | the firebase | 144 | 144 | 1 | 1 |
+  | the MG team | First Light | 155 | 155 | 0 | 0 |
+  | a sniper | The Wire | 154 | 157 | 54 | 68 |
+  | a sniper | the firebase | 167 | 167 | 1 | 1 |
+  | a sniper | First Light | 170 | 171 | 2 | 1 |
+
+  The Wire is where the VC come on with rockets and mortars: a team kept up
+  there sees the tower brought down in a third of matches, and the US player
+  loses 7 matches in 192 with the MG team (3 with a sniper). A finding that is
+  not this rule's: in The Wire, the MG team up the tower is worth 25 matches
+  over line squads alone (155 to 180 without the rule; 173 with it), above
+  the band of 112 to 160.
+- With the computer manning its own tower as a player would (`towerfalls 192
+  aiposts`, which the game does not do): hurt in 19 matches, down in 8, at
+  155 s on average, 11 men killed by its fall.
+- WebGL: 37.39 MB to start, 45.10 in all. Frame time at 2592 x 1370, seed 3,
+  the five seconds after it is brought down (`?perf=1&towerfall=1`, new
+  `&towerbuckle=1|0`): breaking 4.4 ms mean, 5.0 at the 95th percentile; going
+  over whole 4.4 and 6.0; no fall 4.3 and 5.0.
+- Tests: EditMode 119 of 119; PlayMode 37 of 37 and the capture skipped (new:
+  `StructureTests.The_tower_falls_the_way_its_event_says_and_its_men_come_down_with_it`
+  and `A_tower_that_breaks_leaves_its_stump_standing_and_its_top_past_level`).
+- Captured (`captures/tower/`, not committed): falls from each side, through
+  the field glasses on the deck as it goes, and the break (`k_sheet.png`,
+  `kg_sheet.png`); capture keys `towerfall=N`, `towerfrom=degrees`,
+  `towerbuckle=1|0`.
+
+**My readings, for him to overturn.** Of the four questions the plan kept for
+him: shells and the air strike's bombs bring it down too, as rockets and
+mortars do (a 105 mm shell is heavier than either); the men on it are mostly
+killed and the rest hurt and flat at its foot; the wreck gives no cover; it
+cannot be put back up.
+
+**Not done, and why:**
+
+- *The sound of timber going*: a recording to download, which needs his yes;
+  until then it is made of the game's own sounds (a shell's report and a
+  body's fall, slowed).
+- *A falling clip for the men*: a Mixamo clip, which needs his separate yes;
+  until then they are thrown by code, straight, and lie flat once down.
+- *The other layers of destruction* he has said will follow (bunker roofs,
+  bag walls, wire, vehicles burning): the rule and the way of drawing are
+  there for them; none is built.
+
+New files: `Sim/Destruction.cs`, `View/TowerView.cs`.
 
 ### 12.13 Corrections to earlier sections
 

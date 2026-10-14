@@ -76,14 +76,14 @@ namespace LanesOfVietnam.Tests
             float Above(int id) => root.ArmyView.FigureOf(id).transform.position.y - (float)root.Ground.HeightAt(st.Men[id].X, st.Men[id].Z);
             foreach (int id in up) Assert.Greater(Above(id), 6f, $"man {id} is not drawn up on the tower");
 
-            Assert.IsTrue(TowerView.Bring(st, 0), "the tower did not fall");
-            float Over() => Vector3.Angle(Vector3.up, tower.Group.rotation * Vector3.up);
+            Assert.IsTrue(TowerView.Bring(st, 0, buckle: false), "the tower did not fall");
+            float Over() => Vector3.Angle(Vector3.up, tower.Over * Vector3.up);
             for (int k = 0; k < 6; k++) { root.AdvanceForCapture(0.05f); yield return null; }
             var f = tower.Current;
             Assert.IsTrue(tower.Falling);
             Assert.Greater(Over(), 1f, "it has not started over");
             Assert.Less(Over(), 25f, "it went over at once: it is a tall thing, slow to start");
-            var way = tower.Group.rotation * Vector3.up; way.y = 0;
+            var way = tower.Over * Vector3.up; way.y = 0;
             Assert.Greater(Vector3.Dot(way.normalized, f.Dir), 0.9f, "it is not going over the way its fall says");
             foreach (int id in up) Assert.Greater(Above(id), 3f, $"man {id} was put on the ground, not brought down");
             Assert.That(f.Hits, Is.InRange(1.2f, 3.5f), "a nine-metre tower falls in about two seconds");
@@ -91,6 +91,54 @@ namespace LanesOfVietnam.Tests
             for (int k = 0; k < steps; k++) { root.AdvanceForCapture(0.05f); yield return null; }
             Assert.AreEqual(f.Down * Mathf.Rad2Deg, Over(), 2f, "it does not lie where its fall says");
             foreach (int id in up) Assert.Less(Above(id), 0.8f, $"man {id} is not on the ground");
+        }
+
+        /// <summary>
+        /// Broken at its first girt (TowerView.Fall's buckle): the stump stands where it stood, upright; all above the
+        /// break goes over about the legs on its falling side there, and lies past level, its top in the ground; the
+        /// broken ends of the legs are closed.
+        /// </summary>
+        [UnityTest, Category("Structures")]
+        public IEnumerator A_tower_that_breaks_leaves_its_stump_standing_and_its_top_past_level()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            root.Paused = true;
+            yield return null;
+            var tower = Object.FindAnyObjectByType<TowerView>();
+            Assert.IsTrue(root.Dressing.TowerBreaks, "the tower's legs were not cut at its first girt");
+            Transform Named(string n) => tower.Group.Find(n);
+            var stump = Named("tower_legs 0");
+            var above = Named("tower_legs 1");
+            Assert.IsNotNull(stump, "no stump");
+            Assert.IsNotNull(above, "no legs above the break");
+            Assert.IsNull(Named("tower_legs"), "the legs whole are still there beside their sections");
+            var stumpMesh = stump.GetComponent<MeshFilter>().sharedMesh;
+            Assert.LessOrEqual(stumpMesh.bounds.max.y, WorldDressing.TowerBreak + 0.2f, "the stump goes on above the break");
+            Assert.GreaterOrEqual(above.GetComponent<MeshFilter>().sharedMesh.bounds.min.y, WorldDressing.TowerBreak - 0.2f, "the legs above the break come down below it");
+            var stumpAt = stump.position;
+            var cabin = Named("tower_cabin").GetComponent<Renderer>();
+            var cabinWas = cabin.bounds.center;
+
+            Assert.IsTrue(TowerView.Bring(st, 90, buckle: true), "the tower did not fall");
+            int steps = 0;
+            for (; steps < 6; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
+            var f = tower.Current;
+            Assert.IsTrue(f.Buckle, "it was asked to break and did not");
+            Assert.AreEqual(WorldDressing.TowerBreak, f.Break, 1e-4f);
+            Assert.That(f.Hits, Is.InRange(1.0f, 3.5f), "the top of a broken tower falls in a second or two");
+            Assert.Greater(f.Down * Mathf.Rad2Deg, 95f, "broken, it should lie past level, its top in the ground");
+            for (; steps * 0.05f < f.Hits + 1.2f; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.AreEqual(0f, Vector3.Angle(Vector3.up, stump.rotation * Vector3.up), 0.5f, "the stump does not stand upright");
+            Assert.Less((stump.position - stumpAt).magnitude, 0.05f, "the stump has moved");
+            Assert.AreEqual(f.Down * Mathf.Rad2Deg, Vector3.Angle(Vector3.up, tower.Over * Vector3.up), 2f, "its top does not lie where its fall says");
+            Assert.AreEqual(f.Down * Mathf.Rad2Deg, Vector3.Angle(Vector3.up, above.rotation * Vector3.up), 2f, "the legs above the break are not with its top");
+            // (Hinged on the stump: the point it went over about is still at the height of the break, give or take what
+            // it turned about itself as it went.)
+            var hinge = above.position + above.rotation * (f.Pivot - stumpAt);
+            Assert.AreEqual(f.Pivot.y, hinge.y, 0.6f, "its top is not hinged at the break");
+            Assert.Less(cabin.bounds.center.y, cabinWas.y - 6f, "its cabin has not come down");
         }
 
         /// <summary>

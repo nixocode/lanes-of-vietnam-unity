@@ -649,22 +649,31 @@ namespace LanesOfVietnam.SimCs
                     foreach (Difficulty level in Enum.GetValues(typeof(Difficulty)))
                     {
                         if (levelArg != null && levelArg != level.ToString().ToLowerInvariant()) continue;
-                        int wins = 0; double secs = 0;
+                        int wins = 0, fell = 0, crushed = 0; double secs = 0;
                         var each = new List<double>();
                         var endings = new SortedDictionary<string, int>();
                         for (int seed = 1; seed <= seeds; seed++)
                         {
-                            // `card=<id>`: the player buys that squad instead of his first line squad; `nosatchel`, `noemplace`: without that rule.
+                            // `card=<id>`: the player buys that squad instead of his first line squad; `nosatchel`, `noemplace`,
+                            // `nodestruction`: without that rule.
                             var opts = sc.Options(seed, side, level);
                             if (a.Contains("nosatchel")) opts.Satchel = false;
                             if (a.Contains("noemplace")) opts.Emplace = false;
+                            if (a.Contains("nodestruction")) opts.Destruction = false;
                             var m = new LiveMatch(opts);
                             string cardArg = a.Where(x => x.StartsWith("card=")).Select(x => x.Substring(5)).FirstOrDefault();
                             var card = cardArg != null ? Deck.Find(side, cardArg) : Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(m.State, side, c));
                             var frag = Deck.Grenades(side);
+                            // `tower=<id>`: he keeps a squad of that card up his side's watchtower (MatchOptions.Vantage), sending
+                            // one whenever it stands and nobody of his is on it, before he buys his line squads.
+                            string towerArg = a.Where(x => x.StartsWith("tower=")).Select(x => x.Substring(6)).FirstOrDefault();
+                            var towerCard = towerArg != null ? Deck.Find(side, towerArg) : null;
                             while (!m.State.Over && m.State.Tick < m.Cap)
                             {
-                                if (!idle && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
+                                if (!idle && towerCard != null && m.State.Tick % 20 == 0 && Vantage.Blocked(m.State, side, towerCard.Id, 0) == null
+                                    && Deck.Blocked(m.State, side, towerCard) == null)
+                                    m.Issue(Command.BuyTo(side, towerCard.Id, 0));
+                                else if (!idle && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
                                     m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
                                 // GRENADES (FragCard), played as his men used to throw of themselves: at an enemy in cover that one
                                 // of them could reach. `nofrag` leaves it unplayed: a player who never uses it.
@@ -681,12 +690,20 @@ namespace LanesOfVietnam.SimCs
                                 m.Step();
                             }
                             if (m.State.Winner == side) wins++;
+                            var ev = m.State.Events;
+                            int went = ev.FindIndex(e => e.Kind == EventKind.Collapsed);
+                            if (went >= 0)
+                            {
+                                fell++;
+                                for (int k = went + 1; k < ev.Count && ev[k].Tick == ev[went].Tick; k++) if (ev[k].Kind == EventKind.Kill) crushed++;
+                            }
                             secs += m.State.Tick * Tune.Dt;
                             each.Add(m.State.Tick * Tune.Dt);
                             string why = m.State.Reason ?? "tick cap";
                             endings[why] = endings.GetValueOrDefault(why) + 1;
                         }
-                        Console.WriteLine($"    as {Match.Name(side)}, {level,-7} wins {wins,2}/{seeds}  mean {secs / seeds,4:F0} s ({each.Min():F0} to {each.Max():F0})  {string.Join(", ", endings.Select(e => $"{e.Key} {e.Value}"))}");
+                        Console.WriteLine($"    as {Match.Name(side)}, {level,-7} wins {wins,2}/{seeds}  mean {secs / seeds,4:F0} s ({each.Min():F0} to {each.Max():F0})  {string.Join(", ", endings.Select(e => $"{e.Key} {e.Value}"))}"
+                                          + (fell > 0 ? $"; the tower brought down in {fell}, {crushed} men killed by its fall" : ""));
                     }
                 }
             }

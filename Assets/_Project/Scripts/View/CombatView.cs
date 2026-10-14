@@ -1854,7 +1854,7 @@ namespace LanesOfVietnam.View
         /// <summary>
         /// The tower going over (TowerView.Fall: the same fall the tower is drawn falling). As its legs give, dust
         /// kicked up at its foot on its falling side; where it strikes, when it strikes, a long low cloud along the
-        /// length of it, rolling out and rising and drifting off downwind, and earth and timber thrown up where its
+        /// length of it (of what went over: all of it, or what was above the break), rolling out and rising and drifting off downwind, and earth and timber thrown up where its
         /// top came down.
         /// </summary>
         private void Collapse(SimEvent e, float age)
@@ -1882,7 +1882,7 @@ namespace LanesOfVietnam.View
                 float a = u - k * 0.03f;
                 if (a < 0) continue;
                 float t = a / life;
-                var p = fall.Pivot + fall.Dir * (1.5f + k * 1.6f) + side * ((H(seed, 80 + k) - 0.5f) * 1.5f + (H(seed, 90 + k) - 0.5f) * 2f * Mathf.Sqrt(a));
+                var p = fall.Pivot + fall.Dir * ((1.5f + k * 1.6f) * fall.Reach / 9.5f) + side * ((H(seed, 80 + k) - 0.5f) * 1.5f + (H(seed, 90 + k) - 0.5f) * 2f * Mathf.Sqrt(a));
                 p += new Vector3(0.5f * a, 0f, 0f);
                 p.y = GroundAt(p) + 0.5f + 1.6f * (1 - Mathf.Exp(-a * 1.2f)) + 0.25f * a;
                 float size = (3.6f + 5.5f * Mathf.Sqrt(t)) * (0.8f + 0.4f * H(seed, 100 + k));
@@ -1893,13 +1893,13 @@ namespace LanesOfVietnam.View
             for (int k = 0; k < 4 && u < 4f; k++)
             {
                 float t = u / 4f;
-                var p = fall.Pivot + fall.Dir * (3f + 2.2f * k) + side * ((k % 2 == 0 ? 1f : -1f) * (1.5f + 4f * (1 - Mathf.Exp(-u * 1.5f))));
+                var p = fall.Pivot + fall.Dir * ((3f + 2.2f * k) * fall.Reach / 9.5f) + side * ((k % 2 == 0 ? 1f : -1f) * (1.5f + 4f * (1 - Mathf.Exp(-u * 1.5f))));
                 p.y = GroundAt(p) + 0.35f;
                 Dust(p, 2.4f + 2.5f * t, new Color(0.34f, 0.30f, 0.25f, 0.6f * (1 - t) * (1 - t)), H(seed, 115 + k), 0.1f + 0.85f * t, 0.45f);
             }
             if (u < 2.2f)
             {
-                var top = fall.Pivot + fall.Dir * 9.5f;
+                var top = fall.Pivot + fall.Dir * fall.Reach;
                 top.y = GroundAt(top);
                 for (int k = 0; k < 14; k++)
                 {

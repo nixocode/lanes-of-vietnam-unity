@@ -525,7 +525,7 @@ namespace LanesOfVietnam.View
             var f = new TowerView.Fall(e, dressing, _root.Ground);
             float pace = Mathf.Max(0.25f, _root.Speed);
             float hit = Mathf.Max(0f, (f.Hits - (float)((st.Tick - e.Tick) * Tune.Dt)) / pace);
-            var top = f.Pivot + f.Dir * 7f;
+            var top = f.Pivot + f.Dir * (0.75f * f.Reach);
             float fx = f.Pivot.x, fz = (float)Coords.SimZ(f.Pivot.z), tx = top.x, tz = (float)Coords.SimZ(top.z);
             void Later(string clip, float x, float z, float gain, float rate, float delay)
             {
