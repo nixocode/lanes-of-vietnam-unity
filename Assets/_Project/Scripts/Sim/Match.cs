@@ -147,6 +147,8 @@ namespace LanesOfVietnam.Sim
         /// placed, and a player's men throw none of their own (FragCard). The computer's side throws as it did.
         /// </summary>
         public bool FragCard;
+        /// <summary>Part 2: a mortar fires only once it is set up, and is packed up before it moves (Emplace).</summary>
+        public bool Emplace;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -319,6 +321,7 @@ namespace LanesOfVietnam.Sim
                 Bearing = opts.Bearing,
                 Inbound = opts.Inbound,
                 FragCard = opts.FragCard,
+                Emplace = opts.Emplace,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -615,6 +618,8 @@ namespace LanesOfVietnam.Sim
                     if (m.Wait == 0 && m.Rest >= Tune.RestToKneel) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
                     if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; waiting = true; }
                 }
+                // Emplace: a mortar that is set up is taken down before it goes anywhere.
+                if (d > slack && !waiting && st.Emplace && Emplace.Packing(st, m)) waiting = true;
                 waited = waiting && d > slack;
                 if (d > slack && !waiting)
                 {

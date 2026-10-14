@@ -2690,6 +2690,71 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(reason, m.State.Reason);
         }
 
+        /// <summary>Recorded by `tools/simcs/run.sh hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound map emplace`.</summary>
+        [TestCase(1, 5581, 3590958095u, 3249803481u, 3025940641u, "vc morale broke")]
+        [TestCase(7, 5415, 4187739844u, 3236355545u, 3260725662u, "us morale broke")]
+        public void With_the_mortar_emplaced_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true,
+                Arms = true, Senses = true, Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, Emplace = true,
+            };
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Emplace, "emplace must be off unless asked for");
+            var m = new LiveMatch(o);
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(reason, m.State.Reason);
+            Assert.AreEqual(at100, h[100]);
+            Assert.AreEqual(at1000, h[Math.Min(1000, h.Count - 1)]);
+            Assert.AreEqual(final, h[h.Count - 1]);
+        }
+
+        /// <summary>
+        /// The mortar emplaced (MatchOptions.Emplace; the plan the owner approved, 2026-10-12: "the mortar that sets up and
+        /// packs up"). With the rule, no mortar round leaves a tube its man had not stood still at for the time it takes
+        /// to set one up, and a mortar man whose squad moves off stays where he is while he packs it up. Without it, he
+        /// fires as soon as he is steady, and goes when his squad goes.
+        /// </summary>
+        [Test]
+        public void With_the_mortar_emplaced_it_fires_only_set_up_and_packs_up_before_it_moves()
+        {
+            int fired = 0, early = 0, packed = 0;
+            for (int seed = 1; seed <= 6; seed++)
+            {
+                var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
+                Assert.IsTrue(o.Emplace, "the game plays with the mortar emplaced");
+                var lm = new LiveMatch(o);
+                var st = lm.State;
+                var still = new Dictionary<int, int>();
+                while (!st.Over && st.Tick < 4000)
+                {
+                    int from = st.Events.Count;
+                    var before = st.Men.Where(x => x.Alive && x.Weapon == Weapon.Mortar).ToDictionary(x => x.Id, x => (x.X, x.Z, x.Pack));
+                    lm.Step();
+                    foreach (var e in st.Events.Skip(from).Where(e => e.Kind == EventKind.Launch && st.Men[e.Id].Weapon == Weapon.Mortar))
+                    {
+                        fired++;
+                        if (st.Men[e.Id].Rest < Tune.EmplaceTicks) early++;
+                    }
+                    foreach (var kv in before)
+                    {
+                        var man = st.Men[kv.Key];
+                        if (man.Pack > kv.Value.Pack)
+                        {
+                            packed++;
+                            Assert.AreEqual(kv.Value.X, man.X, 1e-9, "a mortar man walked off while he was packing up");
+                        }
+                    }
+                }
+            }
+            Assert.Greater(fired, 0, "no mortar fired in six matches");
+            Assert.AreEqual(0, early, "a mortar fired before it was set up");
+            Assert.Greater(packed, 0, "no mortar was ever packed up to move");
+        }
+
         /// <summary>
         /// GRENADES (MatchOptions.FragCard; the owner, 2026-10-14: "add the frag grenades to the HUD, make them cheaper
         /// like smokes and have the closest squad launch them, not automatic for player side"). With the rule off the
@@ -2850,12 +2915,12 @@ namespace LanesOfVietnam.Tests
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 4067, 279902521u, 431529265u, 1584519197u, "us morale broke")]
-        [TestCase("the-wire", 1, 5117, 420051215u, 783940434u, 162237126u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 4023048146u, 1474658007u, 3899479613u, "us held out")]
-        [TestCase("first-light", 7, 2758, 681595836u, 3179488410u, 1262862095u, "us took the line")]
-        [TestCase("first-light", 8, 8400, 698811732u, 1713054640u, 206783413u, "vc held the line")]
-        [TestCase("earth-fights", 1, 7821, 201570083u, 3842152372u, 2404550293u, "us morale broke")]
+        [TestCase("firebase", 1, 4067, 1628787833u, 1957151137u, 3623502557u, "us morale broke")]
+        [TestCase("the-wire", 1, 5117, 1462155919u, 3991308258u, 3112002758u, "us morale broke")]
+        [TestCase("the-wire", 2, 6000, 2761921234u, 2556738615u, 2275949335u, "us held out")]
+        [TestCase("first-light", 7, 2758, 2717044412u, 267853338u, 1616337823u, "us took the line")]
+        [TestCase("first-light", 8, 8400, 805115076u, 858175248u, 2442947573u, "vc held the line")]
+        [TestCase("earth-fights", 1, 9266, 3389833699u, 468027444u, 1196084148u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -2893,7 +2958,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -2909,7 +2974,7 @@ namespace LanesOfVietnam.Tests
 
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
-            kept.Inbound = true;
+            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
             var (was, _) = Played(kept);
             var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));

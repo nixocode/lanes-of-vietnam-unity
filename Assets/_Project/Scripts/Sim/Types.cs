@@ -173,6 +173,8 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>Ticks he has been still, and the posture he last changed from (MatchOptions.Gunnery).</summary>
         public int Rest;
+        /// <summary>A mortar man: ticks he has spent taking his tube down to move (MatchOptions.Emplace).</summary>
+        public int Pack;
         public Posture Before;
 
         /// <summary>The tick he last fired, threw or struck: a muzzle flash is seen from a long way off (<see cref="Senses.Sight"/>).</summary>
@@ -554,6 +556,8 @@ namespace LanesOfVietnam.Sim
         public bool Inbound;
         /// <summary>Part 2 rule: hand grenades are a card, and a player's men throw none of their own (MatchOptions.FragCard). Off is the baseline.</summary>
         public bool FragCard;
+        /// <summary>Part 2 rule: a mortar fires from where it is set up, and is packed up before it moves (<see cref="Sim.Emplace"/>). Off is the baseline.</summary>
+        public bool Emplace;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

@@ -182,6 +182,8 @@ namespace LanesOfVietnam.Sim
             // Arms: a launcher or a mortar fires a bursting round, not a bullet (and not while he is pinned flat).
             if (st.Arms && arm.Bursts)
             {
+                // Emplace: a mortar fires from its baseplate, set up and laid, or not at all.
+                if (Emplace.Mortar(st, a) && !Emplace.Ready(a)) { a.Cooldown = Tune.ScanIdle; return false; }
                 if (st.Gunnery && a.Posture == Posture.Standing && st.GunRng.Next() > Tune.StandingFire) { a.Cooldown = Tune.Cooldown; return false; }
                 return a.Pin < Tune.PinStop && Arms.Launch(st, a, arm, st.FragRng);
             }

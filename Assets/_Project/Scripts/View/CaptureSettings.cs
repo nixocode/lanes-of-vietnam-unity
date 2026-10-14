@@ -127,6 +127,8 @@ namespace LanesOfVietnam.View
         public bool? Inbound;
         /// <summary>Hand grenades are a card (MatchOptions.FragCard); null: on, as in the game.</summary>
         public bool? FragCard;
+        /// <summary>A mortar fires from where it is set up (MatchOptions.Emplace); null: on, as in the game.</summary>
+        public bool? Emplace;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -195,6 +197,7 @@ namespace LanesOfVietnam.View
                     case "bearing": c.Bearing = v == "1" || v == "true"; break;
                     case "inbound": c.Inbound = v == "1" || v == "true"; break;
                     case "fragcard": c.FragCard = v == "1" || v == "true"; break;
+                    case "emplace": c.Emplace = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable
