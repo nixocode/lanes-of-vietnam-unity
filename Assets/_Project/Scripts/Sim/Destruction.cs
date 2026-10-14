@@ -64,12 +64,13 @@ namespace LanesOfVietnam.Sim
             {
                 var m = st.Men[i];
                 if (!m.Alive || m.Squad < 0 || st.Squads[m.Squad].Post != p.Id || (m.High <= 0 && m.Climb == 0)) continue;
-                if (rng.Next() < Tune.TowerFallKill) { Combat.Kill(st, m); continue; }
-                // Down with it, a few metres out along its way, flat and shaken.
+                // Down with it, a few metres out along its way: killed, or flat and shaken. (Killed where he stood, he was
+                // left in the air where the platform had been.)
                 double r = 1.5 + rng.Next() * 3.5;
                 m.X = p.FootX + Math.Cos(way) * r;
                 m.Z = p.FootZ + Math.Sin(way) * r;
                 m.High = 0; m.Climb = 0;
+                if (rng.Next() < Tune.TowerFallKill) { Combat.Kill(st, m); continue; }
                 m.Posture = Posture.Prone;
                 m.Pin = 1;
             }
