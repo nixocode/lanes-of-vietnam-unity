@@ -2734,6 +2734,79 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(final, h[h.Count - 1]);
         }
 
+        /// <summary>Recorded by `tools/simcs/run.sh hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel destruction`.</summary>
+        [TestCase(1, 5581, 1768901934u, 659696368u, 3526591710u, "vc morale broke")]
+        [TestCase(7, 6520, 3478108901u, 2888612312u, 3221027986u, "us morale broke")]
+        public void With_destruction_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true,
+                Arms = true, Senses = true, Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true,
+            };
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Destruction, "destruction must be off unless asked for");
+            var m = new LiveMatch(o);
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(reason, m.State.Reason);
+            Assert.AreEqual(at100, h[100]);
+            Assert.AreEqual(at1000, h[Math.Min(1000, h.Count - 1)]);
+            Assert.AreEqual(final, h[h.Count - 1]);
+        }
+
+        /// <summary>
+        /// The tower comes down (MatchOptions.Destruction; the owner, 2026-10-12: "the watch tower must be collapsable and
+        /// fall, to rpgs and heavy mortars ... don't always have it fall the same way"). Rockets fired at the men up on
+        /// it take from it, a hand grenade does not; two bring it down, away from the last of them and turned by the
+        /// dice; the men on it come down with it, killed or flat at its foot; and nobody can be sent up it again.
+        /// Two matches that differ only in their seed do not fall the same way.
+        /// </summary>
+        [Test]
+        public void Rockets_bring_the_tower_down_with_its_men_and_it_is_never_posted_again()
+        {
+            var ways = new List<double>();
+            for (int seed = 1; seed <= 4; seed++)
+            {
+                var o = Scenarios.Firebase.Options(seed, Side.Us, Difficulty.Veteran);
+                Assert.IsTrue(o.Destruction, "the game plays with destruction");
+                var lm = new LiveMatch(o);
+                var st = lm.State;
+                st.Cp[(int)Side.Us] = 200;
+                lm.Issue(Command.BuyTo(Side.Us, "us-mg", 0));
+                for (int t = 0; t < 600 && !st.Men.Any(x => x.Alive && x.High > 0 && x.Climb == 0); t++) lm.Step();
+                var up = st.Men.Where(x => x.Alive && x.High > 0 && x.Climb == 0).ToList();
+                Assert.IsNotEmpty(up, "the test's premise: a team up the tower");
+                var post = st.Posts[0];
+                // A hand grenade at its foot does nothing to it.
+                Destruction.Burst(st, post.X, post.Z, 0, 0);
+                Assert.AreEqual(1.0, post.Strength, 1e-9);
+                // Two rockets at the men up on it, bursting up there a pace off (as Frag.Detonate hands them on).
+                int from = st.Events.Count;
+                var rocket = new Grenade { By = Weapon.Rpg };
+                for (int k = 0; k < 2; k++) Destruction.Burst(st, post.X + 1.0, post.Z + 0.5, post.Height, Destruction.Power(rocket));
+                var fell = st.Events.Skip(from).SingleOrDefault(e => e.Kind == EventKind.Collapsed);
+                Assert.IsNotNull(fell.Kind == EventKind.Collapsed ? (object)fell : null, "two rockets did not bring it down");
+                Assert.IsTrue(post.Fallen);
+                Assert.AreEqual(2, st.Events.Skip(from).Count(e => e.Kind == EventKind.Damaged));
+                ways.Add(fell.Amount.Value);
+                // Away from the rockets (they burst at +x of it), give or take the dice.
+                double away = Math.Atan2(post.Z - (post.Z + 0.5), post.X - (post.X + 1.0)) * 180 / Math.PI;
+                double off = Math.Abs(((fell.Amount.Value - away) % 360 + 540) % 360 - 180);
+                Assert.LessOrEqual(off, Tune.TowerFallSpread * 180 / Math.PI + 1e-6, "it fell toward the rockets");
+                foreach (var m in up)
+                {
+                    if (!m.Alive) continue;
+                    Assert.AreEqual(0.0, m.High, "a man was left up a tower that has fallen");
+                    Assert.AreEqual(Posture.Prone, m.Posture);
+                }
+                Assert.IsFalse(st.Squads.Any(q => q.Post == post.Id), "a squad still holds a fallen tower");
+                Assert.AreEqual("fallen", Vantage.Blocked(st, Side.Us, "us-mg", post.Id));
+            }
+            Assert.Greater(ways.Distinct().Count(), 1, "four towers fell the same way");
+        }
+
         /// <summary>
         /// Satchel charges (MatchOptions.Satchel; the plan the owner approved, 2026-10-12: "sappers and engineers carry a
         /// few and throw one into an occupied position they reach; it hurts the men in it and knocks the position's
@@ -2765,8 +2838,12 @@ namespace LanesOfVietnam.Tests
                             Assert.IsTrue(card == "vc-sapper" || card == "us-engineer", $"a man of a {card} squad threw a satchel");
                             Assert.GreaterOrEqual(by.Satchels, 0);
                             Assert.Less(by.Satchels, Tune.SatchelsCarried);
-                            var c = st.Cover[e.Target.Value];
-                            Assert.LessOrEqual(JsMath.Hypot(c.X - by.X, c.Z - by.Z), Tune.SatchelReach + 1e-9, "thrown from beyond reach");
+                            // (Into a position; or, with Destruction, at a tower's foot: then no position.)
+                            if (e.Target.HasValue)
+                            {
+                                var c = st.Cover[e.Target.Value];
+                                Assert.LessOrEqual(JsMath.Hypot(c.X - by.X, c.Z - by.Z), Tune.SatchelReach + 1e-9, "thrown from beyond reach");
+                            }
                         }
                         if (e.Kind == EventKind.Breached)
                         {
@@ -2987,12 +3064,12 @@ namespace LanesOfVietnam.Tests
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 4067, 2413054129u, 3170319089u, 3799276349u, "us morale broke")]
-        [TestCase("the-wire", 1, 4366, 2619434271u, 2230328434u, 1257355612u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 1398731666u, 3685430599u, 1532812073u, "us held out")]
-        [TestCase("first-light", 7, 2758, 2683232128u, 1398152538u, 3071477583u, "us took the line")]
-        [TestCase("first-light", 8, 8400, 970755444u, 1229356912u, 1611514151u, "vc held the line")]
-        [TestCase("earth-fights", 1, 9266, 1068493547u, 2962025396u, 1202707650u, "us morale broke")]
+        [TestCase("firebase", 1, 4075, 3468518776u, 3500188192u, 3782637812u, "us morale broke")]
+        [TestCase("the-wire", 1, 4366, 1694346790u, 933659491u, 3110059397u, "us morale broke")]
+        [TestCase("the-wire", 2, 6000, 1903121563u, 1702679254u, 1061064444u, "us held out")]
+        [TestCase("first-light", 7, 2758, 1565973641u, 1870555919u, 3985984790u, "us took the line")]
+        [TestCase("first-light", 8, 8400, 2505033549u, 1808433853u, 3762143734u, "vc held the line")]
+        [TestCase("earth-fights", 1, 9266, 744082594u, 3112911749u, 3572325795u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3030,7 +3107,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3046,7 +3123,7 @@ namespace LanesOfVietnam.Tests
 
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
-            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true;
+            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
             var (was, _) = Played(kept);
             var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));

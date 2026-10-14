@@ -153,6 +153,8 @@ namespace LanesOfVietnam.Sim
             st.Events.Add(blast);
             // Satchel: a charge breaches the position it bursts in.
             if (g.Satchel) Satchel.Burst(st, g);
+            // Destruction: a rocket's, a mortar's or a charge's burst at a structure.
+            if (st.Destruction) Destruction.Burst(st, g.X, g.Z, g.High, Destruction.Power(g));
             for (int j = 0; j < st.Men.Count; j++)
             {
                 var m = st.Men[j];

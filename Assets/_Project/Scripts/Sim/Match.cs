@@ -151,6 +151,8 @@ namespace LanesOfVietnam.Sim
         public bool Emplace;
         /// <summary>Part 2: sappers and engineers carry satchel charges, and breach the positions they burst in (Satchel).</summary>
         public bool Satchel;
+        /// <summary>Part 2: a structure can be broken: the watchtower falls to rockets, mortars, charges, shells and bombs (Destruction).</summary>
+        public bool Destruction;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -325,6 +327,7 @@ namespace LanesOfVietnam.Sim
                 FragCard = opts.FragCard,
                 Emplace = opts.Emplace,
                 Satchel = opts.Satchel,
+                Destruction = opts.Destruction,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -345,7 +348,7 @@ namespace LanesOfVietnam.Sim
                 st.Barred[(int)side][Deck.Grenades(side).Index] = !opts.FragCard;
             }
             // A fork reads the parent's state without drawing from it.
-            if (opts.Frag || opts.Arms || opts.FragCard || opts.Satchel) st.FragRng = rng.Fork("frag");
+            if (opts.Frag || opts.Arms || opts.FragCard || opts.Satchel || opts.Destruction) st.FragRng = rng.Fork("frag");
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             if (opts.Commander) st.CommandRng = rng.Fork("commander");
@@ -1136,6 +1139,8 @@ namespace LanesOfVietnam.Sim
             {
                 Kind = EventKind.Shell, Tick = st.Tick, Side = a.Side, Id = a.Id, X = bx, Z = bz,
             });
+            // Destruction: a shell's or a bomb's burst at a structure's foot (a bomb has twice a shell's power and more).
+            if (st.Destruction) Destruction.Burst(st, bx, bz, 0, Tune.TowerShell * a.Power / Tune.TowerShellPower);
             for (int j = 0; j < st.Men.Count; j++)
             {
                 var m = st.Men[j];

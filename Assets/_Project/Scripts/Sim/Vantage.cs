@@ -20,6 +20,9 @@ namespace LanesOfVietnam.Sim
         public double FootX, FootZ;
         /// <summary>The lane it stands by: a squad sent to it is raised in that lane and walks over.</summary>
         public int Lane;
+        /// <summary>How much of it is left (MatchOptions.Destruction): 1 whole, 0 fallen; where the last burst that hurt it was.</summary>
+        public double Strength = 1, LastHitX, LastHitZ;
+        public bool Fallen;
 
         public Post Clone() => (Post)MemberwiseClone();
     }
@@ -97,6 +100,8 @@ namespace LanesOfVietnam.Sim
             if (st.Posts[post].Side != side) return "not ours";
             if (!Takes(card)) return "not for a post";
             if (Holder(st, post) >= 0) return "manned";
+            // Destruction: it is down.
+            if (st.Posts[post].Fallen) return "fallen";
             return null;
         }
 

@@ -457,6 +457,9 @@ namespace LanesOfVietnam.Sim
         // in Amount ticks; SatchelBlast: charge Id went off at X, Z (its GrenadeBlast is written before it); Breached:
         // position Id has its protection down for Amount ticks.
         SatchelThrown, SatchelBlast, Breached,
+        // Destruction (MatchOptions.Destruction): post Id was hurt by a burst at X, Z, Amount of it left; Collapsed:
+        // post Id fell, toward Amount degrees (0 along +x, 90 along +z), Rounds the seed of how it came apart.
+        Damaged, Collapsed,
     }
 
     public struct SimEvent
@@ -570,6 +573,8 @@ namespace LanesOfVietnam.Sim
         public bool Emplace;
         /// <summary>Part 2 rule: sappers and engineers carry satchel charges (<see cref="Sim.Satchel"/>). Off is the baseline.</summary>
         public bool Satchel;
+        /// <summary>Part 2 rule: a structure can be broken, and the watchtower brought down (<see cref="Sim.Destruction"/>). Off is the baseline.</summary>
+        public bool Destruction;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

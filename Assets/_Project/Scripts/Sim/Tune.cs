@@ -159,6 +159,17 @@ namespace LanesOfVietnam.Sim
         public const int SatchelsCarried = 2, SatchelFuse = TickHz * 2, SatchelGap = TickHz * 4, SatchelBreachTicks = TickHz * 20;
         public const double SatchelReach = 9, SatchelScatter = 1.5, SatchelRadius = 5.5, SatchelKill = 0.85, SatchelCoverFactor = 0.9,
                             SatchelBreachWithin = 3, SatchelBreachLeft = 0.4;
+        /// <summary>
+        /// Destruction: what a burst takes from a structure's strength (1 whole) at its foot or on its platform: a
+        /// rocket's half, a mortar bomb's a quarter, a satchel charge's two thirds, an artillery shell's (at the
+        /// barrage's power, TowerShellPower) a third, scaled by its power (an air strike's bomb, at twice and more,
+        /// two thirds); within metres of its middle; the chance a man on it is killed when it falls; and how far off
+        /// "away from the last burst" it may fall, radians either way.
+        /// </summary>
+        public const double TowerRocket = 0.5, TowerMortar = 0.25, TowerSatchel = 0.7, TowerShell = 0.34, TowerShellPower = 0.30,
+                            TowerHitRadius = 4.0, TowerFallKill = 0.65, TowerFallSpread = 0.7;
+        /// <summary>Destruction: metres from a tower's middle within which a round fired at the men up on it strikes the tower itself.</summary>
+        public const double TowerStruck = 6.5;
         /// <summary>FragCard: the most men of the nearest squad who throw when GRENADES is played.</summary>
         public const int FragCardThrowers = 3;
         /// <summary>With Arms, where every distance is the frame's: a throw is 12 m, and not inside 5.</summary>

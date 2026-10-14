@@ -39,7 +39,10 @@ namespace LanesOfVietnam.Sim
                 if (a.SatchelWait > 0) { a.SatchelWait--; continue; }
                 if (a.Pin >= Tune.PinStop || a.High > 0 || a.Climb != 0) continue;
                 var into = Target(st, a);
-                if (into != null) Throw(st, a, into);
+                if (into != null) { Throw(st, a, into.X, into.Z, into.Id); continue; }
+                // Destruction: a sapper or an engineer within reach of the enemy's tower puts a charge at its foot.
+                var tower = Tower(st, a);
+                if (tower != null) Throw(st, a, tower.X, tower.Z, null);
             }
         }
 
@@ -64,14 +67,23 @@ namespace LanesOfVietnam.Sim
             return best;
         }
 
-        private static void Throw(SimState st, Man a, Cover c)
+        /// <summary>Destruction: an enemy post still standing whose foot is within reach, or null.</summary>
+        public static Post Tower(SimState st, Man a)
+        {
+            if (!st.Destruction) return null;
+            foreach (var p in st.Posts)
+                if (!p.Fallen && p.Side != a.Side && JsMath.Hypot(p.X - a.X, p.Z - a.Z) <= Tune.SatchelReach) return p;
+            return null;
+        }
+
+        private static void Throw(SimState st, Man a, double x, double z, int? cover)
         {
             var rng = st.FragRng;
             double sx = (rng.Next() + rng.Next() - 1) * Tune.SatchelScatter;
             double sz = (rng.Next() + rng.Next() - 1) * Tune.SatchelScatter;
             var g = new Grenade
             {
-                Id = st.GrenadeId++, Side = a.Side, Thrower = a.Id, X = c.X + sx, Z = c.Z + sz, Ticks = Tune.SatchelFuse,
+                Id = st.GrenadeId++, Side = a.Side, Thrower = a.Id, X = x + sx, Z = z + sz, Ticks = Tune.SatchelFuse,
                 Radius = Tune.SatchelRadius, Kill = Tune.SatchelKill, CoverFactor = Tune.SatchelCoverFactor, Satchel = true,
             };
             st.Grenades.Add(g);
@@ -80,7 +92,8 @@ namespace LanesOfVietnam.Sim
             a.Seen = true;
             a.FiredAt = st.Tick;
             a.Cooldown = System.Math.Max(a.Cooldown, Tune.Cooldown * 2);
-            st.Events.Add(new SimEvent { Kind = EventKind.SatchelThrown, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = c.Id, X = g.X, Z = g.Z, Amount = g.Ticks });
+            // (Target: the position it was thrown into; none for a tower's foot.)
+            st.Events.Add(new SimEvent { Kind = EventKind.SatchelThrown, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = cover, X = g.X, Z = g.Z, Amount = g.Ticks });
         }
 
         /// <summary>A charge has gone off (Frag.Detonate): the position it burst in is breached.</summary>
