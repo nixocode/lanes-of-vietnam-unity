@@ -41,6 +41,22 @@ namespace LanesOfVietnam.Tests
                 }
         }
 
+        /// <summary>
+        /// The smoke is soft where it meets the ground by reading the scene's depth, so the depth must be copied before
+        /// the smoke is drawn: after the opaque pass, not after the transparent one. Copied after, the smoke read a
+        /// depth that was not there yet: on this Mac's renderer that is "far" and the smoke showed, so no capture or
+        /// test saw anything wrong, and in the browser it is "near" and every puff faded to nothing. The owner,
+        /// 2026-10-14, of the SMOKE card: "does not work and hasn't for a while".
+        /// </summary>
+        [Test, Category("Shots")]
+        public void The_depth_is_copied_before_the_smoke_is_drawn()
+        {
+            string renderer = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "_Project/Settings/URP-Web_Renderer.asset"));
+            StringAssert.Contains("m_CopyDepthMode: 0", renderer, "the depth is copied after the transparent pass: in the browser no smoke is seen");
+            string asset = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "_Project/Settings/URP-Web.asset"));
+            StringAssert.Contains("m_RequireDepthTexture: 1", asset, "no depth texture: the smoke has nothing to be soft against");
+        }
+
         [UnityTest, Category("Shots")]
         public IEnumerator A_man_is_kicked_by_every_round_of_his_burst()
         {

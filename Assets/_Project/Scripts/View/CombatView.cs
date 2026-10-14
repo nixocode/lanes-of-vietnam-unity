@@ -302,7 +302,7 @@ namespace LanesOfVietnam.View
         {
             switch (kind)
             {
-                case EventKind.Fire: return 4.2f;
+                case EventKind.Fire: return 4.8f;
                 case EventKind.Melee: case EventKind.Through: case EventKind.Stray: return 1.3f;
                 case EventKind.Kill: return BleedsFor + 0.2f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
@@ -403,6 +403,7 @@ namespace LanesOfVietnam.View
                     }
                 }
                 Round(s, ra, by, b, aim, strikes, at, strikes || !landed.HasValue ? Earth : surface);
+                if (r == rounds - 1 && rounds >= 3) Thread(i, ra, by);
             }
         }
 
@@ -511,8 +512,12 @@ namespace LanesOfVietnam.View
             Dust(low + Vector3.up * (0.25f * d), (0.9f + 0.9f * d) * (0.6f + 0.4f * by.Cal), new Color(0.40f, 0.34f, 0.25f, 0.30f * (1 - d) * (1 - d)), H(s, 17), 0.12f + 0.7f * (1 - (1 - d) * (1 - d)));
         }
 
-        /// <summary>How long a spent case lies where it fell before it is no longer drawn, seconds.</summary>
-        public const float CaseLies = 2.4f;
+        /// <summary>
+        /// How long a spent case lies where it fell before it is no longer drawn, seconds: as long as its shot is
+        /// drawn at all (Life), so that a gun firing a burst every second has a few dozen round it. (It was 2.4 s,
+        /// and nothing piled up by a gun.)
+        /// </summary>
+        public const float CaseLies = 3.4f;
 
         /// <summary>
         /// The spent case of a round: out of the port to the firer's right, tumbling, down to the ground, and lying
@@ -535,10 +540,33 @@ namespace LanesOfVietnam.View
             var p = port + v * t + Vector3.down * (4.9f * t * t);
             bool flying = age < land;
             float left = flying ? 1f : 1f - (age - land) / CaseLies;
-            AddPuff(Sheet.Brass, flying && ((int)(age * 40f) & 1) == 1 ? 1 : 0, p, 0.11f, 0.11f, new Color(1f, 1f, 1f, Mathf.Min(1f, left * 3f)),
+            AddPuff(Sheet.Brass, flying && ((int)(age * 40f) & 1) == 1 ? 1 : 0, p, 0.11f, 0.11f, new Color(1f, 1f, 1f, Mathf.Min(1f, left * 6f)),
                     flying ? age * (16f + 14f * H(s, 73)) : H(s, 73) * 6.2832f, false, 0.02f);
             Cases++;
-            if (gun && flying) Clod(p - right * 0.12f + Vector3.up * 0.03f, 0.035f, new Color(0.10f, 0.10f, 0.10f, 0.95f), H(s, 74));
+            if (!gun) return;
+            // A belt-fed gun's link: out of the other side, slower, and lying with the cases. Dark steel, the
+            // case's own shape near enough at this size. (It was one dark speck while it flew.)
+            var lv = -right * (0.6f + 0.6f * H(s, 74)) + Vector3.up * (0.4f + 0.5f * H(s, 75)) - flat * (0.1f + 0.3f * H(s, 76));
+            float lland = (lv.y + Mathf.Sqrt(lv.y * lv.y + 19.6f * fall)) / 9.8f;
+            if (age > lland + CaseLies) return;
+            float lt = Mathf.Min(age, lland);
+            bool lfly = age < lland;
+            float lleft = lfly ? 1f : 1f - (age - lland) / CaseLies;
+            AddPuff(Sheet.Brass, 1, port + lv * lt + Vector3.down * (4.9f * lt * lt), 0.09f, 0.09f, new Color(0.16f, 0.16f, 0.15f, Mathf.Min(1f, lleft * 6f)),
+                    lfly ? age * 11f : H(s, 77) * 6.2832f, false, 0.02f);
+        }
+
+        /// <summary>Seconds a thread of smoke rises off a gun's barrel after a burst of three rounds or more.</summary>
+        public const float ThreadRises = 2.6f;
+
+        /// <summary>The thin thread of smoke off a hot barrel, after a burst: rising off the muzzle and leaning on the wind.</summary>
+        private void Thread(int i, float after, in Fired by)
+        {
+            if (after < 0.12f || after > ThreadRises) return;
+            float k = Mathf.Clamp01((after - 0.12f) / 0.25f) * Mathf.Pow(1 - after / ThreadRises, 1.5f);
+            float frame = (H(i, 80) * 80f + after * 20f) % 80f;
+            AddPuff(Sheet.Curl, frame, by.Muzzle + Vector3.up * (0.26f + 0.08f * after) + Vector3.right * (0.05f * after), 0.2f + 0.05f * after, 0.6f + 0.15f * after,
+                    new Color(0.78f, 0.78f, 0.76f, 0.5f * k), (H(i, 81) - 0.5f) * 0.25f, H(i, 82) > 0.5f, 0.05f);
         }
 
         /// <summary>How much of a round's way through the air is lit behind it, metres, and how wide the line is.</summary>

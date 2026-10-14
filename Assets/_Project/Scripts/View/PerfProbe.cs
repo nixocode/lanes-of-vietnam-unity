@@ -167,7 +167,24 @@ namespace LanesOfVietnam.View
                 root.Driver.Match.Issue(Command.BuyTo(Side.Us, post, 0));
                 StartCoroutine(Posted(root));
             }
+            // call=us-smoke:1:0 (card:lane:x, as a capture's, without its tick): a call made as the fast-forward
+            // ends, to see in the build what a capture sees in the editor.
+            string call = Param("call");
             root.Driver.FastForward(ff);
+            if (call != null)
+            {
+                var c = call.Split(':');
+                var side = c[0].StartsWith("us-") ? Side.Us : Side.Vc;
+                var callCard = Deck.Find(side, c[0]);
+                if (callCard != null)
+                {
+                    root.Driver.State.Cp[(int)side] = System.Math.Max(root.Driver.State.Cp[(int)side], callCard.Cost);
+                    double cx = c.Length > 2 ? double.Parse(c[2], CultureInfo.InvariantCulture) : 0;
+                    root.Driver.Match.Issue(Command.Buy(side, callCard.Id, c.Length > 1 ? int.Parse(c[1], CultureInfo.InvariantCulture) : 0, cx));
+                    root.CameraRig.Focus((float)cx, instant: true);
+                    Debug.Log($"[LOV] perf: called {call}");
+                }
+            }
             yield return null;
             string off = SwitchOff(root, Param("off"));
             float scale = Number("scale", 0f);
@@ -224,7 +241,8 @@ namespace LanesOfVietnam.View
                 Debug.Log($"[LOV] perf: {n} frames, mean {frames.Average():F1} ms, median {median:F1}, " +
                           $"p95 {sorted[(int)(n * 0.95f)]:F1}, max {sorted[n - 1]:F0}; long {longFrames} ({longWithGc} with a collection, {longWithTick} with a tick), " +
                           $"collections {gcFrames}; sim {sim / n:F2} ms a frame, army view {army / n:F2}, combat view {fx / n:F2}, hud {ui / n:F2}; " +
-                          $"men {st.Men.Count} ({st.Men.Count(m => m.Alive)} alive), {stepped / (float)n:F1} stepped a frame, events {st.Events.Count}; tick {st.Tick}");
+                          $"men {st.Men.Count} ({st.Men.Count(m => m.Alive)} alive), {stepped / (float)n:F1} stepped a frame, events {st.Events.Count}; tick {st.Tick}" +
+                          (combat != null ? $"; drawn now: puffs {combat.Puffs}, blasts {combat.Explosions}, flashes {combat.Flashes}; areas {st.Areas.Count} ({string.Join(" ", st.Areas.Select(a => $"{a.Kind}@{a.X:F0},{a.Z:F0} wait {a.Wait} left {a.Ticks}"))})" : ""));
                 frames.Clear(); ticked.Clear(); collected.Clear();
                 army = sim = fx = ui = 0; stepped = 0;
                 t0 = Time.realtimeSinceStartup;

@@ -82,6 +82,10 @@ namespace LanesOfVietnam.Tools
             string scene = Arg("-lovScene") ?? MainScene;
             string outDir = Arg("-lovOut") ?? "Builds/web";
             bool dev = Environment.GetCommandLineArgs().Contains("-lovDev");
+            // The game's scene is made by SceneBuilder from what is on disk, every time: built from the scene file as
+            // it last happened to be saved, a build was whatever game that was. (On 2026-10-14 the saved one was
+            // playtest 7's, and a build from it measured 5 MB lighter and half a millisecond faster than the game.)
+            if (scene == MainScene) SceneBuilder.BuildMain();
             Run(scene, outDir, dev);
         }
 

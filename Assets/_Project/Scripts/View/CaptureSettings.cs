@@ -44,6 +44,8 @@ namespace LanesOfVietnam.View
         public int Select = -1;
         /// <summary>Raise the field glasses toward this viewport point (x,y in 0..1); null for none.</summary>
         public float[] Glasses;
+        /// <summary>Find the machine gunner who fired last and raise the field glasses on him (gunner=1): to look at a burst close.</summary>
+        public bool Gunner;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
         public string Screen;
         /// <summary>Post exposure in stops, replacing the profile's for this capture; null keeps it. For tuning by measurement.</summary>
@@ -204,6 +206,7 @@ namespace LanesOfVietnam.View
                     case "nopost": c.NoPost = v == "1" || v == "true"; break;
                     case "ui": c.NoUi = !(v == "1" || v == "true"); break;
                     case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;
+                    case "gunner": c.Gunner = v == "1" || v == "true"; break;
                     case "glasses":
                     {
                         var xy = v.Split(':');

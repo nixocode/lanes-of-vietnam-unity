@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Globalization;
 using System.IO;
+using LanesOfVietnam.Sim;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -135,6 +136,23 @@ namespace LanesOfVietnam.View
             var cmd = FindAnyObjectByType<Commander>();
             if (cmd != null && cap.Select == -2) cmd.Cycle();
             else if (cmd != null && cap.Select >= 0) cmd.SelectSquad(cap.Select);
+            if (cap.Gunner)
+            {
+                // The belt-fed gun that fired last, and the glasses on him.
+                var sim = root.Driver.State;
+                int last = sim.Events.FindLastIndex(e => e.Kind == EventKind.Fire && e.Id < sim.Men.Count && sim.Men[e.Id].Alive
+                                                        && (sim.Men[e.Id].Weapon == Weapon.M60 || sim.Men[e.Id].Weapon == Weapon.Rpd));
+                if (last >= 0)
+                {
+                    var fired = sim.Events[last];
+                    var g = sim.Men[fired.Id];
+                    root.CameraRig.Focus((float)g.X, instant: true);
+                    yield return null;
+                    var vp = cam.WorldToViewportPoint(Coords.World(g.X, g.Z, (float)root.Ground.HeightAt(g.X, g.Z) + 0.8f));
+                    cap.Glasses = new[] { vp.x, vp.y };
+                    Debug.Log($"[LOV] capture: the glasses on gunner {g.Id} ({g.Weapon}, {g.Side}), who fired at tick {fired.Tick}");
+                }
+            }
             if (cap.Glasses != null)
             {
                 root.CameraRig.AimGlasses(new Vector2(cap.Glasses[0], cap.Glasses[1]));

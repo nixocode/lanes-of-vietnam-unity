@@ -226,18 +226,11 @@ RECIPES["soldier_vc"] = dict(build="soldier", src="soldiers/vc_guerrilla.glb", p
 # (Sandbag walls are meshes now: tools/blender/sandbag_mesh.py.)
 
 
-# The firebase's structures, built: the watchtower and the vehicle park.
-# Timber is Poly Haven weathered_planks, the roof corrugated_iron_02, the
-# bags and the truck canvas ambientCG Fabric066 (all CC0); paint and rubber
-# are flat materials at measured albedos.
-RECIPES["firebase"] = dict(build="firebase", ppm=72, ground="min", out=os.path.join(ROOT, "Assets", "_Project", "Art", "Props"),
-                           timber="polyhaven/weathered_planks/weathered_planks",
-                           roof="polyhaven/corrugated_iron_02/corrugated_iron_02", canvas="Fabric066")
+# (The firebase's tower, trucks and jeep were baked here as cards; they are meshes now:
+# tools/blender/firebase_mesh.py.)
 
 
 def import_sources(recipe):
-    if recipe.get("build") == "firebase":
-        return build_firebase(recipe)
     if recipe.get("build") == "soldier":
         return build_soldier(recipe)
     if recipe.get("build") == "grass":
@@ -746,28 +739,6 @@ def build_bamboo(recipe):
     return groups
 
 
-def bag_mesh(name, rng):
-    """One filled sandbag: a UV sphere pressed into a pillow — flat on top
-    and bottom where the weight of the course above squeezes it, bulging at
-    the sides — with a little of its own sag and lumpiness."""
-    L, W, H = rng.uniform(0.50, 0.58), rng.uniform(0.28, 0.33), rng.uniform(0.12, 0.15)
-    bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=1.0, calc_uvs=True)
-    for v in bm.verts:
-        x, y, z = v.co
-        z = math.copysign(min(abs(z), 0.62) / 0.62, z) ** 1.0      # pressed flat
-        bulge = 1.0 + 0.10 * (1 - z * z)
-        lump = 1.0 + 0.04 * math.sin(x * 7 + y * 5 + rng.uniform(0, 6))
-        v.co = mathutils.Vector((x * L / 2 * bulge * lump, y * W / 2 * bulge, z * H / 2))
-        v.co.z -= 0.012 * (1 - (x * x))                            # sag in the middle
-    me = bpy.data.meshes.new(name)
-    bm.to_mesh(me)
-    bm.free()
-    for p in me.polygons:
-        p.use_smooth = True
-    return me, L, W, H
-
-
 def fabric_material(atlas, dust):
     """A bag's cloth: the fabric scan, dulled toward the earth it was filled
     and dragged through."""
@@ -843,142 +814,6 @@ def wheel(name, centre, r, width, tyre, hub):
     bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=r * 0.55, depth=width + 0.02, location=centre, rotation=(math.pi / 2, 0, 0))
     h = bpy.context.active_object; h.name = name + " hub"; h.data.materials.append(hub)
     return [t, h]
-
-
-def build_firebase(recipe):
-    rng = np.random.default_rng(1965)
-    timber = bark_material(recipe["timber"], "timber")
-    roof = bark_material(recipe["roof"], "roof")
-    # OD canvas, weathered: the scan darkened toward the trucks' own paint.
-    canvas = fabric_material(recipe["canvas"], (0.42, 0.43, 0.33))
-    od = flat_material("olive drab paint", (0.075, 0.082, 0.052), 0.55)
-    od_dark = flat_material("olive drab shade", (0.05, 0.055, 0.035), 0.6)
-    tyre = flat_material("tyre", (0.025, 0.024, 0.022), 0.85)
-    glass = flat_material("glass", (0.02, 0.025, 0.03), 0.1)
-    crate = flat_material("ammo crate", (0.11, 0.105, 0.065), 0.7)
-    bag_mats = [fabric_material("Fabric066", (0.72, 0.68, 0.58))]
-    groups = {}
-
-    # --- the watchtower -------------------------------------------------------------
-    ox = 0.0
-    objs = []
-    H, deck = 10.3, 8.3
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            objs.append(strut("leg", (ox + sx * 1.45, sy * 1.45, 0), (ox + sx * 1.2, sy * 1.2, deck), 0.24, timber))
-    for sy in (-1, 1):                                    # X braces, three bays up the front, back and sides
-        for k in range(3):
-            z0, z1 = k * deck / 3 + 0.3, (k + 1) * deck / 3 - 0.2
-            w0, w1 = 1.45 - 0.25 * z0 / deck, 1.45 - 0.25 * z1 / deck
-            objs.append(strut("brace", (ox - w0, sy * w0, z0), (ox + w1, sy * w1, z1), 0.12, timber))
-            objs.append(strut("brace", (ox + w0, sy * w0, z0), (ox - w1, sy * w1, z1), 0.12, timber))
-            objs.append(strut("brace", (ox + sy * w0, -w0, z0), (ox + sy * w1, w1, z1), 0.12, timber))
-    objs.append(box("deck", (ox - 1.9, -1.9, deck), (ox + 1.9, 1.9, deck + 0.16), timber, 1.5))
-    # The cabin: bags waist-high round the deck, posts up to the roof.
-    z = deck + 0.16
-    for c in range(3):
-        for side in range(4):
-            for k in range(6):
-                t = -1.6 + k * 0.62 + (0.3 if c % 2 else 0)
-                if t > 1.65:
-                    continue
-                me, L, W, Hh = bag_mesh("tower bag", rng)
-                o = link(me, bag_mats[0])
-                x, y = [(t, -1.7), (1.7, t), (t, 1.7), (-1.7, t)][side]
-                o.location = (ox + x, y, z + c * 0.12 + Hh / 2)
-                o.rotation_euler = (0, 0, 0 if side % 2 == 0 else math.pi / 2)
-                objs.append(o)
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            objs.append(strut("post", (ox + sx * 1.75, sy * 1.75, deck), (ox + sx * 1.75, sy * 1.75, H - 0.1), 0.12, timber))
-    objs.append(box("roof", (ox - 2.2, -2.2, H - 0.12), (ox + 2.2, 2.2, H - 0.07), roof, 2.0,
-                    rot=(0.09, 0, 0)))
-    for sy in (-1,):                                       # the ladder, up the front
-        for sx in (-0.25, 0.25):
-            objs.append(strut("rail", (ox + sx, sy * 1.9, 0), (ox + sx, sy * 1.55, deck), 0.07, timber))
-        for k in range(int(deck / 0.35)):
-            zz = 0.3 + k * 0.35
-            yy = sy * (1.9 - 0.35 * zz / deck)
-            objs.append(box("rung", (ox - 0.25, yy - 0.03, zz), (ox + 0.25, yy + 0.03, zz + 0.04), timber))
-    groups["tower"] = objs
-
-    # --- M35 2.5-ton trucks, side-on --------------------------------------------------
-    def m35(ox, covered):
-        o = []
-        o.append(box("frame", (ox - 3.2, -0.45, 0.78), (ox + 3.3, 0.45, 1.02), od_dark))
-        o.append(box("bumper", (ox + 3.25, -1.15, 0.7), (ox + 3.45, 1.15, 0.95), od_dark))
-        o.append(box("hood", (ox + 2.05, -0.8, 1.0), (ox + 3.3, 0.8, 1.72), od))
-        o.append(box("grille", (ox + 3.29, -0.62, 1.05), (ox + 3.33, 0.62, 1.65), od_dark))
-        for sy in (-1, 1):
-            o.append(box("fender", (ox + 1.95, sy * 1.2 - 0.25, 1.15), (ox + 3.35, sy * 1.2 + 0.25, 1.28), od))
-        o.append(box("cab", (ox + 0.85, -1.05, 1.0), (ox + 2.1, 1.05, 2.05), od))
-        o.append(box("window", (ox + 1.15, -1.06, 1.55), (ox + 1.95, 1.06, 1.95), glass))
-        o.append(box("windscreen", (ox + 2.08, -0.95, 1.72), (ox + 2.12, 0.95, 2.35), glass, rot=(0, -0.12, 0), pivot=(ox + 2.1, 0, 1.72)))
-        o.append(box("cab top", (ox + 0.85, -1.08, 2.05), (ox + 2.15, 1.08, 2.25), canvas, 1.0))
-        o.append(box("bed", (ox - 3.3, -1.2, 1.02), (ox + 0.8, 1.2, 1.18), od_dark))
-        for sy in (-1, 1):
-            o.append(box("bed side", (ox - 3.3, sy * 1.18 - 0.04, 1.18), (ox + 0.8, sy * 1.18 + 0.04, 1.75), od))
-        o.append(box("tailgate", (ox - 3.32, -1.2, 1.18), (ox - 3.25, 1.2, 1.75), od))
-        if covered:
-            bm = bmesh.new()                                     # the canvas: a half-tube over the bows
-            segs = 14
-            verts = []
-            for i in range(segs + 1):
-                a = math.pi * i / segs
-                for x in (ox - 3.3, ox + 0.8):
-                    verts.append(bm.verts.new((x, -1.22 * math.cos(a), 1.75 + 0.95 * math.sin(a))))
-            for i in range(segs):
-                bm.faces.new((verts[2 * i], verts[2 * i + 1], verts[2 * i + 3], verts[2 * i + 2]))
-            uvl = bm.loops.layers.uv.new("UVMap")
-            for f in bm.faces:
-                for l in f.loops:
-                    l[uvl].uv = (l.vert.co.x / 1.2, (l.vert.co.y + l.vert.co.z) / 1.2)
-            me = bpy.data.meshes.new("canvas")
-            bm.to_mesh(me); bm.free()
-            for p in me.polygons:
-                p.use_smooth = True
-            o.append(link(me, canvas))
-            o.append(box("canvas end", (ox - 3.31, -1.2, 1.75), (ox - 3.27, 1.2, 2.55), canvas))
-        else:
-            for k in range(5):                                     # bows bare, and a load of crates
-                x = ox - 3.1 + k * 0.95
-                o.append(box("bow", (x, -1.2, 2.62), (x + 0.05, 1.2, 2.68), od_dark))
-                for sy in (-1, 1):
-                    o.append(box("bow leg", (x, sy * 1.18 - 0.03, 1.75), (x + 0.05, sy * 1.18 + 0.03, 2.65), od_dark))
-            for k in range(7):
-                cx = ox - 3.0 + (k % 4) * 0.9 + rng.uniform(-0.05, 0.05)
-                cz = 1.18 + (k // 4) * 0.42
-                o.append(box("crate", (cx, -0.9 + rng.uniform(-0.1, 0.1), cz), (cx + 0.8, 0.9, cz + 0.4), crate,
-                             rot=(0, 0, rng.uniform(-0.06, 0.06))))
-        for (x, dual) in ((ox + 2.55, False), (ox - 1.35, True), (ox - 2.55, True)):
-            for sy in (-1, 1):
-                o += wheel("wheel", (x, sy * 0.95, 0.53), 0.53, 0.32, tyre, od_dark)
-                if dual:
-                    o += wheel("wheel", (x, sy * 0.62, 0.53), 0.53, 0.3, tyre, od_dark)
-        return o
-    groups["m35_covered"] = m35(30.0, True)
-    groups["m35_open"] = m35(45.0, False)
-
-    # --- M151 jeep -----------------------------------------------------------------------
-    ox = 60.0
-    o = []
-    o.append(box("tub", (ox - 1.65, -0.8, 0.45), (ox + 1.1, 0.8, 1.0), od))
-    o.append(box("hood", (ox + 1.1, -0.72, 0.5), (ox + 1.75, 0.72, 0.95), od, rot=(0, 0.08, 0), pivot=(ox + 1.1, 0, 0.95)))
-    o.append(box("grille", (ox + 1.74, -0.6, 0.5), (ox + 1.78, 0.6, 0.9), od_dark))
-    o.append(box("windscreen frame", (ox + 0.95, -0.78, 1.0), (ox + 1.0, 0.78, 1.45), od_dark, rot=(0, -0.2, 0), pivot=(ox + 0.97, 0, 1.0)))
-    o.append(box("windscreen", (ox + 0.96, -0.7, 1.05), (ox + 0.99, 0.7, 1.4), glass, rot=(0, -0.2, 0), pivot=(ox + 0.97, 0, 1.0)))
-    for sy in (-1, 1):
-        o.append(box("seat", (ox - 0.2, sy * 0.4 - 0.25, 0.9), (ox + 0.35, sy * 0.4 + 0.25, 1.35), canvas))
-    o.append(box("spare", (ox - 1.72, -0.35, 0.6), (ox - 1.65, 0.35, 1.3), tyre))
-    o.append(strut("antenna", (ox - 1.5, 0.7, 1.0), (ox - 1.6, 0.7, 3.4), 0.015, od_dark))
-    for x in (ox + 1.2, ox - 1.1):
-        for sy in (-1, 1):
-            o += wheel("wheel", (x, sy * 0.72, 0.37), 0.37, 0.24, tyre, od_dark)
-    groups["jeep"] = o
-
-    bpy.context.view_layer.update()
-    print(f"[plants] firebase: {', '.join(groups)}", flush=True)
-    return groups
 
 
 def build_soldier(recipe):

@@ -72,6 +72,38 @@ namespace LanesOfVietnam.Tests
             Assert.IsFalse(combat.JetSeen, "twelve seconds on, the jet is still drawn");
         }
 
+        /// <summary>
+        /// The SMOKE card, played as the player plays it (armed on the HUD, placed by the Deployer): a screen in the
+        /// simulation where it was placed, and smoke drawn there. The owner, 2026-10-14: "the one on the HUD, next to
+        /// airstrike, does not work and hasn't for a while".
+        /// </summary>
+        [UnityTest, Category("CallIns")]
+        public IEnumerator The_smoke_card_puts_a_screen_where_it_is_placed()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var combat = Object.FindAnyObjectByType<CombatView>();
+            var deployer = Object.FindAnyObjectByType<Deployer>();
+            Root.Paused = true;
+            var st = Root.Driver.State;
+            st.Cp[(int)Side.Us] = 1000;
+            var card = Deck.Find(Side.Us, "us-smoke");
+            Assert.IsNull(Deck.Blocked(st, Side.Us, card), "the smoke card cannot be played");
+            Assert.IsTrue(deployer.Arm(card), "the smoke card cannot be picked up");
+            const double x = 0;
+            Assert.IsTrue(deployer.Place(1, x), "the smoke card was not placed");
+            yield return Ticks(2);
+            var screen = st.Areas.FirstOrDefault(a => a.Kind == AreaKind.Smoke && a.Side == Side.Us);
+            Assert.IsNotNull(screen, "no screen in the simulation");
+            Assert.AreEqual(x, screen.X, 0.5);
+            Assert.AreEqual(Tune.Lanes[1], screen.Z, 0.01);
+            Root.CameraRig.Focus((float)x, instant: true);
+            int before = combat.Puffs;
+            yield return Ticks(Tune.SmokeWait + 10);
+            Assert.AreEqual(0, screen.Wait, "the screen never landed");
+            Debug.Log($"[LOV] smoke card: puffs {before} before, {combat.Puffs} after; screen at {screen.X:F1},{screen.Z:F1} radius {screen.Radius} ticks {screen.Ticks}");
+            Assert.Greater(combat.Puffs, before + 8, "the screen is in the simulation and no smoke is drawn for it");
+        }
+
         [UnityTest, Category("CallIns")]
         public IEnumerator The_helicopter_sets_down_where_it_was_called_and_leaves()
         {

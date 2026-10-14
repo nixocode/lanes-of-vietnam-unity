@@ -4426,17 +4426,20 @@ for it.
 
 1. Nobody has listened to any of the sound. Not mine to do, but it is not
    checked.
-2. Long frames while a barrage's smoke is in view: 9 to 11 ms at the 95th
-   percentile against a budget of 8.3. Found to be the smoke; not fixed
-   (smoke drawn at half resolution was named and not built).
+2. ~~Long frames while a barrage's smoke is in view.~~ Measured again on
+   2026-10-14 (§12.47), on a build of the game as it is: the 95th percentile
+   is 5 to 7 ms in every reading, the computer's barrage included, against
+   8.3. Not reproduced; closed by the measurement, not by a change.
 3. Not looked at in a capture: a machine gun's burst and its tracers, a
    grenade, a rocket and its trail, a smoke screen, a case in the air.
 4. A round fired from down in a trench at another lane goes into the
    trench's wall and its trace is not seen. Not fixed.
-5. The thread of smoke off a hot barrel: in the atlas, never drawn.
-6. Spent cases vanish after 2.4 s. The plan said they lie where they land
-   "for a few seconds"; nothing piles up by a gun.
-7. A belt-fed gun's links: one dark speck a round, not a link.
+5. ~~The thread of smoke off a hot barrel.~~ Drawn after a burst of three
+   or more (§12.47). Faint at the usual zoom.
+6. ~~Spent cases vanish after 2.4 s.~~ They lie 3.4 s, as long as the shot is
+   drawn; a gun firing every second has a small pile of them (§12.47).
+7. ~~A belt-fed gun's links.~~ Each link flies out of the other side and
+   lies with the cases (§12.47).
 8. The M3 "grease gun" has no recording of its own: it is the PPSh played
    lower. The one Browning single round is 5 dB quieter than the other five.
 9. No number from before the prone-head fix (the audit line was added with
@@ -4454,8 +4457,7 @@ for it.
 15. The jeep: I said it is the one I am least sure of, and left it. No second
     pass was made on it.
 16. No stencilled numbers or "U.S. ARMY" on the vehicles; stars only.
-17. `tools/blender/plant_bake.py` still has the recipe that baked the old
-    cards into a folder that no longer exists.
+17. ~~`plant_bake.py` still has the old cards' recipe.~~ Taken out (§12.47).
 18. No test was written for the new meshes (that they load, that the tower
     stands where its post is).
 
@@ -4512,6 +4514,53 @@ packs up (`Emplace`); satchel charges (`Satchel`).
 43. Asked for later and only written down: reloads that are seen; the
     soldiers' faces; the tower that comes down.
 
+
+
+### 12.47 The leftovers, and the smoke that was never seen in the browser (2026-10-14)
+
+The owner, 2026-10-13: "after that get to work on the rest of the stages
+that are left"; and on 2026-10-14, while it was under way: "the smoke
+grenade wasn't working, add that to fixes... I mean the one on the HUD,
+next to airstrike. Does not work and hasn't for a while." On the branch
+`leftovers`, from `callins`.
+
+**The SMOKE card, and all the smoke, in the browser.** Played as he plays
+it, the card did everything in the simulation: the call went out, its tag
+counted down, the screen landed where it was put, and CombatView built
+eighteen puffs for it (a PlayMode test, and the probe's new line in the
+browser: "puffs 18 ... Smoke@0,-6 wait 0"). None of them was seen. The
+smoke is soft where it meets the ground by reading the scene's depth, and
+the renderer copied the depth after the transparent pass
+(`URP-Web_Renderer.asset`, `m_CopyDepthMode: 1`, set so on 2026-09-29), so
+the smoke, which is in that pass, read a depth not yet there. On this Mac's
+renderer the empty depth reads as far and the smoke showed, which is why no
+capture or test saw it; in WebGL it reads as near, and every puff faded to
+nothing: the SMOKE card's screen, and every gun's smoke, the dust and the
+shells' smoke with it, since the smoke was first made soft. Now copied
+after the opaque pass (`m_CopyDepthMode: 0`), and seen in the browser
+(`?perf=1&seed=3&ff=300&call=us-smoke:1:0`). A test reads the setting
+(`ShotTests.The_depth_is_copied_before_the_smoke_is_drawn`): the editor
+cannot show the fault, so the setting is what is tested. Frame time with
+the smoke seen, seed 3, 2592 x 1370: mean 4.3 to 4.9 ms, 95th percentile 5
+to 7, with up to 318 puffs: no change.
+
+**The scene a build is made from.** The committed `Main.unity` is
+playtest 7's; the game's scene is made by `SceneBuilder` from what is on
+disk. A build made after the scene file had been put back to the committed
+one was 31.87 MB to start where the game is 37.07, and the 31.93 of 13
+October (§12.45) was very likely the same mistake: that is the "4 MB not
+accounted for" of the aircraft section. `Build.WebGL` now makes the scene
+itself before it builds the game, every time.
+
+**From §12.46**: the long frames (no. 2) not reproduced; the barrel's thread
+of smoke (5), cases that lie as long as their shot is drawn (6), a gun's
+links (7), the old card recipe out of `plant_bake.py` (17). A capture key,
+`gunner=1`, puts the field glasses on the machine gunner who fired last; the
+probe takes `call=card:lane:x` and says what the effects drew and which
+areas there are.
+
+Measured: PlayMode `Shots` 4 of 4; `CallIns` 3 of 3 (new: the SMOKE card as
+the HUD plays it). WebGL 37.07 MB to start, 44.79 in all.
 
 ### 12.13 Corrections to earlier sections
 
