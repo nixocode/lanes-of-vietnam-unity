@@ -21,6 +21,50 @@ namespace LanesOfVietnam.View
     {
         /// <summary>Each side's bodies (three a side, SoldierBuilder): a man is one of his side's, by his id.</summary>
         public SoldierFigure[] UsFigures = new SoldierFigure[0];
+        /// <summary>
+        /// The mortar set up on its baseplate and bipod (tools/blender/mortar_mesh.py), where its bomb leaves it in its
+        /// own space, and what it wears: drawn on the ground before a mortar man while his tube is set up
+        /// (MatchOptions.Emplace), and his carried tube put away.
+        /// </summary>
+        public Mesh MortarSet;
+        public Vector3 MortarMuzzle;
+        public Material MortarMaterial;
+        /// <summary>How far before a mortar man his set-up tube stands, metres.</summary>
+        public const float MortarAhead = 0.55f;
+        private readonly Dictionary<int, Transform> _sets = new Dictionary<int, Transform>();
+        // (Built firing toward the mesh's -x.)
+        private static readonly Quaternion FiresAhead = Quaternion.Inverse(Quaternion.LookRotation(Vector3.left, Vector3.up));
+
+        /// <summary>A mortar man's set-up tube, if it is out: for the tests.</summary>
+        public Transform SetOf(int id) => _sets.TryGetValue(id, out var t) && t.gameObject.activeSelf ? t : null;
+
+        /// <summary>
+        /// Emplace: a mortar man whose tube is set up (or still being taken down) has it on the ground before him,
+        /// pointing at the enemy's end, and not in his hands.
+        /// </summary>
+        private void MortarStand(SimState st, Man m, SoldierFigure f, Vector3 at, Ground g)
+        {
+            _sets.TryGetValue(m.Id, out var set);
+            // (Killed at it, he leaves it standing where it is.)
+            bool up = st.Emplace && m.Weapon == Weapon.Mortar && MortarSet != null
+                      && (m.Alive ? m.Rest >= Tune.EmplaceTicks : set != null && set.gameObject.activeSelf);
+            if (up && set == null)
+            {
+                var go = new GameObject($"mortar {m.Id}");
+                go.transform.SetParent(transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = MortarSet;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = MortarMaterial;
+                set = _sets[m.Id] = go.transform;
+            }
+            if (set != null && set.gameObject.activeSelf != up) set.gameObject.SetActive(up);
+            if (f != null && f.Rifle != null && f.Rifle.enabled == up && m.Alive) f.Rifle.enabled = !up;
+            if (!up || !m.Alive) return;
+            var ahead = new Vector3((float)Combat.Advance(m.Side), 0, 0);
+            var p = at + ahead * MortarAhead;
+            p.y = (float)g.HeightAt(p.x, Coords.SimZ(p.z));
+            set.SetPositionAndRotation(p, Quaternion.LookRotation(ahead, Vector3.up) * FiresAhead);
+        }
         public SoldierFigure[] VcFigures = new SoldierFigure[0];
         private bool HasFigures => UsFigures != null && VcFigures != null && UsFigures.Length > 0 && VcFigures.Length > 0;
 
@@ -46,6 +90,8 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_rounds, 0, _rounds.Length);
             System.Array.Clear(_threw, 0, _threw.Length);
             System.Array.Clear(_talkUntil, 0, _talkUntil.Length);
+            foreach (var set in _sets.Values) if (set != null) Destroy(set.gameObject);
+            _sets.Clear();
             System.Array.Clear(_reload, 0, _reload.Length);
             System.Array.Clear(_fall, 0, _fall.Length);
             System.Array.Clear(_blown, 0, _blown.Length);
@@ -431,6 +477,8 @@ namespace LanesOfVietnam.View
         {
             var f = id >= 0 && id < _figures.Count ? _figures[id] : null;
             p = f != null ? f.MuzzlePosition : default;
+            // A mortar set up: its bomb leaves the tube on the ground, not the one he no longer holds.
+            if (_sets.TryGetValue(id, out var set) && set.gameObject.activeSelf) { p = set.TransformPoint(MortarMuzzle); return true; }
             return f != null;
         }
 
@@ -775,6 +823,7 @@ namespace LanesOfVietnam.View
                 }
                 _shook[i] = 0;
                 _stood[i] = (sbyte)posture;
+                MortarStand(st, m, f, f.transform.position, g);
                 bool talking = m.Alive && i < _talkUntil.Length && st.Tick < _talkUntil[i];
                 f.Talk(talking);
                 if (talking) Talking = i; else if (Talking == i) Talking = -1;

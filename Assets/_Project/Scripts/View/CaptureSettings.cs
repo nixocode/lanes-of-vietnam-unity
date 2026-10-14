@@ -48,6 +48,8 @@ namespace LanesOfVietnam.View
         public bool Gunner;
         /// <summary>Raise the field glasses on the radio man who answers the last call (radioman=1).</summary>
         public bool RadioMan;
+        /// <summary>Run the match on until a mortar is set up, then raise the field glasses on it (mortar=1).</summary>
+        public bool Mortar;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
         public int SquadThrow = -1;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
@@ -219,6 +221,7 @@ namespace LanesOfVietnam.View
                     case "sel": c.Select = v == "tab" ? -2 : int.Parse(v, inv); break;
                     case "gunner": c.Gunner = v == "1" || v == "true"; break;
                     case "radioman": c.RadioMan = v == "1" || v == "true"; break;
+                    case "mortar": c.Mortar = v == "1" || v == "true"; break;
                     case "squadthrow": c.SquadThrow = int.Parse(v, inv); break;
                     case "glasses":
                     {

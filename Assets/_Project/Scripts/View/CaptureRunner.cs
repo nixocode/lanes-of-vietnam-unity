@@ -156,6 +156,26 @@ namespace LanesOfVietnam.View
                     Debug.Log($"[LOV] capture: a squad's smoke at {thrown.X:F1},{thrown.Z:F1}, tick {sim.Tick}");
                 }
             }
+            if (cap.Mortar)
+            {
+                // On until a mortar is set up and has fired, then the glasses on it.
+                var sim = root.Driver.State;
+                Man crew = null;
+                for (int i = 0; i < 6000 && !sim.Over && crew == null; i++)
+                {
+                    root.Driver.FastForward(1);
+                    int fired = sim.Events.FindLastIndex(e => e.Kind == EventKind.Launch && e.Tick == sim.Tick && sim.Men[e.Id].Weapon == Weapon.Mortar);
+                    if (fired >= 0) crew = sim.Men[sim.Events[fired].Id];
+                }
+                if (crew != null)
+                {
+                    root.CameraRig.Focus((float)crew.X, instant: true);
+                    yield return null;
+                    var vp = cam.WorldToViewportPoint(Coords.World(crew.X, crew.Z, (float)root.Ground.HeightAt(crew.X, crew.Z) + 0.6f));
+                    cap.Glasses = new[] { vp.x, vp.y };
+                    Debug.Log($"[LOV] capture: the glasses on mortar man {crew.Id}, who fired at tick {sim.Tick}");
+                }
+            }
             if (cap.RadioMan)
             {
                 // The radio man nearest the last call: the one ArmyView puts on the handset.

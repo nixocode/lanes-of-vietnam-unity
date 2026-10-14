@@ -4473,7 +4473,8 @@ for it.
     is wood: every gun has one flat shine.
 23. No ejection-port marker on any gun: a case leaves from a guessed place.
 24. A launcher's burst scaled by its round. Not done.
-25. The mortar: the plan said build it properly. It is still the old tube.
+25. ~~The mortar: the plan said build it properly.~~ The set-up M2 is built
+    (§12.48); the tube he carries is still the old one.
 26. The Chicom stick grenade from Poly Haven. Not done.
 27. The RPG is unloaded (its rocket left out). The M40 is a hunting rifle
     standing in. The SKS has a pin-up decal I did not remove.
@@ -4650,6 +4651,50 @@ again after). New files: `tools/blender/radio_import.py`,
 of the trench in front of the man, where the round clears the earth, not
 from his muzzle down in it. Built and tested; not seen in a capture yet
 (the lines are thin, and the strip taken was too far off to tell).
+
+### 12.48 Stage 5: every class its job (begun 2026-10-14)
+
+The plan the owner approved on 2026-10-12, Stage 5: two simulation rules,
+each behind its own flag, then the view for each. On the branch `classes`,
+from `leftovers`.
+
+**The mortar emplaced** (`MatchOptions.Emplace`, `Sim/Emplace.cs`). A
+mortar man fires only once he has been still for 3 s (`Tune.EmplaceTicks`:
+the tube on its baseplate, laid), and only while he stays; when his squad
+moves on he spends 2 s packing it up (`Tune.PackTicks`), firing nothing,
+before he follows. No random draws; his packing (`Man.Pack`) is hashed only
+with the rule. Off, every pin unchanged (`hash 1` 2256114725u, the game's
+pin without it 591451121u). On in the game and the scenarios; pins recorded
+(`simcs hash N ... inbound map emplace`: seed 1 5581 `3025940641u`, seed 7
+5415 `3260725662u`; `simcs scenario hash N`: firebase 1 `3623502557u`, The
+Wire 1 `3112002758u` and 2 `2275949335u`, First Light 7 `1616337823u` and 8
+`2442947573u`, The Earth Fights 1 9266 `1196084148u`). `simcs audit`: every
+event fires.
+
+The view: an M2 60 mm mortar set up, built here as the weapons are
+(`tools/blender/mortar_mesh.py` → `Art/Weapons/mortar_set.fbx`, 704
+triangles, on the weapons' palette): the tube at 60 degrees on its ribbed
+M3 baseplate, the bipod with its elevating screw, cross-leveling chain,
+handwheel and sight. While a mortar man's tube is set up it stands on the
+ground 0.55 m before him, pointed at the enemy's end, the carried tube out
+of his hands, and its bombs leave its muzzle (`ArmyView.MortarStand`,
+`TryMuzzle`); killed at it, he leaves it standing. Captured
+(`captures/air/mortar.png`; a capture key `mortar=1` runs on until a mortar
+fires and looks at it).
+
+Balance, `simcs scenario 192 level=veteran`: the firebase as US 126, as VC
+136; The Wire 155; First Light 155; The Earth Fights 148 (the band 112 to
+160). Before it, with GRENADES: 126, 139, 155, 155, 144.
+
+Tests: EditMode 113 of 113 (new: its pin, and
+`With_the_mortar_emplaced_it_fires_only_set_up_and_packs_up_before_it_moves`);
+PlayMode `CallIns.A_mortar_set_up_stands_on_the_ground_and_fires_from_there`.
+New files: `Sim/Emplace.cs`, `tools/blender/mortar_mesh.py`,
+`Art/Weapons/mortar_set.*`, `Tests/PlayMode/StructureTests.cs` was §12.47's.
+
+Not done of this rule: the crew is one man (the squad's others are its
+riflemen and do not serve the tube); he kneels by it when the simulation
+has him kneel, not because it is set up.
 
 ### 12.13 Corrections to earlier sections
 

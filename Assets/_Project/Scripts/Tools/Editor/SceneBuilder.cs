@@ -133,6 +133,17 @@ namespace LanesOfVietnam.Tools
             // The men (SoldierBuilder.Build makes them).
             army.UsFigures = SoldierBuilder.Figures(SoldierBuilder.Us);
             army.VcFigures = SoldierBuilder.Figures(SoldierBuilder.Vc);
+            // The mortar set up (tools/blender/mortar_mesh.py; MatchOptions.Emplace), on the weapons' palette.
+            var mortar = AssetDatabase.LoadAssetAtPath<GameObject>($"{SoldierBuilder.WeaponDir}/mortar_set.fbx");
+            if (mortar != null)
+            {
+                var mf = mortar.GetComponentsInChildren<MeshFilter>(true).FirstOrDefault(x => x.name == "mortar_set");
+                var mz = mortar.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "mortar_set.muzzle");
+                army.MortarSet = mf != null ? mf.sharedMesh : null;
+                army.MortarMuzzle = mf != null && mz != null ? mf.transform.InverseTransformPoint(mz.position) : Vector3.zero;
+                army.MortarMaterial = army.UsFigures.Length > 0 ? army.UsFigures[0].ArmsMaterial : null;
+            }
+            else Debug.LogWarning("[LOV] no mortar_set.fbx: a mortar set up is drawn as the tube in his hands (run tools/blender/mortar_mesh.py)");
             root.ArmyView = army;
 
             var dressGo = new GameObject("Dressing");

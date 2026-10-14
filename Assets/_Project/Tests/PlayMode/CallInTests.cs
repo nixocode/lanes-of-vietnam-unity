@@ -143,6 +143,41 @@ namespace LanesOfVietnam.Tests
             Assert.Less(f.OnTheRadio, 0.5f, "he is still on the radio long after the call went out");
         }
 
+        /// <summary>
+        /// The mortar emplaced (MatchOptions.Emplace): set up, its tube stands on its baseplate and bipod on the ground
+        /// before its man, pointed at the enemy's end, and is no longer in his hands; its bombs leave that tube; when he
+        /// has packed it up and moved, it is in his hands again.
+        /// </summary>
+        [UnityTest, Category("CallIns")]
+        public IEnumerator A_mortar_set_up_stands_on_the_ground_and_fires_from_there()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var army = Root.ArmyView;
+            Assert.IsNotNull(army.MortarSet, "the scene has no mortar set up (tools/blender/mortar_mesh.py, then SceneBuilder)");
+            Root.Paused = true;
+            var st = Root.Driver.State;
+            Assert.IsTrue(st.Emplace, "the game plays with the mortar emplaced");
+            st.Cp[(int)Side.Us] = 1000;
+            Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-mortar", 0, 0));
+            Man crew = null;
+            for (int i = 0; i < 3000 && crew == null; i++)
+            {
+                Root.Driver.FastForward(1);
+                crew = st.Men.FirstOrDefault(m => m.Alive && m.Side == Side.Us && m.Weapon == Weapon.Mortar && m.Rest >= Tune.EmplaceTicks + 5);
+            }
+            Assert.IsNotNull(crew, "no mortar was ever set up");
+            yield return null; yield return null;
+            var set = army.SetOf(crew.Id);
+            Assert.IsNotNull(set, "the mortar is set up and not drawn on the ground");
+            var f = army.FigureOf(crew.Id);
+            Assert.IsFalse(f.Rifle.enabled, "the tube is set up and still in his hands");
+            Assert.Less(Vector3.Distance(set.position, f.transform.position), 1.2f, "the set-up tube is not by its man");
+            Assert.Greater((set.position.x - f.transform.position.x) * (float)Combat.Advance(Side.Us), 0f, "the tube stands behind him, not toward the enemy");
+            Assert.IsTrue(army.TryMuzzle(crew.Id, out var muzzle));
+            Assert.Less(Vector3.Distance(muzzle, set.TransformPoint(army.MortarMuzzle)), 1e-3f, "its bombs do not leave the tube on the ground");
+            Assert.Greater(muzzle.y - set.position.y, 0.5f, "the muzzle is not up the tube");
+        }
+
         [UnityTest, Category("CallIns")]
         public IEnumerator The_helicopter_sets_down_where_it_was_called_and_leaves()
         {
