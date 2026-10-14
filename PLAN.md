@@ -4414,7 +4414,7 @@ made on this Mac).
 
 ### 12.46 Everything not done, skipped or forgotten in the stages of 2026-10-12 (written 2026-10-13)
 
-**Where the stages stand (kept up to date; last 2026-10-14):**
+**Where the stages stand (kept up to date; last 2026-10-14, evening):**
 
 | stage | | where |
 |---|---|---|
@@ -4424,7 +4424,7 @@ made on this Mac).
 | 4 | call-ins you watch arrive | ✅ done (§12.45, §12.47), every item closed |
 | 5 | every class its job | ✅ done (§12.48) |
 | 6 | the world from a map (M0) | ✅ done (§12.50) |
-| 7 | the tower comes down | not started |
+| 7 | the tower comes down | in progress on `destruction`: the rule (85a1f9d, 892fe81) and the view (a9ff520) built and tested; open: the buckle (legs cut, 0589fde, not compiled), the balance run on 192, its PLAN section, the timber sound and a falling clip (his yes) |
 | also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
 
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
