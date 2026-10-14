@@ -264,6 +264,9 @@ namespace LanesOfVietnam.View
                     // Inbound: the guns' ranging round, a second before the rest: one small burst on the aim point.
                     case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); else Called(e, now); break;
                     case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
+                    // Satchel: the bag thrown in, and its burst, a shell's size: its grenade burst is under it too.
+                    case EventKind.SatchelThrown: GrenadeFlight(e, (float)age, true); break;
+                    case EventKind.SatchelBlast: Explosion(e, (float)age, 0.8f); break;
                     case EventKind.GrenadeBlast: GrenadeBurst(e, (float)age); break;
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
                     case EventKind.Launch: Launched(e, i, (float)age); break;
@@ -283,6 +286,7 @@ namespace LanesOfVietnam.View
                 _root.CameraRig.Shake((e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / 60f));
             }
             SmokeScreens(st, now);
+            if (st.Satchel) Breaches(st, now);
             if (_markMesh != null) GroundMarks(st, now);
             Upload();
             Lights();
@@ -306,6 +310,8 @@ namespace LanesOfVietnam.View
                 case EventKind.Melee: case EventKind.Through: case EventKind.Stray: return 1.3f;
                 case EventKind.Kill: return BleedsFor + 0.2f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
+                case EventKind.SatchelThrown: return Tune.SatchelFuse * (float)Tune.Dt;
+                case EventKind.SatchelBlast: return (float)MaxAge;
                 case EventKind.GrenadeBlast: return 6f;
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
                 case EventKind.CallIn: return CallLife;
@@ -973,14 +979,15 @@ namespace LanesOfVietnam.View
         /// puff of smoke with a pale line behind it, and the owner, playtest 8:
         /// "these rays in the sky look bad, remove them; show the grenade".
         /// </summary>
-        private void GrenadeFlight(SimEvent e, float age)
+        private void GrenadeFlight(SimEvent e, float age, bool satchel = false)
         {
-            float fuse = Tune.FragFuse * (float)Tune.Dt;
+            // (A satchel charge's fuse is the event's own; it is heavier, and goes lower.)
+            float fuse = satchel ? (float)((e.Amount ?? Tune.SatchelFuse) * Tune.Dt) : Tune.FragFuse * (float)Tune.Dt;
             if (age > fuse || e.X == null || age < Ordnance.ThrowRelease) return;
             var men = _root.Driver.State.Men;
             if (e.Id >= men.Count) return;
             var thrower = men[e.Id];
-            var kind = thrower.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick;
+            var kind = satchel ? Ordnance.Kind.Satchel : thrower.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick;
             // From where his hand lets it go: above his shoulder, toward where it is going.
             double lx = e.X.Value, lz = e.Z.Value;
             var to = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.06f);
@@ -991,7 +998,7 @@ namespace LanesOfVietnam.View
             float seed = (float)Hash(e.Id * 31 + e.Tick, 47);
             if (t < 1f)
             {
-                float apex = 2.2f + 0.12f * Vector3.Distance(from, to);
+                float apex = (satchel ? 1.1f : 2.2f) + 0.12f * Vector3.Distance(from, to);
                 var p = Vector3.Lerp(from, to, t) + Vector3.up * (4f * apex * t * (1 - t));
                 // End over end, about the line across its way.
                 var across = flat.sqrMagnitude > 1e-4f ? Vector3.Cross(Vector3.up, flat.normalized) : Vector3.right;
@@ -1397,6 +1404,28 @@ namespace LanesOfVietnam.View
         }
 
         // --- smoke screens -------------------------------------------------------------------
+
+        /// <summary>
+        /// A position a satchel charge has breached (MatchOptions.Satchel), for as long as its protection is down: dark
+        /// smoke still coming off where its parapet and its roof were, thinning as the time runs out.
+        /// </summary>
+        private void Breaches(SimState st, double now)
+        {
+            foreach (var c in st.Cover)
+            {
+                if (c.Breached <= 0) continue;
+                float left = c.Breached / (float)Tune.SatchelBreachTicks;
+                var at = Coords.World(c.X, c.Z, (float)_root.Ground.HeightAt(c.X, c.Z));
+                for (int k = 0; k < 3; k++)
+                {
+                    float phase = Mathf.Repeat((float)now * 0.3f + k / 3f, 1f);
+                    float a = phase * 3.3f;
+                    var col = new Color(0.16f, 0.15f, 0.13f, 0.5f * left * (1 - phase) * Mathf.Clamp01(a / 0.3f));
+                    Hang(at + new Vector3((H(c.Id, 400 + k) - 0.5f) * 1.6f + 0.6f * a, 0.3f + 1.2f * a, (H(c.Id, 404 + k) - 0.5f) * 1.0f),
+                         0.8f + 0.9f * a, col, H(c.Id, 408 + k), a);
+                }
+            }
+        }
 
         /// <summary>Ticks a fire mission's screen lasts (Deck: the SMOKE card), to know how long one has been down.</summary>
         private const int SmokeCardTicks = Tune.TickHz * 22;

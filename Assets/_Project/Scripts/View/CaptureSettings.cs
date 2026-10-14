@@ -50,6 +50,8 @@ namespace LanesOfVietnam.View
         public bool RadioMan;
         /// <summary>Run the match on until a mortar is set up, then raise the field glasses on it (mortar=1).</summary>
         public bool Mortar;
+        /// <summary>Run the match on until a satchel charge is thrown, then raise the field glasses on where it lands (satchel=1).</summary>
+        public bool SatchelThrow;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
         public int SquadThrow = -1;
         /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
@@ -131,6 +133,8 @@ namespace LanesOfVietnam.View
         public bool? FragCard;
         /// <summary>A mortar fires from where it is set up (MatchOptions.Emplace); null: on, as in the game.</summary>
         public bool? Emplace;
+        /// <summary>Sappers and engineers carry satchel charges (MatchOptions.Satchel); null: on, as in the game.</summary>
+        public bool? Satchel;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -200,6 +204,7 @@ namespace LanesOfVietnam.View
                     case "inbound": c.Inbound = v == "1" || v == "true"; break;
                     case "fragcard": c.FragCard = v == "1" || v == "true"; break;
                     case "emplace": c.Emplace = v == "1" || v == "true"; break;
+                    case "satchel": c.Satchel = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable
@@ -222,6 +227,7 @@ namespace LanesOfVietnam.View
                     case "gunner": c.Gunner = v == "1" || v == "true"; break;
                     case "radioman": c.RadioMan = v == "1" || v == "true"; break;
                     case "mortar": c.Mortar = v == "1" || v == "true"; break;
+                    case "satchelthrow": c.SatchelThrow = v == "1" || v == "true"; break;
                     case "squadthrow": c.SquadThrow = int.Parse(v, inv); break;
                     case "glasses":
                     {

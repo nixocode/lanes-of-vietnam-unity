@@ -16,13 +16,14 @@ namespace LanesOfVietnam.View
     ///   Stick    the Chicom Type 67 the VC threw: an olive can on a wooden handle
     ///   Round    an M79's 40 mm round in flight
     ///   Bomb     a 60 mm mortar bomb
+    ///   Satchel  a satchel charge: a canvas bag of explosive with its strap (MatchOptions.Satchel)
     ///
     /// Each mesh's long axis is +Y, about its middle. They are drawn larger
     /// than life: at this camera a grenade ten centimetres long is five pixels.
     /// </summary>
     public static class Ordnance
     {
-        public enum Kind { Lemon, Stick, Round, Bomb }
+        public enum Kind { Lemon, Stick, Round, Bomb, Satchel }
 
         /// <summary>How much larger than life they are drawn.</summary>
         public const float Larger = 2.2f;
@@ -31,7 +32,7 @@ namespace LanesOfVietnam.View
         public const float ThrowRelease = 0.45f, ThrowFlight = 1.0f;
 
         // The palette's texels (weapons.json): steel, black, wood, walnut, olive, glass, brass, canvas.
-        private const int Steel = 0, Wood = 2, Olive = 4, Brass = 6, Texels = 8;
+        private const int Steel = 0, Wood = 2, Olive = 4, Brass = 6, Canvas = 7, Texels = 8;
 
         private static readonly Dictionary<Kind, Mesh> Meshes = new Dictionary<Kind, Mesh>();
 
@@ -53,6 +54,12 @@ namespace LanesOfVietnam.View
                     Lathe(v, uv, tris, Brass, (0f, 0f), (0.019f, 0f), (0.020f, 0.018f), (0f, 0.018f));
                     Lathe(v, uv, tris, Olive, (0f, 0.016f), (0.020f, 0.016f), (0.020f, 0.032f), (0.015f, 0.046f), (0f, 0.052f));
                     break;
+                case Kind.Satchel:
+                    // The bag, its flap's edge, and the strap over it from end to end.
+                    Box(v, uv, tris, Canvas, new Vector3(0.12f, 0.24f, 0.075f), Vector3.zero);
+                    Box(v, uv, tris, Canvas, new Vector3(0.124f, 0.012f, 0.079f), new Vector3(0f, 0.06f, 0f));
+                    Box(v, uv, tris, Steel, new Vector3(0.02f, 0.30f, 0.09f), new Vector3(0f, 0f, 0f));
+                    break;
                 default:
                     Lathe(v, uv, tris, Steel, (0f, 0f), (0.011f, 0f), (0.011f, 0.07f), (0f, 0.07f));
                     Lathe(v, uv, tris, Olive, (0f, 0.065f), (0.016f, 0.07f), (0.030f, 0.11f), (0.030f, 0.16f), (0.021f, 0.21f), (0.008f, 0.235f), (0f, 0.24f));
@@ -69,6 +76,30 @@ namespace LanesOfVietnam.View
             m.RecalculateBounds();
             Meshes[kind] = m;
             return m;
+        }
+
+        /// <summary>A box of the given size about a centre, one palette texel.</summary>
+        private static void Box(List<Vector3> v, List<Vector2> uv, List<int> tris, int texel, Vector3 size, Vector3 centre)
+        {
+            var at = new Vector2((texel + 0.5f) / Texels, 0.5f);
+            var h = size * 0.5f;
+            // Each face its own four corners (flat-shaded), wound clockwise seen from outside.
+            var faces = new[]
+            {
+                (Vector3.right, Vector3.up, Vector3.forward), (Vector3.left, Vector3.up, Vector3.back),
+                (Vector3.up, Vector3.forward, Vector3.right), (Vector3.down, Vector3.back, Vector3.right),
+                (Vector3.forward, Vector3.up, Vector3.left), (Vector3.back, Vector3.up, Vector3.right),
+            };
+            foreach (var (n, a, b) in faces)
+            {
+                int s = v.Count;
+                var c = centre + Vector3.Scale(n, h);
+                var da = Vector3.Scale(a, h); var db = Vector3.Scale(b, h);
+                v.Add(c - da - db); v.Add(c + da - db); v.Add(c + da + db); v.Add(c - da + db);
+                for (int k = 0; k < 4; k++) uv.Add(at);
+                if (Vector3.Dot(Vector3.Cross(da, db), n) > 0) { tris.Add(s); tris.Add(s + 2); tris.Add(s + 1); tris.Add(s); tris.Add(s + 3); tris.Add(s + 2); }
+                else { tris.Add(s); tris.Add(s + 1); tris.Add(s + 2); tris.Add(s); tris.Add(s + 2); tris.Add(s + 3); }
+            }
         }
 
         /// <summary>A surface turned about +Y from a profile of (radius, height) points, one palette texel.</summary>

@@ -55,6 +55,8 @@ namespace LanesOfVietnam.Sim
             }
             int over = Math.Max(0, n - c.Capacity);
             double crowded = Math.Max(0, c.Quality * Tune.CoverBoost - over * Tune.CrowdingPenalty);
+            // Satchel: breached, its parapet and its roof are down.
+            if (st.Satchel && c.Breached > 0) crowded *= Tune.SatchelBreachLeft;
             return Math.Min(0.85, crowded);
         }
 

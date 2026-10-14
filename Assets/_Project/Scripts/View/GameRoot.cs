@@ -248,6 +248,7 @@ namespace LanesOfVietnam.View
                 Options.Inbound = cap.Inbound ?? true;
                 Options.FragCard = cap.FragCard ?? true;
                 Options.Emplace = cap.Emplace ?? true;
+                Options.Satchel = cap.Satchel ?? true;
             }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

@@ -77,6 +77,12 @@ namespace LanesOfVietnam.Sim
             }
             if (st.Emplace)
                 foreach (var m in st.Men) h = MixI(h, m.Pack);
+            if (st.Satchel)
+            {
+                foreach (var m in st.Men) { h = MixI(h, m.Satchels); h = MixI(h, m.SatchelWait); }
+                foreach (var c in st.Cover) h = MixI(h, c.Breached);
+                foreach (var g in st.Grenades) h = MixB(h, g.Satchel);
+            }
             // Part 2 state, hashed only when its rule is on, so the baseline's
             // hashes are the ones the TypeScript original produced.
             if (st.SquadSmoke)

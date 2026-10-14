@@ -150,6 +150,15 @@ namespace LanesOfVietnam.Sim
         public const double FragRange = 20, FragMin = 7;
         /// <summary>Emplace: ticks a mortar man has to be still before his first round (set up and laid), and ticks he takes to pack it up.</summary>
         public const int EmplaceTicks = TickHz * 3, PackTicks = TickHz * 2;
+        /// <summary>
+        /// Satchel: charges a sapper or an engineer carries; metres from a position he throws one into it from; the
+        /// metres it lands off its middle at most; its fuse; its burst (metres, chance at its centre, what a
+        /// position's protection is worth against it); the ticks between one man's throws; and the position it
+        /// bursts within 3 m of: its protection down to four tenths, for twenty seconds.
+        /// </summary>
+        public const int SatchelsCarried = 2, SatchelFuse = TickHz * 2, SatchelGap = TickHz * 4, SatchelBreachTicks = TickHz * 20;
+        public const double SatchelReach = 9, SatchelScatter = 1.5, SatchelRadius = 5.5, SatchelKill = 0.85, SatchelCoverFactor = 0.9,
+                            SatchelBreachWithin = 3, SatchelBreachLeft = 0.4;
         /// <summary>FragCard: the most men of the nearest squad who throw when GRENADES is played.</summary>
         public const int FragCardThrowers = 3;
         /// <summary>With Arms, where every distance is the frame's: a throw is 12 m, and not inside 5.</summary>

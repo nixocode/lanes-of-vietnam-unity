@@ -89,6 +89,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_pinnedAt, 0, _pinnedAt.Length);
             System.Array.Clear(_rounds, 0, _rounds.Length);
             System.Array.Clear(_threw, 0, _threw.Length);
+            System.Array.Clear(_bag, 0, _bag.Length);
             System.Array.Clear(_talkUntil, 0, _talkUntil.Length);
             foreach (var set in _sets.Values) if (set != null) Destroy(set.gameObject);
             _sets.Clear();
@@ -122,6 +123,8 @@ namespace LanesOfVietnam.View
         private int[] _rounds = new int[0];
         /// <summary>Whether each man threw a grenade since the last frame, and how each man fell.</summary>
         private bool[] _threw = new bool[0];
+        /// <summary>What he threw was a satchel charge (MatchOptions.Satchel).</summary>
+        private bool[] _bag = new bool[0];
         /// <summary>The tick until which a radio man is on the handset (a call of his side's, MatchOptions.Inbound's CallIn).</summary>
         private int[] _talkUntil = new int[0];
         /// <summary>Seconds a radio man is on the handset for a call.</summary>
@@ -279,6 +282,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _pinnedAt, n);
                 System.Array.Resize(ref _rounds, n);
                 System.Array.Resize(ref _threw, n);
+                System.Array.Resize(ref _bag, n);
                 System.Array.Resize(ref _talkUntil, n);
                 System.Array.Resize(ref _reload, n);
                 System.Array.Resize(ref _fall, n);
@@ -319,6 +323,8 @@ namespace LanesOfVietnam.View
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
+                // Satchel: the throw, with the bag in his hand.
+                if (e.Kind == EventKind.SatchelThrown && e.Id < _threw.Length) { _threw[e.Id] = true; _bag[e.Id] = true; continue; }
                 // A call going out (not the ranging round, which is the guns' own): the radio man nearest where it is
                 // called to puts the handset to his ear.
                 if (e.Kind == EventKind.CallIn && e.Rounds != Inbound.Ranging && e.X != null)
@@ -827,7 +833,7 @@ namespace LanesOfVietnam.View
                 bool talking = m.Alive && i < _talkUntil.Length && st.Tick < _talkUntil[i];
                 f.Talk(talking);
                 if (talking) Talking = i; else if (Talking == i) Talking = -1;
-                if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; }
+                if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(_bag[i] ? Ordnance.Kind.Satchel : m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; _bag[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
                 // A burst killed him: it throws him, and close enough may take a limb off him.
                 if (_blown[i] && !m.Alive)

@@ -382,6 +382,10 @@ namespace LanesOfVietnam.View
                     case EventKind.GrenadeBlast:
                         Boom(e, "grenade", 0.8f, lx, lz);
                         break;
+                    // Satchel: a charge is a shell's worth of explosive, and it sounds it (over its grenade burst).
+                    case EventKind.SatchelBlast:
+                        Boom(e, "shell", 0.9f, lx, lz);
+                        break;
                     case EventKind.Shell:
                         Boom(e, "shell", 1f, lx, lz);
                         // The guns that fired it, once a salvo: far off, heard at once

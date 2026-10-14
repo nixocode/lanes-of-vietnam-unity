@@ -4696,6 +4696,53 @@ Not done of this rule: the crew is one man (the squad's others are its
 riflemen and do not serve the tube); he kneels by it when the simulation
 has him kneel, not because it is set up.
 
+**Satchel charges** (`MatchOptions.Satchel`, `Sim/Satchel.cs`). Every man of
+a sapper squad (VC) or an engineer squad (US) carries two. One who is
+within 9 m of a position the enemy has men in, not pinned flat and not up a
+post, throws one into its middle (within 1.5 m), one at a time a man and
+four seconds apart; it goes off after two seconds, wider and surer than a
+grenade (5.5 m, 0.85 at its centre) and the position's protection little
+use against it (0.9). The position it bursts within 3 m of is breached: its
+protection down to four tenths for twenty seconds
+(`Combat.CoverValue`). Its draws come from the grenades' stream; its state
+(each man's charges and wait, each position's breach, which grenades are
+charges) is hashed only with the rule. New events, appended:
+`SatchelThrown` (man Id into position Target, at X, Z, in Amount ticks),
+`SatchelBlast`, `Breached` (position Id, for Amount ticks). Off, every pin
+unchanged; on in the game and the scenarios; pins recorded (`simcs hash N
+... emplace satchel`: seed 1 5581 `1240054123u`, seed 7 6520 `2851206011u`;
+`simcs scenario hash N`: firebase 1 `3799276349u`, The Wire 1 4366
+`1257355612u` and 2 `1532812073u`, First Light 7 `3071477583u` and 8
+`1611514151u`, The Earth Fights 1 `1202707650u`). `simcs audit`: every event
+fires.
+
+The view: the bag thrown, a canvas satchel with its strap
+(`Ordnance.Kind.Satchel`), in the thrower's hand and then lower and heavier
+through the air than a grenade, lying where it lands through its fuse; its
+burst a shell's size over its grenade's, heard as a shell
+(`CombatView`, `AudioView`); and the breached position smoking dark for as
+long as its protection is down (`CombatView.Breaches`). Captured: a VC
+sapper's charge into a bunker, the men in it thrown out
+(`captures/air/satchel.png`; a capture key `satchelthrow=1`).
+
+Measured, `simcs scenario 192 level=veteran`: the four operations as the
+headless player plays them (line squads) do not move at all, 126 / 136,
+155, 155, 148, because neither he nor the computer's side fields sappers
+or engineers there. With a player who buys nothing but them (new:
+`card=<id>`, `nosatchel`): sappers in the firebase as VC 35 wins with the
+charges and 21 without; engineers as US 52 with and 43 without. The squads
+have their job now, and a side of nothing else still loses.
+
+Tests: EditMode 116 of 116 (new: its pin, and
+`Sappers_and_engineers_throw_satchels_into_held_positions_and_breach_them`);
+PlayMode 33 of 33 and the capture skipped. WebGL 37.28 MB to start, 45.00
+in all; frame time at 2592 x 1370, seed 3: mean 4.3 to 4.7 ms, the 95th
+percentile 5 to 7.
+
+New files: `Sim/Satchel.cs`. What the view still lacks: the positions'
+sandbags and roofs are not seen to come down when they are breached (the
+tower's collapse, Stage 7, is where things that come apart are planned).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

@@ -2712,6 +2712,78 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(final, h[h.Count - 1]);
         }
 
+        /// <summary>Recorded by `tools/simcs/run.sh hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel`.</summary>
+        [TestCase(1, 5581, 3711546079u, 3555651705u, 1240054123u, "vc morale broke")]
+        [TestCase(7, 6520, 3589350900u, 1055445897u, 2851206011u, "us morale broke")]
+        public void With_satchel_charges_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true,
+                Arms = true, Senses = true, Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, Emplace = true, Satchel = true,
+            };
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Satchel, "satchel must be off unless asked for");
+            var m = new LiveMatch(o);
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(reason, m.State.Reason);
+            Assert.AreEqual(at100, h[100]);
+            Assert.AreEqual(at1000, h[Math.Min(1000, h.Count - 1)]);
+            Assert.AreEqual(final, h[h.Count - 1]);
+        }
+
+        /// <summary>
+        /// Satchel charges (MatchOptions.Satchel; the plan the owner approved, 2026-10-12: "sappers and engineers carry a
+        /// few and throw one into an occupied position they reach; it hurts the men in it and knocks the position's
+        /// protection down for a time"). Only sappers and engineers throw them, two a man, only into a position the enemy
+        /// is in and within reach; a charge's burst breaches the position it bursts in, its protection down to four
+        /// tenths, and up again when the time is out.
+        /// </summary>
+        [Test]
+        public void Sappers_and_engineers_throw_satchels_into_held_positions_and_breach_them()
+        {
+            int thrown = 0, breached = 0;
+            for (int seed = 1; seed <= 8; seed++)
+            {
+                var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
+                Assert.IsTrue(o.Satchel, "the game plays with satchel charges");
+                var lm = new LiveMatch(o);
+                var st = lm.State;
+                while (!st.Over && st.Tick < 6000)
+                {
+                    int from = st.Events.Count;
+                    lm.Step();
+                    foreach (var e in st.Events.Skip(from))
+                    {
+                        if (e.Kind == EventKind.SatchelThrown)
+                        {
+                            thrown++;
+                            var by = st.Men[e.Id];
+                            string card = st.Squads[by.Squad].Card;
+                            Assert.IsTrue(card == "vc-sapper" || card == "us-engineer", $"a man of a {card} squad threw a satchel");
+                            Assert.GreaterOrEqual(by.Satchels, 0);
+                            Assert.Less(by.Satchels, Tune.SatchelsCarried);
+                            var c = st.Cover[e.Target.Value];
+                            Assert.LessOrEqual(JsMath.Hypot(c.X - by.X, c.Z - by.Z), Tune.SatchelReach + 1e-9, "thrown from beyond reach");
+                        }
+                        if (e.Kind == EventKind.Breached)
+                        {
+                            breached++;
+                            var c = st.Cover[e.Id];
+                            Assert.AreEqual(Tune.SatchelBreachTicks, c.Breached, 1, "(its countdown runs in the tick it bursts)");
+                            double was = c.Quality * Tune.CoverBoost;
+                            Assert.LessOrEqual(Combat.CoverValue(st, c), System.Math.Min(0.85, was) * Tune.SatchelBreachLeft + 1e-9, "a breached position kept its protection");
+                        }
+                    }
+                }
+                foreach (var c in st.Cover) Assert.LessOrEqual(c.Breached, Tune.SatchelBreachTicks);
+            }
+            Assert.Greater(thrown, 0, "no satchel was thrown in eight matches");
+            Assert.Greater(breached, 0, "no satchel ever breached a position");
+        }
+
         /// <summary>
         /// The mortar emplaced (MatchOptions.Emplace; the plan the owner approved, 2026-10-12: "the mortar that sets up and
         /// packs up"). With the rule, no mortar round leaves a tube its man had not stood still at for the time it takes
@@ -2915,12 +2987,12 @@ namespace LanesOfVietnam.Tests
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 4067, 1628787833u, 1957151137u, 3623502557u, "us morale broke")]
-        [TestCase("the-wire", 1, 5117, 1462155919u, 3991308258u, 3112002758u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 2761921234u, 2556738615u, 2275949335u, "us held out")]
-        [TestCase("first-light", 7, 2758, 2717044412u, 267853338u, 1616337823u, "us took the line")]
-        [TestCase("first-light", 8, 8400, 805115076u, 858175248u, 2442947573u, "vc held the line")]
-        [TestCase("earth-fights", 1, 9266, 3389833699u, 468027444u, 1196084148u, "us morale broke")]
+        [TestCase("firebase", 1, 4067, 2413054129u, 3170319089u, 3799276349u, "us morale broke")]
+        [TestCase("the-wire", 1, 4366, 2619434271u, 2230328434u, 1257355612u, "us morale broke")]
+        [TestCase("the-wire", 2, 6000, 1398731666u, 3685430599u, 1532812073u, "us held out")]
+        [TestCase("first-light", 7, 2758, 2683232128u, 1398152538u, 3071477583u, "us took the line")]
+        [TestCase("first-light", 8, 8400, 970755444u, 1229356912u, 1611514151u, "vc held the line")]
+        [TestCase("earth-fights", 1, 9266, 1068493547u, 2962025396u, 1202707650u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -2958,7 +3030,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -2974,7 +3046,7 @@ namespace LanesOfVietnam.Tests
 
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
-            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true;
+            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
             var (was, _) = Played(kept);
             var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));

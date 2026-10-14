@@ -175,6 +175,8 @@ namespace LanesOfVietnam.Sim
         public int Rest;
         /// <summary>A mortar man: ticks he has spent taking his tube down to move (MatchOptions.Emplace).</summary>
         public int Pack;
+        /// <summary>Satchel charges he carries (-1: not yet counted), and ticks until he may throw another (MatchOptions.Satchel).</summary>
+        public int Satchels = -1, SatchelWait;
         public Posture Before;
 
         /// <summary>The tick he last fired, threw or struck: a muzzle flash is seen from a long way off (<see cref="Senses.Sight"/>).</summary>
@@ -228,6 +230,8 @@ namespace LanesOfVietnam.Sim
         public Weapon By;
         /// <summary>Metres up it bursts: a launcher's round fired at a man on a post (MatchOptions.Vantage). 0 on the ground.</summary>
         public double High;
+        /// <summary>A satchel charge, not a grenade: it breaches the position it bursts in (MatchOptions.Satchel).</summary>
+        public bool Satchel;
     }
 
     public sealed class Squad
@@ -369,6 +373,8 @@ namespace LanesOfVietnam.Sim
         public double RangedIn;
 
         public Side? HeldBy;
+        /// <summary>Ticks left of its protection being down: a satchel charge has burst in it (MatchOptions.Satchel).</summary>
+        public int Breached;
 
         /// <summary>Each side's standing order on it (MatchOptions.Fieldcraft; positions only).</summary>
         public Lever LeverUs, LeverVc;
@@ -447,6 +453,10 @@ namespace LanesOfVietnam.Sim
         // says what it is (Inbound.Guns, Jet, SmokeShells, Dustoff). And, with Rounds = Inbound.Ranging, the
         // one round the guns drop first to see where they are landing: it hurts nobody.
         CallIn,
+        // Satchel (MatchOptions.Satchel): man Id threw a satchel charge into position Target, landing at X, Z, going off
+        // in Amount ticks; SatchelBlast: charge Id went off at X, Z (its GrenadeBlast is written before it); Breached:
+        // position Id has its protection down for Amount ticks.
+        SatchelThrown, SatchelBlast, Breached,
     }
 
     public struct SimEvent
@@ -558,6 +568,8 @@ namespace LanesOfVietnam.Sim
         public bool FragCard;
         /// <summary>Part 2 rule: a mortar fires from where it is set up, and is packed up before it moves (<see cref="Sim.Emplace"/>). Off is the baseline.</summary>
         public bool Emplace;
+        /// <summary>Part 2 rule: sappers and engineers carry satchel charges (<see cref="Sim.Satchel"/>). Off is the baseline.</summary>
+        public bool Satchel;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

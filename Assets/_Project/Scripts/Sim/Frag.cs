@@ -151,6 +151,8 @@ namespace LanesOfVietnam.Sim
             // Vantage: one that bursts up on a post says how high (Amount, metres), for the view.
             if (st.Vantage && g.High > 0) blast.Amount = g.High;
             st.Events.Add(blast);
+            // Satchel: a charge breaches the position it bursts in.
+            if (g.Satchel) Satchel.Burst(st, g);
             for (int j = 0; j < st.Men.Count; j++)
             {
                 var m = st.Men[j];

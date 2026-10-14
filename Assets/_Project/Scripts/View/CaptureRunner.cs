@@ -156,6 +156,26 @@ namespace LanesOfVietnam.View
                     Debug.Log($"[LOV] capture: a squad's smoke at {thrown.X:F1},{thrown.Z:F1}, tick {sim.Tick}");
                 }
             }
+            if (cap.SatchelThrow)
+            {
+                // On until a satchel charge is thrown, then the glasses on where it lands.
+                var sim = root.Driver.State;
+                int thrown = -1;
+                for (int i = 0; i < 9000 && !sim.Over && thrown < 0; i++)
+                {
+                    root.Driver.FastForward(1);
+                    thrown = sim.Events.FindLastIndex(e => e.Kind == EventKind.SatchelThrown && e.Tick == sim.Tick);
+                }
+                if (thrown >= 0)
+                {
+                    var e = sim.Events[thrown];
+                    root.CameraRig.Focus((float)e.X.Value, instant: true);
+                    yield return null;
+                    var vp = cam.WorldToViewportPoint(Coords.World(e.X.Value, e.Z.Value, (float)root.Ground.HeightAt(e.X.Value, e.Z.Value) + 0.5f));
+                    cap.Glasses = new[] { vp.x, vp.y };
+                    Debug.Log($"[LOV] capture: the glasses on a satchel charge thrown at tick {sim.Tick} by man {e.Id}");
+                }
+            }
             if (cap.Mortar)
             {
                 // On until a mortar is set up and has fired, then the glasses on it.
