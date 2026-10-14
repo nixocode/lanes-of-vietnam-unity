@@ -116,6 +116,9 @@ namespace LanesOfVietnam.View
         private float _lastDirtAt = -1;
         private int _salvoTick = -1, _salvoArea = -1;
         private bool _radioed;
+        private int _calledTick = -100000;
+        /// <summary>Seconds the sound of a round coming in lasts: it is cut to stop as it is loudest (tools/audio/slice_shots.py).</summary>
+        public const float Incoming = 2.25f;
         /// <summary>Where the US battery stands, behind the firebase: far enough to be a report, not a blast.</summary>
         public static readonly Vector2 Battery = new Vector2(-640f, 40f);
 
@@ -249,7 +252,7 @@ namespace LanesOfVietnam.View
         public void ResetView()
         {
             _cursor = 0; _lastTick = -1; _intensity = 0; Played = Rationed = 0;
-            _later.Clear(); _salvoTick = _salvoArea = -1; _radioed = false;
+            _later.Clear(); _salvoTick = _salvoArea = -1; _radioed = false; _calledTick = -100000;
         }
 
         /// <summary>One recording of a set, at random; null if there is no such set.</summary>
@@ -404,12 +407,31 @@ namespace LanesOfVietnam.View
                     case EventKind.CallIn:
                         if (e.X == null) break;
                         float lands = (float)((e.Amount ?? 0) * Tune.Dt);
+                        // The radio man's request, for a US player's own call: the voice and the net, under the fight.
+                        if (e.Rounds != Inbound.Ranging && e.Side == Side.Us && _root.PlayerSide == Side.Us && e.Tick - _calledTick > 6 * Tune.TickHz)
+                        {
+                            _calledTick = e.Tick;
+                            Play(Pick("call"), lx, lz + 2, 0.4f, 1f, true);
+                        }
                         // The guns are heard as they fire, far behind the line, seconds before their rounds are.
                         if (e.Rounds == Inbound.Guns || e.Rounds == Inbound.SmokeShells)
                         {
                             float gx = e.Side == Side.Us ? Battery.x : -Battery.x;
                             string gun = Pick("howitzer");
                             if (gun != null) Out.Play(gun, gx + Range(-30, 30), Battery.y + Range(-30, 30), 0.9f, Range(0.95f, 1.05f), 0f, true, Mathf.Max(0f, lands - 2.6f));
+                            // And their rounds are heard coming in: a rush that grows and stops as they burst. Once for
+                            // the ranging round, a second ahead, and once for the first of the rest.
+                            string first = Pick("incoming"), rest = Pick("incoming");
+                            float ranging = lands - (float)(Tune.RangingAhead * Tune.Dt) - Incoming;
+                            if (e.Rounds == Inbound.Guns && first != null && ranging >= 0)
+                                Out.Play(first, (float)e.X.Value, (float)e.Z.Value, 0.7f, Range(1.0f, 1.08f), 0f, true, ranging);
+                            if (rest != null) Out.Play(rest, (float)e.X.Value, (float)e.Z.Value, 0.9f, Range(0.92f, 1.0f), 0f, true, Mathf.Max(0f, lands - Incoming));
+                        }
+                        // The helicopter: its recording is loudest eight seconds in, as it sets down, and goes away after.
+                        else if (e.Rounds == Inbound.Dustoff)
+                        {
+                            string rotor = Pick("rotor");
+                            if (rotor != null) Out.Play(rotor, (float)e.X.Value, (float)e.Z.Value, 1f, 1f, 0f, true, Mathf.Max(0f, lands - 8f));
                         }
                         // The jet: its recording is loudest three seconds in, and that is when it is over the target.
                         else if (e.Rounds == Inbound.Jet)

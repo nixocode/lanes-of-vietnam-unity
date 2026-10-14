@@ -401,6 +401,41 @@
    ]
   },
   {
+   "name": "rotor",
+   "files": [
+    {
+     "file": "licensed/rotor_0.m4a",
+     "source": "sonniss2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav 74.0-94.0 s",
+     "seconds": 20.0
+    }
+   ]
+  },
+  {
+   "name": "call",
+   "files": [
+    {
+     "file": "licensed/call_0.m4a",
+     "source": "sonniss2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav 0.0-4.5 s",
+     "seconds": 4.48
+    }
+   ]
+  },
+  {
+   "name": "incoming",
+   "files": [
+    {
+     "file": "licensed/incoming_0.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav event 0 at 0.5 of its speed, to its loudest",
+     "seconds": 2.289
+    },
+    {
+     "file": "licensed/incoming_1.m4a",
+     "source": "sonniss2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav event 2 at 0.45 of its speed, to its loudest",
+     "seconds": 2.214
+    }
+   ]
+  },
+  {
    "name": "smg",
    "files": [
     {

@@ -216,6 +216,12 @@
     border-radius: 2px;
 }
 
+/* A call on its way, over where it was called to: what, and the seconds left. */
+.call-tag {
+    color: rgb(255, 236, 196);
+    border-color: rgba(255, 120, 66, 0.7);
+}
+
 /* ---- squad tags: what it is, how many, what it is doing ------------------ */
 
 .squad-tag {

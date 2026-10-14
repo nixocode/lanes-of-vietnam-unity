@@ -40,6 +40,13 @@ namespace LanesOfVietnam.View.UI
         /// <summary>The lane selector's tags, a lane each, and the tag that follows the pointer.</summary>
         public Button[] LaneTags { get; private set; }
         public Label AimTag { get; private set; }
+        /// <summary>
+        /// What the player has called for and is waiting on (MatchOptions.Inbound), each over the place it
+        /// was called to: what it is and the seconds until it is there. The owner pressed, and for
+        /// three to eight seconds nothing said the call had gone out, or where.
+        /// </summary>
+        public readonly Label[] CallTags = new Label[3];
+        private readonly string[] _callText = new string[3];
         public readonly List<VisualElement> Diamonds = new List<VisualElement>();
         public readonly List<CardView> Cards = new List<CardView>();
         public readonly Dictionary<string, Button> Buttons = new Dictionary<string, Button>();
@@ -226,6 +233,16 @@ namespace LanesOfVietnam.View.UI
             AimTag.style.left = 0; AimTag.style.top = 0;
             AimTag.usageHints = UsageHints.DynamicTransform;
             ui.Add(AimTag);
+            for (int i = 0; i < CallTags.Length; i++)
+            {
+                var tag = new Label("") { name = "call-tag", pickingMode = PickingMode.Ignore };
+                tag.AddToClassList("aim-tag"); tag.AddToClassList("call-tag");
+                tag.style.display = DisplayStyle.None;
+                tag.style.left = 0; tag.style.top = 0;
+                tag.usageHints = UsageHints.DynamicTransform;
+                ui.Add(tag);
+                CallTags[i] = tag;
+            }
 
             var bottom = new VisualElement { name = "bottombar" };
             bottom.AddToClassList("bottombar");
@@ -412,6 +429,8 @@ namespace LanesOfVietnam.View.UI
                 v.Set(cpNow < v.Card.Cost, v.Card.Cooldown > 0 ? (float)cd / v.Card.Cooldown : 0f, Deployer.Armed == v.Card);
             }
 
+            PlaceCallTags(st);
+
             Buttons["pause"].text = Root.Paused ? "▶" : "❚❚";
             Buttons["pause"].EnableInClassList("on", Root.Paused);
             if (Root.Speed != _speedShown) { _speedShown = Root.Speed; Buttons["speed"].text = $"{Root.Speed:0}×"; }
@@ -481,6 +500,30 @@ namespace LanesOfVietnam.View.UI
             var aim = (Deployer.Armed, Deployer.TargetLane * 10 + Deployer.TargetPost);
             if (!aim.Equals(_aimFor)) { _aimFor = aim; AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetPost >= 0 ? PostName(Deployer.TargetPost) : (Deployer.TargetLane == 0 ? "NEAR" : "FAR") + " LANE")}"; }
             AimTag.style.translate = new Translate(Mathf.Round(m.x + 22f), Mathf.Round(m.y - 44f));
+        }
+
+        private void PlaceCallTags(SimState st)
+        {
+            int n = 0;
+            var cam = Root.CameraRig != null ? Root.CameraRig.Camera : null;
+            if (cam != null && CaptureSettings.Active == null)
+                foreach (var a in st.Areas)
+                {
+                    if (a.Wait <= 0 || a.Side != Root.PlayerSide || n == CallTags.Length) continue;
+                    var screen = cam.WorldToScreenPoint(Coords.World(a.X, a.Z, (float)Root.Ground.HeightAt(a.X, a.Z) + 3f));
+                    if (screen.z <= 0) continue;
+                    var p = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(screen.x, Screen.height - screen.y));
+                    string what = a.Call == Inbound.Guns ? "GUNS" : a.Call == Inbound.Jet ? "AIR STRIKE" : a.Call == Inbound.SmokeShells ? "SMOKE" : "DUSTOFF";
+                    // (The text a second at a time: a label that changes is a panel drawn again.)
+                    string text = $"{what}  {Mathf.CeilToInt((float)(a.Wait * Tune.Dt))}";
+                    var tag = CallTags[n];
+                    if (_callText[n] != text) { _callText[n] = text; tag.text = text; }
+                    tag.style.translate = new Translate(Mathf.Round(p.x - 40f), Mathf.Round(p.y - 30f));
+                    if (tag.style.display != DisplayStyle.Flex) tag.style.display = DisplayStyle.Flex;
+                    n++;
+                }
+            for (; n < CallTags.Length; n++)
+                if (CallTags[n].style.display != DisplayStyle.None) CallTags[n].style.display = DisplayStyle.None;
         }
 
         public const float LaneTagLeft = 46f, LaneTagHeight = 26f;

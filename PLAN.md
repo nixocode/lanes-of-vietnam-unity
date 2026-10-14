@@ -4316,18 +4316,88 @@ The WebGL build is 31.93 MB to start, 39.20 in all. The guns' atlas is read
 at 1024 now (a rifle is 190 pixels long at the closest zoom), which gave back
 4 MB: there is room for the aircraft. Frame time: mean 4.1 to 4.4 ms.
 
+#### The aircraft, the sounds and the rest of the stage (2026-10-14)
+
+The owner, 2026-10-13: "Source the jet and Huey for stage 4, why are you
+skipping things? Also the whistle." Built, on `callins`:
+
+- **The jet**: "F100" by manilov.ap and **the Huey**: "UH-1 B" by TonyWony,
+  both Sketchfab, CC BY 4.0 (ASSETS.md; credited in the settings). Made into
+  `Art/Structures/aircraft.fbx` and one 2048 x 1024 atlas by
+  `tools/blender/aircraft_import.py`: joined, the Huey stood the right way up
+  (its file has it on its side), each scaled to the real aircraft (the
+  Huey's rotor comes out 13.37 m across; the real one is 13.4), colour
+  re-baked with the shade of its own hollows, canopy glass baked dark, the
+  Huey's main rotor cut off as a mesh of its own about its mast.
+- **The air strike** (`CombatView.JetPass`): the aim point marked with white
+  smoke as the forward air controllers marked theirs; the jet in from behind
+  its own side at 120 m/s, low over the target as its bombs burst, rolling
+  and pulling up and away; each bomb seen falling from it to where it
+  bursts. It flies 60 m beyond the lane, at whatever height puts it 0.86 of
+  the way up the picture at this zoom (12 to 45 m): over the lane, at any
+  height a jet flies, it was above the top of the picture.
+- **The bombs in one pass** (a sim change, under `Inbound`): a stick of eight,
+  a tenth of a second apart, walking 3 m a bomb away from the jet's side
+  along its line (`Tune.StickBombs`, `StickGap`, `StickStep`, `StickSpread`;
+  `Inbound.Stick` says where each falls, with no random draw, so the view
+  can show it falling before it bursts). It was four seconds of bursts
+  scattered over the strike's circle. Without the rule it still is.
+- **The medevac** (`CombatView.Dustoff`): violet smoke where it is wanted;
+  the Huey in from 170 m behind its own side and 42 m up, nose down, then
+  flaring and settling onto its skids as the simulation's eight seconds run
+  out; three seconds down with its rotor turning (324 a minute) and the dust
+  blown out from under it; then up, round on the spot and back the way it
+  came.
+- **The sounds**: the rush of each shell coming in, once for the ranging
+  round and once for the first salvo, timed to stop as they burst
+  (`incoming_0`, `_1`: **a stand-in**, a bullet's pass-by at half speed,
+  because nothing free or licensed has a shell coming in); the helicopter
+  from the call to its going (`rotor_0`: a Bell 222, two-bladed as the Huey
+  is; no Huey is in the bundles and the one free recording found is CC
+  BY-SA); the radio man's request as a US player's call goes out (`call_0`,
+  the "Forty Mike Mike" voice that was on disk unused). I cannot listen: all
+  three are the owner's to judge.
+- **The HUD**: each call of the player's on its way has a tag over where it
+  was called to, what it is and the seconds left (`Hud.CallTags`): "GUNS 3",
+  "AIR STRIKE 4", "DUSTOFF 7".
+- **The probe**: `&off=aircraft` draws nothing that flies.
+
+Measured. EditMode 109 of 109 (new: the jet's bombs in one pass). PlayMode
+28 of 28 and the capture test skipped (new: `CallInTests`, the jet over its
+target as its bombs burst and gone after; the Huey down where it was called
+as the simulation says it is in, its rotor turning, and gone back the way
+it came). Captures looked at: the strike frame by frame at a tenth of a
+second, the Huey coming in, standing and leaving (`captures/air/`).
+
+Balance, `simcs scenario 192`, Veteran, wins of 192 (band 112 to 160): the
+firebase as US 125, as VC 119 (it was 124); The Wire 141; First Light 137;
+The Earth Fights 121 (it was 125). Only the computer's own strikes changed
+(the player's plan in `simcs scenario` calls none). No dial turned.
+Pins moved, recorded by `simcs scenario hash N`: the firebase 1 (4067,
+`1584519197u`), The Wire 2 (`3899479613u`), First Light 7 (2758,
+`1262862095u`) and 8 (8400, `206783413u`: seed 4 no longer ends with the line
+held, so the test of a held line uses 8), The Earth Fights 1 (7821,
+`2404550293u`). The game's own pin with Inbound did not move (no strike in
+that match).
+
+WebGL build: **37.12 MB to start (the budget is 45), 44.84 in all (the
+budget is 80)**. The aircraft cost 1.09 MB of it (a build without them: 36.04
+and 43.75). The rest of the growth since 13 October's 31.93 came before the
+aircraft and is not yet accounted for. Frame time at 2592 x 1370, seed 3:
+mean 4.6 to 4.9 ms with the aircraft, 4.6 to 4.7 with `&off=aircraft`: they
+cost nothing measurable; the rise from 4.1 to 4.4 is there without them.
+
 #### Not done of this stage
 
-- **The jet and the Huey**: neither is sourced nor drawn. An air strike is
-  still bursts with a jet's sound; a medevac is still nothing to see.
-- **The whistle of an incoming shell, and a rotor**: neither is on disk; two
-  downloads the owner has approved, not yet made.
-- **The radio man kneeling to call**, and any mark on the ground where a call
-  will land: not done. A player has the sound of the guns and the ranging
-  round to tell him his call is coming, and nothing else.
-- **The strike's bombs in one pass**: it is still four seconds of bursts.
-- **Not looked at in the game**: none of it. The rule is tested and measured;
-  no capture was taken of a call arriving.
+- **The radio man kneeling to call** (§12.46 no. 33). It wants a clip of a
+  man kneeling with a handset to his ear and a radio on his back: a Mixamo
+  clip and a model, and each is a download that needs the owner's yes
+  (Mixamo is not covered by the stage's approval). Asked; not built.
+- **The Huey's door windows** are open in the model, both sides, so the sky
+  is seen through the cabin: from the side they read as two white panes.
+  Glass, or a dark inside, to be put in.
+- **The flash of eight bombs** in under a second is one white shape for a
+  frame or two: each is a shell's flash, and eight together saturate.
 
 #### What is the owner's
 
@@ -4337,7 +4407,9 @@ at 1024 now (a rifle is 190 pixels long at the closest zoom), which gave back
 - Noted in the plan for later, at his word: reloads that are seen; the
   soldiers' faces.
 
-New files: `Sim/Inbound.cs` (its `.meta` made on this Mac).
+New files: `Sim/Inbound.cs`, `Tests/PlayMode/CallInTests.cs`,
+`tools/blender/aircraft_import.py`, `Art/Structures/aircraft.*` (their `.meta`
+made on this Mac).
 
 
 ### 12.46 Everything not done, skipped or forgotten in the stages of 2026-10-12 (written 2026-10-13)
@@ -4405,19 +4477,23 @@ for it.
 28. The atlas was halved to 1024 afterwards for the build's size, without
     looking at the guns again.
 
-**Stage 4, call-ins (`callins`, §12.45): about a third done**
+**Stage 4, call-ins (`callins`, §12.45): all but one item done (2026-10-14)**
 
-29. The jet. Not sourced, not drawn.
-30. The Huey. Not sourced, not drawn.
-31. The whistle of an incoming shell. Not sourced.
-32. A rotor's sound. Not sourced.
-33. The radio man kneeling to make the call. Not done.
-34. Anything on the ground or the HUD that shows where and when a call will
-    land. Not done.
-35. The air strike's bombs in one pass. Still four seconds of bursts.
-36. The "Forty Mike Mike" radio voice already on disk. Not used.
-37. The probe's switches for the new effects. Not added.
-38. No capture of any call arriving. No PlayMode test of the view.
+29. ~~The jet. Not sourced, not drawn.~~ Sourced (F100, CC BY) and drawn.
+30. ~~The Huey. Not sourced, not drawn.~~ Sourced (UH-1 B, CC BY) and drawn.
+31. ~~The whistle of an incoming shell.~~ A stand-in (a pass-by played slow):
+    nothing real was found. Said so in ASSETS.md.
+32. ~~A rotor's sound.~~ A Bell 222, standing in for the Huey.
+33. The radio man kneeling to make the call. **Open**: needs a Mixamo clip
+    and a radio model, downloads that need the owner's yes.
+34. ~~Anything that shows where and when a call will land.~~ The HUD's tag
+    over each call, with its seconds; white smoke on a strike's target and
+    violet where a medevac is to land; the ranging round.
+35. ~~The air strike's bombs in one pass.~~ A stick of eight in 0.7 s.
+36. ~~The "Forty Mike Mike" radio voice.~~ Heard as a US player's call goes
+    out.
+37. ~~The probe's switches.~~ `&off=aircraft`.
+38. ~~No capture, no PlayMode test.~~ Captures looked at; `CallInTests`.
 
 **Stage 5, every class its job: not started.** The mortar that sets up and
 packs up (`Emplace`); satchel charges (`Satchel`).
@@ -4428,7 +4504,7 @@ packs up (`Emplace`); satchel charges (`Satchel`).
 
 39. `main` has none of this: the harness refused to move it and I went on
     stacking branches.
-40. The README says nothing of stages 2, 3 or 4.
+40. ~~The README says nothing of stages 2, 3 or 4.~~ It does (2026-10-14).
 41. One PlayMode test (`UIAuditTests`, "order Hold did not reach squad 0")
     fails now and then because it plays an unfixed seed. Seen, not fixed.
 42. Part of a temporary signed Sketchfab download address was printed into

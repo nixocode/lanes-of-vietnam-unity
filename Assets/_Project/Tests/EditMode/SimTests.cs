@@ -2681,6 +2681,47 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The jet makes one pass. With the rule its bombs are a stick: eight of them, a tenth of a second
+        /// apart, walking away from its own side along its line, each where <see cref="Inbound.Stick"/> says
+        /// (which is how the view can show them falling before they burst). Without it the strike is what
+        /// it was: bursts scattered over its circle for four seconds.
+        /// </summary>
+        [Test]
+        public void With_call_ins_inbound_the_jet_drops_its_bombs_in_one_pass()
+        {
+            foreach (bool inbound in new[] { false, true })
+            {
+                var lm = new LiveMatch(new MatchOptions { Seed = 2, Us = Plan.NoReinforce, Vc = Plan.NoReinforce, Inbound = inbound });
+                var st = lm.State;
+                st.Cp[(int)Side.Us] = 1000;
+                lm.Issue(Command.Buy(Side.Us, "us-airstrike", 0, 10));
+                lm.Step();
+                int called = st.Tick;
+                var strike = st.Areas.Single(a => a.Kind == AreaKind.Barrage);
+                int id = strike.Id; double ax = strike.X, az = strike.Z;
+                for (int t = 0; t < 400 && st.Areas.Any(a => a.Id == id); t++) lm.Step();
+                Assert.IsFalse(st.Areas.Any(a => a.Id == id), "the strike never ended");
+                var bombs = st.Events.Where(e => e.Kind == EventKind.Shell && e.Id == id).ToList();
+                if (!inbound)
+                {
+                    Assert.Greater(bombs.Last().Tick - bombs.First().Tick, Tune.SalvoEvery * 2, "with the rule off the strike is seconds of bursts");
+                    continue;
+                }
+                Assert.AreEqual(Tune.StickBombs, bombs.Count);
+                Assert.AreEqual((Tune.StickBombs - 1) * Tune.StickGap, bombs.Last().Tick - bombs.First().Tick, "the stick is not one pass");
+                Assert.AreEqual(Tune.JetWait, bombs.First().Tick - called, 2, "the bombs did not wait for the jet");
+                for (int k = 0; k < bombs.Count; k++)
+                {
+                    Inbound.Stick(Side.Us, id, ax, az, k, out double x, out double z);
+                    Assert.AreEqual(x, bombs[k].X.Value, 1e-9, $"bomb {k} is not where the stick puts it");
+                    Assert.AreEqual(z, bombs[k].Z.Value, 1e-9);
+                    Assert.LessOrEqual(System.Math.Abs(x - ax), 11.0, "a bomb fell outside the strike's circle");
+                    if (k > 0) Assert.Greater(x, bombs[k - 1].X.Value, "the stick does not walk away from the jet's own side");
+                }
+            }
+        }
+
+        /// <summary>
         /// A call takes its time: the guns 3.5 s with a ranging round a second before, the jet 5 s, smoke 2.5 s,
         /// the medevac 8 s. Until it is in, nothing of it is on the ground: no shell, no smoke to hide behind, no
         /// steadier line. Without the rule each lands in the tick it is called, as it always did.
@@ -2741,12 +2782,12 @@ namespace LanesOfVietnam.Tests
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 2679, 279902521u, 3713840900u, 3088575209u, "us morale broke")]
+        [TestCase("firebase", 1, 4067, 279902521u, 431529265u, 1584519197u, "us morale broke")]
         [TestCase("the-wire", 1, 5117, 420051215u, 783940434u, 162237126u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 4023048146u, 1474658007u, 269110854u, "us held out")]
-        [TestCase("first-light", 7, 5683, 681595836u, 1640755834u, 3403381156u, "us took the line")]
-        [TestCase("first-light", 4, 8400, 1133907796u, 1286571271u, 3575221195u, "vc held the line")]
-        [TestCase("earth-fights", 1, 8016, 201570083u, 3842152372u, 677380328u, "vc morale broke")]
+        [TestCase("the-wire", 2, 6000, 4023048146u, 1474658007u, 3899479613u, "us held out")]
+        [TestCase("first-light", 7, 2758, 681595836u, 3179488410u, 1262862095u, "us took the line")]
+        [TestCase("first-light", 8, 8400, 698811732u, 1713054640u, 206783413u, "vc held the line")]
+        [TestCase("earth-fights", 1, 7821, 201570083u, 3842152372u, 2404550293u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -2965,8 +3006,8 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 4 (it was 2, as above): it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(4, null, Difficulty.Veteran));
+            // Seed 8 (it was 2, as above, and then 4 until the jet's bombs fell in one pass): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(8, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

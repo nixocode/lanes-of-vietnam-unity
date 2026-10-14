@@ -12,7 +12,9 @@ namespace LanesOfVietnam.Sim
     ///                 round lands at the aim point to see where they fall
     ///                 (the ranging round: it hurts nobody), and the men
     ///                 under it have that second
-    ///   the jet       5 s to come round onto the target
+    ///   the jet       5 s to come round onto the target, and its bombs in
+    ///                 the one pass: a stick of eight along its line in
+    ///                 under a second (they were four seconds of bursts)
     ///   smoke         2.5 s: the shells are quicker laid than the guns' HE
     ///   the medevac   8 s for the helicopter; the line is steadied when it
     ///                 is in, not when it is called
@@ -42,6 +44,18 @@ namespace LanesOfVietnam.Sim
                 case Dustoff: return Tune.DustoffWait;
                 default: return 0;
             }
+        }
+
+        /// <summary>
+        /// Where bomb k of a jet's stick lands (the first is 0). The jet comes from behind its own side and
+        /// its bombs walk on away from it, a step each, a little to one side and the other of its line. No
+        /// random draws: whoever watches it come can know where each will fall before it does.
+        /// </summary>
+        public static void Stick(Side side, int id, double ax, double az, int k, out double x, out double z)
+        {
+            double dir = side == Side.Us ? 1 : -1;
+            x = ax + dir * (k - (Tune.StickBombs - 1) / 2.0) * Tune.StickStep;
+            z = az + ((k * 7 + Math.Abs(id) * 3) % 5 - 2) * Tune.StickSpread;
         }
 
         /// <summary>One tick of a call on its way (area i of the list). When it is in, a medevac does what it does and is gone; the rest become what they are next tick.</summary>

@@ -79,8 +79,8 @@ reference/TARGET.jpg             the specification for the look
 | Part 2 | grenades, squad smoke, drill and fieldcraft (stand-off, strongpoints with limited room and Warfare 1944's lever, melee, rounds through men), and arms (a weapon and a model for every class, a sniper team, fights at each weapon's distance), each behind a match option; parity baseline tagged and unchanged |
 | Playtest 9 | squads that open fire when they see each other and close by bounds, fewer grenades, a sniper's distance (Tactics); men who differ, and luck (Fortune); bodies thrown by a burst, limbs taken off, more blood, twice the deaths (PLAN §12.26) |
 | Fire control | a man fires at the enemy he is likeliest to hit and a squad spreads its fire; fire that is kept up keeps heads down; a squad works up to an assault and goes in by halves on a beaten enemy; a rocket is for a group (PLAN §12.29) |
-| Build | 27.0 MB initial (≤ 45); flicker 0.08 (≤ 1.30), SMAA |
-| Frame | 4.2 to 4.4 ms mean, 6 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
+| Build | 37.1 MB initial (≤ 45), 44.8 MB in all (≤ 80), 2026-10-14; flicker 0.08 (≤ 1.30), SMAA |
+| Frame | 4.6 to 4.9 ms mean (2026-10-14; it was 4.2 to 4.4), 6 to 7 ms 95th percentile at 2592 x 1370 in WebGL (M4 Pro); the review that got it there is `Docs/CODE-REVIEW-2026-10-02.md` |
 | Demo | on Vercel since 2026-10-09, after a security check: only the build goes up, under a content policy that lets it call nobody (PLAN §12.28) |
 | Ballistics | a round that misses its man comes down somewhere and may hit the man who is there; a burst is its rounds, walked along its line (PLAN §12.33) |
 | Wounds and gore | a round leaves its mark on the man; a heavy round or a burst close by can take a part of him: nine can come off; a GORE switch (PLAN §12.34) |
@@ -91,7 +91,10 @@ reference/TARGET.jpg             the specification for the look
 | Scenarios | the map and the scenario as data; a siege (a clock that is the defender's) and an assault (a line to take in both lanes at once); four operations on the firebase, chosen on the start screen with their briefings: the firebase, The Wire, First Light, The Earth Fights; each measured winnable (PLAN §12.39, on the branch `scenarios`) |
 | Bearing | how a man carries himself: one who is flat stays flat until he gets up to go, he gets up for a move he can make now and has his run, he makes for cover that is close, and he gathers pace and slows into his place; half as many changes of posture a minute (PLAN §12.41, on the branch `smooth`) |
 | The shot | fire and smoke from sheets of frames, not computed shapes; a flash, a kick, a case and a report for every round, at the weapon's own rate; every round seen going; a man's barrel on the man he fires at (1.8 degrees off at the middle, from 19.4), his rifle up before his first round; a man lying flat with his face up (PLAN §12.42, on the branch `shots`) |
-| Tests | EditMode 105/105, PlayMode 26/26 (PLAN §12.42), 2026-10-12 |
+| The firebase, built | the two M35 trucks, the M151 jeep, the watchtower in its members and a bunker's log roof as meshes built in Blender by script, on weathered atlases (PLAN §12.43, on the branch `firebase`) |
+| The guns, sourced | eleven Sketchfab models (CC BY 4.0, credited in the settings) in the men's hands, turned, scaled, thinned and baked to one atlas (PLAN §12.44, on the branch `guns`) |
+| Call-ins | a call takes time to arrive, under the rule `Inbound`: the guns' ranging round a second ahead of the rest and their rounds heard coming in, the jet (an F-100, sourced) seen coming in low with its bombs in one pass, the medevac's Huey (a UH-1B, sourced) setting down on violet smoke and leaving, a tag on the HUD counting each call down over its target (PLAN §12.45, on the branch `callins`) |
+| Tests | EditMode 109/109, PlayMode 28/28 (PLAN §12.45), 2026-10-14 |
 
 The measured detail, step by step, is in PLAN §10a. Where it stands and what is next: PLAN §12.27, the plan from here (polish, then scenarios on the firebase, then maps, Ia Drang first). The latest work is §12.34 to §12.37 (what a round and a burst do to a man, the watchtower, the computer's commander, squads that keep together), all on the branch `polish`; §12.39: Phase S, the scenarios, on the branch `scenarios`, which is what the demo serves; §12.41: Bearing, on the branch `smooth`; and §12.42: the shot, on the branch `shots`. Neither is in the demo yet.
 

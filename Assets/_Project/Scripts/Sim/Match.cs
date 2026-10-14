@@ -1112,6 +1112,30 @@ namespace LanesOfVietnam.Sim
         /// so a barrage lands on where men are now and a squad that walked
         /// into a tripwire this tick springs it this tick.
         /// </summary>
+        /// <summary>One round of a barrage bursting on the ground: every man near it is pinned, and may be killed.</summary>
+        private static void Burst(SimState st, Area a, double bx, double bz, Rng rng)
+        {
+            st.Events.Add(new SimEvent
+            {
+                Kind = EventKind.Shell, Tick = st.Tick, Side = a.Side, Id = a.Id, X = bx, Z = bz,
+            });
+            for (int j = 0; j < st.Men.Count; j++)
+            {
+                var m = st.Men[j];
+                if (!m.Alive) continue;
+                // Vantage: a shell bursts on the ground.
+                if (st.Vantage && !Vantage.Reaches(0, m)) continue;
+                double d = JsMath.Hypot(m.X - bx, m.Z - bz);
+                if (d > Tune.ShellRadius) continue;
+                double f = 1 - d / Tune.ShellRadius;
+                // Cover is most of what artillery is answered with.
+                bool inCover = m.Cover >= 0;
+                Combat.ApplyPin(st, m, Tune.ShellPin * f * (inCover ? 0.55 : 1));
+                double lethal = a.Power * f * f * (inCover ? 0.22 : 1);
+                if (rng.Next() < lethal) Combat.Kill(st, m);
+            }
+        }
+
         private static void StepAreas(SimState st, Rng rng)
         {
             for (int i = st.Areas.Count - 1; i >= 0; i--)
@@ -1125,7 +1149,17 @@ namespace LanesOfVietnam.Sim
                 }
                 a.Ticks--;
 
-                if (a.Kind == AreaKind.Barrage)
+                if (a.Kind == AreaKind.Barrage && st.Inbound && a.Call == Inbound.Jet)
+                {
+                    // Inbound: the jet's bombs, in the one pass it makes: a stick of them along its line.
+                    int gone = Tune.StickBombs * Tune.StickGap - 1 - a.Ticks;
+                    if (gone >= 0 && gone % Tune.StickGap == 0 && gone / Tune.StickGap < Tune.StickBombs)
+                    {
+                        Inbound.Stick(a.Side, a.Id, a.X, a.Z, gone / Tune.StickGap, out double bx, out double bz);
+                        Burst(st, a, bx, bz, rng);
+                    }
+                }
+                else if (a.Kind == AreaKind.Barrage)
                 {
                     a.Next--;
                     if (a.Next <= 0)
@@ -1140,25 +1174,7 @@ namespace LanesOfVietnam.Sim
                             double r = a.Radius * Math.Sqrt(rng.Next());
                             double bx = a.X + JsMath.Cos(ang) * r;
                             double bz = a.Z + JsMath.Sin(ang) * r;
-                            st.Events.Add(new SimEvent
-                            {
-                                Kind = EventKind.Shell, Tick = st.Tick, Side = a.Side, Id = a.Id, X = bx, Z = bz,
-                            });
-                            for (int j = 0; j < st.Men.Count; j++)
-                            {
-                                var m = st.Men[j];
-                                if (!m.Alive) continue;
-                                // Vantage: a shell bursts on the ground.
-                                if (st.Vantage && !Vantage.Reaches(0, m)) continue;
-                                double d = JsMath.Hypot(m.X - bx, m.Z - bz);
-                                if (d > Tune.ShellRadius) continue;
-                                double f = 1 - d / Tune.ShellRadius;
-                                // Cover is most of what artillery is answered with.
-                                bool inCover = m.Cover >= 0;
-                                Combat.ApplyPin(st, m, Tune.ShellPin * f * (inCover ? 0.55 : 1));
-                                double lethal = a.Power * f * f * (inCover ? 0.22 : 1);
-                                if (rng.Next() < lethal) Combat.Kill(st, m);
-                            }
+                            Burst(st, a, bx, bz, rng);
                         }
                     }
                 }

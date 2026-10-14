@@ -556,6 +556,13 @@ namespace LanesOfVietnam.Sim
         public const int GunsWait = TickHz * 7 / 2, JetWait = TickHz * 5, SmokeWait = TickHz * 5 / 2, DustoffWait = TickHz * 8;
         /// <summary>Ticks before the guns' rounds that their one ranging round lands.</summary>
         public const int RangingAhead = TickHz;
+        /// <summary>
+        /// The jet's bombs: how many it drops in its one pass, the ticks between one bursting and the next,
+        /// the metres between them along its line, and the metres they fall to either side of it. (Without
+        /// the rule the strike is four seconds of bursts scattered over its circle, ten of them on average.)
+        /// </summary>
+        public const int StickBombs = 8, StickGap = 2;
+        public const double StickStep = 3.0, StickSpread = 1.2;
 
         // --- how a man carries himself (MatchOptions.Bearing) --------------------------------
 

@@ -34,8 +34,12 @@ fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C3,105 mm,Distant,
 fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C3,105 mm,Medium Distant,Right Side,Shot,Firm,Heavy,EQ Version,Soft Attack.wav" 86270f9b2446539b0bfcf2629914962f2ceb23e98ef7f59fe3526b21f1a72fc1
 fetch "Airborne Sound - Jet Fighter Maneuvers" "Jet,Fighter,CF-18,Hornet,By,Slow,Rip to Whistle.wav" 588f6a272d6a3d7624ecf52324556dd6e5ad5f8c005afe44e279109a45b2fd86
 fetch "Airborne Sound - Jet Fighter Maneuvers" "Jet,Fighter,F-16,Fighting Falcon,Medium Distant,By,Whip,Buffet.wav" 6bce891e2b8da6aa3d0d02edac4c33fd6a359dae5f139d515c5e9ffb329daae4
+# The medevac: a two-bladed Bell winding up and lifting away (no Huey is in the bundles).
+fetch "Airborne Sound - Vehicles Aviation" "Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav" 71eda5721841db1e8b9a2427b2c2335926c532e7e337f9c41c371d47de03c1c7
 fetch "Red Libraries - Bodyfall" "RL_bodyfall_Dirt_M4_Close_Stereo_Hard_Impact_10.wav" 90d5ae7ee9f62593c8902c2e8008cc2a6a769d3232957807531d47c693272a99
 fetch "Apple Hill Studios - Military Radio Voices" "Military Radio Voice A (HHG) Troops In Contact Message.wav" daac19ceddd5245012e478bca0fce9a2c1769e18502960e8a6ad738ae250fc5d
+# A call-in going out: the radio man's request.
+fetch "Apple Hill Studios - Military Radio Voices" "Military Radio Voice D (HI-3) Forty Mike Mike Request.wav" 512034ba67dee92451981c5f00b7ae37561f39d66e946cdb951aee9c5f6e25d9
 
 Y=2020
 fetch "Pole Position - Tokarev PPSh-41 submachine gun" "PPSh41, Firing, t1, Burst, Long, MKH416.wav" 238ad768ac01ff6073094622e3451b5742bf57bc2b7b14b9bd4b05e22916f828

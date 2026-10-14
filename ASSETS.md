@@ -479,6 +479,29 @@ The SKS carries a small decal on its stock as its author made it. The mortar's t
 | `guns.fbx` | `7f015db2b894cf8dd0b7772a37d6098f241bef82b6f08ed02fb3586ba077a00b` |
 | `guns_albedo.png` | `6ef9baa32f612f2bfddb5452712355d3047b008cca20cc97afe1b01a6266fb22` |
 
+### Aircraft, sourced — `Assets/_Project/Art/Structures/aircraft.*`
+
+What a call-in brings (PLAN §12.45; the owner, 2026-10-13: "Source the jet and Huey for stage 4"). Two models
+from Sketchfab, each **CC BY 4.0** (licence `by`, downloadable, checked through Sketchfab's API the day each was
+fetched), fetched with the owner's sign-in into `SourceArt/sketchfab/` (git-ignored) and made into
+`aircraft.fbx` and `aircraft_albedo.png` by `tools/blender/aircraft_import.py`. Credited in the game's settings.
+
+| name | model, author | address | triangles | sha256 of the GLB |
+|---|---|---|---|---|
+| `jet` | "F100" by manilov.ap | `https://sketchfab.com/3d-models/a9ea47d5af0f4833a50f76350bd99417` | 8819 | `4e7fd47cdabb2b10b954fdc2c75df1b0754699a6c998b38c530195d40d806f63` |
+| `huey` | "UH-1 B with (half modeled cockpit)" by TonyWony | `https://sketchfab.com/3d-models/08d48d13e6ac46a6a2d3fcd68db41799` | 12314 + rotor 748 | `4049f932d527ade9fd9b8541f12272042398c6f51a754e8d4bc8181f035d63bd` |
+
+What was changed, as the licence asks to be said: each was joined into one mesh, turned (the UH-1B's file has it
+on its side), scaled to the real aircraft (the F-100 15.2 m long; the UH-1B's airframe 12.7 m, which gives its
+main rotor 13.4 m across, as the real one), its colours re-baked with the shade of its own hollows onto one
+atlas, its canopy glass baked dark, and the UH-1B's main rotor cut off as a mesh of its own so the game can turn
+it. The F-100 wears South-East Asia camouflage and the UH-1B US Army markings, as their authors made them.
+
+| file | sha256 |
+|---|---|
+| `aircraft.fbx` | `1206d08792f870d1397be8f0c90513b5b6224bf7ef77235fec4bba12c3aa196f` |
+| `aircraft_albedo.png` | `75084c0165d3de0df2954d0e2b0c89d828e80597a76283b9e23b2ac4732b2146` |
+
 ### Structures — `Assets/_Project/Art/Structures/`
 
 **Sandbag walls, built as geometry** by `tools/blender/sandbag_mesh.py`
@@ -747,9 +770,12 @@ quiet (`slice_shots.py` `events`).
 | `howitzer_0` … `_2` | `Howitzer,M101,C1/C3,105 mm,...` (2019, Airborne Sound: Battlefield Howitzers), 3 reports | `21d5791d…`, `3b5a39a6…`, `86270f9b…` | the battery, far behind the line, once a salvo of a barrage |
 | `jet_0`, `jet_1` | `Jet,Fighter,CF-18,Hornet,By,...`, `Jet,Fighter,F-16,...,By,...` (2019, Airborne Sound: Jet Fighter Maneuvers) | `588f6a27…`, `6bce891e…` | the air strike's pass (modern jets standing in for the F-100 and A-4) |
 | `radio_0` | `Military Radio Voice A (HHG) Troops In Contact Message.wav` (2019, Apple Hill Studios: Military Radio Voices), whole | `daac19ce…` | first contact, for a US player |
+| `call_0` | `Military Radio Voice D (HI-3) Forty Mike Mike Request.wav` (2019, Apple Hill Studios), whole | `512034ba…` | a US player's call-in going out (it asks for 40 mm; it is the voice and the net that are wanted) |
+| `rotor_0` | `Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav` (2019, Airborne Sound: Vehicles Aviation), 74 to 94 s | `71eda572…` | the medevac coming in, setting down and going: a two-bladed Bell 222 standing in for the UH-1 (no Huey is in the bundles, and the one free recording found, on Wikimedia Commons, is CC BY-SA) |
+| `incoming_0`, `incoming_1` | `PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav` (2020, PMSFX), events 0 and 2, played at 0.5 and 0.45 of their speed and cut to stop as they are loudest | `9c697f86…` | **a stand-in** for the rush of a shell coming in, ending as the guns' rounds burst (nothing free or licensed was found with a shell coming in) |
 
 Fetched but not used yet: `warfare_t1b_cannon_firing_forest_distant_...wav`
-(2017), `Military Radio Voice D (HI-3) Forty Mike Mike Request.wav` (2019) and
+(2017) and
 `Asia_Echoes_Tam Coc_Forest_Day.wav` (2020, Spectravelers: Asia Echoes, Laos -
 Vietnam; a Vietnamese forest for the bed, to be listened to before use).
 

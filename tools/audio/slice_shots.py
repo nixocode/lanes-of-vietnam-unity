@@ -75,6 +75,26 @@ SINGLES = {
             ("2017/warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav", 5, 0.75)],
     "smg1": [("2020/PPSh41, Firing, t1, Burst, Long, MKH416.wav", 2, 0.6)],
 }
+# A piece cut out of a long take by its seconds (PLAN §12.45): the medevac's helicopter. A Bell 222 winding
+# up, lifting and going away: a two-bladed Bell, as the Huey is, and the nearest the licensed bundles have to
+# one. From eight seconds before it is loudest (the game starts it as the call goes out, and the helicopter is
+# in eight seconds later) to twelve after, as it goes.
+# name: [(year/file, from s, to s, fade in s, fade out s)]
+PIECES = {
+    "rotor": [("2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav", 74.0, 94.0, 2.0, 4.0)],
+    # A radio man's request for fire, whole: heard as a US player's call goes out. (It asks for forty
+    # millimetre; it is the voice and the net that are wanted, under the fight.)
+    "call": [("2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav", 0.0, 4.48, 0.02, 0.12)],
+}
+# A recording played slow, made into a sound of its own: the incoming shell. Nothing free or licensed here
+# has a shell coming in; a round going by has the same rush, a tenth as long. Played at half its speed it is
+# an octave down, and it is cut off just after it is loudest: a sound that grows and stops, which the game
+# times to stop as the round bursts. The guns' rounds land 3.5 s after the call and the ranging round a
+# second before them, so neither may be longer than 2.4 s. A stand-in, and said to be one.
+# name: [(year/file, which event of the take, speed)]
+SLOWED = {
+    "incoming": [("2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav", 0, 0.50), ("2020/PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav", 2, 0.45)],
+}
 # How loud each of those is made: the RMS of its first 120 ms, dB below full scale.
 SINGLE_DB = -16.0
 # Played whole (trimmed around its loudest moment): a fast jet over the air
@@ -359,6 +379,30 @@ def main():
                     loud.setdefault(name, []).append(loudness(seg, sr))
                     emit(name, seg, sr, f"{f} {a_ / sr:.3f}-{b_ / sr:.3f} s")
                 print(f"[audio] {name}: {len(cuts)} single rounds from {f.split('/')[-1][:50]}", flush=True)
+        for name, items in PIECES.items():
+            for f, a_s, b_s, rise_s, fall_s in items:
+                x, sr = read_stereo(os.path.join(ART, "sonniss" + f))
+                seg = x.mean(1)[int(a_s * sr):int(b_s * sr)].copy()
+                rise = int(rise_s * sr)
+                seg[:rise] *= np.linspace(0, 1, rise)
+                emit(name, finish(seg, sr, fall_s), sr, f"{f} {a_s:.1f}-{b_s:.1f} s")
+        for name, items in SLOWED.items():
+            for f, which, speed in items:
+                x, sr = read_stereo(os.path.join(ART, "sonniss" + f))
+                m = x.mean(1)
+                cuts = events(m, sr, 0.3, 6, 1.2)
+                a_, b_ = cuts[min(which, len(cuts) - 1)]
+                seg = m[a_:b_]
+                # Slower: the same samples spread over more of them (and so lower, as a tape played slow is).
+                slow = np.interp(np.arange(0, len(seg) - 1, speed), np.arange(len(seg)), seg)
+                # To just after it is loudest (its level over 50 ms), and no longer than 2.4 s before that.
+                w = int(sr * 0.05)
+                level = np.convolve(slow * slow, np.ones(w) / w, mode="same")
+                end = min(len(slow), int(np.argmax(level)) + int(sr * 0.12))
+                slow = slow[max(0, end - int(sr * 2.4)):end].copy()
+                rise = min(len(slow), int(sr * 0.3))
+                slow[:rise] *= np.linspace(0, 1, rise)
+                emit(name, finish(slow, sr, 0.08), sr, f"{f} event {which} at {speed} of its speed, to its loudest")
         for name, items in EVENTS.items():
             for f, gap, keep, longest in items:
                 x, sr = read_stereo(os.path.join(ART, "sonniss" + f))

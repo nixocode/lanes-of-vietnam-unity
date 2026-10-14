@@ -120,7 +120,8 @@ namespace LanesOfVietnam.View.UI
             "BODIES MakeHuman (CC0) · TYPE Black Ops One, Bebas Neue, Courier Prime, Stardos Stencil (SIL Open Font License 1.1)\n" +
             // The weapons: each its author's, under CC BY 4.0, changed here (turned, scaled, thinned, re-baked): ASSETS.md.
             "WEAPONS (Sketchfab, CC BY 4.0, adapted) M16A1 SeveN-Models · AK-47 billyjackman3d · SKS haoliu95 · M60 studiolab.dev · " +
-            "RPD Polly_Hermiston · PPSh-41 Artem.Goyko · M3 XxRxX · Hunting Rifle Tnkii · Mosin PU Kazches · M79 denis1.eremin · RPG-7 javadbayat";
+            "RPD Polly_Hermiston · PPSh-41 Artem.Goyko · M3 XxRxX · Hunting Rifle Tnkii · Mosin PU Kazches · M79 denis1.eremin · RPG-7 javadbayat\n" +
+            "AIRCRAFT (Sketchfab, CC BY 4.0, adapted) F100 manilov.ap · UH-1 B TonyWony";
 
         private void BuildStart(VisualElement root)
         {

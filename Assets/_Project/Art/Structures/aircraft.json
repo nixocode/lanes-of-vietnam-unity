@@ -1,0 +1,23 @@
+{
+ "jet": {
+  "length": 15.2,
+  "span": 11.61,
+  "height": 5.2,
+  "triangles": 8819
+ },
+ "huey": {
+  "length": 15.83,
+  "span": 3.36,
+  "height": 3.9,
+  "hub": [
+   2.792,
+   -0.0
+  ],
+  "triangles": 12314
+ },
+ "huey_rotor": {
+  "span": 13.37,
+  "height": 3.72,
+  "triangles": 748
+ }
+}

@@ -171,6 +171,7 @@ namespace LanesOfVietnam.Tools
             combat.Glow.SetTexture("_MainTex", fire);
             combat.Smoke.SetTexture("_MainTex", smoke);
             combat.Marks = Mat("Ground Mark", Shader.Find("LOV/Ground Mark"), null);
+            Aircraft(combat);
             // Sound, from the same events (PLAN §12.6; Web Audio in the browser).
             game.AddComponent<AudioView>();
 
@@ -455,6 +456,45 @@ namespace LanesOfVietnam.Tools
             var meshes = AssetDatabase.LoadAllAssetsAtPath($"{dir}/firebase.fbx").OfType<Mesh>().OrderBy(x => x.name).ToArray();
             Debug.Log($"[LOV] firebase: {meshes.Length} meshes, {meshes.Sum(x => x.triangles.Length / 3)} triangles ({string.Join(", ", meshes.Select(x => x.name))})");
             return new StructureSet { Meshes = meshes, Vehicles = Worn("Vehicles", "vehicles"), Timber = Worn("Structure Timber", "timber") };
+        }
+
+        /// <summary>
+        /// What a call-in brings (Art/Structures/aircraft.fbx, from aircraft_import.py): the air strike's F-100
+        /// and the medevac's UH-1B with its main rotor apart, on one atlas of their own colours.
+        /// </summary>
+        private static void Aircraft(CombatView combat)
+        {
+            const string dir = "Assets/_Project/Art/Structures";
+            var json = AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/aircraft.json");
+            if (json == null)
+            {
+                Debug.LogWarning("[LOV] no aircraft: a call-in is heard and not seen (run tools/blender/aircraft_import.py)");
+                return;
+            }
+            AssetDatabase.ImportAsset($"{dir}/aircraft.fbx", ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset($"{dir}/aircraft_albedo.png", ImportAssetOptions.ForceUpdate);
+            var meshes = AssetDatabase.LoadAllAssetsAtPath($"{dir}/aircraft.fbx").OfType<Mesh>().ToArray();
+            combat.Jet = meshes.FirstOrDefault(x => x.name == "jet");
+            combat.Huey = meshes.FirstOrDefault(x => x.name == "huey");
+            combat.Rotor = meshes.FirstOrDefault(x => x.name == "huey_rotor");
+            var m = Mat("Aircraft", Shader.Find("Universal Render Pipeline/Lit"), null);
+            m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/aircraft_albedo.png"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetFloat("_Smoothness", 0.32f);
+            m.SetFloat("_Metallic", 0f);
+            // Both faces: the helicopter's windows are open, and through them the inside of its cabin is
+            // the backs of its walls. Drawn one-sided, the sky showed through it, white.
+            m.SetFloat("_Cull", 0f);
+            m.doubleSidedGI = true;
+            EditorUtility.SetDirty(m);
+            combat.Aircraft = m;
+            // The mast, from the helicopter's own origin: the script's metres forward of its middle (its nose is
+            // to -x as it is built here) and to its left.
+            var hub = System.Text.RegularExpressions.Regex.Match(json.text, @"""hub"":\s*\[\s*(-?[\d.]+),\s*(-?[\d.]+)");
+            float hx = hub.Success ? float.Parse(hub.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0f;
+            float hy = hub.Success ? float.Parse(hub.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture) : 0f;
+            combat.RotorHub = new Vector3(-hx, 0f, -hy);
+            Debug.Log($"[LOV] aircraft: {string.Join(", ", meshes.Select(x => $"{x.name} {x.triangles.Length / 3}"))}; rotor hub {combat.RotorHub}; jet bounds {combat.Jet?.bounds}; huey bounds {combat.Huey?.bounds}");
         }
 
         /// <summary>A baked prop set (Art/Props): lit like the plants, without wind, leaf glow or field shade.</summary>

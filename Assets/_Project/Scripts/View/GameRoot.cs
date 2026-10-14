@@ -87,6 +87,8 @@ namespace LanesOfVietnam.View
                     if (call.tick > at) { Driver.FastForward(call.tick - at); at = call.tick; }
                     var side = call.card.StartsWith("us-") ? Side.Us : Side.Vc;
                     var card = Deck.For(side).FirstOrDefault(c => c.Id == call.card);
+                    // (A capture's call is to be looked at, not earned: it is paid for.)
+                    if (card != null && Driver.State.Cp[(int)side] < card.Cost) Driver.State.Cp[(int)side] = card.Cost;
                     string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
                     Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
                     // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)

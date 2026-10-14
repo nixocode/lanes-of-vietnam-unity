@@ -147,7 +147,7 @@ namespace LanesOfVietnam.Sim
                     Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 17, Ticks = S * 9, Next = 1, Power = 0.30, Call = Inbound.Guns });
                     return true;
                 case "us-airstrike":
-                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = S * 4, Next = 1, Power = 0.62, Call = Inbound.Jet });
+                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = st.Inbound ? Tune.StickBombs * Tune.StickGap : S * 4, Next = 1, Power = 0.62, Call = Inbound.Jet });
                     return true;
                 case "us-smoke":
                     Push(st, side, new Area { Kind = AreaKind.Smoke, X = aimX, Z = z, Radius = 14, Ticks = S * 22, Next = 0, Power = 0, Call = Inbound.SmokeShells });

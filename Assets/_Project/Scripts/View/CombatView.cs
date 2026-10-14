@@ -38,6 +38,17 @@ namespace LanesOfVietnam.View
         public Material Smoke;
         /// <summary>Contact shadows and scorch marks (LOV/Ground Mark); optional.</summary>
         public Material Marks;
+        /// <summary>
+        /// The air strike's jet and the medevac's helicopter (Art/Structures/aircraft.fbx, from
+        /// tools/blender/aircraft_import.py: an F-100 and a UH-1B, sourced), on one material; the
+        /// helicopter's main rotor apart, to be turned, and where its mast stands from the helicopter's
+        /// own origin. Optional: without them a call comes as it did, heard and not seen.
+        /// </summary>
+        public Mesh Jet, Huey, Rotor;
+        public Material Aircraft;
+        public Vector3 RotorHub;
+        /// <summary>Nothing that flies is drawn (the frame-time probe's <c>off=aircraft</c>).</summary>
+        public bool NoAircraft;
 
         /// <summary>How fast a tracer is drawn travelling (m/s): a 5.56 or 7.62 round at combat range, slowed a little so the eye can follow it.</summary>
         public const float TracerSpeed = 620f;
@@ -108,6 +119,8 @@ namespace LanesOfVietnam.View
         /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
         public const double RicochetShare = 0.05;
         private const double MaxAge = 11.0;
+        /// <summary>Seconds a call-in has anything on the screen: the helicopter's eight coming, three down and seven going.</summary>
+        private const float CallLife = 19f;
 
         // Hot enough to bloom, not so hot that the tonemapper bleaches the
         // colour out: at 26x the red came out a white line.
@@ -236,7 +249,7 @@ namespace LanesOfVietnam.View
                 var e = ev[i];
                 // At least this old: the tick's end. (Its shots are spread back across the tick.)
                 double least = now - e.Tick * Tune.Dt;
-                if (least > MaxAge) break;
+                if (least > CallLife) break;
                 // Most of the log is not drawn at all, and what is has its own time: a shot's dust is gone
                 // in two seconds, a shell's smoke hangs for ten. (Every shot of the last eleven seconds had
                 // its men found and the ground under them measured, every frame, to draw nothing.)
@@ -249,7 +262,7 @@ namespace LanesOfVietnam.View
                     case EventKind.Shell: Explosion(e, (float)age, 1f); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
                     // Inbound: the guns' ranging round, a second before the rest: one small burst on the aim point.
-                    case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); break;
+                    case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); else Called(e, now); break;
                     case EventKind.GrenadeThrown: GrenadeFlight(e, (float)age); break;
                     case EventKind.GrenadeBlast: GrenadeBurst(e, (float)age); break;
                     case EventKind.Melee: Blow(ev, i, (float)age); break;
@@ -275,6 +288,8 @@ namespace LanesOfVietnam.View
             Lights();
             for (int k = _ordnanceShown; k < _ordnance.Count; k++)
                 if (_ordnance[k].gameObject.activeSelf) _ordnance[k].gameObject.SetActive(false);
+            if (_jet != null && _jet.gameObject.activeSelf != _jetShown) _jet.gameObject.SetActive(_jetShown);
+            if (_huey != null && _huey.gameObject.activeSelf != _hueyShown) _huey.gameObject.SetActive(_hueyShown);
         }
 
         /// <summary>
@@ -292,7 +307,8 @@ namespace LanesOfVietnam.View
                 case EventKind.Kill: return BleedsFor + 0.2f;
                 case EventKind.GrenadeThrown: return Tune.FragFuse * (float)Tune.Dt;
                 case EventKind.GrenadeBlast: return 6f;
-                case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: case EventKind.CallIn: return (float)MaxAge;
+                case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
+                case EventKind.CallIn: return CallLife;
                 default: return -1f;
             }
         }
@@ -939,6 +955,195 @@ namespace LanesOfVietnam.View
             else Show(kind, to, Quaternion.AngleAxis(seed * 360f, Vector3.up) * Quaternion.Euler(0, 0, 90f));
         }
 
+        // --- what was called for, coming -----------------------------------------------------
+
+        /// <summary>
+        /// The jet: metres a second (an F-100 came in at twice that; at this the eye has it for a second
+        /// and a half across the screen), metres over the ground at its lowest, the seconds after its
+        /// first bomb bursts that it is over the middle of them, and the seconds a bomb falls. And how far
+        /// beyond the lane it flies, away from the lens, and how far up the picture it is held as it
+        /// crosses (0 the bottom, 1 the top): over the lane itself, at any height an aircraft flies at,
+        /// it is above the top of the picture, and what was called is to be seen coming. Its height is
+        /// whatever puts it there at this zoom, and never under JetLow nor over JetHigh.
+        /// </summary>
+        public const float JetSpeed = 120f, JetLow = 12f, JetHigh = 45f, JetOver = 0.6f, BombFalls = 0.9f, JetBeyond = 60f, JetUpPicture = 0.86f;
+        /// <summary>How much larger than a mortar's bomb the jet's are drawn: a 750 pound bomb is over two metres long.</summary>
+        public const float BombLarger = 3.2f;
+        /// <summary>The helicopter: seconds it stands on the ground, seconds it takes to be gone, and how far off and how high it is when it is called.</summary>
+        public const float DustoffDown = 3f, DustoffAway = 7f, DustoffFrom = 170f, DustoffHigh = 42f;
+        /// <summary>Turns a second of a UH-1's main rotor (324 a minute).</summary>
+        public const float RotorTurns = 324f / 60f;
+
+        private Transform _jet, _huey, _rotor;
+        private bool _jetShown, _hueyShown;
+        /// <summary>Whether an aircraft was drawn last frame, for the tests.</summary>
+        public bool JetSeen => _jet != null && _jet.gameObject.activeSelf;
+        public bool HueySeen => _huey != null && _huey.gameObject.activeSelf;
+        public Transform JetAt => _jet;
+        public Transform HueyAt => _huey;
+        // (The meshes are built with their noses to -x.)
+        private static readonly Quaternion NoseAhead = Quaternion.Inverse(Quaternion.LookRotation(Vector3.left, Vector3.up));
+
+        private Transform Craft(string name, Mesh mesh)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = Aircraft;
+            mr.shadowCastingMode = ShadowCastingMode.On;
+            return go.transform;
+        }
+
+        /// <summary>
+        /// A call on its way (MatchOptions.Inbound), by how long ago it was made: the simulation says what
+        /// was called, where, and how many ticks it had to come. Like everything here it has no clock of
+        /// its own: the jet is where the call's age puts it.
+        /// </summary>
+        private void Called(SimEvent e, double now)
+        {
+            if (e.X == null || e.Z == null) return;
+            // (Its own time, not spread within its tick as a volley's shots are: it is one thing.)
+            float t = (float)(now - e.Tick * Tune.Dt);
+            float lands = (float)((e.Amount ?? 0) * Tune.Dt);
+            if (t < 0) return;
+            if (e.Rounds == Inbound.Jet) JetPass(e, t, lands);
+            else if (e.Rounds == Inbound.Dustoff) Dustoff(e, t, lands);
+        }
+
+        /// <summary>Coloured smoke on the ground where something is wanted: a column of it, a few puffs each rising and thinning and begun again.</summary>
+        private void MarkSmoke(Vector3 at, Color col, float t, float until, int seed)
+        {
+            float ends = Mathf.Clamp01(t / 0.6f) * Mathf.Clamp01((until - t) / 1.5f);
+            if (ends <= 0) return;
+            const int puffs = 8;
+            for (int k = 0; k < puffs; k++)
+            {
+                float phase = Mathf.Repeat(t * 0.25f + k / (float)puffs, 1f);
+                float a = phase * 4f;
+                if (a > t) continue;                      // not begun yet
+                col.a = 0.5f * ends * (1 - phase) * Mathf.Clamp01(a / 0.3f);
+                Hang(at + new Vector3(0.8f * a + (H(seed, 300 + k) - 0.5f) * 0.4f, 0.4f + 1.3f * a, (H(seed, 310 + k) - 0.5f) * 0.4f),
+                     1.4f + 1.0f * a, col, H(seed, 320 + k), a);
+            }
+        }
+
+        /// <summary>
+        /// The air strike: the target marked in white as the forward air controllers marked theirs, the jet
+        /// down out of the sky behind its own side, low over the target once, its bombs off it and falling
+        /// to where the simulation bursts them, and up and away. One pass.
+        /// </summary>
+        private void JetPass(SimEvent e, float t, float lands)
+        {
+            double ax = e.X.Value, az = e.Z.Value;
+            float dir = e.Side == Side.Us ? 1f : -1f;
+            float ground = (float)_root.Ground.HeightAt(ax, az);
+            int seed = e.Id * 7919 + e.Tick;
+            MarkSmoke(Coords.World(ax, az, ground), new Color(0.93f, 0.93f, 0.90f), t, lands + 0.4f, seed);
+            if (NoAircraft || Jet == null || Aircraft == null) return;
+            float over = lands + JetOver;
+            var away = _root.CameraRig.Camera.transform.forward; away.y = 0;
+            var beyond = away.normalized * JetBeyond;
+            var lens = _root.CameraRig.Camera;
+            var over0 = Coords.World(ax, az, ground) + beyond;
+            float depth = Vector3.Dot(over0 - _camPos, lens.transform.forward);
+            float low = Mathf.Clamp(lens.ViewportToWorldPoint(new Vector3(0.5f, JetUpPicture, depth)).y - ground, JetLow, JetHigh);
+            Vector3 At(float time)
+            {
+                float s = JetSpeed * (time - over);
+                // A shallow dive onto it, and a hard pull out of it.
+                float up = Mathf.Max(0f, time - over);
+                return Coords.World(ax + dir * s, az, ground + low + (s < 0 ? -s * 0.10f : 0f) + 16f * up * up) + beyond;
+            }
+            // Its bombs: each off the jet as it comes, nose along its fall, to where it will burst.
+            for (int k = 0; k < Tune.StickBombs; k++)
+            {
+                float bursts = lands + (float)Tune.Dt * (1 + k * Tune.StickGap);
+                float u = (t - (bursts - BombFalls)) / BombFalls;
+                if (u < 0 || u >= 1) continue;
+                Inbound.Stick(e.Side, e.Id, ax, az, k, out double bx, out double bz);
+                var from = At(bursts - BombFalls) + Vector3.down * 1.2f;
+                var to = Coords.World(bx, bz, (float)_root.Ground.HeightAt(bx, bz));
+                Vector3 Falling(float v)
+                {
+                    var q = Vector3.Lerp(from, to, v);
+                    q.y = to.y + (from.y - to.y) * (1 - v * v);
+                    return q;
+                }
+                var p = Falling(u);
+                var way = Falling(Mathf.Min(1f, u + 0.03f)) - p;
+                Show(Ordnance.Kind.Bomb, p, way.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.up, way) : Quaternion.identity, BombLarger);
+            }
+            if (Mathf.Abs(t - over) * JetSpeed > 900f || _jetShown) return;
+            if (_jet == null) _jet = Craft("aircraft jet", Jet);
+            var here = At(t);
+            var ahead = At(t + 0.02f) - here;
+            // It rolls away as it pulls up.
+            float roll = -28f * Mathf.SmoothStep(0f, 1f, (t - over) / 1.2f);
+            _jet.SetPositionAndRotation(here, Quaternion.LookRotation(ahead.normalized, Vector3.up) * Quaternion.AngleAxis(roll, Vector3.forward) * NoseAhead);
+            _jetShown = true;
+        }
+
+        /// <summary>
+        /// The medevac: violet smoke where it is wanted, the helicopter in from behind its own side, slowing
+        /// and settling onto its skids as the simulation's eight seconds run out, three seconds on the ground
+        /// with its rotor turning and the dust blown out from under it, then up, round and back the way it came.
+        /// </summary>
+        private void Dustoff(SimEvent e, float t, float lands)
+        {
+            double ax = e.X.Value, az = e.Z.Value;
+            float dir = e.Side == Side.Us ? 1f : -1f;
+            float ground = (float)_root.Ground.HeightAt(ax, az);
+            int seed = e.Id * 7919 + e.Tick;
+            var lz = Coords.World(ax, az, ground);
+            MarkSmoke(lz + new Vector3(-dir * 9f, 0, 0), new Color(0.56f, 0.24f, 0.78f), t, lands + DustoffDown + 2f, seed);
+            if (NoAircraft || Huey == null || Aircraft == null || _hueyShown || t > lands + DustoffDown + DustoffAway) return;
+            float s, h, yaw = 0f, nose;
+            if (t < lands)
+            {
+                float left = 1 - t / lands;
+                s = -DustoffFrom * left * left;
+                h = DustoffHigh * Mathf.Pow(left, 1.6f);
+                // Nose down as it comes, up as it slows, level as it sets down.
+                nose = Mathf.Lerp(-5f, 9f, Mathf.SmoothStep(0f, 1f, (0.75f - left) / 0.45f)) * Mathf.SmoothStep(0f, 1f, left / 0.12f);
+            }
+            else if (t < lands + DustoffDown) { s = 0; h = 0; nose = 0; }
+            else
+            {
+                float v = t - lands - DustoffDown;
+                h = Mathf.Min(DustoffHigh, 1.7f * v * v);
+                yaw = 180f * Mathf.SmoothStep(0f, 1f, v / 2.4f);
+                float going = Mathf.Max(0f, v - 1.6f);
+                s = -6f * going * going;
+                nose = -9f * Mathf.SmoothStep(0f, 1f, going / 1.5f);
+            }
+            if (_huey == null)
+            {
+                _huey = Craft("aircraft huey", Huey);
+                if (Rotor != null)
+                {
+                    _rotor = Craft("rotor", Rotor);
+                    _rotor.SetParent(_huey, false);
+                    _rotor.localPosition = RotorHub;
+                }
+            }
+            var facing = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
+            _huey.SetPositionAndRotation(lz + new Vector3(dir * s, h, 0), facing * Quaternion.AngleAxis(-nose, Vector3.right) * NoseAhead);
+            if (_rotor != null) _rotor.localRotation = Quaternion.AngleAxis(Mathf.Repeat(t * RotorTurns, 1f) * 360f, Vector3.up);
+            _hueyShown = true;
+            // What its rotor blows out from under it, near the ground.
+            float low = 1 - h / 9f;
+            if (low <= 0 || s < -25f) return;
+            for (int k = 0; k < 9; k++)
+            {
+                float phase = Mathf.Repeat(t * 0.8f + H(seed, 320 + k), 1f);
+                float ang = H(seed, 330 + k) * 6.2832f + t * 0.5f;
+                float r = 3.5f + 8f * phase;
+                Dust(lz + new Vector3(dir * s + Mathf.Cos(ang) * r, 0.5f + 0.9f * phase, Mathf.Sin(ang) * r), 2.6f + 3.2f * phase,
+                     new Color(0.30f, 0.25f, 0.18f, 0.34f * low * (1 - phase) * Mathf.Clamp01(phase / 0.15f)), H(seed, 340 + k), 0.25f + 0.65f * phase);
+            }
+        }
+
         // --- what is in the air, as things --------------------------------------------------
 
         private readonly List<MeshFilter> _ordnance = new List<MeshFilter>();
@@ -946,7 +1151,7 @@ namespace LanesOfVietnam.View
         private Material _ordnanceMaterial;
 
         /// <summary>A grenade, a round or a bomb at a place this frame (pooled; what is not shown again is hidden).</summary>
-        private void Show(Ordnance.Kind kind, Vector3 at, Quaternion turn)
+        private void Show(Ordnance.Kind kind, Vector3 at, Quaternion turn, float larger = 1f)
         {
             if (_ordnanceMaterial == null)
             {
@@ -967,6 +1172,7 @@ namespace LanesOfVietnam.View
             var mesh = Ordnance.Get(kind);
             if (mf.sharedMesh != mesh) mf.sharedMesh = mesh;
             mf.transform.SetPositionAndRotation(at, turn);
+            mf.transform.localScale = new Vector3(larger, larger, larger);
             if (!mf.gameObject.activeSelf) mf.gameObject.SetActive(true);
         }
 
@@ -1383,6 +1589,7 @@ namespace LanesOfVietnam.View
             _puffs.Clear(); _flashes.Clear();
             Tracers = Flashes = Explosions = Traces = Cases = Faint = 0;
             _ordnanceShown = 0;
+            _jetShown = _hueyShown = false;
         }
 
         /// <summary>A colour as light, so many times as bright: what a frame of the sheet of fire is multiplied by.</summary>

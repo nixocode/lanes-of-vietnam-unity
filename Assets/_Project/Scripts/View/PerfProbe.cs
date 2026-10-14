@@ -95,6 +95,8 @@ namespace LanesOfVietnam.View
                             foreach (Transform child in c.transform)
                                 if (child.name.StartsWith(part)) child.gameObject.SetActive(false);
                         break;
+                    // What a call-in brings: the jet, its bombs' flight is left; the helicopter.
+                    case "aircraft": foreach (var c in FindObjectsByType<CombatView>()) c.NoAircraft = true; break;
                     case "combat":
                         // (The component and what it draws, not its object: that is the game's own.)
                         foreach (var c in FindObjectsByType<CombatView>())
