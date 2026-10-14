@@ -273,6 +273,9 @@ namespace LanesOfVietnam.View
                     case EventKind.Through: Passed(e, i, (float)age); break;
                     case EventKind.Stray: Strayed(e, i, (float)age); break;
                     case EventKind.Kill: Blasted(ev, i, (float)age); Bleeding(e, i, (float)age); break;
+                    // Destruction: the tower hit, and brought down.
+                    case EventKind.Damaged: Splinters(ev, i, (float)age); break;
+                    case EventKind.Collapsed: Collapse(e, (float)age); break;
                 }
             }
             // A blast is felt: the camera shakes with every new shell and grenade, by how near it is.
@@ -315,6 +318,8 @@ namespace LanesOfVietnam.View
                 case EventKind.GrenadeBlast: return 6f;
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
                 case EventKind.CallIn: return CallLife;
+                case EventKind.Damaged: return SplintersFor;
+                case EventKind.Collapsed: return (float)MaxAge;
                 default: return -1f;
             }
         }
@@ -1804,6 +1809,110 @@ namespace LanesOfVietnam.View
         private void Hang(Vector3 pos, float size, Color col, float seed, float seconds)
             => AddPuff(Sheet.Wisp, (seed * 64f + Mathf.Max(0f, seconds) * WispRate) % 64f, pos, size, size, col, seed * 6.2832f, (int)(seed * 64f) % 2 == 1,
                        Mathf.Clamp(size * 0.3f, 0.05f, 1.5f));
+
+        // --- the tower (MatchOptions.Destruction) -------------------------------------------
+
+        /// <summary>Seconds the splinters off a hit on the tower fly.</summary>
+        private const float SplintersFor = 1.8f;
+
+        private float GroundAt(Vector3 p) => (float)_root.Ground.HeightAt(p.x, Coords.SimZ(p.z));
+
+        /// <summary>
+        /// A burst at the tower: splinters off it, from the side the burst was and at its height, and a puff of
+        /// its dust. (Its burst is drawn from its own event.)
+        /// </summary>
+        private void Splinters(List<SimEvent> ev, int i, float age)
+        {
+            var e = ev[i];
+            var dressing = _root.Dressing;
+            if (e.X == null || age > SplintersFor || dressing == null || dressing.Tower == null) return;
+            var foot = dressing.TowerFoot;
+            // How high: the burst's own event, written just before (a rocket fired at the men on the platform bursts up there).
+            float high = 0f;
+            for (int k = i - 1; k >= 0 && ev[k].Tick == e.Tick; k--)
+                if (ev[k].Kind == EventKind.GrenadeBlast && ev[k].X == e.X && ev[k].Z == e.Z) { high = (float)(ev[k].Amount ?? 0); break; }
+            var toward = Coords.World(e.X.Value, e.Z.Value, foot.y) - foot;
+            toward.y = 0f;
+            toward = toward.sqrMagnitude > 0.04f ? toward.normalized : Vector3.right;
+            // On its skin on that side, at the burst's height (low on its legs, for one on the ground).
+            var at = foot + toward * 1.4f + Vector3.up * Mathf.Clamp(high > 0 ? high : 1.2f, 0.5f, 10f);
+            int seed = e.Tick * 31 + 7;
+            float f = 1 - age / SplintersFor;
+            Dust(at, 1.4f + 2.4f * age, new Color(0.30f, 0.26f, 0.21f, 0.5f * f * f), H(seed, 1), 0.1f + 0.85f * age / SplintersFor);
+            float out0 = Mathf.Atan2(toward.z, toward.x);
+            for (int k = 0; k < 12; k++)
+            {
+                // Most of them through it and away from the burst; some back toward it.
+                float az = out0 + (k < 8 ? Mathf.PI : 0f) + (H(seed, 10 + k) - 0.5f) * (k < 8 ? 2.4f : 1.6f);
+                float vh = 3f + 6f * H(seed, 30 + k), vv = 1f + 5f * H(seed, 40 + k);
+                var pos = at + new Vector3(Mathf.Cos(az), 0f, Mathf.Sin(az)) * (vh * age) + Vector3.up * (vv * age - 4.9f * age * age);
+                if (pos.y < GroundAt(pos)) continue;
+                Clod(pos, 0.1f + 0.18f * H(seed, 50 + k), new Color(0.24f, 0.17f, 0.11f, 0.95f * Mathf.Min(1f, f * 3f)), H(seed, 60 + k));
+            }
+        }
+
+        /// <summary>
+        /// The tower going over (TowerView.Fall: the same fall the tower is drawn falling). As its legs give, dust
+        /// kicked up at its foot on its falling side; where it strikes, when it strikes, a long low cloud along the
+        /// length of it, rolling out and rising and drifting off downwind, and earth and timber thrown up where its
+        /// top came down.
+        /// </summary>
+        private void Collapse(SimEvent e, float age)
+        {
+            var dressing = _root.Dressing;
+            if (dressing == null || dressing.Tower == null) return;
+            var fall = new TowerView.Fall(e, dressing, _root.Ground);
+            int seed = fall.Seed;
+            var side = Vector3.Cross(Vector3.up, fall.Dir);
+            if (age < 2.5f)
+            {
+                float t = age / 2.5f, fade = 1 - t;
+                for (int k = 0; k < 3; k++)
+                {
+                    var p = fall.Pivot + fall.Dir * ((k - 1) * 0.8f) + side * ((H(seed, 70 + k) - 0.5f) * 3f);
+                    p.y = GroundAt(p) + 0.6f + 0.8f * age;
+                    Dust(p, 2.2f + 3f * t, new Color(0.32f, 0.28f, 0.23f, 0.55f * fade * fade), H(seed, 75 + k), 0.1f + 0.85f * t, 0.8f);
+                }
+            }
+            float u = age - fall.Hits;
+            if (u < 0) return;
+            const float life = 8f;
+            for (int k = 0; k < 7 && u < life; k++)
+            {
+                float a = u - k * 0.03f;
+                if (a < 0) continue;
+                float t = a / life;
+                var p = fall.Pivot + fall.Dir * (1.5f + k * 1.6f) + side * ((H(seed, 80 + k) - 0.5f) * 1.5f + (H(seed, 90 + k) - 0.5f) * 2f * Mathf.Sqrt(a));
+                p += new Vector3(0.5f * a, 0f, 0f);
+                p.y = GroundAt(p) + 0.5f + 1.6f * (1 - Mathf.Exp(-a * 1.2f)) + 0.25f * a;
+                float size = (3.6f + 5.5f * Mathf.Sqrt(t)) * (0.8f + 0.4f * H(seed, 100 + k));
+                float op = Mathf.SmoothStep(0f, 1f, a / 0.15f) * Mathf.Pow(1 - t, 1.4f) * 0.92f;
+                Dust(p, size, new Color(0.25f, 0.22f, 0.18f, op), H(seed, 110 + k), 0.05f + 0.9f * t, 0.75f);
+            }
+            // A low skirt of it rolling out either side.
+            for (int k = 0; k < 4 && u < 4f; k++)
+            {
+                float t = u / 4f;
+                var p = fall.Pivot + fall.Dir * (3f + 2.2f * k) + side * ((k % 2 == 0 ? 1f : -1f) * (1.5f + 4f * (1 - Mathf.Exp(-u * 1.5f))));
+                p.y = GroundAt(p) + 0.35f;
+                Dust(p, 2.4f + 2.5f * t, new Color(0.34f, 0.30f, 0.25f, 0.6f * (1 - t) * (1 - t)), H(seed, 115 + k), 0.1f + 0.85f * t, 0.45f);
+            }
+            if (u < 2.2f)
+            {
+                var top = fall.Pivot + fall.Dir * 9.5f;
+                top.y = GroundAt(top);
+                for (int k = 0; k < 14; k++)
+                {
+                    float az = H(seed, 120 + k) * 6.2832f;
+                    float vh = 1.5f + 4f * H(seed, 135 + k), vv = 3f + 5f * H(seed, 150 + k);
+                    var pos = top + fall.Dir * ((H(seed, 165 + k) - 0.5f) * 6f) + new Vector3(Mathf.Cos(az) * vh * u, vv * u - 4.9f * u * u, Mathf.Sin(az) * vh * u);
+                    if (pos.y < top.y - 0.2f) continue;
+                    bool wood = k % 3 == 0;
+                    Clod(pos, wood ? 0.3f : 0.2f + 0.15f * H(seed, 170 + k),
+                         wood ? new Color(0.24f, 0.17f, 0.11f, 0.95f) : new Color(0.07f, 0.055f, 0.04f, 0.95f), H(seed, 180 + k));
+                }
+            }
+        }
 
         /// <summary>A clod of earth, or a piece of anything, thrown.</summary>
         private void Clod(Vector3 pos, float size, Color col, float seed)

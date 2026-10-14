@@ -203,6 +203,8 @@ namespace LanesOfVietnam.Tools
             Aircraft(combat);
             // Sound, from the same events (PLAN §12.6; Web Audio in the browser).
             game.AddComponent<AudioView>();
+            // The watchtower hit, leaning and brought down (MatchOptions.Destruction, PLAN §12.51).
+            game.AddComponent<TowerView>();
             // QUALITY: AUTO, the resolution by the frame time.
             game.AddComponent<AutoQuality>();
 

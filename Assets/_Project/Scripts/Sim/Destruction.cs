@@ -63,14 +63,19 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var m = st.Men[i];
-                if (!m.Alive || m.Squad < 0 || st.Squads[m.Squad].Post != p.Id || (m.High <= 0 && m.Climb == 0)) continue;
-                // Down with it, a few metres out along its way: killed, or flat and shaken. (Killed where he stood, he was
-                // left in the air where the platform had been.)
+                if (m.Squad < 0 || st.Squads[m.Squad].Post != p.Id || (m.High <= 0 && m.Climb == 0)) continue;
+                // Down with it, a few metres out along its way: killed under it, or thrown clear of it to one side, flat and
+                // shaken. (Killed where he stood, he was left in the air where the platform had been; and so was a man who
+                // had been killed up on it before.)
                 double r = 1.5 + rng.Next() * 3.5;
-                m.X = p.FootX + Math.Cos(way) * r;
-                m.Z = p.FootZ + Math.Sin(way) * r;
+                double off = (rng.Next() - 0.5) * 2;
+                bool killed = m.Alive && rng.Next() < Tune.TowerFallKill;
+                if (m.Alive && !killed) off = (off < 0 ? -1 : 1) * (2.6 + Math.Abs(off) * 1.5);
+                m.X = p.FootX + Math.Cos(way) * r - Math.Sin(way) * off;
+                m.Z = p.FootZ + Math.Sin(way) * r + Math.Cos(way) * off;
                 m.High = 0; m.Climb = 0;
-                if (rng.Next() < Tune.TowerFallKill) { Combat.Kill(st, m); continue; }
+                if (!m.Alive) continue;
+                if (killed) { Combat.Kill(st, m); continue; }
                 m.Posture = Posture.Prone;
                 m.Pin = 1;
             }

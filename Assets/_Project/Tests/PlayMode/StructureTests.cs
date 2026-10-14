@@ -32,8 +32,12 @@ namespace LanesOfVietnam.Tests
                 Assert.Greater(m.triangles.Length, 0, member);
             }
             var drawn = dressing.Built.Select(r => r.sharedMaterial).ToList();
-            Assert.Contains(dressing.Structures.Timber, drawn, "nothing of timber is drawn: no tower");
             Assert.Contains(dressing.Structures.Vehicles, drawn, "nothing is drawn in the vehicles' paint: no trucks, no jeep");
+            // (The tower in a group of its own, its bracing in its panels: it can lean, fall and come apart. PLAN §12.51.)
+            Assert.IsNotNull(dressing.Tower, "the tower was not built in a group of its own: it cannot fall");
+            var parts = dressing.Tower.GetComponentsInChildren<Renderer>().Where(r => r.name != "tower_braces").ToList();
+            Assert.IsTrue(parts.Any(r => r.sharedMaterial == dressing.Structures.Timber), "nothing of timber is drawn: no tower");
+            Assert.AreEqual(4 * WorldDressing.TowerBays, parts.Count(r => r.name.StartsWith("tower_braces ")), "the tower's bracing is not in its panels");
             Assert.IsNull(dressing.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "tower leg"), "a box stands in for the tower");
             var cover = Object.FindAnyObjectByType<CoverView>();
             Assert.IsTrue(cover.Built.Any(r => r != null && r.sharedMaterial == dressing.Structures.Timber), "no bunker has its roof");
@@ -46,6 +50,47 @@ namespace LanesOfVietnam.Tests
             var stand = Coords.World(post.X, post.Z, legs.center.y);
             Assert.IsTrue(stand.x > legs.min.x && stand.x < legs.max.x && stand.z > legs.min.z && stand.z < legs.max.z,
                           $"the post's men stand at {stand}, outside the tower ({legs.min} to {legs.max})");
+        }
+
+        /// <summary>
+        /// The tower brought down (MatchOptions.Destruction, PLAN §12.51): it goes over the way its fall says, slowly and
+        /// then fast, and lies at the angle its fall says once it has struck the ground; the men up on it are drawn
+        /// coming down with it, not put on the ground, and are on the ground when it is.
+        /// </summary>
+        [UnityTest, Category("Structures")]
+        public IEnumerator The_tower_falls_the_way_its_event_says_and_its_men_come_down_with_it()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            Assert.IsTrue(st.Destruction, "the game plays with destruction");
+            st.Cp[(int)Side.Us] = 200;
+            root.Driver.Match.Issue(Command.BuyTo(Side.Us, "us-mg", 0));
+            for (int t = 0; t < 1200 && !st.Men.Any(m => m.Alive && m.High > 0 && m.Climb == 0); t++) root.Driver.FastForward(1);
+            var up = st.Men.Where(m => m.Alive && m.High > 0 && m.Climb == 0).Select(m => m.Id).ToList();
+            Assert.IsNotEmpty(up, "the test's premise: a team up the tower");
+            root.Paused = true;
+            for (int k = 0; k < 3; k++) yield return null;
+            var tower = Object.FindAnyObjectByType<TowerView>();
+            Assert.IsNotNull(tower, "no TowerView in the scene (SceneBuilder)");
+            float Above(int id) => root.ArmyView.FigureOf(id).transform.position.y - (float)root.Ground.HeightAt(st.Men[id].X, st.Men[id].Z);
+            foreach (int id in up) Assert.Greater(Above(id), 6f, $"man {id} is not drawn up on the tower");
+
+            Assert.IsTrue(TowerView.Bring(st, 0), "the tower did not fall");
+            float Over() => Vector3.Angle(Vector3.up, tower.Group.rotation * Vector3.up);
+            for (int k = 0; k < 6; k++) { root.AdvanceForCapture(0.05f); yield return null; }
+            var f = tower.Current;
+            Assert.IsTrue(tower.Falling);
+            Assert.Greater(Over(), 1f, "it has not started over");
+            Assert.Less(Over(), 25f, "it went over at once: it is a tall thing, slow to start");
+            var way = tower.Group.rotation * Vector3.up; way.y = 0;
+            Assert.Greater(Vector3.Dot(way.normalized, f.Dir), 0.9f, "it is not going over the way its fall says");
+            foreach (int id in up) Assert.Greater(Above(id), 3f, $"man {id} was put on the ground, not brought down");
+            Assert.That(f.Hits, Is.InRange(1.2f, 3.5f), "a nine-metre tower falls in about two seconds");
+            int steps = Mathf.CeilToInt((f.Hits + 1.2f) / 0.05f);
+            for (int k = 0; k < steps; k++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.AreEqual(f.Down * Mathf.Rad2Deg, Over(), 2f, "it does not lie where its fall says");
+            foreach (int id in up) Assert.Less(Above(id), 0.8f, $"man {id} is not on the ground");
         }
 
         /// <summary>

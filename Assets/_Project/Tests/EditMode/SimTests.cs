@@ -2760,7 +2760,8 @@ namespace LanesOfVietnam.Tests
         /// The tower comes down (MatchOptions.Destruction; the owner, 2026-10-12: "the watch tower must be collapsable and
         /// fall, to rpgs and heavy mortars ... don't always have it fall the same way"). Rockets fired at the men up on
         /// it take from it, a hand grenade does not; two bring it down, away from the last of them and turned by the
-        /// dice; the men on it come down with it, killed or flat at its foot; and nobody can be sent up it again.
+        /// dice; the men on it come down with it, killed under it or thrown clear and flat; and nobody can be sent up it
+        /// again.
         /// Two matches that differ only in their seed do not fall the same way.
         /// </summary>
         [Test]
@@ -2795,10 +2796,15 @@ namespace LanesOfVietnam.Tests
                 double away = Math.Atan2(post.Z - (post.Z + 0.5), post.X - (post.X + 1.0)) * 180 / Math.PI;
                 double off = Math.Abs(((fell.Amount.Value - away) % 360 + 540) % 360 - 180);
                 Assert.LessOrEqual(off, Tune.TowerFallSpread * 180 / Math.PI + 1e-6, "it fell toward the rockets");
+                // All of them come down, the killed too: those it killed under it, along its way; those who lived thrown
+                // clear of it to one side, flat.
+                double w = fell.Amount.Value * Math.PI / 180;
                 foreach (var m in up)
                 {
-                    if (!m.Alive) continue;
                     Assert.AreEqual(0.0, m.High, "a man was left up a tower that has fallen");
+                    double across = Math.Abs(-(m.X - post.FootX) * Math.Sin(w) + (m.Z - post.FootZ) * Math.Cos(w));
+                    if (!m.Alive) { Assert.LessOrEqual(across, 1.0 + 1e-9, "a man it killed is not under it"); continue; }
+                    Assert.GreaterOrEqual(across, 2.6 - 1e-9, "a man who lived lies under the tower");
                     Assert.AreEqual(Posture.Prone, m.Posture);
                 }
                 Assert.IsFalse(st.Squads.Any(q => q.Post == post.Id), "a squad still holds a fallen tower");

@@ -242,6 +242,14 @@ namespace LanesOfVietnam.View
         private bool[] _wasOnLadder = new bool[0];
         /// <summary>Seconds a man takes from the top rung to his place on the platform.</summary>
         public const float StepOff = 0.6f;
+        /// <summary>
+        /// Destruction: up on the tower when it went, he comes down with it, from where he was drawn (x, height, z)
+        /// and from when (match seconds; -1, he is not falling); carried a moment as it starts to go, then falling
+        /// clear, to where the simulation has put him.
+        /// </summary>
+        private Vector3[] _tumbleFrom = new Vector3[0];
+        private float[] _tumbleAt = new float[0];
+        public const float Carried = 0.35f;
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
         public const float FrontRange = 45f, ClimbRate = 3.2f;
         /// <summary>Degrees his front has to move before he turns to it, and how fast he turns (degrees a second).</summary>
@@ -315,13 +323,28 @@ namespace LanesOfVietnam.View
                 int old = _firedAt.Length;
                 System.Array.Resize(ref _firedAt, n);
                 System.Array.Resize(ref _target, n);
-                for (int k = old; k < n; k++) { _firedAt[k] = -1000; _target[k] = -1; }
+                System.Array.Resize(ref _tumbleFrom, n);
+                System.Array.Resize(ref _tumbleAt, n);
+                for (int k = old; k < n; k++) { _firedAt[k] = -1000; _target[k] = -1; _tumbleAt[k] = -1f; }
             }
             if (_eventCursor > st.Events.Count) _eventCursor = 0;
             for (; _eventCursor < st.Events.Count; _eventCursor++)
             {
                 var e = st.Events[_eventCursor];
                 if (e.Kind == EventKind.Pinned && e.Id < _pinnedAt.Length) { _pinnedAt[e.Id] = true; continue; }
+                // Destruction: the tower going over: whoever is drawn up on it, alive or not, comes down with it.
+                if (e.Kind == EventKind.Collapsed)
+                {
+                    for (int k = 0; k < st.Men.Count && k < _high.Length && k < _drawn.Length; k++)
+                    {
+                        if (_high[k] < 1f || _drawn[k] == default) continue;
+                        _tumbleAt[k] = (float)(e.Tick * Tune.Dt);
+                        _tumbleFrom[k] = new Vector3(_drawn[k].x, _height[k] + _high[k], _drawn[k].y);
+                        // (Thrown as he goes: a man knocked over, not one standing in the air.)
+                        if (k < _shook.Length) _shook[k] = 1;
+                    }
+                    continue;
+                }
                 if (e.Kind == EventKind.GrenadeThrown && e.Id < _threw.Length) { _threw[e.Id] = true; continue; }
                 // Satchel: the throw, with the bag in his hand.
                 if (e.Kind == EventKind.SatchelThrown && e.Id < _threw.Length) { _threw[e.Id] = true; _bag[e.Id] = true; continue; }
@@ -565,7 +588,8 @@ namespace LanesOfVietnam.View
             {
                 var m = st.Men[i];
                 // A dead man who has fallen and lies still is a mesh where he lies: there is nothing to do for him.
-                if (!m.Alive && !jump && _figures[i] != null && _figures[i].Baked) { Drawn++; continue; }
+                // (Unless he lay on the tower, and it is going over.)
+                if (!m.Alive && !jump && _figures[i] != null && _figures[i].Baked && _tumbleAt[i] < 0f) { Drawn++; continue; }
                 var (x, z) = d.Position(i);
                 // Vantage: off the top of a post's ladder he steps over onto its platform; he is not put there.
                 bool laddered = m.Alive && m.Climb != 0;
@@ -615,6 +639,26 @@ namespace LanesOfVietnam.View
                 // He lies where he was drawn when he fell (unless this frame is a jump in time).
                 else if (jump || _figures[i] == null || _drawn[i] == default) { _drawn[i] = new Vector2((float)x, (float)z); _pace[i] = Vector2.zero; }
                 else { x = _drawn[i].x; z = _drawn[i].y; _pace[i] = Vector2.zero; }
+                // Destruction: coming down with the tower, from where he was on it to where he lands.
+                float tumbling = -1f;
+                if (_tumbleAt[i] >= 0f)
+                {
+                    float t = now - _tumbleAt[i];
+                    var (lx, lz) = d.Position(i);
+                    float landY = (float)g.HeightAt(lx, lz);
+                    float takes = Carried + Mathf.Sqrt(2f * Mathf.Max(0f, _tumbleFrom[i].y - landY) / 9.81f);
+                    if (jump || t < 0f || t >= takes) { _tumbleAt[i] = -1f; _drawn[i] = new Vector2((float)lx, (float)lz); x = lx; z = lz; }
+                    else
+                    {
+                        float k = t / takes;
+                        x = Mathf.Lerp(_tumbleFrom[i].x, (float)lx, k * k * (3f - 2f * k));
+                        z = Mathf.Lerp(_tumbleFrom[i].z, (float)lz, k * k * (3f - 2f * k));
+                        _drawn[i] = new Vector2((float)x, (float)z);
+                        _pace[i] = Vector2.zero;
+                        float down = Mathf.Max(0f, t - Carried);
+                        tumbling = Mathf.Max((float)g.HeightAt(x, z), _tumbleFrom[i].y - 4.905f * down * down);
+                    }
+                }
                 // His legs go when he is drawn moving, and until he has all but stopped. The simulation
                 // may have set him off before he is: on his way, he turns to it and takes his rifle down.
                 // (A man going down as he arrives finishes his last pace in the going down; only one the
@@ -638,6 +682,8 @@ namespace LanesOfVietnam.View
                 // Where he looks and points his rifle, in the world's yaw (0 = +z, 90 = +x; the sim's z runs the other way).
                 float yaw = _yaw[i];
                 int posture = m.Posture == Posture.Prone ? 2 : m.Posture == Posture.Crouched ? 1 : 0;
+                // (Falling with the tower he is not lying flat in the air: he is thrown, and lies flat once he lands.)
+                if (tumbling >= 0f) posture = 0;
                 if (m.Alive)
                 {
                     int tg = _target[i];
@@ -719,6 +765,7 @@ namespace LanesOfVietnam.View
                 // half a metre behind, as after a long frame, he is put where he is.)
                 _high[i] = fresh || jump || (m.Alive && Mathf.Abs(high - _high[i]) > 0.5f) ? high
                          : m.Alive || m.Climb == 0 ? Mathf.MoveTowards(_high[i], high, 1.6f * dt) : Mathf.MoveTowards(_high[i], 0f, 9f * dt);
+                if (tumbling >= 0f) { _height[i] = ground; _high[i] = Mathf.Max(0f, tumbling - ground); }
                 if (onLadder) f.Twist(0f);
                 f.Ladder(onLadder, m.Climb < 0);
                 var at = Coords.World(x, z, _height[i] + _high[i]);
@@ -736,7 +783,7 @@ namespace LanesOfVietnam.View
                     every = StepAll ? 1 : !seen ? 4 : px < NearPixels && brisk ? 2 : 1;
                     f.Body.quality = px >= NearPixels || StepAll ? SkinQuality.Bone4 : SkinQuality.Bone2;
                 }
-                bool step = (frame + i) % every == 0;
+                bool step = (frame + i) % every == 0 || tumbling >= 0f;
                 // He is moved when he is posed, and not between: moved every frame and posed every
                 // other, his body went on without his legs and the foot he had on the ground slid
                 // forward and was put back, twenty-five times a second.

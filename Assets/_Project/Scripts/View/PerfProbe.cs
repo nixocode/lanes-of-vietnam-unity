@@ -100,6 +100,8 @@ namespace LanesOfVietnam.View
                         break;
                     // What a call-in brings: the jet, its bombs' flight is left; the helicopter.
                     case "aircraft": foreach (var c in FindObjectsByType<CombatView>()) c.NoAircraft = true; break;
+                    // The tower drawn whole, whatever is done to it.
+                    case "tower": foreach (var t in FindObjectsByType<TowerView>()) t.Off = true; break;
                     case "combat":
                         // (The component and what it draws, not its object: that is the game's own.)
                         foreach (var c in FindObjectsByType<CombatView>())
@@ -208,6 +210,14 @@ namespace LanesOfVietnam.View
                     root.CameraRig.Focus((float)cx, instant: true);
                     Debug.Log($"[LOV] perf: called {call}");
                 }
+            }
+            // towerfall=1: the watchtower brought down as the fast-forward ends, the camera on it (MatchOptions.Destruction,
+            // PLAN §12.51): what its fall and its dust cost; towerfrom=degrees, the side the burst is on.
+            if (Param("towerfall") == "1")
+            {
+                bool fell = TowerView.Bring(root.Driver.State, Number("towerfrom", 0f));
+                if (root.Dressing != null) root.CameraRig.Focus(root.Dressing.TowerFoot.x, instant: true);
+                Debug.Log($"[LOV] perf: the tower {(fell ? "brought down" : "not brought down")}");
             }
             yield return null;
             string off = SwitchOff(root, Param("off"));

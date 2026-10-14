@@ -156,6 +156,41 @@ namespace LanesOfVietnam.View
                     Debug.Log($"[LOV] capture: a squad's smoke at {thrown.X:F1},{thrown.Z:F1}, tick {sim.Tick}");
                 }
             }
+            if (cap.TowerFall >= 0)
+            {
+                // Its squad up on it first, if one was sent (a few seconds at most), then the burst that brings it down,
+                // then on to the moment asked for, and the glasses on it half way up.
+                var sim = root.Driver.State;
+                for (int i = 0; i < 1200 && !sim.Over; i++)
+                {
+                    int up = 0, going = 0;
+                    foreach (var m in sim.Men)
+                    {
+                        if (!m.Alive || m.Squad < 0 || sim.Squads[m.Squad].Post != 0) continue;
+                        going++;
+                        if (Vantage.Up(m)) up++;
+                    }
+                    if (going == 0 && i > 100 || going > 0 && up == going) break;
+                    root.Driver.FastForward(1);
+                }
+                // (A few frames drawn first: the men up there are drawn up there before it goes, as in a game.)
+                for (int i = 0; i < 4; i++) yield return null;
+                int upThere = sim.Men.FindAll(m => m.Alive && m.High > 0).Count;
+                bool fell = TowerView.Bring(sim, cap.TowerFrom);
+                int went = sim.Events.FindLastIndex(e => e.Kind == EventKind.Collapsed);
+                if (went >= 0 && root.Dressing != null)
+                {
+                    var f = new TowerView.Fall(sim.Events[went], root.Dressing, root.Ground);
+                    Debug.Log($"[LOV] capture: {upThere} men up when it went; it goes over at {sim.Events[went].Amount:F0} degrees, strikes at {f.Hits:F2} s, "
+                              + $"lies at {f.Down * Mathf.Rad2Deg:F0} degrees, turned {f.Twist:F0}; roof {(f.RoofOff ? $"off at {f.RoofAt * Mathf.Rad2Deg:F0}" : "on")}, "
+                              + $"ladder {(f.LadderOff ? $"away at {f.LadderAt * Mathf.Rad2Deg:F0}, turning {f.LadderTurn:F0}" : "with it")}");
+                }
+                root.Driver.FastForward(cap.TowerFall);
+                var dressing = root.Dressing;
+                // (The camera on it; the field glasses only if asked for, as glasses=x:y: it is ten metres tall.)
+                if (fell && dressing != null && dressing.Tower != null) root.CameraRig.Focus(dressing.TowerFoot.x, instant: true);
+                Debug.Log($"[LOV] capture: the tower {(fell ? "brought down" : "not brought down")}, {cap.TowerFall} ticks before tick {sim.Tick}");
+            }
             if (cap.SatchelThrow)
             {
                 // On until a satchel charge is thrown, then the glasses on where it lands.

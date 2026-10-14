@@ -60,6 +60,36 @@ namespace LanesOfVietnam.View
         public double LaneGate = 3.4;
 
         private readonly List<Renderer> _built = new List<Renderer>();
+        private Transform _tower;
+        /// <summary>The watchtower's group (its members and its deck's bags), and the middle of its foot: for TowerView.</summary>
+        public Transform Tower => _tower;
+        public Vector3 TowerFoot { get; private set; }
+        /// <summary>The vehicles parked in the firebase: where (the world's), which way their length runs, how long, wide and tall (a tower falling on one rests on it).</summary>
+        public readonly List<(Vector3 at, Vector3 along, float length, float width, float height)> Parked = new List<(Vector3, Vector3, float, float, float)>();
+
+        /// <summary>A set of renderers merged into one mesh a material under a parent (in its space), the parts let go.</summary>
+        private static void Merge(Transform parent, List<Renderer> parts, string name)
+        {
+            var groups = new Dictionary<Material, List<CombineInstance>>();
+            foreach (var r in parts)
+            {
+                var mf = r.GetComponent<MeshFilter>();
+                if (mf == null || mf.sharedMesh == null) continue;
+                if (!groups.TryGetValue(r.sharedMaterial, out var list)) groups[r.sharedMaterial] = list = new List<CombineInstance>();
+                list.Add(new CombineInstance { mesh = mf.sharedMesh, transform = parent.worldToLocalMatrix * r.transform.localToWorldMatrix });
+            }
+            foreach (var r in parts) Destroy(r.gameObject);
+            foreach (var kv in groups)
+            {
+                var mesh = new Mesh { name = $"{name} {kv.Key.name}", indexFormat = IndexFormat.UInt32 };
+                mesh.CombineMeshes(kv.Value.ToArray(), true, true);
+                mesh.RecalculateBounds();
+                var go = new GameObject(mesh.name);
+                go.transform.SetParent(parent, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterial = kv.Key;
+            }
+        }
         public IReadOnlyList<Renderer> Built => _built;
 
         private Dictionary<string, PlantSpecies> _species;
@@ -69,6 +99,8 @@ namespace LanesOfVietnam.View
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
+            _tower = null;
+            Parked.Clear();
             _species = new Dictionary<string, PlantSpecies>();
             foreach (var p in (Plants ?? System.Array.Empty<PlantSet>()).Concat(Props ?? System.Array.Empty<PlantSet>()))
                 if (p.Layout != null && p.Material != null) _species[p.Name] = new PlantSpecies(p);
@@ -480,15 +512,25 @@ namespace LanesOfVietnam.View
                 // they climb comes up through the deck before them.
                 double mz = tz - StructureSet.TowerBehind;
                 float foot = (float)g.HeightAt(tx, mz);
+                // In a group of its own, not merged into the dressing's meshes: it can lean, fall and come apart
+                // (MatchOptions.Destruction, TowerView).
+                _tower = new GameObject("watchtower").transform;
+                _tower.SetParent(transform, false);
+                TowerFoot = Coords.World(tx, mz, foot);
+                var members = new List<Renderer>();
                 foreach (string member in StructureSet.TowerMembers)
-                    Structures.Place(transform, _built, member, Coords.World(tx, mz, foot), 0f);
+                    Structures.Place(_tower, members, member, TowerFoot, 0f);
+                var braces = members.Find(r => r != null && r.name == "tower_braces");
+                if (braces != null) Panels(braces);
                 if (Bags.Ready)
                 {
                     // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
                     float deck = foot + TowerDeck;
-                    Bags.Wall(transform, _built, g, tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5, 0.5f, true, 2001, level: deck);
-                    Bags.Wall(transform, _built, g, tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6, 0.5f, true, 2002, level: deck);
-                    Bags.Wall(transform, _built, g, tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6, 0.5f, true, 2003, level: deck);
+                    var bags = new List<Renderer>();
+                    Bags.Wall(_tower, bags, g, tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5, 0.5f, true, 2001, level: deck);
+                    Bags.Wall(_tower, bags, g, tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6, 0.5f, true, 2002, level: deck);
+                    Bags.Wall(_tower, bags, g, tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6, 0.5f, true, 2003, level: deck);
+                    Merge(_tower, bags, "tower bags");
                 }
             }
             else
@@ -507,10 +549,77 @@ namespace LanesOfVietnam.View
             foreach (var (vx, vz, yaw, len, wide, h, key) in new[] { (-34.3, -1.6, 176f, 7.0f, 2.4f, 2.9f, "m35_covered"), (-26.2, -0.9, 3f, 7.0f, 2.4f, 2.9f, "m35_open"),
                                                                      (-45.0, -1.2, 152f, 3.6f, 1.7f, 1.8f, "jeep") })
             {
-                if (Structures.Ready && Structures.Park(transform, _built, g, key, vx, vz, yaw, len, wide) != null) continue;
                 float vy = (float)g.HeightAt(vx, vz);
+                Parked.Add((Coords.World(vx, vz, vy), Quaternion.Euler(0, yaw, 0) * Vector3.right, len, wide, h));
+                if (Structures.Ready && Structures.Park(transform, _built, g, key, vx, vz, yaw, len, wide) != null) continue;
                 Prim(PrimitiveType.Cube, Coords.World(vx, vz, vy + h * 0.5f), new Vector3(len, h, wide), Vehicle, "vehicle");
             }
+        }
+
+        /// <summary>The bays of the tower's bracing, one above the other between its girts, on each of its faces.</summary>
+        public const int TowerBays = 3;
+
+        /// <summary>
+        /// The tower's bracing cut into its panels: a face's crossed braces in one bay, with the girt above them and
+        /// their bolt, a mesh each, named "tower_braces {face} {bay}" (faces 0 to 3 are +x, +z, -x, -z; bays from the
+        /// ground up). A hit takes one panel off, not the whole of the bracing (TowerView). Left whole if its mesh
+        /// cannot be read.
+        /// </summary>
+        private static void Panels(Renderer braces)
+        {
+            var mesh = braces.GetComponent<MeshFilter>().sharedMesh;
+            if (mesh == null || !mesh.isReadable) return;
+            var v = mesh.vertices;
+            var n = mesh.normals;
+            var uv = mesh.uv;
+            var tan = mesh.tangents;
+            float bay = TowerDeck / TowerBays;
+            for (int face = 0; face < 4; face++)
+                for (int b = 0; b < TowerBays; b++)
+                {
+                    var map = new Dictionary<int, int>();
+                    var pv = new List<Vector3>(); var pn = new List<Vector3>(); var puv = new List<Vector2>(); var pt = new List<Vector4>();
+                    var tris = new List<int>[mesh.subMeshCount];
+                    for (int s = 0; s < mesh.subMeshCount; s++)
+                    {
+                        tris[s] = new List<int>();
+                        var t = mesh.GetTriangles(s);
+                        for (int k = 0; k < t.Length; k += 3)
+                        {
+                            var c = (v[t[k]] + v[t[k + 1]] + v[t[k + 2]]) / 3f;
+                            int f = Mathf.Abs(c.x) >= Mathf.Abs(c.z) ? (c.x >= 0 ? 0 : 2) : (c.z >= 0 ? 1 : 3);
+                            if (f != face || Mathf.Clamp(Mathf.FloorToInt(c.y / bay), 0, TowerBays - 1) != b) continue;
+                            for (int j = 0; j < 3; j++)
+                            {
+                                int o = t[k + j];
+                                if (!map.TryGetValue(o, out int m))
+                                {
+                                    map[o] = m = pv.Count;
+                                    pv.Add(v[o]);
+                                    if (n.Length > 0) pn.Add(n[o]);
+                                    if (uv.Length > 0) puv.Add(uv[o]);
+                                    if (tan.Length > 0) pt.Add(tan[o]);
+                                }
+                                tris[s].Add(m);
+                            }
+                        }
+                    }
+                    if (pv.Count == 0) continue;
+                    var part = new Mesh { name = $"tower_braces {face} {b}" };
+                    part.SetVertices(pv);
+                    if (pn.Count > 0) part.SetNormals(pn);
+                    if (puv.Count > 0) part.SetUVs(0, puv);
+                    if (pt.Count > 0) part.SetTangents(pt);
+                    part.subMeshCount = tris.Length;
+                    for (int s = 0; s < tris.Length; s++) part.SetTriangles(tris[s], s);
+                    part.RecalculateBounds();
+                    var go = new GameObject(part.name);
+                    go.transform.SetParent(braces.transform.parent, false);
+                    go.transform.SetLocalPositionAndRotation(braces.transform.localPosition, braces.transform.localRotation);
+                    go.AddComponent<MeshFilter>().sharedMesh = part;
+                    go.AddComponent<MeshRenderer>().sharedMaterials = braces.sharedMaterials;
+                }
+            Destroy(braces.gameObject);
         }
 
         /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>
