@@ -143,6 +143,11 @@ namespace LanesOfVietnam.Sim
         /// <summary>Part 2: a call-in takes time to arrive: the guns have to be laid, the jet has to get there (Inbound).</summary>
         public bool Inbound;
         /// <summary>
+        /// Part 2: hand grenades are a card (GRENADES, on both sides' decks), thrown by the squad nearest where it is
+        /// placed, and a player's men throw none of their own (FragCard). The computer's side throws as it did.
+        /// </summary>
+        public bool FragCard;
+        /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
         /// </summary>
@@ -313,6 +318,7 @@ namespace LanesOfVietnam.Sim
                 Cohesion = opts.Cohesion,
                 Bearing = opts.Bearing,
                 Inbound = opts.Inbound,
+                FragCard = opts.FragCard,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -329,9 +335,11 @@ namespace LanesOfVietnam.Sim
                 var deck = side == Side.Us ? opts.UsDeck : opts.VcDeck;
                 if (deck != null)
                     foreach (var card in Deck.For(side)) st.Barred[(int)side][card.Index] = Array.IndexOf(deck, card.Id) < 0;
+                // GRENADES is in every deck when its rule is on, and in none when it is off.
+                st.Barred[(int)side][Deck.Grenades(side).Index] = !opts.FragCard;
             }
             // A fork reads the parent's state without drawing from it.
-            if (opts.Frag || opts.Arms) st.FragRng = rng.Fork("frag");
+            if (opts.Frag || opts.Arms || opts.FragCard) st.FragRng = rng.Fork("frag");
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             if (opts.Commander) st.CommandRng = rng.Fork("commander");
@@ -800,7 +808,7 @@ namespace LanesOfVietnam.Sim
             }
 
             // --- grenades (Part 2, MatchOptions.Frag) -------------------------------
-            if ((st.Frag || st.Arms) && !opening) Frag.Tick(st);
+            if ((st.Frag || st.Arms || st.FragCard) && !opening) Frag.Tick(st);
             if (st.SquadSmoke && !opening) SquadSmoke.Tick(st);
 
             // --- fire ------------------------------------------------------------

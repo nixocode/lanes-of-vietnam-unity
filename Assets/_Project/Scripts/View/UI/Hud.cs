@@ -497,8 +497,19 @@ namespace LanesOfVietnam.View.UI
             if (!armed) return;
             var mouse = Input.mousePosition;
             var m = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(mouse.x, Screen.height - mouse.y));
-            var aim = (Deployer.Armed, Deployer.TargetLane * 10 + Deployer.TargetPost);
-            if (!aim.Equals(_aimFor)) { _aimFor = aim; AimTag.text = $"{Deployer.Armed.Name}\n{(Deployer.TargetPost >= 0 ? PostName(Deployer.TargetPost) : (Deployer.TargetLane == 0 ? "NEAR" : "FAR") + " LANE")}"; }
+            // GRENADES: who would throw, if anyone can reach where it is pointed (MatchOptions.FragCard).
+            var st = Root.Driver.State;
+            int throwers = Deployer.Armed == Deck.Grenades(Root.PlayerSide) && Deployer.HasTarget
+                ? Frag.Throwers(st, Root.PlayerSide, Deployer.TargetLane % Tune.Lanes.Length, Deployer.TargetX).Count : -1;
+            var aim = (Deployer.Armed, Deployer.TargetLane * 10 + Deployer.TargetPost + 1000 * (throwers + 1));
+            if (!aim.Equals(_aimFor))
+            {
+                _aimFor = aim;
+                string where = Deployer.TargetPost >= 0 ? PostName(Deployer.TargetPost) : (Deployer.TargetLane == 0 ? "NEAR" : "FAR") + " LANE";
+                AimTag.text = throwers < 0 ? $"{Deployer.Armed.Name}\n{where}"
+                            : throwers == 0 ? $"{Deployer.Armed.Name}\nNOBODY CLOSE ENOUGH TO THROW"
+                            : $"{Deployer.Armed.Name}\n{where} · {throwers} THROW";
+            }
             AimTag.style.translate = new Translate(Mathf.Round(m.x + 22f), Mathf.Round(m.y - 44f));
         }
 

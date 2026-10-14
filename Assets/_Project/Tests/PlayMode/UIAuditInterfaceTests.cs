@@ -800,8 +800,18 @@ namespace LanesOfVietnam.Tests
                     Assert.IsTrue(view.IsArmed, $"{card.Id} armed but its card does not show it");
 
                     int men = st.Men.Count, areaEvents = st.Events.Count(e => e.Kind == EventKind.AreaStart);
+                    int thrown = st.Events.Count(e => e.Kind == EventKind.GrenadeThrown && e.Side == side);
                     double morale = st.Morale[(int)side], pin = st.Men.Where(m => m.Alive && m.Side == side).Sum(m => m.Pin);
-                    Assert.IsTrue(dep.Place(1, side == Side.Us ? 10 : -10), $"{card.Id} would not place");
+                    int lane = 1;
+                    double x = side == Side.Us ? 10 : -10;
+                    if (card == Deck.Grenades(side))
+                    {
+                        // Thrown by whoever is nearest, so played a few paces in front of one of the side's men.
+                        var by = st.Men.First(m => m.Alive && m.Side == side && m.Grenades > 0 && m.High == 0);
+                        lane = System.Math.Abs(by.Z - Tune.Lanes[0]) < System.Math.Abs(by.Z - Tune.Lanes[1]) ? 0 : 1;
+                        x = by.X + Combat.Advance(side) * 6;
+                    }
+                    Assert.IsTrue(dep.Place(lane, x), $"{card.Id} would not place");
                     Root.Driver.FastForward(1);
                     yield return null;
 
@@ -809,6 +819,7 @@ namespace LanesOfVietnam.Tests
                     bool changed = st.Men.Count > men
                                    || st.Events.Count(e => e.Kind == EventKind.AreaStart) > areaEvents
                                    || st.Morale[(int)side] > morale
+                                   || st.Events.Count(e => e.Kind == EventKind.GrenadeThrown && e.Side == side) > thrown
                                    || st.Men.Where(m => m.Alive && m.Side == side).Sum(m => m.Pin) < pin - 0.1;
                     Assert.IsTrue(changed, $"{card.Id} took its CP and changed nothing in the simulation");
                     Assert.Greater(view.Cooling, 0f, $"{card.Id} shows no cooldown after being played");

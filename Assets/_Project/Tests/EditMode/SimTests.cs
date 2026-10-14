@@ -337,22 +337,32 @@ namespace LanesOfVietnam.Tests
             {
                 foreach (var card in Deck.For(side))
                 {
-                    var st = Match.Create(new MatchOptions { Seed = 7 });
+                    // (GRENADES only with its rule, and played a few paces in front of the side's own men.)
+                    bool grenades = card == Deck.Grenades(side);
+                    var st = Match.Create(new MatchOptions { Seed = 7, Frag = grenades, FragCard = grenades });
                     st.Cp[(int)side] = 999;
                     foreach (var m in st.Men) m.Pin = 0.6;
                     st.Morale[(int)side] = 0.5;
-                    int men = st.Men.Count, areas = st.Areas.Count;
+                    int men = st.Men.Count, areas = st.Areas.Count, thrown = st.Grenades.Count;
                     double morale = st.Morale[(int)side];
                     double pin = st.Men.Where(m => m.Side == side).Sum(m => m.Pin);
+                    int lane = 1;
+                    double x = 5;
+                    if (grenades)
+                    {
+                        var by = st.Men.First(m => m.Alive && m.Side == side && m.Grenades > 0);
+                        lane = System.Math.Abs(by.Z - Tune.Lanes[0]) < System.Math.Abs(by.Z - Tune.Lanes[1]) ? 0 : 1;
+                        x = by.X + Combat.Advance(side) * 6;
+                    }
 
-                    Assert.IsTrue(Deck.Buy(st, side, card, 1, new Rng(7).Fork("sim"), 5), card.Id);
-                    bool changed = st.Men.Count != men || st.Areas.Count != areas
+                    Assert.IsTrue(Deck.Buy(st, side, card, lane, new Rng(7).Fork("sim"), x), card.Id);
+                    bool changed = st.Men.Count != men || st.Areas.Count != areas || st.Grenades.Count != thrown
                                    || st.Morale[(int)side] != morale
                                    || st.Men.Where(m => m.Side == side).Sum(m => m.Pin) != pin;
                     Assert.IsTrue(changed, $"{card.Id} took {card.Cost} CP and changed nothing");
                     Assert.AreEqual(999 - card.Cost, st.Cp[(int)side], 1e-9, card.Id);
                     Assert.Greater(Deck.CooldownLeft(st, side, card), 0, card.Id);
-                    Assert.IsFalse(Deck.Buy(st, side, card, 1, new Rng(7).Fork("sim"), 5), $"{card.Id} bought twice inside its cooldown");
+                    Assert.IsFalse(Deck.Buy(st, side, card, lane, new Rng(7).Fork("sim"), x), $"{card.Id} bought twice inside its cooldown");
                 }
             }
         }
@@ -2681,6 +2691,64 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// GRENADES (MatchOptions.FragCard; the owner, 2026-10-14: "add the frag grenades to the HUD, make them cheaper
+        /// like smokes and have the closest squad launch them, not automatic for player side"). With the rule off the
+        /// card is in no deck. With it on, a player's men throw no grenade of their own (the computer's still do);
+        /// played where his squad can reach, up to three of the nearest squad's men throw there, for SMOKE's 10 CP; played
+        /// where nobody can, nothing happens and nothing is spent.
+        /// </summary>
+        [Test]
+        public void With_the_grenade_card_the_nearest_squad_throws_where_it_is_played_and_nobody_else_of_the_players()
+        {
+            var card = Deck.Grenades(Side.Us);
+            Assert.Less(card.Cost, Deck.Find(Side.Us, "us-smoke").Cost + 1, "dearer than smoke");
+            Assert.IsFalse(Deck.Has(new LiveMatch(new MatchOptions { Seed = 1 }).State, Side.Us, card), "the card is in the deck with its rule off");
+
+            int Thrown(bool rule, Side by)
+            {
+                int n = 0;
+                for (int seed = 1; seed <= 4; seed++)
+                {
+                    var o = Scenarios.Firebase.Options(seed, Side.Us, Difficulty.Veteran);
+                    o.FragCard = rule;
+                    var lm = new LiveMatch(o);
+                    while (!lm.State.Over && lm.State.Tick < 4000) lm.Step();
+                    n += lm.State.Events.Count(e => e.Kind == EventKind.GrenadeThrown && e.Side == by);
+                }
+                return n;
+            }
+            Assert.Greater(Thrown(false, Side.Us), 0, "the test's premise: without the rule the player's men throw");
+            Assert.AreEqual(0, Thrown(true, Side.Us), "with the rule a player's men threw grenades of their own");
+            Assert.Greater(Thrown(true, Side.Vc), 0, "the computer's men stopped throwing");
+
+            // Played.
+            var m = new LiveMatch(Scenarios.Firebase.Options(2, Side.Us, Difficulty.Veteran));
+            var st = m.State;
+            Assert.IsTrue(Deck.Has(st, Side.Us, card));
+            for (int t = 0; t < 200; t++) m.Step();
+            st.Cp[(int)Side.Us] = 100;
+            // Where nobody of his can reach: refused, and nothing spent.
+            Assert.IsFalse(Deck.Buy(st, Side.Us, card, 0, null, Tune.HalfLength), "the card was played where nobody could throw");
+            Assert.AreEqual(100, st.Cp[(int)Side.Us], 1e-9);
+            // In front of his nearest man.
+            var man = st.Men.First(x => x.Alive && x.Side == Side.Us && x.Grenades > 0 && x.High == 0);
+            int lane = System.Math.Abs(man.Z - Tune.Lanes[0]) < System.Math.Abs(man.Z - Tune.Lanes[1]) ? 0 : 1;
+            double at = man.X + Combat.Advance(Side.Us) * 9;
+            int before = st.Events.Count;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, card, lane, null, at));
+            Assert.AreEqual(100 - card.Cost, st.Cp[(int)Side.Us], 1e-9);
+            var threw = st.Events.Skip(before).Where(e => e.Kind == EventKind.GrenadeThrown).ToList();
+            Assert.That(threw.Count, Is.InRange(1, Tune.FragCardThrowers));
+            int squad = st.Men[threw[0].Id].Squad;
+            foreach (var e in threw)
+            {
+                Assert.AreEqual(squad, st.Men[e.Id].Squad, "men of two squads threw");
+                Assert.AreEqual(at, e.X.Value, 6.0, "a grenade went far from where the card was played");
+            }
+            Assert.IsNotNull(Deck.Blocked(st, Side.Us, card), "it can be played again at once");
+        }
+
+        /// <summary>
         /// The jet makes one pass. With the rule its bombs are a stick: eight of them, a tenth of a second
         /// apart, walking away from its own side along its line, each where <see cref="Inbound.Stick"/> says
         /// (which is how the view can show them falling before they burst). Without it the strike is what
@@ -2857,7 +2925,9 @@ namespace LanesOfVietnam.Tests
             var st = Match.Create(new MatchOptions { Seed = 1 });
             Assert.AreEqual(0, st.ClockTicks); Assert.AreEqual(-1, Match.ClockLeft(st)); Assert.IsEmpty(st.Objectives);
             foreach (var side in Match.Sides)
-                foreach (var card in Deck.For(side)) Assert.IsTrue(Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck");
+                foreach (var card in Deck.For(side))
+                    // (GRENADES is a card only with its rule, MatchOptions.FragCard: off here, as every rule is.)
+                    Assert.AreEqual(card != Deck.Grenades(side), Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck, or GRENADES is in one without its rule");
         }
 
         /// <summary>

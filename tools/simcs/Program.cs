@@ -214,10 +214,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, Bearing = bearing });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Bearing = bearing });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -614,10 +614,23 @@ namespace LanesOfVietnam.SimCs
                         {
                             var m = new LiveMatch(sc.Options(seed, side, level));
                             var card = Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(m.State, side, c));
+                            var frag = Deck.Grenades(side);
                             while (!m.State.Over && m.State.Tick < m.Cap)
                             {
                                 if (!idle && m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
                                     m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
+                                // GRENADES (FragCard), played as his men used to throw of themselves: at an enemy in cover that one
+                                // of them could reach. `nofrag` leaves it unplayed: a player who never uses it.
+                                else if (!idle && !a.Contains("nofrag") && m.State.Tick % 10 == 5 && Deck.Blocked(m.State, side, frag) == null)
+                                    foreach (var man in m.State.Men)
+                                    {
+                                        if (!man.Alive || man.Side != side || man.Grenades <= 0 || man.High > 0) continue;
+                                        var at = Frag.PickTarget(m.State, man);
+                                        if (at == null) continue;
+                                        int l = Math.Abs(at.Z - Tune.Lanes[0]) < Math.Abs(at.Z - Tune.Lanes[1]) ? 0 : 1;
+                                        m.Issue(Command.Buy(side, frag.Id, l, at.X));
+                                        break;
+                                    }
                                 m.Step();
                             }
                             if (m.State.Winner == side) wins++;

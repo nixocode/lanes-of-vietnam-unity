@@ -94,7 +94,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

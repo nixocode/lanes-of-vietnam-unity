@@ -552,6 +552,8 @@ namespace LanesOfVietnam.Sim
         public bool Bearing;
         /// <summary>Part 2 rule: a call-in takes time to arrive (<see cref="Sim.Inbound"/>). Off is the baseline: it lands the tick it is called.</summary>
         public bool Inbound;
+        /// <summary>Part 2 rule: hand grenades are a card, and a player's men throw none of their own (MatchOptions.FragCard). Off is the baseline.</summary>
+        public bool FragCard;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

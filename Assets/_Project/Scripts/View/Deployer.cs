@@ -339,6 +339,7 @@ namespace LanesOfVietnam.View
         public static float Radius(Card c) => c.Id switch
         {
             "us-arty" => 17f, "us-airstrike" => 11f, "us-smoke" => 14f,
+            "us-frag" or "vc-frag" => (float)Tune.FragRadius,
             "vc-punji" => 3.2f, "vc-tripwire" => 5f, "vc-spider" => 2.4f, "vc-tunnel" => 8f,
             _ => 0f,
         };

@@ -39,6 +39,8 @@ namespace LanesOfVietnam.Sim
             {
                 var a = st.Men[i];
                 if (!a.Alive) continue;
+                // FragCard: a player's men throw when he plays the card, and not of themselves.
+                if (st.FragCard && a.Side == st.Player) continue;
                 if (a.FragCooldown > 0) { a.FragCooldown--; continue; }
                 if (a.Grenades <= 0 || a.Pin >= Tune.PinStop || a.Posture == Posture.Prone) continue;
                 // Ammo: a squad throws one at a time.
@@ -71,9 +73,52 @@ namespace LanesOfVietnam.Sim
             return best;
         }
 
-        private static void Throw(SimState st, Man a, Man target, Rng rng)
+        /// <summary>
+        /// FragCard: who throws when a side plays GRENADES at a place: of the squad whose men are nearest it, those who
+        /// have a grenade, are not on a post and have it within throwing range, nearest first, three at the most.
+        /// Empty if nobody can reach it.
+        /// </summary>
+        public static System.Collections.Generic.List<Man> Throwers(SimState st, Side side, int lane, double x)
         {
-            double d = JsMath.Hypot(target.X - a.X, target.Z - a.Z);
+            double z = Tune.Lanes[lane];
+            // (As far as a man throws, 20 m: not the 12 a man throws of himself under Arms, who throws at the man
+            // nearest him. This is thrown where it is put.)
+            double far = Tune.FragRange;
+            Man nearest = null;
+            double best = far * far;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive || m.Side != side || m.Grenades <= 0 || m.High > 0 || m.Climb != 0) continue;
+                double dx = m.X - x, dz = m.Z - z, d2 = dx * dx + dz * dz;
+                if (d2 <= best) { best = d2; nearest = m; }
+            }
+            var them = new System.Collections.Generic.List<Man>();
+            if (nearest == null) return them;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (!m.Alive || m.Squad != nearest.Squad || m.Grenades <= 0 || m.High > 0 || m.Climb != 0) continue;
+                double dx = m.X - x, dz = m.Z - z;
+                if (dx * dx + dz * dz <= far * far) them.Add(m);
+            }
+            them.Sort((p, q) => JsMath.Hypot(p.X - x, p.Z - z).CompareTo(JsMath.Hypot(q.X - x, q.Z - z)));
+            if (them.Count > Tune.FragCardThrowers) them.RemoveRange(Tune.FragCardThrowers, them.Count - Tune.FragCardThrowers);
+            return them;
+        }
+
+        /// <summary>FragCard: GRENADES played at a place: the squad nearest it throws, each man once, at the place.</summary>
+        public static void OnCall(SimState st, Side side, int lane, double x)
+        {
+            double z = Tune.Lanes[lane];
+            foreach (var a in Throwers(st, side, lane, x)) Throw(st, a, x, z, -1, st.FragRng);
+        }
+
+        private static void Throw(SimState st, Man a, Man target, Rng rng) => Throw(st, a, target.X, target.Z, target.Id, rng);
+
+        private static void Throw(SimState st, Man a, double tx, double tz, int targetId, Rng rng)
+        {
+            double d = JsMath.Hypot(tx - a.X, tz - a.Z);
             // Triangular scatter from two uniforms: no transcendentals, so the
             // same bits on every platform (the port keeps to fdlibm for that).
             double sd = Tune.FragScatterFixed + Tune.FragScatterPerMetre * d;
@@ -82,7 +127,7 @@ namespace LanesOfVietnam.Sim
             var g = new Grenade
             {
                 Id = st.GrenadeId++, Side = a.Side, Thrower = a.Id,
-                X = target.X + sx, Z = target.Z + sz,
+                X = tx + sx, Z = tz + sz,
                 Ticks = Tune.FragFuse,
             };
             st.Grenades.Add(g);
@@ -95,7 +140,7 @@ namespace LanesOfVietnam.Sim
             a.Cooldown = Math.Max(a.Cooldown, Tune.Cooldown * 2);
             st.Events.Add(new SimEvent
             {
-                Kind = EventKind.GrenadeThrown, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = target.Id,
+                Kind = EventKind.GrenadeThrown, Tick = st.Tick, Side = a.Side, Id = a.Id, Target = targetId >= 0 ? targetId : (int?)null,
                 X = g.X, Z = g.Z,
             });
         }

@@ -320,6 +320,16 @@ namespace LanesOfVietnam.View.UI
                     p.ClosePath(); p.Fill();
                     for (int i = 0; i < 3; i++) Line(p, c + new Vector2(-s * (0.3f + i * 0.2f), -s * (0.35f + i * 0.2f) + i * s * 0.1f), c + new Vector2(-s * (0.6f + i * 0.2f), -s * (0.65f + i * 0.2f) + i * s * 0.1f));
                     break;
+                case "us-frag":           // a grenade: a lemon with its lever and ring
+                    p.BeginPath(); p.Arc(c + new Vector2(0, s * 0.15f), s * 0.5f, 0, 360); p.Fill();
+                    Line(p, c + new Vector2(-s * 0.1f, -s * 0.35f), c + new Vector2(s * 0.45f, -s * 0.55f));
+                    p.BeginPath(); p.Arc(c + new Vector2(-s * 0.35f, -s * 0.55f), s * 0.18f, 0, 360); p.Stroke();
+                    break;
+                case "vc-frag":           // a stick grenade
+                    p.lineWidth = s * 0.22f;
+                    Line(p, c + new Vector2(-s * 0.6f, s * 0.6f), c + new Vector2(s * 0.1f, -s * 0.1f));
+                    p.BeginPath(); p.Arc(c + new Vector2(s * 0.3f, -s * 0.3f), s * 0.36f, 0, 360); p.Fill();
+                    break;
                 case "us-smoke":          // a canister and its cloud
                     Line(p, c + new Vector2(-s * 0.15f, s * 0.8f), c + new Vector2(-s * 0.15f, s * 0.25f));
                     Line(p, c + new Vector2(s * 0.15f, s * 0.8f), c + new Vector2(s * 0.15f, s * 0.25f));

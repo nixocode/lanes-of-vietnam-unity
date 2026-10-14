@@ -45,6 +45,12 @@ namespace LanesOfVietnam.Sim
             new Card { Id = "us-airstrike", Group = CardGroup.Call, Name = "AIR STRIKE", Cost = 40, Pips = 0, Cooldown = S * 45 },
             // Appended (2026-10-01, the owner: "add a sniper class"), so every earlier card keeps its index.
             new Card { Id = "us-sniper", Group = CardGroup.Support, Name = "SNIPER TEAM", Cost = 20, Pips = 2, Cooldown = S * 18 },
+            // Appended (2026-10-14, the owner: "add the frag grenades to the HUD, make them cheaper like smokes and have
+            // the closest squad launch them"): in the deck only with MatchOptions.FragCard. SMOKE's price: a player who
+            // plays it whenever one of his men has an enemy in cover within reach wins, against a Veteran, 126 and 139
+            // of 192 in the firebase (as US, as VC), 155 in The Wire and First Light, 144 in The Earth Fights; at 6 CP
+            // the last two were 157 and 159, the top of the band (simcs scenario 192 level=veteran, PLAN §12.47).
+            new Card { Id = "us-frag", Group = CardGroup.Call, Name = "GRENADES", Cost = 10, Pips = 0, Cooldown = S * 6 },
         });
 
         public static readonly Card[] Vc = Index(new[]
@@ -59,7 +65,11 @@ namespace LanesOfVietnam.Sim
             new Card { Id = "vc-tripwire", Group = CardGroup.Call, Name = "TRIPWIRE", Cost = 18, Pips = 0, Cooldown = S * 16 },
             new Card { Id = "vc-spider", Group = CardGroup.Call, Name = "SPIDER HOLE", Cost = 8, Pips = 0, Cooldown = S * 10 },
             new Card { Id = "vc-tunnel", Group = CardGroup.Call, Name = "TUNNEL", Cost = 15, Pips = 0, Cooldown = S * 20 },
+            new Card { Id = "vc-frag", Group = CardGroup.Call, Name = "GRENADES", Cost = 10, Pips = 0, Cooldown = S * 6 },
         });
+
+        /// <summary>A side's GRENADES card (MatchOptions.FragCard).</summary>
+        public static Card Grenades(Side side) => Find(side, side == Side.Us ? "us-frag" : "vc-frag");
 
         public static Card[] For(Side side) => side == Side.Us ? Us : Vc;
 
@@ -119,6 +129,15 @@ namespace LanesOfVietnam.Sim
         public static bool Buy(SimState st, Side side, Card card, int lane, Rng rng, double aimX = 0, int post = -1)
         {
             if (Blocked(st, side, card) != null) return false;
+            // FragCard: thrown by the squad nearest the place, if anyone there can reach it; if nobody can, nothing is spent.
+            if (card == Grenades(side))
+            {
+                if (Frag.Throwers(st, side, lane % Tune.Lanes.Length, aimX).Count == 0) return false;
+                st.Cp[(int)side] -= card.Cost;
+                st.CardCooldown[(int)side][card.Index] = card.Cooldown;
+                Frag.OnCall(st, side, lane % Tune.Lanes.Length, aimX);
+                return true;
+            }
             // Vantage: sent to a post, it has to be a squad the post takes, and the post empty.
             if (post >= 0)
             {

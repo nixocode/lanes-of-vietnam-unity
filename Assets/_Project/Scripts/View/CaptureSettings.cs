@@ -123,6 +123,8 @@ namespace LanesOfVietnam.View
         public bool? Bearing;
         /// <summary>A call-in takes time to arrive (MatchOptions.Inbound); null: on, as in the game.</summary>
         public bool? Inbound;
+        /// <summary>Hand grenades are a card (MatchOptions.FragCard); null: on, as in the game.</summary>
+        public bool? FragCard;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -190,11 +192,13 @@ namespace LanesOfVietnam.View
                     case "cohesion": c.Cohesion = v == "1" || v == "true"; break;
                     case "bearing": c.Bearing = v == "1" || v == "true"; break;
                     case "inbound": c.Inbound = v == "1" || v == "true"; break;
+                    case "fragcard": c.FragCard = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable
                         var cl = v.Split(':');
-                        c.Calls.Add((cl[0], int.Parse(cl[1], inv), double.Parse(cl[2], inv), int.Parse(cl[3], inv)));
+                        // (x "auto": GRENADES played at an enemy in cover one of the side's men can reach, as simcs plays it.)
+                        c.Calls.Add((cl[0], int.Parse(cl[1], inv), cl[2] == "auto" ? double.NaN : double.Parse(cl[2], inv), int.Parse(cl[3], inv)));
                         break;
                     case "taa":
                         var ta = v.Split(':');

@@ -91,8 +91,31 @@ namespace LanesOfVietnam.View
                     if (card != null && Driver.State.Cp[(int)side] < card.Cost) Driver.State.Cp[(int)side] = card.Cost;
                     string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
                     Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
+                    double callX = call.x;
+                    int callLane = call.lane;
+                    if (double.IsNaN(callX) && card != null)
+                    {
+                        // Wait for someone with a target, as a player would.
+                        for (int w = 0; w < 4000 && double.IsNaN(callX); w++)
+                        {
+                            foreach (var man in Driver.State.Men)
+                            {
+                                if (!man.Alive || man.Side != side || man.Grenades <= 0 || man.High > 0) continue;
+                                var target = Frag.PickTarget(Driver.State, man);
+                                if (target == null) continue;
+                                callX = target.X; callLane = Math.Abs(target.Z - Tune.Lanes[0]) < Math.Abs(target.Z - Tune.Lanes[1]) ? 0 : 1;
+                                break;
+                            }
+                            if (double.IsNaN(callX)) { Driver.FastForward(1); at++; }
+                        }
+                        Debug.Log($"[LOV] capture: grenades played at {callX:F1} in lane {callLane}, tick {Driver.State.Tick}");
+                        if (!double.IsNaN(callX)) cap.CameraX = (float)callX;
+                        if (Driver.State.Cp[(int)side] < card.Cost) Driver.State.Cp[(int)side] = card.Cost;
+                        blocked = Deck.Blocked(Driver.State, side, card) ?? (Frag.Throwers(Driver.State, side, callLane, callX).Count == 0 ? "nobody can reach it" : null);
+                        Debug.Log($"[LOV] capture: grenades {blocked ?? "thrown"}");
+                    }
                     // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)
-                    if (blocked == null) Driver.Match.Issue(call.lane >= Tune.Lanes.Length ? Command.BuyTo(side, call.card, call.lane - Tune.Lanes.Length) : Command.Buy(side, call.card, call.lane, call.x));
+                    if (blocked == null) Driver.Match.Issue(callLane >= Tune.Lanes.Length ? Command.BuyTo(side, call.card, callLane - Tune.Lanes.Length) : Command.Buy(side, call.card, callLane, callX));
                 }
                 if (cap.Tick > at) Driver.FastForward(cap.Tick - at);
                 ViewTime = cap.ViewTime;
@@ -223,6 +246,7 @@ namespace LanesOfVietnam.View
                 Options.Cohesion = cap.Cohesion ?? true;
                 Options.Bearing = cap.Bearing ?? true;
                 Options.Inbound = cap.Inbound ?? true;
+                Options.FragCard = cap.FragCard ?? true;
             }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

@@ -4432,8 +4432,9 @@ for it.
    8.3. Not reproduced; closed by the measurement, not by a change.
 3. Not looked at in a capture: a machine gun's burst and its tracers, a
    grenade, a rocket and its trail, a smoke screen, a case in the air.
-4. A round fired from down in a trench at another lane goes into the
-   trench's wall and its trace is not seen. Not fixed.
+4. ~~A round fired from down in a trench goes into the trench's wall.~~
+   Its line is drawn from the trench's lip (§12.47). Not yet seen in a
+   capture.
 5. ~~The thread of smoke off a hot barrel.~~ Drawn after a burst of three
    or more (§12.47). Faint at the usual zoom.
 6. ~~Spent cases vanish after 2.4 s.~~ They lie 3.4 s, as long as the shot is
@@ -4572,6 +4573,53 @@ smoke in 38 of 48 matches of the firebase against a Veteran, 88 grenades in
 all, the first about two minutes in (`simcs squadsmoke 48`, new). A capture
 key `squadthrow=N` runs the match on until a squad throws, and looks.
 PlayMode `Shots` and `CallIns` 7 of 7.
+
+**GRENADES, a card** (a new rule, `MatchOptions.FragCard`; the owner,
+2026-10-14: "add the frag grenades to the HUD, make them cheaper like
+smokes and have the closest squad launch them, not automatic for player
+side"). On each side's deck, a call-in at **10 CP** (SMOKE's price), 6 s
+between plays. Played at a place: of the squad whose man is nearest it,
+up to three men who have a grenade, are not up a post and have the place
+within 20 m (a man's throw) each throw one there (`Frag.Throwers`,
+`Frag.OnCall`; `Tune.FragCardThrowers`). Where nobody can reach, it is
+refused and nothing is spent, and the aim tag says so before the click
+("NOBODY CLOSE ENOUGH TO THROW"; else "· 3 THROW"). A player's own men
+throw no grenades of themselves; the computer's side throws as it always
+did; launchers (M79, RPG) are weapons and fire as before. With the rule
+off the card is barred from every deck and every pin is unchanged
+(`hash 1`, the game's Inbound pin and `scenario hash 1` all as before:
+the scenario pins play nobody, so nobody's grenades are a card). New
+files: none. Card text, a lemon and a stick grenade as its icons, its
+marker the burst's 5 m.
+
+Measured, `simcs scenario 192 level=veteran`, with the headless player
+taught to play GRENADES whenever one of his men has an enemy in cover
+within reach (`nofrag` leaves it unplayed):
+
+| GRENADES | firebase as US | as VC | The Wire | First Light | Earth Fights |
+|---|---|---|---|---|---|
+| none (men threw of themselves, §12.45) | 125 | 119 | 141 | 137 | 121 |
+| never played (10 CP, reach 12 m) | 103 | | | | |
+| 10 CP, reach 12 m | 108 | 108 | 145 | 142 | 139 |
+| 6 CP, reach 20 m | 132 | 140 | 152 | 157 | 159 |
+| **10 CP, reach 20 m (the game)** | **126** | **139** | **155** | **155** | **144** |
+
+All in the band (112 to 160). A player who never plays it is weaker than
+before (103 in the firebase): the grenades his men threw for nothing are
+now his to spend. Captured: a squad throwing on the card, two bursts and a
+man hit on the place played (`call=us-frag:0:auto:500`, a capture's call
+can now choose the place itself, `captures/air/grenades.png`). Tests:
+EditMode 110 of 110 (new:
+`With_the_grenade_card_the_nearest_squad_throws_where_it_is_played_and_nobody_else_of_the_players`;
+two older tests taught the card: every card changes the simulation, and a
+match that names no deck has every card but this one); PlayMode 32 (31
+passed, the capture skipped), the every-card test playing it through the
+HUD.
+
+**A round from a trench** (§12.46 no. 4): its line is drawn from the lip
+of the trench in front of the man, where the round clears the earth, not
+from his muzzle down in it. Built and tested; not seen in a capture yet
+(the lines are thin, and the strip taken was too far off to tell).
 
 ### 12.13 Corrections to earlier sections
 

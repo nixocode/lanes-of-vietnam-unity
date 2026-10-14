@@ -84,7 +84,7 @@ namespace LanesOfVietnam.Sim
                 Seed = seed, Map = Map, Cover = Map.Cover(), Length = len,
                 Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true,
                 Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
-                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, FragCard = true,
                 CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
                 MusterCost = CostFor(level), MoraleRate = RateFor(len),
                 Player = player,

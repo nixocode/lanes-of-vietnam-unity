@@ -350,9 +350,17 @@ namespace LanesOfVietnam.View
             auto |= rounds > 1;
             float gap = RoundGap(shooter.Weapon, shooter.Side, rounds);
             float stance = shooter.Posture == Posture.Prone ? 0.3f : shooter.Posture == Posture.Crouched ? 0.95f : 1.35f;
+            var clears = muzzle;
+            if (shooter.Cover >= 0 && shooter.Cover < _root.Driver.State.Cover.Count && _root.Driver.State.Cover[shooter.Cover].Kind == CoverKind.Trench)
+            {
+                // The lip: the ground a metre and a half ahead along his line, and a hand above it.
+                var ahead = muzzle + new Vector3(aim.x, 0, aim.z).normalized * 1.5f;
+                float lip = (float)_root.Ground.HeightAt(ahead.x, Coords.SimZ(ahead.z)) + 0.15f;
+                if (lip > muzzle.y) clears = new Vector3(ahead.x, lip, ahead.z);
+            }
             var by = new Fired
             {
-                Muzzle = muzzle, From = FiredFrom(i, muzzle), Weapon = shooter.Weapon, Side = shooter.Side, Auto = auto,
+                Muzzle = muzzle, From = FiredFrom(i, muzzle), Clears = clears, Weapon = shooter.Weapon, Side = shooter.Side, Auto = auto,
                 Prone = shooter.Posture == Posture.Prone && shooter.High < 1, Ground = a.y - stance - (float)shooter.High, Cal = Calibre(shooter.Weapon),
             };
             // Gunnery: the simulation says where a miss came down. What is there: the wall or the
@@ -423,6 +431,12 @@ namespace LanesOfVietnam.View
         {
             /// <summary>His muzzle now (the flash and the round leave it), and where it was when the shot was first drawn (its smoke and its case stay there).</summary>
             public Vector3 Muzzle, From;
+            /// <summary>
+            /// Where the round's line is seen from: the muzzle, or, for a man down in a trench, the lip of the trench
+            /// in front of him, where the round comes out over the earth. (From the muzzle, a round fired along the
+            /// trench or at the other lane ran through the trench's wall, and its line was never seen.)
+            /// </summary>
+            public Vector3 Clears;
             public Weapon Weapon;
             public Side Side;
             public bool Auto, Prone;
@@ -601,16 +615,20 @@ namespace LanesOfVietnam.View
             // enough to see which way the fire is going, not a sky full of beams. (Playtest 8: "too much flash
             // of gunfire that goes up, down and sideways" was every round as bright as a tracer, and the
             // ricochets. Then none were drawn; the owner, 2026-10-12, asked to see the rounds go.)
-            float head = TracerSpeed * age;
+            // (Seen from where it clears the earth: a man's muzzle, or a trench's lip.)
+            var seen = by.Clears;
+            float lineDist = Vector3.Distance(seen, end);
+            var lineDir = (end - seen) / Mathf.Max(lineDist, 0.01f);
+            float head = TracerSpeed * age - Vector3.Distance(muzzle, seen);
             if (by.Auto && Hash(s, 5) < TracerShare)
             {
-                float tail = Mathf.Max(0, head - 3.5f), h = Mathf.Min(head, dist);
-                if (h > tail) { AddStreak(muzzle + dir * tail, muzzle + dir * h, 0.04f, by.Side == Side.Us ? UsTracer : VcTracer, H(s, 6)); Tracers++; }
+                float tail = Mathf.Max(0, head - 3.5f), h = Mathf.Min(head, lineDist);
+                if (h > tail) { AddStreak(seen + lineDir * tail, seen + lineDir * h, 0.04f, by.Side == Side.Us ? UsTracer : VcTracer, H(s, 6)); Tracers++; }
             }
             else if (Hash(s, 16) < TraceShare)
             {
-                float tail = Mathf.Max(0.4f, head - TraceLength), h = Mathf.Min(head, dist);
-                if (h > tail) { AddStreak(muzzle + dir * tail, muzzle + dir * h, TraceWidth, Trace, H(s, 6), TracePixels); Traces++; }
+                float tail = Mathf.Max(seen == muzzle ? 0.4f : 0f, head - TraceLength), h = Mathf.Min(head, lineDist);
+                if (h > tail) { AddStreak(seen + lineDir * tail, seen + lineDir * h, TraceWidth, Trace, H(s, 6), TracePixels); Traces++; }
             }
             float ai = age - dist / TracerSpeed;
             if (ai < 0) return;
