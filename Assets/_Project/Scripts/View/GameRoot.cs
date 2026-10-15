@@ -117,6 +117,14 @@ namespace LanesOfVietnam.View
                     }
                     // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)
                     if (blocked == null) Driver.Match.Issue(callLane >= Tune.Lanes.Length ? Command.BuyTo(side, call.card, callLane - Tune.Lanes.Length) : Command.Buy(side, call.card, callLane, callX));
+                    // downed=1: the medevac brought down three seconds out, whatever the dice (Shootdown.Force).
+                    if (blocked == null && cap.Downed && call.card == "us-medevac")
+                    {
+                        Driver.FastForward(1); at++;
+                        var relief = Driver.State.Areas.FirstOrDefault(a => a.Kind == AreaKind.Relief && a.Call == Inbound.Dustoff);
+                        if (relief != null && relief.Wait > Tune.ShootdownAt + 1) { int k = relief.Wait - Tune.ShootdownAt - 1; Driver.FastForward(k); at += k; }
+                        Debug.Log($"[LOV] capture: the medevac {(relief != null && Shootdown.Force(Driver.State, relief) ? "brought down" : "not brought down")} at tick {Driver.State.Tick}");
+                    }
                 }
                 if (cap.Tick > at) Driver.FastForward(cap.Tick - at);
                 ViewTime = cap.ViewTime;
@@ -306,6 +314,7 @@ namespace LanesOfVietnam.View
                 Options.Emplace = cap.Emplace ?? true;
                 Options.Satchel = cap.Satchel ?? true;
                 Options.Destruction = cap.Destruction ?? true;
+                Options.Shootdown = cap.Shootdown ?? true;
             }
             Driver = new MatchDriver(Options, replay);
             ArmyView.ResetView();

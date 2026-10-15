@@ -142,6 +142,16 @@ namespace LanesOfVietnam.Tests
                 pieces++;
                 float ground = (float)root.Ground.HeightAt(mid.x, Coords.SimZ(mid.z));
                 Assert.Less(mid.y - ground, 3.6f, $"{c.name} is still up in the air (or on a truck higher than one)");
+                // (Nothing lies in the air: its lowest point down on the ground, or on a piece under it. The owner,
+                // 2026-10-15: "end planels that seem to be floating".)
+                float under = ground;
+                foreach (Transform o in tower.Group)
+                {
+                    if (o == c) continue;
+                    var ob = o.GetComponent<Renderer>().bounds;
+                    if (mid.x >= ob.min.x && mid.x <= ob.max.x && mid.z >= ob.min.z && mid.z <= ob.max.z && ob.max.y <= mid.y + 0.05f) under = Mathf.Max(under, ob.max.y);
+                }
+                Assert.Less(r.bounds.min.y - under, 0.35f, $"{c.name} lies in the air: its lowest point {r.bounds.min.y - ground:F2} m up, with nothing under it higher than {under - ground:F2} m");
                 if ((mid - was[c]).magnitude > 2f) moved++;
                 // (Lying flat: its thinnest way upright.)
                 var e = c.GetComponent<MeshFilter>().sharedMesh.bounds.extents;

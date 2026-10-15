@@ -95,6 +95,9 @@ and say so:
 - On `playtest-11` (the Americans open with fewer in The Wire and First Light, §12.52; every `hash` line above
   unmoved): `scenario hash 1`: the firebase 4075 `3782637812u`; The Wire 6000 `3538541992u`; First Light 6669
   `3007784689u`; The Earth Fights 9266 `3572325795u`.
+- `hash 1 ... satchel destruction shootdown` (the game, on `playtest-12`): 5581 ticks, final `3526591710u` (seed 7:
+  4870, `2300756334u`); `scenario hash 1` there: the firebase 4075 `3782637812u`; The Wire 6000 `708840890u`; First
+  Light 6669 `3007784689u`; The Earth Fights 7735 `3312621114u`.
 
 ## Rules this project keeps
 
@@ -103,7 +106,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

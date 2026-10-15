@@ -578,6 +578,13 @@ namespace LanesOfVietnam.Sim
         // --- a call-in on its way (MatchOptions.Inbound) -------------------------------------
         /// <summary>Ticks from the call to the first rounds: the guns 3.5 s, the jet 5 s, smoke 2.5 s, the medevac 8 s.</summary>
         public const int GunsWait = TickHz * 7 / 2, JetWait = TickHz * 5, SmokeWait = TickHz * 5 / 2, DustoffWait = TickHz * 8;
+        /// <summary>
+        /// MatchOptions.Shootdown: ticks before the medevac is in that it is low and slow enough to be fired at; how far
+        /// off a rocket man may be; how many fire; how often one hits; the ticks from the hit until it strikes the
+        /// ground; how hard its crash bursts (a shell's 0.30, the jet's bomb's 0.62); the ticks a man who fired is busy.
+        /// </summary>
+        public const int ShootdownAt = TickHz * 3, ShootdownMen = 2, CrashTicks = TickHz * 3, ShootdownReload = TickHz * 3;
+        public const double ShootdownRange = 60, ShootdownChance = 0.3, CrashPower = 0.5;
         /// <summary>Ticks before the guns' rounds that their one ranging round lands.</summary>
         public const int RangingAhead = TickHz;
         /// <summary>

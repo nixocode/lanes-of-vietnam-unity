@@ -134,9 +134,28 @@ mergeInto(LibraryManager.library, {
     var send = ctx.createGain(); send.gain.value = wetAmt;    // fed from g: 1/d applied once
     g.connect(send); send.connect(A.wet);
     A.voices++;
-    src.onended = function () { A.voices--; };
+    // (Kept by name while it sounds, so that it can be stopped: a helicopter shot down is not heard flying on.)
+    var name = UTF8ToString(namePtr), playing = A.playing || (A.playing = {});
+    var voice = { src: src, g: g };
+    (playing[name] = playing[name] || []).push(voice);
+    src.onended = function () { A.voices--; var l = playing[name]; var k = l.indexOf(voice); if (k >= 0) l.splice(k, 1); };
     src.start(at);
     return 1;
+  },
+
+  // Stop every sound of a name that is playing or waiting to, delay seconds from now, fading over fade seconds.
+  LovAudio_Stop: function (namePtr, delay, fade) {
+    var A = window.LovAudio; if (!A || !A.playing) return;
+    var l = A.playing[UTF8ToString(namePtr)]; if (!l) return;
+    var at = A.ctx.currentTime + Math.max(0, delay), f = Math.max(0.02, fade);
+    for (var k = 0; k < l.length; k++) {
+      var v = l[k];
+      try {
+        v.g.gain.setValueAtTime(v.g.gain.value, at);
+        v.g.gain.linearRampToValueAtTime(0, at + f);
+        v.src.stop(at + f + 0.02);
+      } catch (e) {}
+    }
   },
 
   LovAudio_Ambience: function (namePtr, level) {

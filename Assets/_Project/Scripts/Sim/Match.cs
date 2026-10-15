@@ -156,6 +156,8 @@ namespace LanesOfVietnam.Sim
         public bool Satchel;
         /// <summary>Part 2: a structure can be broken: the watchtower falls to rockets, mortars, charges, shells and bombs (Destruction).</summary>
         public bool Destruction;
+        /// <summary>Part 2 rule: the medevac's helicopter can be brought down by a rocket as it comes in (<see cref="Sim.Shootdown"/>; with Inbound). Off is the baseline.</summary>
+        public bool Shootdown;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -331,6 +333,7 @@ namespace LanesOfVietnam.Sim
                 Emplace = opts.Emplace,
                 Satchel = opts.Satchel,
                 Destruction = opts.Destruction,
+                Shootdown = opts.Shootdown && opts.Inbound,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -355,6 +358,7 @@ namespace LanesOfVietnam.Sim
             if (opts.Gunnery) st.GunRng = rng.Fork("gunnery");
             if (opts.Fortune) st.LuckRng = rng.Fork("fortune");
             if (opts.Commander) st.CommandRng = rng.Fork("commander");
+            if (opts.Shootdown && opts.Inbound) st.ShootRng = rng.Fork("shootdown");
             var map = opts.Map ?? Maps.Firebase;
             (st.BankZ, st.BankHeight, st.BankPhase) = map.Bank();
             if (opts.Vantage) st.Posts = map.PostList();
@@ -1137,7 +1141,7 @@ namespace LanesOfVietnam.Sim
         /// into a tripwire this tick springs it this tick.
         /// </summary>
         /// <summary>One round of a barrage bursting on the ground: every man near it is pinned, and may be killed.</summary>
-        private static void Burst(SimState st, Area a, double bx, double bz, Rng rng)
+        internal static void Burst(SimState st, Area a, double bx, double bz, Rng rng)
         {
             st.Events.Add(new SimEvent
             {

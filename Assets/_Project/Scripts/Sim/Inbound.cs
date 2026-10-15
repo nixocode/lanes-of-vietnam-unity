@@ -33,6 +33,8 @@ namespace LanesOfVietnam.Sim
     {
         /// <summary>What was called: an area's <see cref="Area.Call"/> and a CallIn event's Rounds. Ranging is the event alone.</summary>
         public const int Guns = 1, Jet = 2, SmokeShells = 3, Dustoff = 4, Ranging = 9;
+        /// <summary>MatchOptions.Shootdown: a medevac hit on its way in, coming down where it will burst.</summary>
+        public const int Crash = 5;
 
         public static int Ticks(int call)
         {
@@ -42,6 +44,7 @@ namespace LanesOfVietnam.Sim
                 case Jet: return Tune.JetWait;
                 case SmokeShells: return Tune.SmokeWait;
                 case Dustoff: return Tune.DustoffWait;
+                case Crash: return Tune.CrashTicks;
                 default: return 0;
             }
         }
@@ -64,7 +67,16 @@ namespace LanesOfVietnam.Sim
             a.Wait--;
             if (a.Call == Guns && a.Wait == Tune.RangingAhead)
                 st.Events.Add(new SimEvent { Kind = EventKind.CallIn, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z, Amount = a.Wait, Rounds = Ranging });
+            // Shootdown: low and slow as it comes in, the medevac is in reach of the enemy's rockets.
+            if (st.Shootdown && a.Kind == AreaKind.Relief && a.Call == Dustoff && a.Wait == Tune.ShootdownAt) Shootdown.Try(st, a);
             if (a.Wait > 0) return;
+            if (a.Call == Crash)
+            {
+                Shootdown.Crash(st, a);
+                st.Events.Add(new SimEvent { Kind = EventKind.AreaEnd, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z });
+                st.Areas.RemoveAt(i);
+                return;
+            }
             // It is in: an area like any other from here, and announced as one.
             if (a.Kind != AreaKind.Relief)
             {

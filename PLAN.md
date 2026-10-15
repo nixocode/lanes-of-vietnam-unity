@@ -4427,6 +4427,7 @@ made on this Mac).
 | 7 | the tower comes down | ✅ done (§12.51); two items wait on his yes: a timber sound and a falling clip |
 | also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
 | playtest 11 | the tower crumbles, timber heard, a crew in the Huey, men and Huey at 4/5, the US opens with fewer | ✅ done (§12.52); the sounds are his to judge |
+| playtest 12 | the medevac can be shot down; nothing of the tower floats | ✅ done (§12.53); the two Mixamo clips wait on his sign-in |
 
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
 work. Have you been skipping so many steps on other stages? If so write down
@@ -5064,6 +5065,72 @@ the bodies' own size, about a man's); play the firebase as US from an empty fiel
 the pilots and a falling clip for the men thrown off the tower (Mixamo, each his yes).
 
 New files: none (`.meta` files for the seven sounds come from Unity).
+
+### 12.53 Playtest 12: the medevac can be brought down, and nothing of the tower lies in the air (2026-10-15)
+
+The owner, the same day: "yes download the maixamo clips, also have the chopper have a chance to be knocked down
+by an RPG that turns into it spinning losing control and crashing into flames. Tower destruction looks good except
+for end planels that seem to be floating. fix these things and then security check, push to git and vercel live
+link". On the branch `playtest-12`, from `main` (§12.52).
+
+**The medevac brought down** (`MatchOptions.Shootdown`, new `Sim/Shootdown.cs`; on, with Inbound, in the game and the
+scenarios). Three seconds out, low and slow over where it is coming down, the helicopter is in reach of the
+enemy's rockets: each of the two nearest RPG men within 60 m of the landing point, alive, not pinned flat and not
+busy, fires, and hits three times in ten. Hit, it does not come in: the line is not steadied and nobody's pin is
+taken away; it comes down three seconds later, 4 to 18 m short of where it was coming (back toward its own side)
+and up to 8 m to one side, and bursts there as a shell does, with half again a shell's power (whoever is near is
+pinned and may be killed; with Destruction, a structure there is hurt). Its draws come from a stream of its own (a
+fork, so no other stream moves), and only when a rocket is in reach; a man who fired is busy three seconds. New
+event at the end of the enum: `ShotDown` (man Id fired at call Target; it comes down at X, Z in Amount ticks;
+Rounds the seed of how it is drawn going down). `Shootdown.Force` brings one down without dice, for a capture
+(`downed=1`), the probe (`&downed=1`) and the tests, never in a game.
+
+Drawn (`CombatView`): the rocket out of the man who fired it, its flame and smoke to the helicopter, its burst on
+the engine; then the helicopter spinning on its rotor's torque, faster and faster (to four and a half turns), nose
+down and rolling, in a corkscrew down to where it strikes, its engine on fire and black smoke left hanging along
+its way; its fuel going up as it strikes; and a wreck, blackened, on its side where it struck, its rotor torn off
+and lying by it, burning (flames along it for 35 s, dying over 15 more) under a column of black smoke leaning off
+downwind for a minute and more, and lying there for the rest of the match. Heard (`AudioView`): the rocket's report
+where it was fired, its burst, and the rotor gone quiet as it strikes (the browser's sound engine can now stop a
+sound it is playing, `LovAudio_Stop`); the crash is the shell's burst the simulation makes. A first capture of it
+had the fire as one glaring blob over the wreck (its light too wide and too bright): turned down, the flames
+smaller, the smoke thicker. Captured: `captures/air/down_sheet.png`.
+
+Measured, `simcs shootdowns 48` (new: each scenario against a Veteran with nobody playing): the firebase 98
+medevacs called, 10 brought down; The Wire 123 and 36 (14 men killed where they crashed); First Light 3 and 0;
+The Earth Fights 114 and 10. Balance, `simcs scenario 192 level=veteran` with the rule and with `noshootdown`
+(new): the same to the match (122 / 136, 124, 128, 148): the headless player's line squads carry no rockets,
+and only the computer calls a medevac.
+
+**Nothing of the tower lies in the air** (`TowerView.Heap`). The heap of §12.52 raised a piece onto any piece it
+came near (by a circle about each) and tilted it by dice, so a panel could lie over a timber that was not under it,
+and a piece over a tilted one took its highest point everywhere. Now each piece, in the order they land, rests on
+what is under its four corners (the ground, a truck's roof, or the top of a piece already lying there, the top
+following that piece's tilt), tilted to sit on them, as steeply as a timber leans on a truck (to 55 degrees: held
+to 25, one end of it stood a metre in the air). `StructureTests` now checks that every piece's lowest point is on
+the ground or on a piece under it (within 0.35 m); it found three before the fix.
+
+**The Mixamo clips**: the owner's yes is given (a sitting clip for the pilots, a falling clip for the men thrown
+off the tower; the catalogue's "Sitting Idle (in a chair, hands on thighs)" and "Falling Idle (mid-air)" chosen),
+but Mixamo is signed out in Chrome and the sign-in is his: **not done yet**.
+
+**Measured.**
+
+- Pins: `determinism` ok; `simcs hash 1` 2256114725u; every flagged `hash` unmoved; with the rule
+  (`... destruction shootdown`): seed 1 5581 `3526591710u` (unmoved: no medevac brought down), seed 7 4870
+  `2300756334u` (pinned, `With_shootdown_a_match_is_pinned`). `simcs scenario hash`: The Wire 3 5089
+  `742317118u` and 1 6000 `708840890u`, The Earth Fights 1 7735 `3312621114u` (medevacs brought down in them);
+  the firebase and First Light unmoved. `audit`: `ShotDown` fires; `Damaged` and `Collapsed` still never do in
+  its matches (nobody mans the tower there), as before.
+- Tests: EditMode 123 of 123 (new: `A_medevac_can_be_brought_down_and_crashes_where_its_event_says`,
+  `With_shootdown_a_match_is_pinned`); PlayMode 39 of 39 and the capture skipped (new:
+  `CallIns.A_helicopter_brought_down_spins_down_and_lies_where_it_struck`; the helicopter's landing test plays
+  with the rule off for itself, its seed being the game's own).
+- WebGL 37.35 MB to start, 45.20 in all. Frame time at 2592 x 1370, seed 3, measured back to back with the Mac
+  busier than in §12.52 (the same build without a fall read 5.4 ms where it read 4.4): no fall 5.4 mean, 7.0 at the
+  95th percentile; the tower coming down 5.4 to 5.5, 7.0; a medevac brought down and its wreck burning 5.5, 7.0.
+
+New files: `Sim/Shootdown.cs`.
 
 ### 12.13 Corrections to earlier sections
 

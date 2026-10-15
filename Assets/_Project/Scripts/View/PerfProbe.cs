@@ -209,6 +209,17 @@ namespace LanesOfVietnam.View
                     root.Driver.Match.Issue(Command.Buy(side, callCard.Id, c.Length > 1 ? int.Parse(c[1], CultureInfo.InvariantCulture) : 0, cx));
                     root.CameraRig.Focus((float)cx, instant: true);
                     Debug.Log($"[LOV] perf: called {call}");
+                    // downed=1: a medevac so called brought down three seconds out (Shootdown.Force), and run on until it
+                    // has struck: what its fall, its fire and its smoke cost.
+                    if (Param("downed") == "1" && callCard.Id == "us-medevac")
+                    {
+                        root.Driver.FastForward(1);
+                        var relief = root.Driver.State.Areas.Find(a => a.Kind == AreaKind.Relief && a.Call == Inbound.Dustoff);
+                        if (relief != null && relief.Wait > Tune.ShootdownAt + 1) root.Driver.FastForward(relief.Wait - Tune.ShootdownAt - 1);
+                        bool down = relief != null && Shootdown.Force(root.Driver.State, relief);
+                        if (down) root.Driver.FastForward(Tune.CrashTicks);
+                        Debug.Log($"[LOV] perf: the medevac {(down ? "brought down" : "not brought down")}");
+                    }
                 }
             }
             // towerfall=1: the watchtower brought down as the fast-forward ends, the camera on it (MatchOptions.Destruction,

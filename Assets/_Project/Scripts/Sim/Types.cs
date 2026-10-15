@@ -460,6 +460,9 @@ namespace LanesOfVietnam.Sim
         // Destruction (MatchOptions.Destruction): post Id was hurt by a burst at X, Z, Amount of it left; Collapsed:
         // post Id fell, toward Amount degrees (0 along +x, 90 along +z), Rounds the seed of how it came apart.
         Damaged, Collapsed,
+        // Shootdown (MatchOptions.Shootdown): man Id fired at the helicopter of call Target and hit it; it comes down
+        // at X, Z in Amount ticks, Rounds the seed of how it goes down.
+        ShotDown,
     }
 
     public struct SimEvent
@@ -575,6 +578,8 @@ namespace LanesOfVietnam.Sim
         public bool Satchel;
         /// <summary>Part 2 rule: a structure can be broken, and the watchtower brought down (<see cref="Sim.Destruction"/>). Off is the baseline.</summary>
         public bool Destruction;
+        /// <summary>Part 2: the medevac can be shot down as it comes in (MatchOptions.Shootdown, with Inbound).</summary>
+        public bool Shootdown;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>
@@ -591,6 +596,8 @@ namespace LanesOfVietnam.Sim
         public Rng GunRng;
         /// <summary>The grenades' own random stream, so the rule draws nothing from the sim's.</summary>
         public Rng FragRng;
+        /// <summary>MatchOptions.Shootdown: the draws of the rockets fired at a medevac (a fork: no other stream moves).</summary>
+        public Rng ShootRng;
         public readonly List<Grenade> Grenades = new List<Grenade>();
         public int GrenadeId;
 

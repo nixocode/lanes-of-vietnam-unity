@@ -68,6 +68,7 @@ namespace LanesOfVietnam.SimCs
                     "scenario" => ScenarioTable(args),
                     "squadsmoke" => SquadSmokeCount(args),
                     "towerfalls" => TowerFalls(args),
+                    "shootdowns" => Shootdowns(args),
                     "gunplay" => Gunplay(args),
                     "command" => Command_(args),
                     "watch" => Watch(args),
@@ -215,10 +216,10 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard"), emplace = a.Contains("emplace"), satchel = a.Contains("satchel"), destruction = a.Contains("destruction");
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction").ToArray();
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard"), emplace = a.Contains("emplace"), satchel = a.Contains("satchel"), destruction = a.Contains("destruction"), shootdown = a.Contains("shootdown");
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction" && x != "shootdown").ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Bearing = bearing });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Shootdown = shootdown, Bearing = bearing });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -589,6 +590,35 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// `shootdowns N`: how often a medevac is called and how often it is brought down (MatchOptions.Shootdown), in
+        /// each scenario as the game plays it against a Veteran with nobody playing, over N seeds; and how many men its
+        /// crash killed.
+        /// </summary>
+        private static int Shootdowns(string[] a)
+        {
+            int seeds = a.Length > 1 && int.TryParse(a[1], out int n) ? n : 48;
+            foreach (var sc in Scenarios.All)
+            {
+                int called = 0, down = 0, killed = 0;
+                for (int seed = 1; seed <= seeds; seed++)
+                {
+                    var m = new LiveMatch(sc.Options(seed, null, Difficulty.Veteran));
+                    while (!m.State.Over && m.State.Tick < m.Cap) m.Step();
+                    var ev = m.State.Events;
+                    called += ev.Count(e => e.Kind == EventKind.CallIn && e.Rounds == Inbound.Dustoff);
+                    foreach (var e in ev.Where(e => e.Kind == EventKind.ShotDown))
+                    {
+                        down++;
+                        int at = e.Tick + (int)(e.Amount ?? 0);
+                        killed += ev.Count(k => k.Kind == EventKind.Kill && k.Tick == at);
+                    }
+                }
+                Console.WriteLine($"  {sc.Id}: {called} medevacs called in {seeds} matches, {down} brought down; {killed} men killed where they crashed");
+            }
+            return 0;
+        }
+
         private static int SquadSmokeCount(string[] a)
         {
             int seeds = a.Length > 1 && int.TryParse(a[1], out int n) ? n : 48;
@@ -661,6 +691,7 @@ namespace LanesOfVietnam.SimCs
                             if (a.Contains("nosatchel")) opts.Satchel = false;
                             if (a.Contains("noemplace")) opts.Emplace = false;
                             if (a.Contains("nodestruction")) opts.Destruction = false;
+                            if (a.Contains("noshootdown")) opts.Shootdown = false;
                             // `usopen=N`: the Americans open with N men at least, in place of the scenario's (`usopen=0`: none).
                             string usOpen = a.Where(x => x.StartsWith("usopen=")).Select(x => x.Substring(7)).FirstOrDefault();
                             if (usOpen != null)

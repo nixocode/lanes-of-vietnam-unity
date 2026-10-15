@@ -244,6 +244,8 @@ namespace LanesOfVietnam.View
 
             double now = (st.Tick - 1 + d.Alpha) * Tune.Dt;
             var ev = st.Events;
+            // (Before the calls are drawn: a medevac brought down is drawn going down.)
+            ReadShots(st);
             for (int i = ev.Count - 1; i >= 0; i--)
             {
                 var e = ev[i];
@@ -289,6 +291,7 @@ namespace LanesOfVietnam.View
                 _root.CameraRig.Shake((e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / 60f));
             }
             SmokeScreens(st, now);
+            DrawWrecks((float)now);
             if (st.Satchel) Breaches(st, now);
             if (_markMesh != null) GroundMarks(st, now);
             Upload();
@@ -1204,24 +1207,40 @@ namespace LanesOfVietnam.View
             var lz = Coords.World(ax, az, ground);
             MarkSmoke(lz + new Vector3(-dir * 9f, 0, 0), new Color(0.56f, 0.24f, 0.78f), t, lands + DustoffDown + 2f, seed);
             if (NoAircraft || Huey == null || Aircraft == null || _hueyShown || t > lands + DustoffDown + DustoffAway) return;
-            float s, h, yaw = 0f, nose;
-            if (t < lands)
+            // Shootdown: a rocket at it as it came in, and it hit. From when it strikes it is going down; once it is
+            // down it is a wreck (Wrecks), not this.
+            bool downed = _downed.TryGetValue(e.Id, out var shot), falling = false;
+            float hitAt = 0f, crashAt = 0f;
+            if (downed)
             {
-                float left = 1 - t / lands;
-                s = -DustoffFrom * left * left;
-                h = DustoffHigh * Mathf.Pow(left, 1.6f);
-                // Nose down as it comes, up as it slows, level as it sets down.
-                nose = Mathf.Lerp(-5f, 9f, Mathf.SmoothStep(0f, 1f, (0.75f - left) / 0.45f)) * Mathf.SmoothStep(0f, 1f, left / 0.12f);
+                float shotAt = (float)((shot.Tick - e.Tick) * Tune.Dt);
+                hitAt = shotAt + RocketFlight;
+                crashAt = shotAt + (float)((shot.Amount ?? 0) * Tune.Dt);
+                if (t >= crashAt) return;
+                if (t >= shotAt) Rocket(e, shot, lands, t - shotAt);
+                falling = t >= hitAt;
             }
-            else if (t < lands + DustoffDown) { s = 0; h = 0; nose = 0; }
+            Vector3 at;
+            Quaternion turn;
+            float h = 0f, s = 0f;
+            if (falling) Downing(e, shot, lands, t, out at, out turn);
             else
             {
-                float v = t - lands - DustoffDown;
-                h = Mathf.Min(DustoffHigh, 1.7f * v * v);
-                yaw = 180f * Mathf.SmoothStep(0f, 1f, v / 2.4f);
-                float going = Mathf.Max(0f, v - 1.6f);
-                s = -6f * going * going;
-                nose = -9f * Mathf.SmoothStep(0f, 1f, going / 1.5f);
+                float yaw = 0f, nose;
+                if (t < lands) Approach(t, lands, out s, out h, out nose);
+                else if (t < lands + DustoffDown) { s = 0; h = 0; nose = 0; }
+                else
+                {
+                    float v = t - lands - DustoffDown;
+                    h = Mathf.Min(DustoffHigh, 1.7f * v * v);
+                    yaw = 180f * Mathf.SmoothStep(0f, 1f, v / 2.4f);
+                    float going = Mathf.Max(0f, v - 1.6f);
+                    s = -6f * going * going;
+                    nose = -9f * Mathf.SmoothStep(0f, 1f, going / 1.5f);
+                }
+                var facing = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
+                at = lz + new Vector3(dir * s, h, 0);
+                turn = facing * Quaternion.AngleAxis(-nose, Vector3.right) * NoseAhead;
             }
             if (_huey == null)
             {
@@ -1240,10 +1259,16 @@ namespace LanesOfVietnam.View
             _aboardAt = t;
             for (int k = 0; k < _aboard.Count; k++)
                 if (_aboard[k] != null && _aboardPosture[k] >= 0) _aboard[k].Step(dt, 0f, _aboardPosture[k], false, false, 0);
-            var facing = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
-            _huey.SetPositionAndRotation(lz + new Vector3(dir * s, h, 0), facing * Quaternion.AngleAxis(-nose, Vector3.right) * NoseAhead);
-            if (_rotor != null) _rotor.localRotation = Quaternion.AngleAxis(Mathf.Repeat(t * RotorTurns, 1f) * 360f, Vector3.up);
+            _huey.SetPositionAndRotation(at, turn);
+            // (Hit, its rotor slows as it goes down.)
+            float turns = falling ? RotorTurns * (hitAt - 0f) + RotorTurns * 0.7f * (t - hitAt) : RotorTurns * t;
+            if (_rotor != null) _rotor.localRotation = Quaternion.AngleAxis(Mathf.Repeat(turns, 1f) * 360f, Vector3.up);
             _hueyShown = true;
+            if (falling)
+            {
+                Burning(e, shot, lands, t, hitAt, crashAt);
+                return;
+            }
             // What its rotor blows out from under it, near the ground.
             float low = 1 - h / 9f;
             if (low <= 0 || s < -25f) return;
@@ -1254,6 +1279,253 @@ namespace LanesOfVietnam.View
                 float r = 3.5f + 8f * phase;
                 Dust(lz + new Vector3(dir * s + Mathf.Cos(ang) * r, 0.5f + 0.9f * phase, Mathf.Sin(ang) * r), 2.6f + 3.2f * phase,
                      new Color(0.30f, 0.25f, 0.18f, 0.34f * low * (1 - phase) * Mathf.Clamp01(phase / 0.15f)), H(seed, 340 + k), 0.25f + 0.65f * phase);
+            }
+        }
+
+        /// <summary>The helicopter coming in, t seconds after the call (before it is in): metres short of where it sets down, metres up, and degrees its nose is up.</summary>
+        private static void Approach(float t, float lands, out float s, out float h, out float nose)
+        {
+            float left = 1 - t / lands;
+            s = -DustoffFrom * left * left;
+            h = DustoffHigh * Mathf.Pow(left, 1.6f);
+            // Nose down as it comes, up as it slows, level as it sets down.
+            nose = Mathf.Lerp(-5f, 9f, Mathf.SmoothStep(0f, 1f, (0.75f - left) / 0.45f)) * Mathf.SmoothStep(0f, 1f, left / 0.12f);
+        }
+
+        // --- the helicopter brought down (MatchOptions.Shootdown) ---------------------------------------------
+
+        /// <summary>Seconds a rocket takes to reach the helicopter it is fired at.</summary>
+        public const float RocketFlight = 0.45f;
+        /// <summary>The shot that brought each medevac down, by its call; and the wrecks, read from the log as they happen.</summary>
+        private readonly Dictionary<int, SimEvent> _downed = new Dictionary<int, SimEvent>();
+        private sealed class Wreck { public float At; public Vector3 Where; public Quaternion Turn; public int Seed; public Transform Body, Rotor; }
+        private readonly List<Wreck> _wrecks = new List<Wreck>();
+        private SimState _shotsOf;
+        private int _shotCursor;
+        private MaterialPropertyBlock _burnt;
+        /// <summary>The wrecks drawn (for the tests).</summary>
+        public int Wrecks => _wrecks.Count;
+
+        /// <summary>Where the helicopter of a call was when the rocket struck it, t seconds after the call.</summary>
+        private static Vector3 HueyWhere(SimEvent call, float lands, float t, Ground g)
+        {
+            Approach(Mathf.Min(t, lands), lands, out float s, out float h, out _);
+            float dir = call.Side == Side.Us ? 1f : -1f;
+            var lz = Coords.World(call.X.Value, call.Z.Value, (float)g.HeightAt(call.X.Value, call.Z.Value));
+            return lz + new Vector3(dir * s, h, 0);
+        }
+
+        /// <summary>
+        /// The helicopter hit, going down (the owner, 2026-10-15: "spinning losing control and crashing into flames"):
+        /// from where the rocket struck it, it spins on its rotor's torque, faster and faster, its nose dropping and
+        /// rolling, drifting on in a corkscrew and falling, faster as it falls, to where the simulation has it strike.
+        /// t is seconds after the call; at the moment it strikes this is how its wreck is turned.
+        /// </summary>
+        private void Downing(SimEvent call, SimEvent shot, float lands, float t, out Vector3 at, out Quaternion turn)
+        {
+            float shotAt = (float)((shot.Tick - call.Tick) * Tune.Dt), hitAt = shotAt + RocketFlight;
+            float crashAt = shotAt + (float)((shot.Amount ?? 0) * Tune.Dt);
+            float dir = call.Side == Side.Us ? 1f : -1f;
+            var p0 = HueyWhere(call, lands, hitAt, _root.Ground);
+            var c = Coords.World(shot.X.Value, shot.Z.Value, (float)_root.Ground.HeightAt(shot.X.Value, shot.Z.Value));
+            float tau = Mathf.Clamp(t - hitAt, 0f, crashAt - hitAt), u = tau / Mathf.Max(0.1f, crashAt - hitAt);
+            int seed = shot.Rounds;
+            float sense = H(seed, 1) < 0.5f ? -1f : 1f;
+            float spin = sense * (150f * tau + 170f * tau * tau);
+            float r = 3.5f * Mathf.Sin(Mathf.PI * u), ang = spin * Mathf.Deg2Rad * 0.35f;
+            var flat = Vector3.Lerp(p0, c, Mathf.SmoothStep(0f, 1f, u));
+            at = new Vector3(flat.x + Mathf.Cos(ang) * r, Mathf.Lerp(p0.y, c.y, u * u), flat.z + Mathf.Sin(ang) * r);
+            var facing = Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
+            float pitch = 18f * Mathf.Min(1f, tau * 1.5f), roll = 22f * Mathf.Sin(tau * 6f + H(seed, 2) * 6f) * Mathf.Min(1f, tau * 2f);
+            turn = Quaternion.AngleAxis(spin, Vector3.up) * facing * Quaternion.AngleAxis(pitch, Vector3.right) * Quaternion.AngleAxis(roll, Vector3.forward) * NoseAhead;
+        }
+
+        /// <summary>The rocket fired at it: out of the man who fired it, its flame and its smoke to where it strikes, and its smoke hanging after.</summary>
+        private void Rocket(SimEvent call, SimEvent shot, float lands, float age)
+        {
+            var men = _root.Driver.State.Men;
+            if (shot.Id < 0 || shot.Id >= men.Count || age > RocketFlight + 1.8f) return;
+            var from = Chest(men[shot.Id]);
+            var to = HueyWhere(call, lands, (float)((shot.Tick - call.Tick) * Tune.Dt) + RocketFlight, _root.Ground) + Vector3.up * 1.6f;
+            var dir = (to - from).normalized;
+            int seed = shot.Rounds;
+            if (age < 0.07f)
+            {
+                float k = 1 - age / 0.07f;
+                AddSprite(FxSheets.Flame, H(seed, 49) * 32f + age * 40f, from + dir * 0.2f, 1.3f, Lit(Flash, 5f * k), H(seed, 48) * 6.2832f);
+                AddGlow(from, 1.8f, Lit(Flash, 1.6f * k), 2, H(seed, 50));
+            }
+            for (int k = 1; k <= 7; k++)
+            {
+                float tk = k / 8f, since = age - tk * RocketFlight;
+                if (since < 0 || since > 1.6f) continue;
+                float fk = 1 - since / 1.6f;
+                Hang(Vector3.Lerp(from, to, tk) + Vector3.up * (0.25f * since), 0.45f + 0.9f * Mathf.Sqrt(since), new Color(0.7f, 0.7f, 0.68f, 0.5f * fk * fk), H(seed, 62 + k), since);
+            }
+            if (age >= RocketFlight) return;
+            var p = Vector3.Lerp(from, to, age / RocketFlight);
+            AddSprite(FxSheets.Flame, H(seed, 60) * 32f + age * 30f, p - dir * 0.35f, 0.6f, Lit(new Color(1f, 0.75f, 0.45f), 4.5f), H(seed, 60) * 6.2832f);
+            AddStreak(p - dir * 1.2f, p, 0.07f, new Color(1f, 0.6f, 0.25f) * 3f, H(seed, 61));
+        }
+
+        /// <summary>
+        /// Hit and going down: the rocket's burst on it, its engine on fire, and black smoke pouring out behind it
+        /// along the way it has spun down.
+        /// </summary>
+        private void Burning(SimEvent call, SimEvent shot, float lands, float t, float hitAt, float crashAt)
+        {
+            int seed = shot.Rounds;
+            float tau = t - hitAt;
+            var engine = _huey.TransformPoint(new Vector3(0.6f, 2.5f, 0f));
+            // The rocket's burst on it.
+            if (tau < 0.8f)
+            {
+                float k = 1 - tau / 0.8f;
+                if (tau < 0.15f)
+                {
+                    AddGlow(engine, 4f + 20f * tau, Flash * (14f * (1 - tau / 0.15f)), 2, H(seed, 70));
+                    AddSprite(FxSheets.Flame, H(seed, 71) * 32f + tau * 40f, engine, 2.5f + 10f * tau, Lit(Flash, 8f * (1 - tau / 0.15f)), H(seed, 72) * 6.2832f);
+                }
+                AddPuff(Sheet.Blast, (tau / 0.8f) * 24f, engine, 3.5f + 3f * tau, 3.5f + 3f * tau, new Color(1f, 1f, 1f, Mathf.Clamp01(k / 0.5f)), (H(seed, 73) - 0.5f) * 0.5f, false, 1.2f);
+                if (tau < 0.3f) _flashes.Add((engine, 70f * Mathf.Exp(-tau * 14f)));
+                for (int j = 0; j < 8; j++)
+                {
+                    float az = H(seed, 80 + j) * 6.2832f, vh = 3f + 6f * H(seed, 90 + j), vv = 1f + 5f * H(seed, 100 + j);
+                    var pos = engine + new Vector3(Mathf.Cos(az) * vh * tau, vv * tau - 4.9f * tau * tau, Mathf.Sin(az) * vh * tau);
+                    Clod(pos, 0.12f + 0.12f * H(seed, 110 + j), new Color(0.12f, 0.12f, 0.1f, 0.95f), H(seed, 120 + j));
+                }
+            }
+            // Its engine burning as it goes down.
+            AddSprite(FxSheets.Flame, H(seed, 130) * 32f + tau * 24f, engine + Vector3.up * 0.3f, 1.3f + 0.3f * Mathf.Sin(tau * 13f), Lit(new Color(1f, 0.7f, 0.4f), 1.8f), H(seed, 131) * 6.2832f);
+            AddGlow(engine, 2f, new Color(1f, 0.5f, 0.2f) * 0.9f, 2, H(seed, 132));
+            // Black smoke out of it, left hanging along the way it came down.
+            for (int k = 1; k <= 16; k++)
+            {
+                float back = tau - 0.11f * k;
+                if (back < 0) break;
+                Downing(call, shot, lands, hitAt + back, out var was, out var wasTurn);
+                var from = was + wasTurn * (Vector3.Scale(new Vector3(0.6f, 2.5f, 0f), Vector3.one * HueySize));
+                float since = tau - back, f = 1 - since / 1.8f;
+                if (f <= 0) continue;
+                Hang(from + Vector3.up * (0.6f * since), 0.7f + 1.5f * Mathf.Sqrt(since), new Color(0.07f, 0.065f, 0.06f, 0.8f * f), H(seed, 140 + k), since);
+            }
+        }
+
+        /// <summary>The shots that brought medevacs down, read from the log as they come: each one's wreck, where and when it strikes and how it lies.</summary>
+        private void ReadShots(SimState st)
+        {
+            if (!ReferenceEquals(st, _shotsOf) || _shotCursor > st.Events.Count)
+            {
+                _shotsOf = st; _shotCursor = 0;
+                _downed.Clear();
+                foreach (var w in _wrecks) { if (w.Body != null) Destroy(w.Body.gameObject); if (w.Rotor != null) Destroy(w.Rotor.gameObject); }
+                _wrecks.Clear();
+            }
+            if (!st.Shootdown) { _shotCursor = st.Events.Count; return; }
+            for (; _shotCursor < st.Events.Count; _shotCursor++)
+            {
+                var shot = st.Events[_shotCursor];
+                if (shot.Kind != EventKind.ShotDown || shot.Target == null || shot.X == null) continue;
+                // Its call: the last call-in of a medevac by that number before it.
+                int c = _shotCursor - 1;
+                while (c >= 0 && !(st.Events[c].Kind == EventKind.CallIn && st.Events[c].Id == shot.Target.Value && st.Events[c].Rounds == Inbound.Dustoff)) c--;
+                if (c < 0) continue;
+                var call = st.Events[c];
+                _downed[shot.Target.Value] = shot;
+                float lands = (float)((call.Amount ?? 0) * Tune.Dt);
+                float crashAt = (float)((shot.Tick - call.Tick) * Tune.Dt) + (float)((shot.Amount ?? 0) * Tune.Dt);
+                Downing(call, shot, lands, crashAt, out _, out var lastTurn);
+                // It strikes and goes over onto its side (or most of the way), as it was turned when it struck.
+                int seed = shot.Rounds;
+                float side = H(seed, 3) < 0.5f ? -1f : 1f;
+                var lie = Quaternion.AngleAxis(side * (70f + 40f * H(seed, 4)), lastTurn * Vector3.right) * lastTurn;
+                _wrecks.Add(new Wreck
+                {
+                    At = (float)((shot.Tick + (shot.Amount ?? 0)) * Tune.Dt),
+                    Where = Coords.World(shot.X.Value, shot.Z.Value, (float)_root.Ground.HeightAt(shot.X.Value, shot.Z.Value)),
+                    Turn = lie, Seed = seed,
+                });
+            }
+        }
+
+        /// <summary>
+        /// The wrecks where medevacs came down: on their side where they struck, blackened, their rotor torn off and
+        /// lying by them; a fireball of their fuel as they strike, then burning, flames along them and a column of
+        /// black smoke leaning off downwind, for most of a minute; and lying there, burnt out, after.
+        /// </summary>
+        private void DrawWrecks(float now)
+        {
+            foreach (var w in _wrecks)
+            {
+                float age = now - w.At;
+                bool shown = age >= 0f && !NoAircraft && Huey != null && Aircraft != null;
+                if (!shown) { if (w.Body != null) w.Body.gameObject.SetActive(false); if (w.Rotor != null) w.Rotor.gameObject.SetActive(false); continue; }
+                if (w.Body == null)
+                {
+                    w.Body = Craft("wreck huey", Huey);
+                    w.Body.localScale = Vector3.one * HueySize;
+                    // On the ground under its lowest corner.
+                    var b = Huey.bounds;
+                    float low = float.MaxValue;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        var corner = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                        low = Mathf.Min(low, (w.Turn * (corner * HueySize)).y);
+                    }
+                    w.Body.SetPositionAndRotation(w.Where - Vector3.up * low * 0.85f, w.Turn);
+                    _burnt ??= new MaterialPropertyBlock();
+                    _burnt.SetColor("_BaseColor", new Color(0.2f, 0.19f, 0.18f));
+                    w.Body.GetComponent<Renderer>().SetPropertyBlock(_burnt);
+                    if (Rotor != null)
+                    {
+                        w.Rotor = Craft("wreck rotor", Rotor);
+                        w.Rotor.localScale = Vector3.one * HueySize;
+                        var off = Quaternion.AngleAxis(H(w.Seed, 5) * 360f, Vector3.up) * Vector3.right * 4.5f;
+                        float g = (float)_root.Ground.HeightAt(w.Where.x + off.x, Coords.SimZ(w.Where.z + off.z));
+                        w.Rotor.SetPositionAndRotation(new Vector3(w.Where.x + off.x, g + 0.25f, w.Where.z + off.z),
+                                                       Quaternion.AngleAxis(H(w.Seed, 6) * 360f, Vector3.up) * Quaternion.AngleAxis(8f + 10f * H(w.Seed, 7), Vector3.right));
+                        w.Rotor.GetComponent<Renderer>().SetPropertyBlock(_burnt);
+                    }
+                }
+                w.Body.gameObject.SetActive(true);
+                if (w.Rotor != null) w.Rotor.gameObject.SetActive(true);
+                var mid = w.Body.TransformPoint(new Vector3(0f, 1.2f, 0f));
+                // Its fuel going up as it strikes.
+                if (age < 1.6f)
+                {
+                    float t = age / 1.6f;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var at = w.Body.TransformPoint(new Vector3((k - 1) * 2.5f, 1.2f, 0f)) + Vector3.up * (1.5f * age);
+                        float size = 5f + 5f * t;
+                        AddPuff(Sheet.Blast, t * 24f, at, size, size, new Color(1f, 1f, 1f, Mathf.Clamp01((1 - t) / 0.5f)), (H(w.Seed, 10 + k) - 0.5f) * 0.6f, false, 1.5f);
+                        if (t < 0.45f) AddSprite(FxSheets.Fire, t * 24f, at, size, Lit(Color.white, 3f * (1 - t / 0.45f)), H(w.Seed, 13 + k));
+                    }
+                    if (age < 0.4f) _flashes.Add((mid + Vector3.up * 2f, 80f * Mathf.Exp(-age * 8f)));
+                }
+                // Burning: flames along it, flickering, for most of a minute.
+                float burn = age < 35f ? 1f : Mathf.Clamp01(1 - (age - 35f) / 15f);
+                if (burn > 0)
+                {
+                    for (int k = 0; k < 5; k++)
+                    {
+                        var at = w.Body.TransformPoint(new Vector3(-3f + 1.8f * k, 1.4f + 0.6f * H(w.Seed, 20 + k), 0f));
+                        float flick = 0.85f + 0.15f * Mathf.Sin(age * (9f + 4f * H(w.Seed, 25 + k)) + k);
+                        float size = (1.0f + 0.9f * H(w.Seed, 30 + k)) * flick * (0.4f + 0.6f * burn);
+                        AddSprite(FxSheets.Flame, H(w.Seed, 35 + k) * 32f + age * (18f + 6f * H(w.Seed, 40 + k)), at + Vector3.up * size * 0.3f, size,
+                                  Lit(new Color(1f, 0.66f, 0.36f), 1.5f * burn), H(w.Seed, 45 + k) * 6.2832f);
+                    }
+                    AddGlow(mid + Vector3.up * 1f, 3.5f, new Color(1f, 0.45f, 0.15f) * (0.7f * burn * (0.85f + 0.15f * Mathf.Sin(age * 11f))), 2, H(w.Seed, 50));
+                }
+                // Black smoke rising off it and leaning away downwind, for a minute and more.
+                float smoke = age < 50f ? Mathf.Clamp01(age / 0.8f) : Mathf.Clamp01(1 - (age - 50f) / 30f);
+                if (smoke > 0)
+                    for (int k = 0; k < 14; k++)
+                    {
+                        float phase = Mathf.Repeat(age * 0.2f + k / 14f + 0.03f * H(w.Seed, 60 + k), 1f);
+                        var at = mid + new Vector3(4f * phase + (H(w.Seed, 70 + k) - 0.5f) * 2f, 1.5f + 15f * phase, (H(w.Seed, 80 + k) - 0.5f) * 2f);
+                        Hang(at, 1.8f + 7f * phase, new Color(0.045f, 0.04f, 0.035f, 0.9f * smoke * (1 - phase) * Mathf.Clamp01(phase / 0.06f)), H(w.Seed, 90 + k), age + 7f * k);
+                    }
             }
         }
 

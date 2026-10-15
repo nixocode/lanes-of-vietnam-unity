@@ -146,6 +146,10 @@ namespace LanesOfVietnam.View
         public bool? Satchel;
         /// <summary>A structure can be broken (MatchOptions.Destruction); null: on, as in the game.</summary>
         public bool? Destruction;
+        /// <summary>The medevac can be shot down (MatchOptions.Shootdown); null: on, as in the game.</summary>
+        public bool? Shootdown;
+        /// <summary>A medevac called in the capture is brought down three seconds out, whatever the dice (downed=1; Shootdown.Force).</summary>
+        public bool Downed;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -217,6 +221,8 @@ namespace LanesOfVietnam.View
                     case "emplace": c.Emplace = v == "1" || v == "true"; break;
                     case "satchel": c.Satchel = v == "1" || v == "true"; break;
                     case "destruction": c.Destruction = v == "1" || v == "true"; break;
+                    case "shootdown": c.Shootdown = v == "1" || v == "true"; break;
+                    case "downed": c.Downed = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable

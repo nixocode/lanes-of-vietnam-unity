@@ -187,6 +187,7 @@ namespace LanesOfVietnam.Tests
             Assert.IsNotNull(combat.Rotor, "the helicopter's rotor is not a mesh of its own");
             Root.Paused = true;
             var st = Root.Driver.State;
+            st.Shootdown = false;           // (this one is not to be brought down: the next test's)
             st.Cp[(int)Side.Us] = 1000;
             Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-medevac", 0, -30));
             yield return Ticks(2);
@@ -217,6 +218,45 @@ namespace LanesOfVietnam.Tests
             Assert.Less(combat.HueyAt.position.x, lx - 40f, "it is not going back the way it came");
             yield return Ticks(3 * Tune.TickHz);
             Assert.IsFalse(combat.HueySeen, "it is gone and still drawn");
+        }
+
+        /// <summary>
+        /// Brought down (MatchOptions.Shootdown; PLAN §12.53): hit three seconds out, it goes down spinning, and where its
+        /// event says it strikes, a burnt wreck lies on its side, burning.
+        /// </summary>
+        [UnityTest, Category("CallIns")]
+        public IEnumerator A_helicopter_brought_down_spins_down_and_lies_where_it_struck()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var combat = Object.FindAnyObjectByType<CombatView>();
+            Root.Paused = true;
+            var st = Root.Driver.State;
+            Assert.IsTrue(st.Shootdown, "the game plays with the rule");
+            st.Cp[(int)Side.Us] = 1000;
+            Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-medevac", 0, -30));
+            yield return Ticks(2);
+            var area = st.Areas.Last(a => a.Kind == AreaKind.Relief);
+            yield return Ticks(area.Wait - Tune.ShootdownAt - 1);
+            Assert.IsTrue(Shootdown.Force(st, area), "nobody to bring it down");
+            var shot = st.Events.Last(e => e.Kind == EventKind.ShotDown);
+
+            // Hit, and going down: spinning.
+            yield return Ticks((int)((CombatView.RocketFlight + 1f) * Tune.TickHz));
+            Assert.IsTrue(combat.HueySeen, "hit, it is not drawn going down");
+            var was = combat.HueyAt.rotation;
+            yield return Ticks(2);
+            Assert.Greater(Quaternion.Angle(was, combat.HueyAt.rotation), 10f, "it is not spinning");
+
+            // Down: a wreck where it struck, and the helicopter no more.
+            yield return Ticks((int)shot.Amount.Value + Tune.TickHz);
+            Assert.IsFalse(combat.HueySeen, "it struck and is still flying");
+            Assert.AreEqual(1, combat.Wrecks, "no wreck");
+            var wreck = combat.transform.Find("wreck huey");
+            Assert.IsNotNull(wreck, "no wreck drawn");
+            Assert.IsTrue(wreck.gameObject.activeSelf);
+            var at = Coords.World(shot.X.Value, shot.Z.Value, 0f);
+            Assert.Less(new Vector2(wreck.position.x - at.x, wreck.position.z - at.z).magnitude, 1f, "it lies away from where it struck");
+            Assert.Greater(Vector3.Angle(wreck.up, Vector3.up), 50f, "it is not on its side");
         }
     }
 }

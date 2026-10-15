@@ -2756,6 +2756,29 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(final, h[h.Count - 1]);
         }
 
+        /// <summary>Recorded by `simcs hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown` (seed 1 brings no medevac down: the destruction pin, unmoved).</summary>
+        [TestCase(1, 5581, 1768901934u, 659696368u, 3526591710u, "vc morale broke")]
+        [TestCase(7, 4870, 3478108901u, 2888612312u, 2300756334u, "us morale broke")]
+        public void With_shootdown_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(), Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true,
+                Arms = true, Senses = true, Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true,
+                Shootdown = true,
+            };
+            Assert.IsFalse(Match.Create(new MatchOptions { Seed = 1 }).Shootdown, "shootdown must be off unless asked for");
+            var m = new LiveMatch(o);
+            var h = new List<uint> { Parity.Hash(m.State, 0) };
+            while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(Parity.Hash(m.State, 0)); }
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(reason, m.State.Reason);
+            Assert.AreEqual(at100, h[100]);
+            Assert.AreEqual(at1000, h[Math.Min(1000, h.Count - 1)]);
+            Assert.AreEqual(final, h[h.Count - 1]);
+        }
+
         /// <summary>
         /// The tower comes down (MatchOptions.Destruction; the owner, 2026-10-12: "the watch tower must be collapsable and
         /// fall, to rpgs and heavy mortars ... don't always have it fall the same way"). Rockets fired at the men up on
@@ -3075,11 +3098,12 @@ namespace LanesOfVietnam.Tests
         /// </summary>
         [TestCase("firebase", 1, 4075, 3468518776u, 3500188192u, 3782637812u, "us morale broke")]
         // (The Wire and First Light again 2026-10-15: the Americans open with fewer men, PLAN §12.52.)
-        [TestCase("the-wire", 3, 5159, 2894096662u, 1502400082u, 4289559225u, "us morale broke")]
-        [TestCase("the-wire", 1, 6000, 2960744763u, 3634959008u, 3538541992u, "us held out")]
+        // (The Wire and The Earth Fights again the same day: a medevac in them was brought down, MatchOptions.Shootdown.)
+        [TestCase("the-wire", 3, 5089, 2894096662u, 1502400082u, 742317118u, "us morale broke")]
+        [TestCase("the-wire", 1, 6000, 2960744763u, 3634959008u, 708840890u, "us held out")]
         [TestCase("first-light", 7, 5971, 4151385837u, 3561230234u, 2227549972u, "us took the line")]
         [TestCase("first-light", 3, 8400, 1396377366u, 4206417747u, 2531584742u, "vc held the line")]
-        [TestCase("earth-fights", 1, 9266, 744082594u, 3112911749u, 3572325795u, "us morale broke")]
+        [TestCase("earth-fights", 1, 7735, 744082594u, 3112911749u, 3312621114u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3152,6 +3176,51 @@ namespace LanesOfVietnam.Tests
                 foreach (var card in Deck.For(side))
                     // (GRENADES is a card only with its rule, MatchOptions.FragCard: off here, as every rule is.)
                     Assert.AreEqual(card != Deck.Grenades(side), Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck, or GRENADES is in one without its rule");
+        }
+
+        /// <summary>
+        /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
+        /// by an RPG that turns into it spinning losing control and crashing into flames", PLAN §12.53). A medevac brought
+        /// down does not steady the line; it comes down where its event says, when it says, and bursts there as a shell
+        /// does. By the dice, The Wire's rocket men bring one down now and then; and the rule draws only from its own
+        /// stream, so a match in which none is brought down is the match without it, to the bit.
+        /// </summary>
+        [Test]
+        public void A_medevac_can_be_brought_down_and_crashes_where_its_event_says()
+        {
+            var m = new LiveMatch(Scenarios.Firebase.Options(4, null, Difficulty.Veteran));
+            var st = m.State;
+            Assert.IsTrue(st.Shootdown, "the game plays with the rule");
+            for (int t = 0; t < 400; t++) m.Step();
+            st.Cp[(int)Side.Us] = 100;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, Deck.Find(Side.Us, "us-medevac"), 0, null, 0), "the medevac was not called");
+            var a = st.Areas.Last(x => x.Kind == AreaKind.Relief);
+            while (a.Wait > Tune.ShootdownAt + 1) m.Step();
+            double was = st.Morale[(int)Side.Us];
+            Assert.IsTrue(Shootdown.Force(st, a), "there was nobody to bring it down");
+            var shot = st.Events.Last(e => e.Kind == EventKind.ShotDown);
+            Assert.AreEqual(a.Id, shot.Target);
+            Assert.AreEqual(Side.Vc, st.Men[shot.Id].Side, "it was brought down by its own side");
+            int crash = shot.Tick + (int)shot.Amount.Value;
+            while (st.Tick <= crash && !st.Over) m.Step();
+            Assert.IsFalse(st.Areas.Any(x => x.Id == a.Id), "it is still on its way");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Shell && e.Tick == crash && e.X == shot.X && e.Z == shot.Z), "it did not burst where and when it came down");
+            Assert.Less(st.Morale[(int)Side.Us] - was, 0.05, "brought down, it steadied the line anyway");
+
+            // By the dice: in The Wire, now and then.
+            int down = 0;
+            for (int seed = 1; seed <= 6; seed++)
+                down += Played(Scenarios.TheWire.Options(seed, null, Difficulty.Veteran)).m.State.Events.Count(e => e.Kind == EventKind.ShotDown);
+            Assert.Greater(down, 0, "the rocket men of six sieges brought down no medevac");
+
+            // Its own stream: a match in which none is brought down is the match without the rule.
+            var on = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            var off = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            off.Shootdown = false;
+            var (hOn, mOn) = Played(on);
+            var (hOff, _) = Played(off);
+            Assert.IsFalse(mOn.State.Events.Any(e => e.Kind == EventKind.ShotDown), "the test's premise: none brought down in this match");
+            Assert.AreEqual(hOff[hOff.Count - 1], hOn[hOn.Count - 1], "the rule moved a match in which it brought nothing down");
         }
 
         /// <summary>

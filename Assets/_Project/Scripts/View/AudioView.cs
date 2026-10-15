@@ -15,6 +15,8 @@ namespace LanesOfVietnam.View
         bool Loaded(string name);
         /// <summary>A sound at a place; <paramref name="delay"/> seconds from now, for the rounds of a burst (kept by the engine's own clock, not the frame's).</summary>
         bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f);
+        /// <summary>Stop every sound of this name, <paramref name="delay"/> seconds from now, fading over <paramref name="fade"/>.</summary>
+        void Stop(string name, float delay, float fade);
         void Listener(float x, float z);
         void Volume(float master, float effects, float ambience);
         void Ambience(string name, float level);
@@ -30,6 +32,7 @@ namespace LanesOfVietnam.View
         [DllImport("__Internal")] private static extern void LovAudio_Load(string name, string url);
         [DllImport("__Internal")] private static extern int LovAudio_Loaded(string name);
         [DllImport("__Internal")] private static extern int LovAudio_Play(string name, float x, float z, float gain, float rate, float occluded, int immediate, float delay);
+        [DllImport("__Internal")] private static extern void LovAudio_Stop(string name, float delay, float fade);
         [DllImport("__Internal")] private static extern void LovAudio_Listener(float x, float z);
         [DllImport("__Internal")] private static extern void LovAudio_Volume(float master, float effects, float ambience);
         [DllImport("__Internal")] private static extern void LovAudio_Ambience(string name, float level);
@@ -39,6 +42,7 @@ namespace LanesOfVietnam.View
         public bool Loaded(string name) => LovAudio_Loaded(name) != 0;
         public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f)
             => LovAudio_Play(name, x, z, gain, rate, occluded, immediate ? 1 : 0, delay) != 0;
+        public void Stop(string name, float delay, float fade) => LovAudio_Stop(name, delay, fade);
         public void Listener(float x, float z) => LovAudio_Listener(x, z);
         public void Volume(float master, float effects, float ambience) => LovAudio_Volume(master, effects, ambience);
         public void Ambience(string name, float level) => LovAudio_Ambience(name, level);
@@ -47,6 +51,7 @@ namespace LanesOfVietnam.View
         public void Load(string name, string url) { }
         public bool Loaded(string name) => false;
         public bool Play(string name, float x, float z, float gain, float rate, float occluded, bool immediate, float delay = 0f) => false;
+        public void Stop(string name, float delay, float fade) { }
         public void Listener(float x, float z) { }
         public void Volume(float master, float effects, float ambience) { }
         public void Ambience(string name, float level) { }
@@ -68,6 +73,9 @@ namespace LanesOfVietnam.View
             Played.Add((name, x, z, gain, immediate, delay));
             return true;
         }
+        /// <summary>What was stopped, and how many seconds after the asking.</summary>
+        public readonly List<(string name, float delay)> Stopped = new List<(string, float)>();
+        public void Stop(string name, float delay, float fade) => Stopped.Add((name, delay));
         public void Listener(float x, float z) { ListenerX = x; ListenerZ = z; }
         public void Volume(float master, float effects, float ambience) { }
         public void Ambience(string name, float level) => AmbienceLevel = level;
@@ -448,6 +456,20 @@ namespace LanesOfVietnam.View
                             if (jet != null) Out.Play(jet, (float)e.X.Value, (float)e.Z.Value, 1f, Range(0.97f, 1.03f), 0f, true, Mathf.Max(0f, lands - 3f));
                         }
                         break;
+                    case EventKind.ShotDown:
+                    {
+                        // Shootdown: the rocket's report where it was fired from, its burst on the helicopter, and its
+                        // rotor gone quiet as it strikes the ground (the crash is a shell's burst: heard as one).
+                        if (e.X == null) break;
+                        float pace = Mathf.Max(0.25f, _root.Speed);
+                        if (e.Id >= 0 && e.Id < st.Men.Count) Play(Pick("rpg"), st.Men[e.Id].X, st.Men[e.Id].Z, 1f, Range(0.95f, 1.05f), false);
+                        string burst = Pick("grenade");
+                        if (burst != null) Out.Play(burst, (float)e.X.Value, (float)e.Z.Value, 1f, 1.1f, 0f, false, CombatView.RocketFlight / pace);
+                        float down = (float)((e.Amount ?? 0) * Tune.Dt) / pace;
+                        if (_sets.TryGetValue("rotor", out var rotors))
+                            foreach (var r in rotors) Out.Stop(r, down, 0.4f);
+                        break;
+                    }
                     case EventKind.FirstContact:
                         if (!_radioed && _root.PlayerSide == Side.Us)
                         {
