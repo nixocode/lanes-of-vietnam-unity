@@ -57,11 +57,11 @@ namespace LanesOfVietnam.Sim
         /// renders as one clump. In a lane game the formation's long axis and
         /// the camera's long axis are the same axis.
         /// </summary>
-        public static void SlotsFor(Squad sq, IReadOnlyList<Man> live,
+        public static void SlotsFor(SimState st, Squad sq, IReadOnlyList<Man> live,
                                     double anchorX, double anchorZ, List<Slot> into)
         {
             into.Clear();
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             for (int i = 0; i < live.Count; i++)
             {
                 into.Add(new Slot
@@ -82,10 +82,10 @@ namespace LanesOfVietnam.Sim
         /// floor against floor ran twelve matches to the cap with zero
         /// casualties.
         /// </summary>
-        public static void Reanchor(Squad sq, IReadOnlyList<Man> live)
+        public static void Reanchor(SimState st, Squad sq, IReadOnlyList<Man> live)
         {
             if (live.Count == 0) return;
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             double sz = 0, lead = double.NegativeInfinity, rear = double.PositiveInfinity;
             for (int i = 0; i < live.Count; i++)
             {
@@ -113,9 +113,9 @@ namespace LanesOfVietnam.Sim
         /// Move a squad's anchor under its order. The men chase their slots;
         /// this is the only thing that makes a squad go anywhere.
         /// </summary>
-        public static void March(Squad sq, Cover toward)
+        public static void March(SimState st, Squad sq, Cover toward)
         {
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             if (sq.Order == Order.Hold) return;
 
             if (sq.Order == Order.Fallback)

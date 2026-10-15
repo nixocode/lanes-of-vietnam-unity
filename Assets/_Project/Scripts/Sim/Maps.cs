@@ -39,8 +39,16 @@ namespace LanesOfVietnam.Sim
         public int OldCraters = 9;
         public double[] OldCraterBandsZ = { 12.5, -12.5, -17.0 };
         public Post[] Posts = new Post[0];
+        /// <summary>The Americans start at the east end and advance west (and the VC the other way): Rice Fields. False, as on the firebase: the west.</summary>
+        public bool UsEast;
+        /// <summary>Its bank's gaps are where its ground's would be turned end for end (Maps.Mirrored): sin(-x k + p) is sin(x k + pi - p).</summary>
+        public bool BankMirrored;
 
-        /// <summary>The map's cover, in x order, ids assigned. A fresh copy each call.</summary>
+        /// <summary>
+        /// The map's cover, in order from the Americans' end (x order on the firebase), ids assigned. A fresh copy each
+        /// call. (From their end so that a map turned end for end gives each piece the id it had: where two choices tie,
+        /// the lower id is taken, and that should not depend on which end a side starts from.)
+        /// </summary>
         public List<Cover> Cover()
         {
             var list = new List<Cover>(Pieces.Length);
@@ -58,7 +66,8 @@ namespace LanesOfVietnam.Sim
                     Quality = (spec.qLo + spec.qHi) * 0.5,
                 });
             }
-            list.Sort((a, b) => a.X.CompareTo(b.X));
+            if (UsEast) list.Sort((a, b) => b.X.CompareTo(a.X));
+            else list.Sort((a, b) => a.X.CompareTo(b.X));
             for (int i = 0; i < list.Count; i++) list[i].Id = i;
             return list;
         }
@@ -151,7 +160,7 @@ namespace LanesOfVietnam.Sim
             var rng = new Rng(GroundShape.Seed);
             double o = 0;
             for (int i = 0; i < 5; i++) o = rng.Range(-800, 800);
-            return (GroundShape.BermZ, GroundShape.BermHeight, o);
+            return (GroundShape.BermZ, GroundShape.BermHeight, BankMirrored ? Math.PI - o : o);
         }
     }
 
@@ -200,6 +209,35 @@ namespace LanesOfVietnam.Sim
         };
 
         public static readonly MapDef[] All = { Firebase };
+
+        /// <summary>
+        /// A map turned end for end: its cover and its posts at the other ends, and the Americans starting where the VC
+        /// did (MapDef.UsEast). Not a map anyone plays: it measures that nothing about a side depends on which end of the
+        /// map it starts from (PLAN, Rice Fields R1). Its ground is drawn as the map's own, unturned; the bank between the
+        /// lanes, which is all of the ground the simulation reads, is turned with it (its gaps).
+        /// </summary>
+        public static MapDef Mirrored(MapDef m)
+        {
+            var pieces = new MapPiece[m.Pieces.Length];
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                var p = m.Pieces[i];
+                pieces[i] = new MapPiece(p.Kind, p.Lane, -p.X, p.Dz, p.Length);
+            }
+            var posts = new Post[m.Posts.Length];
+            for (int i = 0; i < posts.Length; i++)
+            {
+                posts[i] = m.Posts[i].Clone();
+                posts[i].X = -posts[i].X;
+                posts[i].FootX = -posts[i].FootX;
+            }
+            return new MapDef
+            {
+                Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape,
+                CraterSeed = m.CraterSeed, OldCraters = m.OldCraters, OldCraterBandsZ = m.OldCraterBandsZ, Posts = posts, UsEast = !m.UsEast,
+                BankMirrored = !m.BankMirrored,
+            };
+        }
 
         /// <summary>The map of that name, or null.</summary>
         public static MapDef ById(string id)

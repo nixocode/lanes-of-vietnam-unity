@@ -187,7 +187,7 @@ namespace LanesOfVietnam.Sim
         /// <summary>The enemy in front of a squad, in its lane and within the assault's reach: how many, how many of them with their heads down, and whether a machine gun of his is still up.</summary>
         public static void Front(SimState st, Squad sq, out int enemies, out int down, out bool gunUp)
         {
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             enemies = 0; down = 0; gunUp = false;
             for (int i = 0; i < st.Men.Count; i++)
             {

@@ -55,11 +55,14 @@ namespace LanesOfVietnam.Sim
             p.Fallen = true;
             p.Strength = 0;
             // Away from the burst that finished it (or any way, if it burst on it square), turned by up to 40 degrees.
-            double dx = p.X - p.LastHitX, dz = p.Z - p.LastHitZ;
+            // (Worked out as seen from the Americans' end, x turned by SimState.UsSign, so a map turned end for end turns
+            // its fall with it; the event's way is the world's.)
+            double dx = (p.X - p.LastHitX) * st.UsSign, dz = p.Z - p.LastHitZ;
             double away = JsMath.Hypot(dx, dz) > 0.3 ? Math.Atan2(dz, dx) : rng.Next() * Math.PI * 2;
             double way = away + (rng.Next() - 0.5) * Tune.TowerFallSpread * 2;
             int seed = (int)(rng.Next() * 1000000);
-            st.Events.Add(new SimEvent { Kind = EventKind.Collapsed, Tick = st.Tick, Id = p.Id, X = p.X, Z = p.Z, Amount = way * 180 / Math.PI, Rounds = seed });
+            double world = st.UsSign > 0 ? way : Math.PI - way;
+            st.Events.Add(new SimEvent { Kind = EventKind.Collapsed, Tick = st.Tick, Id = p.Id, X = p.X, Z = p.Z, Amount = world * 180 / Math.PI, Rounds = seed });
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var m = st.Men[i];
@@ -71,7 +74,7 @@ namespace LanesOfVietnam.Sim
                 double off = (rng.Next() - 0.5) * 2;
                 bool killed = m.Alive && rng.Next() < Tune.TowerFallKill;
                 if (m.Alive && !killed) off = (off < 0 ? -1 : 1) * (2.6 + Math.Abs(off) * 1.5);
-                m.X = p.FootX + Math.Cos(way) * r - Math.Sin(way) * off;
+                m.X = p.FootX + (Math.Cos(way) * r - Math.Sin(way) * off) * st.UsSign;
                 m.Z = p.FootZ + Math.Sin(way) * r + Math.Cos(way) * off;
                 m.High = 0; m.Climb = 0;
                 if (!m.Alive) continue;

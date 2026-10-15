@@ -172,7 +172,7 @@ namespace LanesOfVietnam.Tests
             var f = army.FigureOf(crew.Id);
             Assert.IsFalse(f.Rifle.enabled, "the tube is set up and still in his hands");
             Assert.Less(Vector3.Distance(set.position, f.transform.position), 1.2f, "the set-up tube is not by its man");
-            Assert.Greater((set.position.x - f.transform.position.x) * (float)Combat.Advance(Side.Us), 0f, "the tube stands behind him, not toward the enemy");
+            Assert.Greater((set.position.x - f.transform.position.x) * (float)Combat.Advance(st, Side.Us), 0f, "the tube stands behind him, not toward the enemy");
             Assert.IsTrue(army.TryMuzzle(crew.Id, out var muzzle));
             Assert.Less(Vector3.Distance(muzzle, set.TransformPoint(army.MortarMuzzle)), 1e-3f, "its bombs do not leave the tube on the ground");
             Assert.Greater(muzzle.y - set.position.y, 0.5f, "the muzzle is not up the tube");

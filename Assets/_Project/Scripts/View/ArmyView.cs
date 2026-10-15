@@ -60,7 +60,7 @@ namespace LanesOfVietnam.View
             if (set != null && set.gameObject.activeSelf != up) set.gameObject.SetActive(up);
             if (f != null && f.Rifle != null && f.Rifle.enabled == up && m.Alive) f.Rifle.enabled = !up;
             if (!up || !m.Alive) return;
-            var ahead = new Vector3((float)Combat.Advance(m.Side), 0, 0);
+            var ahead = new Vector3((float)Combat.Advance(st, m.Side), 0, 0);
             var p = at + ahead * MortarAhead;
             p.y = (float)g.HeightAt(p.x, Coords.SimZ(p.z));
             set.SetPositionAndRotation(p, Quaternion.LookRotation(ahead, Vector3.up) * FiresAhead);

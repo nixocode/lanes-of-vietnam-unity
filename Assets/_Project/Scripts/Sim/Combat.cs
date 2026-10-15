@@ -19,8 +19,11 @@ namespace LanesOfVietnam.Sim
     {
         public static Side Other(Side s) => s == Side.Us ? Side.Vc : Side.Us;
 
-        /// <summary>Which way a side advances along X. US pushes +x, VC pushes -x.</summary>
-        public static double Advance(Side s) => s == Side.Us ? 1 : -1;
+        /// <summary>
+        /// Which way a side advances along X: on the firebase the Americans push +x and the VC -x; a map may have them
+        /// start at the other ends (MapDef.UsEast, SimState.UsSign: Rice Fields, VC in the west).
+        /// </summary>
+        public static double Advance(SimState st, Side s) => (s == Side.Us ? 1 : -1) * st.UsSign;
 
         public static double Dist(double ax, double az, double bx, double bz)
             => JsMath.Hypot(ax - bx, az - bz);
@@ -400,7 +403,7 @@ namespace LanesOfVietnam.Sim
                 // reason to put covering fire down.
                 if (m.Seen)
                 {
-                    double forward = m.X * Advance(sq.Side);
+                    double forward = m.X * Advance(st, sq.Side);
                     if (!ix.HasLead[k] || forward > ix.Lead[k])
                     {
                         ix.Lead[k] = forward;
@@ -418,7 +421,7 @@ namespace LanesOfVietnam.Sim
                 var enemy = Other(sq.Side);
                 int ek = LaneIndex.Key(enemy, sq.Lane);
                 if (!ix.HasLead[ek]) continue;
-                double enemyX = ix.Lead[ek] * Advance(enemy);
+                double enemyX = ix.Lead[ek] * Advance(st, enemy);
                 if (Math.Abs(enemyX - m.X) > Tune.Range) continue;
                 var set = ix.Firing[LaneIndex.Key(sq.Side, sq.Lane)];
                 if (!set.Contains(m.Squad)) set.Add(m.Squad);

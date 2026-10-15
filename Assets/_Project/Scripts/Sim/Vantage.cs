@@ -150,8 +150,8 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>Where the k-th man of a squad stands on the platform.</summary>
-        public static (double x, double z) Place(Post post, int k)
-            => (post.X + (k % 3 - 1) * Tune.PostSpacing, post.Z - 0.35 - (k / 3) * 0.8);
+        public static (double x, double z) Place(SimState st, Post post, int k)
+            => (post.X + (k % 3 - 1) * Tune.PostSpacing * st.UsSign, post.Z - 0.35 - (k / 3) * 0.8);
 
         /// <summary>His weapon as it is from up there: further, surer, and into cover.</summary>
         public static Arm From(Arm a, Weapon w)
@@ -235,7 +235,7 @@ namespace LanesOfVietnam.Sim
                             // Onto the platform, and down behind its bags.
                             want = Posture.Crouched;
                             m.High = post.Height;
-                            (m.X, m.Z) = Place(post, m.Rank);
+                            (m.X, m.Z) = Place(st, post, m.Rank);
                             if (!anyUp)
                             {
                                 anyUp = true;
@@ -265,7 +265,7 @@ namespace LanesOfVietnam.Sim
                     int ahead = 0;
                     for (int j = 0; j < live.Count; j++)
                         if (live[j] != m && live[j].High <= 0 && live[j].Climb == 0 && live[j].Rank < m.Rank) ahead++;
-                    double tx = post.FootX - Combat.Advance(sq.Side) * ahead * Tune.PostQueue, tz = post.FootZ;
+                    double tx = post.FootX - Combat.Advance(st, sq.Side) * ahead * Tune.PostQueue, tz = post.FootZ;
                     double dx = tx - m.X, dz = tz - m.Z, d = JsMath.Hypot(dx, dz);
                     if (ahead > 0)
                     {
@@ -310,7 +310,7 @@ namespace LanesOfVietnam.Sim
                 sq.Leaving = false;
                 sq.Halted = false;
                 sq.Order = sq.PlayerOrder ?? Order.Advance;
-                sq.AnchorX = post.FootX + Combat.Advance(sq.Side) * Tune.AnchorLeash;
+                sq.AnchorX = post.FootX + Combat.Advance(st, sq.Side) * Tune.AnchorLeash;
                 sq.AnchorZ = Tune.Lanes[sq.Lane];
                 if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             }

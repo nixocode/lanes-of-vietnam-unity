@@ -150,7 +150,7 @@ namespace LanesOfVietnam.Sim
 
             if (card.Pips > 0)
             {
-                double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
+                double x = Combat.Advance(st, side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
                 var raised = Match.SpawnSquad(st, side, lane, x, rng, card: card.Id);
                 if (post >= 0) Vantage.Send(st, raised, post);
                 return true;
@@ -197,7 +197,7 @@ namespace LanesOfVietnam.Sim
                 // A tunnel puts men where they should not be able to be: the one
                 // card that ignores the spawn edge.
                 case "vc-tunnel":
-                    Match.SpawnSquad(st, side, lane, aimX + rng.Range(-8, 8), rng);
+                    Match.SpawnSquad(st, side, lane, aimX + rng.Range(-8, 8) * st.UsSign, rng);
                     return true;
                 default:
                     throw new InvalidOperationException($"card {card.Id} has no effect written for it");

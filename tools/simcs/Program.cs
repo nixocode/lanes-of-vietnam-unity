@@ -66,6 +66,7 @@ namespace LanesOfVietnam.SimCs
                     "blasts" => Blasts(args),
                     "post" => PostTable(args),
                     "scenario" => ScenarioTable(args),
+                    "mirror" => MirrorCheck(args),
                     "squadsmoke" => SquadSmokeCount(args),
                     "towerfalls" => TowerFalls(args),
                     "shootdowns" => Shootdowns(args),
@@ -692,6 +693,8 @@ namespace LanesOfVietnam.SimCs
                             if (a.Contains("noemplace")) opts.Emplace = false;
                             if (a.Contains("nodestruction")) opts.Destruction = false;
                             if (a.Contains("noshootdown")) opts.Shootdown = false;
+                            // `mirror`: the scenario's map turned end for end, the Americans in the east (Maps.Mirrored).
+                            if (a.Contains("mirror")) { opts.Map = Maps.Mirrored(opts.Map ?? Maps.Firebase); opts.Cover = opts.Map.Cover(); if (opts.Objectives != null) opts.Objectives = Match.LastLine(opts.Cover, sc.Defender, sc.LineBack, -1); }
                             // `usopen=N`: the Americans open with N men at least, in place of the scenario's (`usopen=0`: none).
                             string usOpen = a.Where(x => x.StartsWith("usopen=")).Select(x => x.Substring(7)).FirstOrDefault();
                             if (usOpen != null)
@@ -750,6 +753,84 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// `mirror [seeds] [scenario] [aiposts]`: each operation played as the game plays it with nobody playing, and again on its map
+        /// turned end for end (Maps.Mirrored), tick by tick: where the second first stops being the first seen in a mirror
+        /// (a man at -x where he was at x), and who won each. Nothing about a side should depend on which end it starts from.
+        /// </summary>
+        private static int MirrorCheck(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seeds = nums.Length > 0 ? nums[0] : 8;
+            string only = a.Skip(1).FirstOrDefault(x => Scenarios.ById(x) != null);
+            foreach (var sc in Scenarios.All)
+            {
+                if (only != null && sc.Id != only) continue;
+                int same = 0, whole = 0;
+                for (int seed = 1; seed <= seeds; seed++)
+                {
+                    var o1 = sc.Options(seed, null, Difficulty.Veteran);
+                    var o2 = sc.Options(seed, null, Difficulty.Veteran);
+                    // `aiposts`: the computer mans its tower, which the game does not do, so the posts' rules are seen mirrored too.
+                    if (a.Contains("aiposts")) { o1.ComputerPosts = true; o2.ComputerPosts = true; }
+                    o2.Map = Maps.Mirrored(o2.Map ?? Maps.Firebase);
+                    o2.Cover = o2.Map.Cover();
+                    if (o2.Objectives != null) o2.Objectives = Match.LastLine(o2.Cover, sc.Defender, sc.LineBack, -1);
+                    var m1 = new LiveMatch(o1);
+                    var m2 = new LiveMatch(o2);
+                    string where = null;
+                    int apart = -1;
+                    while (where == null && !m1.State.Over && m1.State.Tick < m1.Cap)
+                    {
+                        int e1 = m1.State.Events.Count, e2 = m2.State.Events.Count;
+                        m1.Step(); m2.Step();
+                        var s1 = m1.State; var s2 = m2.State;
+                        // The random streams: the same number drawn from each, or a choice went another way.
+                        foreach (var (name, r1, r2) in Streams(m1, m2))
+                            if (where == null && RngState(r1) != RngState(r2)) where = $"the {name} stream";
+                        // What happened this tick, in order.
+                        int n1 = s1.Events.Count - e1, n2 = s2.Events.Count - e2;
+                        for (int k = 0; k < Math.Max(n1, n2) && where == null; k++)
+                        {
+                            if (k >= n1 || k >= n2) { where = $"{n1} and {n2} events: {(k < n1 ? Ev(s1.Events[e1 + k]) : Ev(s2.Events[e2 + k]))} in {(k < n1 ? "the first" : "the mirror")} only"; break; }
+                            SimEvent x1 = s1.Events[e1 + k], x2 = s2.Events[e2 + k];
+                            if (x1.Kind != x2.Kind || x1.Id != x2.Id || x1.Side != x2.Side || x1.Target != x2.Target
+                                || (x1.X.HasValue && Math.Abs(x1.X.Value + x2.X.Value) > 1e-6) || (x1.Z.HasValue && Math.Abs(x1.Z.Value - x2.Z.Value) > 1e-6))
+                                where = $"event {Ev(x1)} and {Ev(x2)}";
+                        }
+                        if (where != null) break;
+                        if (s1.Men.Count != s2.Men.Count) { where = $"men {s1.Men.Count} and {s2.Men.Count}"; break; }
+                        for (int i = 0; i < s1.Men.Count && where == null; i++)
+                        {
+                            Man p = s1.Men[i], q = s2.Men[i];
+                            if (p.Alive != q.Alive || p.Posture != q.Posture || Math.Abs(p.X + q.X) > 1e-6 || Math.Abs(p.Z - q.Z) > 1e-6)
+                                where = $"man {p.Id} ({p.Side}, squad {p.Squad}, {st1Task(s1, p)}): {p.X:F4},{p.Z:F4} {p.Posture} {(p.Alive ? "" : "dead")} and {q.X:F4},{q.Z:F4} {q.Posture} {(q.Alive ? "" : "dead")}";
+                        }
+                    }
+                    if (where == null) whole++; else apart = m1.State.Tick;
+                    // Played out, to see who won each.
+                    while (!m1.State.Over && m1.State.Tick < m1.Cap) m1.Step();
+                    while (!m2.State.Over && m2.State.Tick < m2.Cap) m2.Step();
+                    if (m1.State.Winner == m2.State.Winner) same++;
+                    Console.WriteLine($"  {sc.Id} seed {seed}: {(where == null ? "a mirror throughout" : $"apart at tick {apart}: {where}")}; won by {m1.State.Winner?.ToString() ?? "-"} and {m2.State.Winner?.ToString() ?? "-"}");
+                }
+                Console.WriteLine($"  {sc.Id}: a mirror throughout in {whole}/{seeds}, the same side won in {same}/{seeds}");
+            }
+            return 0;
+
+            static string st1Task(SimState st, Man p) => $"{st.Squads[p.Squad].Task} {st.Squads[p.Squad].Order}";
+            static string Ev(SimEvent e) => $"{e.Kind} {e.Side} id {e.Id} target {e.Target} at {e.X:F3},{e.Z:F3} amount {e.Amount:F3}";
+            static uint RngState(Rng r) => r == null ? 0 : (uint)typeof(Rng).GetField("_s", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(r);
+            static IEnumerable<(string, Rng, Rng)> Streams(LiveMatch a, LiveMatch b)
+            {
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+                foreach (var f in typeof(LiveMatch).GetFields(flags))
+                    if (f.FieldType == typeof(Rng)) yield return ("match's " + f.Name, (Rng)f.GetValue(a), (Rng)f.GetValue(b));
+                foreach (var f in typeof(SimState).GetFields(flags))
+                    if (f.FieldType == typeof(Rng)) yield return (f.Name, (Rng)f.GetValue(a.State), (Rng)f.GetValue(b.State));
+            }
+        }
+
         private static MatchOptions Game(int seed, string[] a)
         {
             // `scenario=<id>`: the scenario as the game plays it against a Veteran with nobody playing, in place of the flags.
@@ -806,7 +887,7 @@ namespace LanesOfVietnam.SimCs
                     var foe = st.Men.Where(e => e.Alive && e.Side != p.Side).OrderBy(e => Combat.Dist(p, e)).FirstOrDefault();
                     var quarry = p.Alive && st.Fieldcraft ? Fieldcraft.Quarry(st, p, q) : null;
                     // (His place, as near as it can be said from outside: his place in cover, or his rank's behind the anchor.)
-                    double pdir = Combat.Advance(p.Side);
+                    double pdir = Combat.Advance(st, p.Side);
                     double sx = p.Place >= 0 && p.PlaceCover >= 0 ? Fieldcraft.PlaceOf(st.Cover[p.PlaceCover], p.Place, pdir).X : q.AnchorX - pdir * p.Rank * Cohesion.Gap(st, q);
                     Console.WriteLine($"  t{st.Tick} man {p.Id} {(p.Alive ? "" : "DEAD ")}{p.X,6:F2},{p.Z,6:F2} {p.Posture,-8} pin {p.Pin:F2} rest {p.Rest,3} cd {p.Cooldown,2} cover {p.Cover,2} place {p.Place}@{p.PlaceCover} rank {p.Rank}{(p.Vault > 0 ? " vault" : "")}{(p.Reloading > 0 ? " reload" : "")} | sq{q.Id} {q.Order} {q.Task} tgt {q.Target} anchor {q.AnchorX:F1},{q.AnchorZ:F1} {(q.Halted ? "halt" : "go")} threat {q.Threat} | quarry {(quarry == null ? "-" : quarry.Id.ToString())} nearest {(foe == null ? "-" : $"{foe.Id} at {foe.X:F1},{foe.Z:F1} {Combat.Dist(p, foe):F1} m")} | place x {sx:F1} ({(sx - p.X) * pdir:+0.0;-0.0} m on) dwell {p.Dwell} wait {p.Wait} still {(p.Still ? 1 : 0)} turn {(Tactics.Turn(st, q, p) ? 1 : 0)} seen {(q.ThreatSeen ? 1 : 0)}");
                 }
@@ -924,7 +1005,7 @@ namespace LanesOfVietnam.SimCs
                             if (by.Posture == Posture.Standing) shotStanding++;
                             double ax = at.X - by.X, az = at.Z - by.Z;
                             if (Math.Abs(az) > Math.Abs(ax)) shotSteep++;
-                            if (ax * Combat.Advance(by.Side) < -2) shotBack++;
+                            if (ax * Combat.Advance(st, by.Side) < -2) shotBack++;
                         }
                     }
 
@@ -1110,7 +1191,7 @@ namespace LanesOfVietnam.SimCs
                     foreach (var sq in st.Squads)
                     {
                         if (sq.Post >= 0) continue;
-                        var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).OrderBy(x => x.X * Combat.Advance(sq.Side)).ToList();
+                        var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).OrderBy(x => x.X * Combat.Advance(st, sq.Side)).ToList();
                         if (men.Count == 0) continue;
                         // Its task, and whether it has just gone back to the one it left under three seconds ago.
                         if (!taskWas.TryGetValue(sq.Id, out var tw)) tw = (sq.Task, sq.Task, st.Tick);
@@ -1136,7 +1217,7 @@ namespace LanesOfVietnam.SimCs
                         length[what] = (l.sum + span * Tune.Dt, l.n + Tune.Dt, l.strung + (span > 8 ? Tune.Dt : 0));
                         // Men left behind: further than 6 m back from the middle man. A lead man out alone: 5 m or more ahead of the next.
                         double mid = men[men.Count / 2].X;
-                        foreach (var x in men) if ((mid - x.X) * Combat.Advance(sq.Side) > 6) behind += Tune.Dt;
+                        foreach (var x in men) if ((mid - x.X) * Combat.Advance(st, sq.Side) > 6) behind += Tune.Dt;
                         if (Math.Abs(men[men.Count - 1].X - men[men.Count - 2].X) >= 5 && sq.Order != Order.Fallback) alone += Tune.Dt;
                         // One man of it walking while every other is still: a man coming up by himself.
                         int moving = men.Count(x => was.TryGetValue(x.Id, out double wx) && Math.Abs(x.X - wx) > 0.02);
@@ -1773,7 +1854,7 @@ namespace LanesOfVietnam.SimCs
                                     beside += Tune.Dt;
                                     if (target != null) besideFight += Tune.Dt;
                                     if (Tactics.Bounds(st, sq) && !Tactics.Turn(st, sq, p)) besideCovering += Tune.Dt;
-                                    double ahead = (p.X - by.X) * Combat.Advance(p.Side);
+                                    double ahead = (p.X - by.X) * Combat.Advance(st, p.Side);
                                     string where = Math.Abs(p.X - by.X) <= by.Length * 0.5 ? "alongside it" : ahead > 0 ? "in front of it" : "behind it";
                                     string k = $"{sq.Side} {sq.Task,-9} {(sq.Halted ? "halted" : "going ")} {p.Posture,-8} {where,-14} {(sq.Target == by.Id ? "its squad's cover" : sq.Target >= 0 ? "squad has other cover" : "squad has no cover")}{(target != null ? ", enemy in range" : "")}";
                                     besideBy[k] = besideBy.GetValueOrDefault(k) + Tune.Dt;
@@ -2062,7 +2143,7 @@ namespace LanesOfVietnam.SimCs
                                             : st.Tick - g.tick < Tune.AssaultMax ? "told to hold where it was"
                                             : Alive(g.threat) * 2 > live.Count * 4 ? "it was outnumbered two to one"
                                             : st.Men.Any(e => e.Alive && e.Side != sq.Side && (e.Weapon == Weapon.M60 || e.Weapon == Weapon.Rpd) && e.Pin < Tune.PinDrop && Math.Abs(e.X - sq.AnchorX) <= Tune.AssaultReach && st.Squads[e.Squad].Lane == sq.Lane) ? "a machine gun was up in front of it"
-                                            : !st.Men.Any(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5 && (e.X - sq.AnchorX) * Combat.Advance(sq.Side) >= 0 && (e.X - sq.AnchorX) * Combat.Advance(sq.Side) <= Tune.AssaultReach && Senses.Remembers(st, sq, e.Squad)) ? "nobody left in front of it"
+                                            : !st.Men.Any(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) >= 0 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) <= Tune.AssaultReach && Senses.Remembers(st, sq, e.Squad)) ? "nobody left in front of it"
                                             : "stopped short of him, its own heads going down")
                                        : $"back to a {sq.Task.ToString().ToLower()}";
                             assaultEnd[end] = assaultEnd.GetValueOrDefault(end) + 1;

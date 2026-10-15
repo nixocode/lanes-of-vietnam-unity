@@ -826,7 +826,7 @@ namespace LanesOfVietnam.Tests
                         // Thrown by whoever is nearest, so played a few paces in front of one of the side's men.
                         var by = st.Men.First(m => m.Alive && m.Side == side && m.Grenades > 0 && m.High == 0);
                         lane = System.Math.Abs(by.Z - Tune.Lanes[0]) < System.Math.Abs(by.Z - Tune.Lanes[1]) ? 0 : 1;
-                        x = by.X + Combat.Advance(side) * 6;
+                        x = by.X + Combat.Advance(st, side) * 6;
                     }
                     Assert.IsTrue(dep.Place(lane, x), $"{card.Id} would not place");
                     Root.Driver.FastForward(1);

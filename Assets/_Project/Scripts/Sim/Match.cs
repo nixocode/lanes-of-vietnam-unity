@@ -272,7 +272,7 @@ namespace LanesOfVietnam.Sim
             if (st.Tactics && kit != null && !kit.Assaults && kit.Men[0] == Weapon.Sniper) sq.Reach = Tune.SniperReach;
             if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             int n = size ?? rng.Int(Tune.SquadMin, Tune.SquadMax + 1);
-            double dir = Combat.Advance(side);
+            double dir = Combat.Advance(st, side);
             for (int i = 0; i < n; i++)
             {
                 // Draw order as the original's object literal: z, then cooldown.
@@ -362,8 +362,10 @@ namespace LanesOfVietnam.Sim
             var map = opts.Map ?? Maps.Firebase;
             (st.BankZ, st.BankHeight, st.BankPhase) = map.Bank();
             if (opts.Vantage) st.Posts = map.PostList();
-            st.Front[(int)Side.Us] = -Tune.HalfLength * 0.6;
-            st.Front[(int)Side.Vc] = Tune.HalfLength * 0.6;
+            // Where each side's front starts: at its own end (MapDef.UsEast: a map may have the Americans in the east).
+            st.UsSign = (opts.Map ?? Maps.Firebase).UsEast ? -1 : 1;
+            st.Front[(int)Side.Us] = -st.UsSign * Tune.HalfLength * 0.6;
+            st.Front[(int)Side.Vc] = st.UsSign * Tune.HalfLength * 0.6;
 
             // A fork reads the parent's state without drawing from it, so this
             // is the same whether or not the map supplies its own cover.
@@ -383,7 +385,7 @@ namespace LanesOfVietnam.Sim
                 int placed = 0, lane = opens;
                 while (placed < strength)
                 {
-                    double x = st.Front[(int)side] + Combat.Advance(side) * rng.Range(-6, 6);
+                    double x = st.Front[(int)side] + Combat.Advance(st, side) * rng.Range(-6, 6);
                     var sq = SpawnSquad(st, side, lane % Tune.Lanes.Length, x, rng);
                     placed += Squads.Roster(st, sq.Id).Count;
                     lane++;
@@ -400,12 +402,13 @@ namespace LanesOfVietnam.Sim
         /// A side's position in each lane, counted from its own end of the map: its last (back = 0), the one
         /// before it (1), and so on. Cover ids, a lane each; a lane with none that far back is left out.
         /// </summary>
-        public static int[] LastLine(SimState st, Side side, int back = 0) => LastLine(st.Cover, side, back);
+        public static int[] LastLine(SimState st, Side side, int back = 0) => LastLine(st.Cover, side, back, st.UsSign);
 
-        public static int[] LastLine(IReadOnlyList<Cover> cover, Side side, int back = 0)
+        /// <param name="usSign">Which way the Americans advance on the map (SimState.UsSign): +1 from the west.</param>
+        public static int[] LastLine(IReadOnlyList<Cover> cover, Side side, int back = 0, double usSign = 1)
         {
             var line = new List<int>();
-            double dir = Combat.Advance(side);
+            double dir = (side == Side.Us ? 1 : -1) * usSign;
             var inLane = new List<Cover>();
             for (int lane = 0; lane < Tune.Lanes.Length; lane++)
             {
@@ -488,7 +491,7 @@ namespace LanesOfVietnam.Sim
 
         private static void MoveMan(SimState st, Man m, Squad sq, Slot slot, Plan plan)
         {
-            double dir = Combat.Advance(m.Side);
+            double dir = Combat.Advance(st, m.Side);
             m.Idle = Idle.No;
 
             // Posture, with one dwell where every input funnels through
@@ -777,7 +780,7 @@ namespace LanesOfVietnam.Sim
                     // the squad moves, and men fall after that: a squad whose lead man had just been
                     // shot twelve metres ahead of the rest broke, chose the cover "behind it" from
                     // where he had been, and ran forward to it, toward the enemy (review, PLAN §12.23).
-                    Squads.Reanchor(sq, live);
+                    Squads.Reanchor(st, sq, live);
                     sq.Order = Senses.Decide(st, sq, live, plan, original.TryGetValue(sq.Id, out int was0) ? was0 : live.Count, prev);
                 }
                 // Part 2 (MatchOptions.Drill): the policy's order, steadied.
@@ -814,14 +817,14 @@ namespace LanesOfVietnam.Sim
                 }
                 if (needCover)
                 {
-                    sq.Target = Combat.BestCover(st, sq.AnchorX, sq.Lane, Combat.Advance(sq.Side), plan.Advance);
+                    sq.Target = Combat.BestCover(st, sq.AnchorX, sq.Lane, Combat.Advance(st, sq.Side), plan.Advance);
                 }
                 // Order, then march, then leash to the live roster (§9 finding 1).
                 var coverTarget = plan.UseCover && sq.Target >= 0 ? st.Cover[sq.Target] : null;
-                Squads.March(sq, coverTarget);
-                Squads.Reanchor(sq, live);
+                Squads.March(st, sq, coverTarget);
+                Squads.Reanchor(st, sq, live);
                 if (st.Drill) Drill.SlotsFor(st, sq, live, sq.AnchorX, sq.AnchorZ, slots);
-                else Squads.SlotsFor(sq, live, sq.AnchorX, sq.AnchorZ, slots);
+                else Squads.SlotsFor(st, sq, live, sq.AnchorX, sq.AnchorZ, slots);
                 for (int i = 0; i < live.Count; i++) MoveMan(st, live[i], sq, slots[i], plan);
             }
 
@@ -879,7 +882,7 @@ namespace LanesOfVietnam.Sim
             // --- morale, ground and command points -------------------------------
             foreach (var side in Sides)
             {
-                double dir = Combat.Advance(side);
+                double dir = Combat.Advance(st, side);
                 double lead = double.NegativeInfinity;
                 for (int i = 0; i < st.Men.Count; i++)
                 {
@@ -899,7 +902,7 @@ namespace LanesOfVietnam.Sim
             {
                 if (st.Phase == Phase.Opening) break;
                 var enemy = Combat.Other(side);
-                double penetration = Math.Max(0, st.Front[(int)enemy] * Combat.Advance(enemy));
+                double penetration = Math.Max(0, st.Front[(int)enemy] * Combat.Advance(st, enemy));
                 if (penetration > 0)
                 {
                     double loss = penetration * Tune.MoralePerGround * Tune.Dt * st.MoraleScale * st.Will[(int)side];
@@ -949,7 +952,7 @@ namespace LanesOfVietnam.Sim
                     st.Cp[(int)side] -= st.MusterCost;
                     // Commander: to the lane that is shortest of men, and the squad that lane wants.
                     int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
-                    double x = Combat.Advance(side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
+                    double x = Combat.Advance(st, side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
                     var raised = SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null);
                     // Vantage: against men up on a post, the squad brings a marksman of its own.
                     if (st.Vantage && st.Arms) Vantage.Answer(st, raised);
@@ -1185,7 +1188,7 @@ namespace LanesOfVietnam.Sim
                     int gone = Tune.StickBombs * Tune.StickGap - 1 - a.Ticks;
                     if (gone >= 0 && gone % Tune.StickGap == 0 && gone / Tune.StickGap < Tune.StickBombs)
                     {
-                        Inbound.Stick(a.Side, a.Id, a.X, a.Z, gone / Tune.StickGap, out double bx, out double bz);
+                        Inbound.Stick(st, a.Side, a.Id, a.X, a.Z, gone / Tune.StickGap, out double bx, out double bz);
                         Burst(st, a, bx, bz, rng);
                     }
                 }
@@ -1202,7 +1205,7 @@ namespace LanesOfVietnam.Sim
                         {
                             double ang = rng.Next() * Math.PI * 2;
                             double r = a.Radius * Math.Sqrt(rng.Next());
-                            double bx = a.X + JsMath.Cos(ang) * r;
+                            double bx = a.X + JsMath.Cos(ang) * r * st.UsSign;     // (along x as seen from the Americans' end)
                             double bz = a.Z + JsMath.Sin(ang) * r;
                             Burst(st, a, bx, bz, rng);
                         }
@@ -1269,7 +1272,7 @@ namespace LanesOfVietnam.Sim
                     var m = st.Men[i];
                     if (!m.Alive) continue;
                     if (st.Squads[m.Squad].Lane != lane) continue;
-                    double f = m.X * Combat.Advance(m.Side);
+                    double f = m.X * Combat.Advance(st, m.Side);
                     if (m.Side == Side.Us) fu = Math.Max(fu, f); else fv = Math.Max(fv, f);
                 }
                 if (double.IsNegativeInfinity(fu) && double.IsNegativeInfinity(fv))

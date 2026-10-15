@@ -278,7 +278,7 @@ namespace LanesOfVietnam.Sim
         {
             if (!st.Fieldcraft || sq.Target < 0 || sq.Target >= st.Cover.Count) return false;
             var c = st.Cover[sq.Target];
-            return Fieldcraft.LeverOf(c, sq.Side) == Lever.Hold && Fieldcraft.Arrived(sq, c, Combat.Advance(sq.Side));
+            return Fieldcraft.LeverOf(c, sq.Side) == Lever.Hold && Fieldcraft.Arrived(sq, c, Combat.Advance(st, sq.Side));
         }
 
         private static bool LeadPinned(IReadOnlyList<Man> live)
@@ -295,7 +295,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         private static void Front(SimState st, Squad sq, double reach, out int enemies, out double pin, out double near)
         {
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             enemies = 0; pin = 0; near = double.PositiveInfinity;
             for (int i = 0; i < st.Men.Count; i++)
             {
@@ -351,7 +351,7 @@ namespace LanesOfVietnam.Sim
             // cover behind to go to, it goes (and comes on again, to its own distance, when it has its breath).
             else if (Tactics.Pressed(st, sq) && held >= Tune.FirefightMin && pin < Tune.PinStop
                      && (task == SquadTask.Firefight || task == SquadTask.Regroup)
-                     && Ground(st, sq, live, Combat.Advance(sq.Side), Tune.WithdrawReach, double.NegativeInfinity, -Tune.GroundClear) >= 0)
+                     && Ground(st, sq, live, Combat.Advance(st, sq.Side), Tune.WithdrawReach, double.NegativeInfinity, -Tune.GroundClear) >= 0)
                 task = SquadTask.Withdraw;
             else switch (task)
             {
@@ -461,7 +461,7 @@ namespace LanesOfVietnam.Sim
             sq.TaskSince = st.Tick;
             if (st.Cohesion && (task == SquadTask.Close || task == SquadTask.Assault)) Cohesion.Start(st, sq);
             if (!st.Fieldcraft || !plan.UseCover) return;
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             var tc = sq.Target >= 0 && sq.Target < st.Cover.Count ? st.Cover[sq.Target] : null;
             bool arrived = tc != null && Fieldcraft.Arrived(sq, tc, dir);
             switch (task)
@@ -562,7 +562,7 @@ namespace LanesOfVietnam.Sim
         public static void Settle(SimState st, Squad sq)
         {
             var live = Squads.Roster(st, sq.Id);
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             int cover = Ground(st, sq, live, dir, 20, double.NegativeInfinity, all: true);
             if (cover < 0) cover = Ground(st, sq, live, dir, 20, double.NegativeInfinity);
             if (cover < 0) return;

@@ -178,6 +178,15 @@ namespace LanesOfVietnam.View
                 int upThere = sim.Men.FindAll(m => m.Alive && m.High > 0).Count;
                 bool fell = TowerView.Bring(sim, cap.TowerFrom, cap.TowerBuckle < 0 ? (bool?)null : cap.TowerBuckle == 1);
                 int went = sim.Events.FindLastIndex(e => e.Kind == EventKind.Collapsed);
+                if (went >= 0 && (cap.TowerSeed >= 0 || cap.TowerWay.HasValue))
+                {
+                    // (Its dice and its way as asked, still breaking or not as asked.)
+                    var ev = sim.Events[went];
+                    if (cap.TowerSeed >= 0) ev.Rounds = cap.TowerSeed;
+                    if (cap.TowerWay.HasValue) ev.Amount = cap.TowerWay.Value;
+                    if (cap.TowerBuckle >= 0) while (TowerView.Fall.Buckles(ev.Rounds) != (cap.TowerBuckle == 1)) ev.Rounds++;
+                    sim.Events[went] = ev;
+                }
                 if (went >= 0 && root.Dressing != null)
                 {
                     var f = new TowerView.Fall(sim.Events[went], root.Dressing, root.Ground);

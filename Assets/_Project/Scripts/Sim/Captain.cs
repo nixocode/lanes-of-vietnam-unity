@@ -263,7 +263,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         private static void Levers(SimState st, Side side, Plan plan, LaneView[] lanes)
         {
-            double dir = Combat.Advance(side);
+            double dir = Combat.Advance(st, side);
             for (int ci = 0; ci < st.Cover.Count; ci++)
             {
                 var c = st.Cover[ci];
@@ -368,7 +368,7 @@ namespace LanesOfVietnam.Sim
                     var sq = st.Squads[si];
                     if (sq.Side != side || !sq.ThreatSeen || sq.ThreatGap < Tune.SmokeBeyond + 2 || sq.ThreatGap > Tune.Range) continue;
                     int men = 0, open = 0;
-                    double pin = 0, lead = double.NegativeInfinity, dir = Combat.Advance(side);
+                    double pin = 0, lead = double.NegativeInfinity, dir = Combat.Advance(st, side);
                     for (int i = 0; i < st.Men.Count; i++)
                     {
                         var m = st.Men[i];
@@ -400,7 +400,7 @@ namespace LanesOfVietnam.Sim
 
         private static bool Ground(SimState st, Side side, LaneView[] lanes, Rng rng)
         {
-            double dir = Combat.Advance(side), theirs = -dir;
+            double dir = Combat.Advance(st, side), theirs = -dir;
             // A tunnel: a squad up behind a position of its own that is being gone in on, where it is short of men.
             var tunnel = Deck.Find(side, "vc-tunnel");
             if (Affords(st, side, tunnel, Math.Max(tunnel.Cost, st.MusterCost)) && Match.AliveCount(st, side) < Tune.ForceCap)

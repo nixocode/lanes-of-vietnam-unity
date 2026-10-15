@@ -158,7 +158,8 @@ namespace LanesOfVietnam.Sim
             if (sx * sx + sz * sz < 0.04 * step * step)
             {
                 // Dead ahead: round him by the side his number says, so two men meeting do not mirror each other.
-                double turn = m.Id < f.Id ? 1 : -1;
+                // (Which side, seen from his own end: on a map turned end for end he goes round the same side of him.)
+                double turn = (m.Id < f.Id ? 1 : -1) * st.UsSign;
                 sx = -fz * turn * step; sz = fx * turn * step;
             }
             else if (st.Bearing)
@@ -345,7 +346,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static void Move(SimState st, Squad sq, IReadOnlyList<Man> live, Plan plan, Order prev, List<Slot> slots)
         {
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             if (prev == Order.Fallback && sq.Order != Order.Fallback) Rerank(live, dir);
             sq.Gap = Gap(st, sq, dir);
 
@@ -454,7 +455,7 @@ namespace LanesOfVietnam.Sim
             }
 
             March(st, sq, live, tc, dir);
-            Squads.Reanchor(sq, live);
+            Squads.Reanchor(st, sq, live);
             Slots(st, sq, live, tc, dir, slots);
         }
 

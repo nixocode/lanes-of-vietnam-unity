@@ -102,6 +102,59 @@ namespace LanesOfVietnam.Tests
         /// that went with it down on the ground (or a truck's roof) a few seconds after it struck, lying flat, and
         /// scattered over metres; a tower broken at its girt leaves its stump's bracing standing where it stood.
         /// </summary>
+        /// <summary>Every piece's faces where they are now, in the world: three corners a face.</summary>
+        public static System.Collections.Generic.Dictionary<Transform, Vector3[]> Faces(Transform group)
+        {
+            var faces = new System.Collections.Generic.Dictionary<Transform, Vector3[]>();
+            foreach (Transform o in group)
+            {
+                var mesh = o.GetComponent<MeshFilter>().sharedMesh;
+                var v = mesh.vertices;
+                var t = mesh.triangles;
+                var w = new Vector3[t.Length];
+                for (int i = 0; i < t.Length; i++) w[i] = o.TransformPoint(v[t[i]]);
+                faces[o] = w;
+            }
+            return faces;
+        }
+
+        /// <summary>
+        /// How far a piece lies above whatever is under it, where it is nearest to it: each of its corners against the
+        /// ground there and the faces of the other pieces straight under it. A piece lying on the ground, on a piece or
+        /// across two has a corner on them: nothing. One lying in the air: the gap.
+        /// </summary>
+        public static float Gap(Transform c, System.Collections.Generic.Dictionary<Transform, Vector3[]> faces, LanesOfVietnam.Sim.Ground ground)
+        {
+            float gap = float.MaxValue;
+            var mine = faces[c];
+            var seen = new System.Collections.Generic.HashSet<Vector3>();
+            foreach (var p in mine)
+            {
+                if (!seen.Add(p)) continue;
+                float under = (float)ground.HeightAt(p.x, Coords.SimZ(p.z));
+                foreach (var kv in faces)
+                {
+                    if (kv.Key == c) continue;
+                    var f = kv.Value;
+                    for (int i = 0; i + 2 < f.Length; i += 3)
+                    {
+                        // Straight down from the corner through this face, if it is under it at all.
+                        Vector3 a = f[i], b = f[i + 1], d = f[i + 2];
+                        float den = (b.z - d.z) * (a.x - d.x) + (d.x - b.x) * (a.z - d.z);
+                        if (Mathf.Abs(den) < 1e-8f) continue;
+                        float l1 = ((b.z - d.z) * (p.x - d.x) + (d.x - b.x) * (p.z - d.z)) / den;
+                        float l2 = ((d.z - a.z) * (p.x - d.x) + (a.x - d.x) * (p.z - d.z)) / den;
+                        float l3 = 1f - l1 - l2;
+                        if (l1 < 0f || l2 < 0f || l3 < 0f) continue;
+                        float y = l1 * a.y + l2 * b.y + l3 * d.y;
+                        if (y <= p.y + 0.05f) under = Mathf.Max(under, y);
+                    }
+                }
+                gap = Mathf.Min(gap, p.y - under);
+            }
+            return Mathf.Max(0f, gap);
+        }
+
         [UnityTest, Category("Structures")]
         public IEnumerator The_tower_comes_apart_as_it_comes_down([Values(false, true)] bool buckle)
         {

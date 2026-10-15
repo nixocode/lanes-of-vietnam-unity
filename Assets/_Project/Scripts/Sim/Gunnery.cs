@@ -179,7 +179,8 @@ namespace LanesOfVietnam.Sim
             if (d < 1e-6) return (b.X, b.Z);
             dx /= d; dz /= d;
             double over = Tune.MissOver * st.GunRng.Next();
-            double wide = (st.GunRng.Next() * 2 - 1) * (Tune.MissWide + Tune.MissWidePerMetre * d);
+            // (To one side as seen from his own end: a map turned end for end turns where the round goes with it.)
+            double wide = (st.GunRng.Next() * 2 - 1) * (Tune.MissWide + Tune.MissWidePerMetre * d) * st.UsSign;
             return (b.X + dx * over - dz * wide, b.Z + dz * over + dx * wide);
         }
     }

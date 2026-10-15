@@ -79,7 +79,7 @@ namespace LanesOfVietnam.Sim
         private static void Throw(SimState st, Man a, double x, double z, int? cover)
         {
             var rng = st.FragRng;
-            double sx = (rng.Next() + rng.Next() - 1) * Tune.SatchelScatter;
+            double sx = (rng.Next() + rng.Next() - 1) * Tune.SatchelScatter * st.UsSign;     // (along x as seen from his own end)
             double sz = (rng.Next() + rng.Next() - 1) * Tune.SatchelScatter;
             var g = new Grenade
             {

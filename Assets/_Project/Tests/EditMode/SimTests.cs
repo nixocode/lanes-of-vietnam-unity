@@ -223,11 +223,14 @@ namespace LanesOfVietnam.Tests
             {
                 men[kill].Alive = false;
                 var live = men.Where(m => m.Alive).ToList();
-                for (int t = 0; t < 200; t++) { Squads.March(sq, null); Squads.Reanchor(sq, live); }
+                for (int t = 0; t < 200; t++) { Squads.March(Firebase, sq, null); Squads.Reanchor(Firebase, sq, live); }
                 double lead = live.Max(m => m.X);
                 Assert.LessOrEqual(sq.AnchorX - lead, Tune.AnchorLeash + 1e-9);
             }
         }
+
+        /// <summary>A match's state with nothing in it, as the firebase faces (the Americans advancing +x): for what asks which way a side goes.</summary>
+        private static readonly SimState Firebase = new SimState();
 
         [Test]
         public void A_lone_survivor_gets_a_slot_on_himself()
@@ -235,9 +238,9 @@ namespace LanesOfVietnam.Tests
             var (sq, men) = MakeSquad(5);
             for (int i = 0; i < 4; i++) men[i].Alive = false;
             var live = men.Where(m => m.Alive).ToList();
-            Squads.Reanchor(sq, live);
+            Squads.Reanchor(Firebase, sq, live);
             var slots = new List<Slot>();
-            Squads.SlotsFor(sq, live, sq.AnchorX, sq.AnchorZ, slots);
+            Squads.SlotsFor(Firebase, sq, live, sq.AnchorX, sq.AnchorZ, slots);
             Assert.AreEqual(1, slots.Count);
             Assert.LessOrEqual(Math.Abs(slots[0].X - live[0].X), Tune.AnchorLeash + 1e-9);
         }
@@ -248,7 +251,7 @@ namespace LanesOfVietnam.Tests
             var (sq, men) = MakeSquad(6);
             men[2].Alive = false; men[4].Alive = false;
             var slots = new List<Slot>();
-            Squads.SlotsFor(sq, men.Where(m => m.Alive).ToList(), 0, 0, slots);
+            Squads.SlotsFor(Firebase, sq, men.Where(m => m.Alive).ToList(), 0, 0, slots);
             Assert.AreEqual(4, slots.Count);
         }
 
@@ -352,7 +355,7 @@ namespace LanesOfVietnam.Tests
                     {
                         var by = st.Men.First(m => m.Alive && m.Side == side && m.Grenades > 0);
                         lane = System.Math.Abs(by.Z - Tune.Lanes[0]) < System.Math.Abs(by.Z - Tune.Lanes[1]) ? 0 : 1;
-                        x = by.X + Combat.Advance(side) * 6;
+                        x = by.X + Combat.Advance(st, side) * 6;
                     }
 
                     Assert.IsTrue(Deck.Buy(st, side, card, lane, new Rng(7).Fork("sim"), x), card.Id);
@@ -867,7 +870,7 @@ namespace LanesOfVietnam.Tests
                                 if (sq.Target >= 0)
                                 {
                                     toCover++;
-                                    double back = (Fieldcraft.StopX(st.Cover[sq.Target], Combat.Advance(sq.Side)) - sq.AnchorX) * Combat.Advance(sq.Side);
+                                    double back = (Fieldcraft.StopX(st.Cover[sq.Target], Combat.Advance(st, sq.Side)) - sq.AnchorX) * Combat.Advance(st, sq.Side);
                                     Assert.Less(back, 0, "a squad fell back to cover in front of it");
                                 }
                             }
@@ -2362,13 +2365,13 @@ namespace LanesOfVietnam.Tests
                     foreach (var sq in st.Squads)
                     {
                         if (sq.Order == Order.Fallback || sq.Post >= 0) continue;
-                        var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).OrderBy(x => x.X * Combat.Advance(sq.Side)).ToList();
+                        var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).OrderBy(x => x.X * Combat.Advance(st, sq.Side)).ToList();
                         if (men.Count < 3) continue;
                         squadTicks++; manTicks += men.Count;
                         length += Math.Abs(men[men.Count - 1].X - men[0].X);
                         if (Math.Abs(men[men.Count - 1].X - men[men.Count - 2].X) >= 5) alone++;
                         double mid = men[men.Count / 2].X;
-                        behind += men.Count(x => (mid - x.X) * Combat.Advance(sq.Side) > 6);
+                        behind += men.Count(x => (mid - x.X) * Combat.Advance(st, sq.Side) > 6);
                     }
                 }
             }
@@ -2979,7 +2982,7 @@ namespace LanesOfVietnam.Tests
             // In front of his nearest man.
             var man = st.Men.First(x => x.Alive && x.Side == Side.Us && x.Grenades > 0 && x.High == 0);
             int lane = System.Math.Abs(man.Z - Tune.Lanes[0]) < System.Math.Abs(man.Z - Tune.Lanes[1]) ? 0 : 1;
-            double at = man.X + Combat.Advance(Side.Us) * 9;
+            double at = man.X + Combat.Advance(st, Side.Us) * 9;
             int before = st.Events.Count;
             Assert.IsTrue(Deck.Buy(st, Side.Us, card, lane, null, at));
             Assert.AreEqual(100 - card.Cost, st.Cp[(int)Side.Us], 1e-9);
@@ -3026,7 +3029,7 @@ namespace LanesOfVietnam.Tests
                 Assert.AreEqual(Tune.JetWait, bombs.First().Tick - called, 2, "the bombs did not wait for the jet");
                 for (int k = 0; k < bombs.Count; k++)
                 {
-                    Inbound.Stick(Side.Us, id, ax, az, k, out double x, out double z);
+                    Inbound.Stick(st, Side.Us, id, ax, az, k, out double x, out double z);
                     Assert.AreEqual(x, bombs[k].X.Value, 1e-9, $"bomb {k} is not where the stick puts it");
                     Assert.AreEqual(z, bombs[k].Z.Value, 1e-9);
                     Assert.LessOrEqual(System.Math.Abs(x - ax), 11.0, "a bomb fell outside the strike's circle");
@@ -3176,6 +3179,84 @@ namespace LanesOfVietnam.Tests
                 foreach (var card in Deck.For(side))
                     // (GRENADES is a card only with its rule, MatchOptions.FragCard: off here, as every rule is.)
                     Assert.AreEqual(card != Deck.Grenades(side), Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck, or GRENADES is in one without its rule");
+        }
+
+        /// <summary>
+        /// A map says which end each side starts at (MapDef.UsEast; the owner's Rice Fields has the VC in the west, PLAN
+        /// Rice Fields R1). The firebase turned end for end: the Americans open in the east and the VC in the west, the
+        /// squads they raise come on from their own ends, they go the way their enemy is, the jet comes from behind its
+        /// own side; and every operation turned so is the same match seen in a mirror, to the last man and the winner.
+        /// (The firebase itself is pinned, unmoved.)
+        /// </summary>
+        [Test]
+        public void On_a_map_turned_end_for_end_each_side_starts_and_goes_from_its_own_end()
+        {
+            var map = Maps.Mirrored(Maps.Firebase);
+            Assert.IsTrue(map.UsEast);
+            MatchOptions Turned(int seed)
+            {
+                var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
+                o.Map = map; o.Cover = map.Cover();
+                return o;
+            }
+            var m = new LiveMatch(Turned(5));
+            var st = m.State;
+            Assert.AreEqual(-1, st.UsSign);
+            Assert.AreEqual(1, Combat.Advance(st, Side.Vc));
+            Assert.IsTrue(st.Men.Where(x => x.Side == Side.Us).All(x => x.X > 0), "an American opened in the west");
+            Assert.IsTrue(st.Men.Where(x => x.Side == Side.Vc).All(x => x.X < 0), "a VC opened in the east");
+            Assert.Greater(st.Posts[0].X, 0, "the watchtower is not on the Americans' ground");
+            // A squad raised comes on from its own end and goes the way its enemy is, as the same squad does on the
+            // firebase the right way round (its men's middle, the way it went, against the firebase's).
+            double Went(LiveMatch lm, bool turned)
+            {
+                var s2 = lm.State;
+                s2.Cp[(int)Side.Us] = 100;
+                lm.Issue(Command.Buy(Side.Us, "us-rifle", 0, 0));
+                lm.Step();
+                var raised = s2.Squads.Last(q => q.Side == Side.Us);
+                double Middle() => s2.Men.Where(x => x.Squad == raised.Id && x.Alive).Average(x => x.X);
+                double from = Middle();
+                if (turned) Assert.Greater(from, Tune.HalfLength * 0.7, "a squad the Americans raised did not come on from the east");
+                else Assert.Less(from, -Tune.HalfLength * 0.7);
+                for (int t = 0; t < 1200 && s2.Men.Any(x => x.Squad == raised.Id && x.Alive); t++) lm.Step();
+                return s2.Men.Any(x => x.Squad == raised.Id && x.Alive) ? Middle() - from : 0;
+            }
+            double turnedWent = Went(m, true);
+            var straight = Scenarios.Firebase.Options(5, null, Difficulty.Veteran);
+            double straightWent = Went(new LiveMatch(straight), false);
+            Assert.Greater(straightWent, 5, $"the test's premise: on the firebase the squad went east ({straightWent:F1} m)");
+            Assert.Less(turnedWent, -5, $"turned, it did not go west ({turnedWent:F1} m; the firebase's went {straightWent:F1} m)");
+            Inbound.Stick(st, Side.Us, 1, 0, 0, Tune.StickBombs - 1, out double last, out _);
+            Inbound.Stick(st, Side.Us, 1, 0, 0, 0, out double first, out _);
+            Assert.Less(last, first, "the jet's bombs do not walk on away from its own side");
+
+            // And nothing about a side depends on which end it starts from: each operation, turned end for end, is the
+            // same match seen in a mirror, every man at -x where he was at x, tick by tick, and won by the same side
+            // (`simcs mirror 24` and `simcs mirror 24 aiposts`: every operation, 24 seeds each, a mirror throughout).
+            foreach (var (sc, seed, posts) in new[] { (Scenarios.Firebase, 1, true), (Scenarios.Firebase, 2, false), (Scenarios.ById("the-wire"), 1, false), (Scenarios.ById("first-light"), 1, false), (Scenarios.ById("earth-fights"), 1, false) })
+            {
+                var o1 = sc.Options(seed, null, Difficulty.Veteran);
+                var o2 = sc.Options(seed, null, Difficulty.Veteran);
+                o1.ComputerPosts = o2.ComputerPosts = posts;
+                o2.Map = Maps.Mirrored(o2.Map ?? Maps.Firebase); o2.Cover = o2.Map.Cover();
+                if (o2.Objectives != null) o2.Objectives = Match.LastLine(o2.Cover, sc.Defender, sc.LineBack, -1);
+                var a = new LiveMatch(o1);
+                var b = new LiveMatch(o2);
+                while (!a.State.Over && a.State.Tick < a.Cap)
+                {
+                    a.Step(); b.Step();
+                    Assert.AreEqual(a.State.Men.Count, b.State.Men.Count, $"{sc.Id} seed {seed}, tick {a.State.Tick}: a squad raised in one and not the other");
+                    for (int i = 0; i < a.State.Men.Count; i++)
+                    {
+                        Man p = a.State.Men[i], q = b.State.Men[i];
+                        if (p.Alive != q.Alive || p.Posture != q.Posture || Math.Abs(p.X + q.X) > 1e-6 || Math.Abs(p.Z - q.Z) > 1e-6)
+                            Assert.Fail($"{sc.Id} seed {seed}, tick {a.State.Tick}: man {p.Id} at {p.X:F3},{p.Z:F3} {p.Posture}, and turned at {q.X:F3},{q.Z:F3} {q.Posture}");
+                    }
+                }
+                Assert.IsTrue(b.State.Over, $"{sc.Id} seed {seed}: the turned match did not end with the other");
+                Assert.AreEqual(a.State.Winner, b.State.Winner, $"{sc.Id} seed {seed}");
+            }
         }
 
         /// <summary>

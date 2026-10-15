@@ -122,7 +122,7 @@ namespace LanesOfVietnam.Sim
             // Triangular scatter from two uniforms: no transcendentals, so the
             // same bits on every platform (the port keeps to fdlibm for that).
             double sd = Tune.FragScatterFixed + Tune.FragScatterPerMetre * d;
-            double sx = (rng.Next() + rng.Next() - 1) * sd * 2.45;
+            double sx = (rng.Next() + rng.Next() - 1) * sd * 2.45 * st.UsSign;     // (along x as seen from his own end)
             double sz = (rng.Next() + rng.Next() - 1) * sd * 2.45;
             var g = new Grenade
             {

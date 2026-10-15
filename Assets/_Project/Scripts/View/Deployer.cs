@@ -345,7 +345,7 @@ namespace LanesOfVietnam.View
         };
 
         /// <summary>Where a squad bought now would come in: its side's end of the lane.</summary>
-        public double EntryX => Combat.Advance(Root.PlayerSide) > 0 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
+        public double EntryX => Combat.Advance(Root.Driver.State, Root.PlayerSide) > 0 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
 
         private void DrawMarker()
         {
@@ -355,7 +355,7 @@ namespace LanesOfVietnam.View
             Marks.PostAt = show && TargetPost >= 0 && TargetPost < State.Posts.Count
                 ? new Vector3((float)State.Posts[TargetPost].X, (float)State.Posts[TargetPost].Z, (float)State.Posts[TargetPost].Height) : (Vector3?)null;
             Marks.Show(Root.Ground, Root.CameraRig.Camera.transform, show, TargetLane, TargetX,
-                       show ? Radius(Armed) : 0f, EntryX, (float)Combat.Advance(Root.PlayerSide), Time.unscaledDeltaTime);
+                       show ? Radius(Armed) : 0f, EntryX, (float)Combat.Advance(Root.Driver.State, Root.PlayerSide), Time.unscaledDeltaTime);
         }
     }
 }

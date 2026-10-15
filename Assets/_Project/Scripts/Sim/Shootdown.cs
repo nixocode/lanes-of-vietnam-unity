@@ -54,7 +54,7 @@ namespace LanesOfVietnam.Sim
         private static void Hit(SimState st, Area a, Man by)
         {
             var rng = st.ShootRng;
-            double dir = Combat.Advance(a.Side);
+            double dir = Combat.Advance(st, a.Side);
             double cx = a.X - dir * (4 + 14 * rng.Next()), cz = a.Z + (rng.Next() - 0.5) * 16;
             cz = Math.Max(Tune.Lanes[1] - 8, Math.Min(Tune.Lanes[0] + 8, cz));
             int seed = (int)(rng.Next() * 1000000);

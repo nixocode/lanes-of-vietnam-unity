@@ -564,6 +564,8 @@ namespace LanesOfVietnam.Sim
         public bool Vantage;
         /// <summary>The bank between the lanes on the map this match is played on: where it runs, how high, where its gaps fall (<see cref="MapDef.Bank"/>).</summary>
         public double BankZ, BankHeight, BankPhase;
+        /// <summary>Which way the Americans advance along x: +1, from the west (the firebase); -1, from the east (MapDef.UsEast).</summary>
+        public double UsSign = 1;
         /// <summary>Part 2 rule: a squad keeps together and makes up its mind (<see cref="Sim.Cohesion"/>). Off is the baseline.</summary>
         public bool Cohesion;
         /// <summary>Part 2 rule: a man keeps the way he has gone down, gets up only for a move he can make, and gathers pace (<see cref="Sim.Bearing"/>). Off is the baseline.</summary>

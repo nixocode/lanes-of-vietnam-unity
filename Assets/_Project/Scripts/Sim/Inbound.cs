@@ -54,9 +54,9 @@ namespace LanesOfVietnam.Sim
         /// its bombs walk on away from it, a step each, a little to one side and the other of its line. No
         /// random draws: whoever watches it come can know where each will fall before it does.
         /// </summary>
-        public static void Stick(Side side, int id, double ax, double az, int k, out double x, out double z)
+        public static void Stick(SimState st, Side side, int id, double ax, double az, int k, out double x, out double z)
         {
-            double dir = side == Side.Us ? 1 : -1;
+            double dir = Combat.Advance(st, side);
             x = ax + dir * (k - (Tune.StickBombs - 1) / 2.0) * Tune.StickStep;
             z = az + ((k * 7 + Math.Abs(id) * 3) % 5 - 2) * Tune.StickSpread;
         }

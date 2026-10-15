@@ -77,7 +77,7 @@ namespace LanesOfVietnam.Sim
                                     double anchorX, double anchorZ, List<Slot> into)
         {
             into.Clear();
-            double dir = Combat.Advance(sq.Side);
+            double dir = Combat.Advance(st, sq.Side);
             for (int i = 0; i < live.Count; i++)
             {
                 int own = 0;

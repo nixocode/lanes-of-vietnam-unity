@@ -1198,7 +1198,7 @@ namespace LanesOfVietnam.View
         private void JetPass(SimEvent e, float t, float lands)
         {
             double ax = e.X.Value, az = e.Z.Value;
-            float dir = e.Side == Side.Us ? 1f : -1f;
+            float dir = Dir(e.Side);
             float ground = (float)_root.Ground.HeightAt(ax, az);
             int seed = e.Id * 7919 + e.Tick;
             MarkSmoke(Coords.World(ax, az, ground), new Color(0.93f, 0.93f, 0.90f), t, lands + 0.4f, seed);
@@ -1223,7 +1223,7 @@ namespace LanesOfVietnam.View
                 float bursts = lands + (float)Tune.Dt * (1 + k * Tune.StickGap);
                 float u = (t - (bursts - BombFalls)) / BombFalls;
                 if (u < 0 || u >= 1) continue;
-                Inbound.Stick(e.Side, e.Id, ax, az, k, out double bx, out double bz);
+                Inbound.Stick(_root.Driver.State, e.Side, e.Id, ax, az, k, out double bx, out double bz);
                 var from = At(bursts - BombFalls) + Vector3.down * 1.2f;
                 var to = Coords.World(bx, bz, (float)_root.Ground.HeightAt(bx, bz));
                 Vector3 Falling(float v)
@@ -1254,7 +1254,7 @@ namespace LanesOfVietnam.View
         private void Dustoff(SimEvent e, float t, float lands)
         {
             double ax = e.X.Value, az = e.Z.Value;
-            float dir = e.Side == Side.Us ? 1f : -1f;
+            float dir = Dir(e.Side);
             float ground = (float)_root.Ground.HeightAt(ax, az);
             int seed = e.Id * 7919 + e.Tick;
             var lz = Coords.World(ax, az, ground);
@@ -1350,6 +1350,9 @@ namespace LanesOfVietnam.View
 
         // --- the helicopter brought down (MatchOptions.Shootdown) ---------------------------------------------
 
+        /// <summary>Which way a side advances along x, as the world's x (Combat.Advance: a map may put the Americans in the east).</summary>
+        private float Dir(Side side) => (float)Combat.Advance(_root.Driver.State, side);
+
         /// <summary>Seconds a rocket takes to reach the helicopter it is fired at.</summary>
         public const float RocketFlight = 0.45f;
         /// <summary>The shot that brought each medevac down, by its call; and the wrecks, read from the log as they happen.</summary>
@@ -1363,10 +1366,10 @@ namespace LanesOfVietnam.View
         public int Wrecks => _wrecks.Count;
 
         /// <summary>Where the helicopter of a call was when the rocket struck it, t seconds after the call.</summary>
-        private static Vector3 HueyWhere(SimEvent call, float lands, float t, Ground g)
+        private Vector3 HueyWhere(SimEvent call, float lands, float t, Ground g)
         {
             Approach(Mathf.Min(t, lands), lands, out float s, out float h, out _);
-            float dir = call.Side == Side.Us ? 1f : -1f;
+            float dir = Dir(call.Side);
             var lz = Coords.World(call.X.Value, call.Z.Value, (float)g.HeightAt(call.X.Value, call.Z.Value));
             return lz + new Vector3(dir * s, h, 0);
         }
@@ -1381,7 +1384,7 @@ namespace LanesOfVietnam.View
         {
             float shotAt = (float)((shot.Tick - call.Tick) * Tune.Dt), hitAt = shotAt + RocketFlight;
             float crashAt = shotAt + (float)((shot.Amount ?? 0) * Tune.Dt);
-            float dir = call.Side == Side.Us ? 1f : -1f;
+            float dir = Dir(call.Side);
             var p0 = HueyWhere(call, lands, hitAt, _root.Ground);
             var c = Coords.World(shot.X.Value, shot.Z.Value, (float)_root.Ground.HeightAt(shot.X.Value, shot.Z.Value));
             float tau = Mathf.Clamp(t - hitAt, 0f, crashAt - hitAt), u = tau / Mathf.Max(0.1f, crashAt - hitAt);
@@ -2041,7 +2044,7 @@ namespace LanesOfVietnam.View
                 // Shot: what the round threw out of him lies on the ground beyond
                 // where he stood, the way it was going (it came from the other side).
                 var man = st.Men[e.Id];
-                double go = Combat.Advance(Combat.Other(man.Side));
+                double go = Combat.Advance(st, Combat.Other(man.Side));
                 float show = Mathf.Clamp01((since - 0.25f) / 0.3f);
                 // (A heavy round throws more of it, and further: a machine gun's, a sniper's.)
                 float cal = Mathf.Max(0.7f, how.Cal);

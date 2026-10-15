@@ -101,7 +101,7 @@ namespace LanesOfVietnam.Sim
                 // the side that comes on takes it and the other holds his: his squads go to cover and stay in it.
                 Us = Role(Side.Us), Vc = Role(Side.Vc),
             };
-            if (Mode == MatchMode.Assault) o.Objectives = Match.LastLine(o.Cover, Defender, LineBack);
+            if (Mode == MatchMode.Assault) o.Objectives = Match.LastLine(o.Cover, Defender, LineBack, Map.UsEast ? -1 : 1);
             return o;
         }
 
