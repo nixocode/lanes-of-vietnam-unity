@@ -86,11 +86,14 @@ namespace LanesOfVietnam.Tests
             var way = tower.Over * Vector3.up; way.y = 0;
             Assert.Greater(Vector3.Dot(way.normalized, f.Dir), 0.9f, "it is not going over the way its fall says");
             foreach (int id in up) Assert.Greater(Above(id), 3f, $"man {id} was put on the ground, not brought down");
+            // (Falling through the air, flailing: the falling clip, his yes 2026-10-15.)
+            foreach (int id in up) Assert.AreEqual(SoldierFigure.Held.Falling, root.ArmyView.FigureOf(id).Holding, $"man {id} is not falling as he falls");
             Assert.That(f.Hits, Is.InRange(1.2f, 3.5f), "a nine-metre tower falls in about two seconds");
             int steps = Mathf.CeilToInt((f.Hits + 1.2f) / 0.05f);
             for (int k = 0; k < steps; k++) { root.AdvanceForCapture(0.05f); yield return null; }
             Assert.AreEqual(f.Down * Mathf.Rad2Deg, Over(), 2f, "it does not lie where its fall says");
             foreach (int id in up) Assert.Less(Above(id), 0.8f, $"man {id} is not on the ground");
+            foreach (int id in up) Assert.AreEqual(SoldierFigure.Held.None, root.ArmyView.FigureOf(id).Holding, $"man {id} is still falling on the ground");
         }
 
         /// <summary>

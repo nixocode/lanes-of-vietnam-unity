@@ -274,6 +274,11 @@ namespace LanesOfVietnam.Tools
             // nothing in the catalogue kneels with one, so a man talking on a telephone, played on his left arm and his
             // head alone over whatever else he is doing (the "Radio" layer), six seconds of it round and round.
             ("radio_talk", true, false),
+            // 2026-10-15, on the owner's yes ("yes download the maixamo clips"; the Rice Fields plan): sitting in a chair
+            // (the medevac's pilots and its crew in its doors), falling through the air (a man thrown off the tower),
+            // and in water, swimming (a breaststroke, its travel left in the root) and treading water (Rice Fields'
+            // river). Each is held for as long as it is wanted (SoldierFigure.Hold).
+            ("sit_idle", true, false), ("fall_idle", true, false), ("swim", true, true), ("tread_water", true, false),
         };
         /// <summary>Clips imported left for right, so that the hand that is free does what Mixamo's right hand does (ours holds the rifle).</summary>
         private static readonly HashSet<string> LeftForRight = new HashSet<string> { "kneel_grenade", "radio_talk" };
@@ -526,6 +531,7 @@ namespace LanesOfVietnam.Tools
             ctrl.AddParameter("DeathIndex", AnimatorControllerParameterType.Int);
             foreach (var t in new[] { "Hit", "Reload", "Throw" }) ctrl.AddParameter(t, AnimatorControllerParameterType.Trigger);
             ctrl.AddParameter("Ladder", AnimatorControllerParameterType.Bool);
+            ctrl.AddParameter("Hold", AnimatorControllerParameterType.Int);
             ctrl.AddParameter(new AnimatorControllerParameter { name = "LadderPace", type = AnimatorControllerParameterType.Float, defaultFloat = 1f });
 
             AnimationClip C(string n) => clips.TryGetValue(n, out var c) ? c : throw new System.Exception($"no clip {n}");
@@ -759,6 +765,21 @@ namespace LanesOfVietnam.Tools
                     dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
                     dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
                     log.Add($"{SoldierFigure.LadderState}: {R("ladder_climb")}");
+                }
+                // Poses held for as long as they are wanted (SoldierFigure.Hold): in and out as the "Hold" number says.
+                foreach (var (held, role) in new[] { (SoldierFigure.Held.Seated, "sit_idle"), (SoldierFigure.Held.Falling, "fall_idle"),
+                                                     (SoldierFigure.Held.Swim, "swim"), (SoldierFigure.Held.Tread, "tread_water") })
+                {
+                    if (R(role) == null) continue;
+                    var st = react.AddState(held.ToString());
+                    st.motion = C(R(role));
+                    var off = st.AddTransition(calm);
+                    off.hasExitTime = false; off.hasFixedDuration = true; off.duration = 0.25f;
+                    off.AddCondition(AnimatorConditionMode.NotEqual, (int)held, "Hold");
+                    var dead = st.AddTransition(calm);
+                    dead.hasExitTime = false; dead.hasFixedDuration = true; dead.duration = 0.1f;
+                    dead.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+                    log.Add($"{held}: {R(role)}");
                 }
             }
 

@@ -943,16 +943,21 @@ namespace LanesOfVietnam.View
                         }
                     }
                 }
+                // Destruction: thrown off the tower he falls flailing (the falling clip), and dies, or lands hurt, as he
+                // strikes the ground, not in the air.
+                bool flying = tumbling >= 0f && _high[i] > 0.3f;
+                f.Hold(flying ? SoldierFigure.Held.Falling : SoldierFigure.Held.None);
+                bool dead = !m.Alive && !flying;
                 if (fresh || jump)
                 {
-                    f.Settle(speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]);
+                    f.Settle(speed, posture, aiming, dead, death, _fall[i], _push[i]);
                     // (Not all in step: each man a part of a second into his idle and his stride.)
                     if (fresh) f.Offbeat(1.7f * Hash(m.Id, 10));
                     _pending[i] = 0; Stepped++; continue;
                 }
                 _pending[i] += dt;
                 if (!step) continue;
-                f.Step(_pending[i], speed, posture, aiming, !m.Alive, death, _fall[i], _push[i]);
+                f.Step(_pending[i], speed, posture, aiming, dead, death, _fall[i], _push[i]);
                 _pending[i] = 0;
                 Stepped++;
             }

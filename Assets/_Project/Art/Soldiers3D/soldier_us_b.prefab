@@ -780,6 +780,10 @@ MonoBehaviour:
   - Look about
   - Inspect
   - Ladder
+  - Seated
+  - Falling
+  - Swim
+  - Tread
   MirroredDeaths: 1
   Limbs:
   - Bone: {fileID: 4512477298446856068}

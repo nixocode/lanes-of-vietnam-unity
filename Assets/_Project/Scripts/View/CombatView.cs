@@ -119,8 +119,8 @@ namespace LanesOfVietnam.View
         /// <summary>The share of misses that glance off something hard and go on, lit.</summary>
         public const double RicochetShare = 0.05;
         private const double MaxAge = 11.0;
-        /// <summary>Seconds a call-in has anything on the screen: the helicopter's eight coming, three down and seven going.</summary>
-        private const float CallLife = 19f;
+        /// <summary>Seconds a call-in has anything on the screen: the helicopter's eight coming, seven down and seven going.</summary>
+        private const float CallLife = 23f;
 
         // Hot enough to bloom, not so hot that the tonemapper bleaches the
         // colour out: at 26x the red came out a white line.
@@ -1031,7 +1031,7 @@ namespace LanesOfVietnam.View
         /// <summary>How much larger than a mortar's bomb the jet's are drawn: a 750 pound bomb is over two metres long.</summary>
         public const float BombLarger = 3.2f;
         /// <summary>The helicopter: seconds it stands on the ground, seconds it takes to be gone, and how far off and how high it is when it is called.</summary>
-        public const float DustoffDown = 3f, DustoffAway = 7f, DustoffFrom = 170f, DustoffHigh = 42f;
+        public const float DustoffDown = 7f, DustoffAway = 7f, DustoffFrom = 170f, DustoffHigh = 42f;
         /// <summary>Turns a second of a UH-1's main rotor (324 a minute).</summary>
         public const float RotorTurns = 324f / 60f;
 
@@ -1047,7 +1047,6 @@ namespace LanesOfVietnam.View
         public Vector3[] HueyDoors = new Vector3[0], HueyPilots = new Vector3[0];
         /// <summary>Who is aboard it: its pilots, its crew chief and medic in its doors, and a wounded man on its floor.</summary>
         private readonly List<SoldierFigure> _aboard = new List<SoldierFigure>();
-        private readonly List<int> _aboardPosture = new List<int>();
         private float _aboardAt = -1f;
         /// <summary>The men aboard the helicopter, for the tests.</summary>
         public int Aboard => _aboard.Count;
@@ -1060,37 +1059,91 @@ namespace LanesOfVietnam.View
         private static readonly Quaternion NoseAhead = Quaternion.Inverse(Quaternion.LookRotation(Vector3.left, Vector3.up));
 
         /// <summary>
-        /// Its crew aboard (the owner, 2026-10-15: "Med evac has no soldiers in it"): its two pilots in their seats,
-        /// facing ahead, raised as a man sitting is; its crew chief kneeling in one cargo doorway with his M60 and its
-        /// medic in the other, each facing out; and a wounded man lying across its floor between them. American bodies
-        /// of the army's own, at the army's size (ArmyView.FigureSize) in a helicopter drawn smaller (HueySize).
+        /// Its crew aboard (the owner, 2026-10-15: "Med evac has no soldiers in it"; and then "people inside look terrible
+        /// and misscaled. Chopper comes in with someone already injured just chilling on the side"): its two pilots seated
+        /// at its controls facing ahead; its crew chief with his M60 and its medic sitting in its cargo doorways, legs over
+        /// the sill, as a dustoff flew. Nobody hurt comes in with it: once it is down the medic climbs out and kneels by
+        /// his door, a wounded man is lifted in and laid on its floor, and the medic climbs back before it lifts
+        /// (Crew). American bodies of the army's own, at the army's size in a helicopter drawn smaller.
         /// </summary>
         private void Board()
         {
             var army = _root.ArmyView;
             if (army == null || army.UsFigures == null || army.UsFigures.Length == 0 || HueyDoors.Length == 0) return;
             float size = ArmyView.FigureSize / HueySize;
-            void Man(int body, Vector3 at, float yaw, string arms, int posture, bool down)
+            SoldierFigure Man(int body, string arms)
             {
                 var f = Instantiate(army.UsFigures[body % army.UsFigures.Length], _huey);
                 f.name = "aboard";
-                f.transform.SetLocalPositionAndRotation(at, Quaternion.Euler(0f, yaw, 0f));
                 f.transform.localScale = Vector3.one * size;
                 if (arms == null || !f.Carry(arms)) { if (f.Rifle != null) f.Rifle.enabled = false; }
-                f.Settle(0f, posture, false, down, 3);
+                f.Settle(0f, 0, false, false, 0);
                 _aboard.Add(f);
-                _aboardPosture.Add(down ? -1 : posture);
+                return f;
             }
             // (Its nose is to -x: a man facing ahead is turned -90 degrees.)
-            for (int k = 0; k < HueyPilots.Length; k++) Man(2 + k, HueyPilots[k] + Vector3.up * 0.3f, -90f, null, 1, false);
+            for (int k = 0; k < HueyPilots.Length; k++)
+            {
+                var pilot = Man(2 + k, null);
+                // (Down in his seat and back in it: at the cabin floor's height his helmet stood through the cockpit's roof.)
+                pilot.transform.SetLocalPositionAndRotation(HueyPilots[k] + new Vector3(0.15f, -0.3f, 0f), Quaternion.Euler(0f, -90f, 0f));
+                pilot.Hold(SoldierFigure.Held.Seated);
+            }
             for (int k = 0; k < HueyDoors.Length && k < 2; k++)
             {
-                var d = HueyDoors[k];
-                float outward = d.z >= 0 ? 1f : -1f;
-                Man(k, new Vector3(d.x, d.y, d.z - outward * 0.5f), outward > 0 ? 0f : 180f, k == 0 ? "m60" : null, 1, false);
+                var man = Man(k, k == 0 ? "m60" : null);
+                man.Hold(SoldierFigure.Held.Seated);
+                _doorMen.Add(man);
             }
+            _medic = _doorMen.Count > 1 ? _doorMen[1] : null;
+            // The wounded man: a body laid on its floor, kept out of sight until he is lifted in.
+            var hurt = Man(4, null);
             var mid = HueyDoors[0];
-            Man(4, new Vector3(mid.x + 0.6f, mid.y, 0.45f), 0f, null, 0, true);
+            hurt.transform.SetLocalPositionAndRotation(new Vector3(mid.x + 0.5f, mid.y, 0.35f), Quaternion.Euler(0f, 90f, 0f));
+            hurt.Settle(0f, 0, false, true, 3);
+            hurt.gameObject.SetActive(false);
+            _wounded = hurt;
+        }
+
+        private readonly List<SoldierFigure> _doorMen = new List<SoldierFigure>();
+        private SoldierFigure _medic, _wounded;
+        /// <summary>For the tests: its medic, whether a wounded man is aboard, and its pilots.</summary>
+        public SoldierFigure Medic => _medic;
+        public bool WoundedAboard => _wounded != null && _wounded.gameObject.activeSelf;
+        public IEnumerable<SoldierFigure> Pilots => _aboard.FindAll(f => f != null && f != _wounded && !_doorMen.Contains(f));
+
+        /// <summary>A doorway's man sitting on its floor at its edge, his legs over the sill (his seat a little inside it, at the floor's height).</summary>
+        private void SitAtDoor(SoldierFigure man, int door)
+        {
+            var d = HueyDoors[door];
+            float outward = d.z >= 0 ? 1f : -1f;
+            // (The sitting clip's seat is a chair's height above his feet: his feet go down past the sill.)
+            man.transform.SetLocalPositionAndRotation(new Vector3(d.x, d.y - 0.42f, d.z - outward * 0.1f), Quaternion.Euler(0f, outward > 0 ? 0f : 180f, 0f));
+            man.Hold(SoldierFigure.Held.Seated);
+        }
+
+        /// <summary>
+        /// Who is where aboard, t seconds after the call (it sets down at <paramref name="lands"/>): coming in, its crew in
+        /// their places and nobody else; down, the medic out by his door, kneeling, and after two seconds a wounded man on
+        /// its floor; the medic back in his doorway a second and a half before it lifts.
+        /// </summary>
+        private void Crew(float t, float lands, bool down)
+        {
+            for (int k = 0; k < _doorMen.Count; k++) if (_doorMen[k] != _medic) SitAtDoor(_doorMen[k], k);
+            float onGround = t - lands;
+            bool medicOut = down && onGround > 0.6f && onGround < DustoffDown - 1.5f;
+            if (_medic != null)
+            {
+                if (medicOut)
+                {
+                    var d = HueyDoors[1];
+                    float outward = d.z >= 0 ? 1f : -1f;
+                    _medic.Hold(SoldierFigure.Held.None);
+                    _medic.transform.SetLocalPositionAndRotation(new Vector3(d.x + 0.3f, 0f, d.z + outward * 1.1f), Quaternion.Euler(0f, outward > 0 ? 180f : 0f, 0f));
+                }
+                else SitAtDoor(_medic, 1);
+            }
+            if (_wounded != null) _wounded.gameObject.SetActive(down && onGround > 2.2f || !down && t > lands);
         }
 
         private Transform Craft(string name, Mesh mesh)
@@ -1254,11 +1307,14 @@ namespace LanesOfVietnam.View
                 }
                 Board();
             }
-            // Its crew idle as it flies, at the match's pace (still when it is paused).
+            // Its crew in their places (and the medic out, and the wounded aboard, once it is down), idling as it flies at
+            // the match's pace (still when it is paused).
+            if (!falling) Crew(t, lands, t >= lands && t < lands + DustoffDown);
             float dt = _aboardAt < 0 || t < _aboardAt ? 0f : t - _aboardAt;
             _aboardAt = t;
             for (int k = 0; k < _aboard.Count; k++)
-                if (_aboard[k] != null && _aboardPosture[k] >= 0) _aboard[k].Step(dt, 0f, _aboardPosture[k], false, false, 0);
+                if (_aboard[k] != null && _aboard[k] != _wounded && _aboard[k].gameObject.activeSelf)
+                    _aboard[k].Step(dt, 0f, _aboard[k] == _medic && _medic.Holding == SoldierFigure.Held.None ? 1 : 0, false, false, 0);
             _huey.SetPositionAndRotation(at, turn);
             // (Hit, its rotor slows as it goes down.)
             float turns = falling ? RotorTurns * (hitAt - 0f) + RotorTurns * 0.7f * (t - hitAt) : RotorTurns * t;

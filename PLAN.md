@@ -4427,7 +4427,8 @@ made on this Mac).
 | 7 | the tower comes down | ✅ done (§12.51); two items wait on his yes: a timber sound and a falling clip |
 | also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
 | playtest 11 | the tower crumbles, timber heard, a crew in the Huey, men and Huey at 4/5, the US opens with fewer | ✅ done (§12.52); the sounds are his to judge |
-| playtest 12 | the medevac can be shot down; nothing of the tower floats | ✅ done (§12.53); the two Mixamo clips wait on his sign-in |
+| playtest 12 | the medevac can be shot down; nothing of the tower floats | ✅ done (§12.53, §12.54) |
+| Rice Fields, step 0 | the clips, the medevac's crew, a longer stay | ✅ done (§12.54) |
 
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
 work. Have you been skipping so many steps on other stages? If so write down
@@ -5131,6 +5132,36 @@ but Mixamo is signed out in Chrome and the sign-in is his: **not done yet**.
   95th percentile; the tower coming down 5.4 to 5.5, 7.0; a medevac brought down and its wreck burning 5.5, 7.0.
 
 New files: `Sim/Shootdown.cs`.
+
+### 12.54 The medevac's crew redone, it stays longer, and men fall flailing (Step 0 of the Rice Fields plan, 2026-10-15)
+
+The owner, the same day, signed in to Mixamo: "Download the mixamo clips im signed in, use the broswer. Then fix the
+helo, people inside look terrible and misscaled. Chopper comes in with someone already injured just chilling on the
+side (fix this wtf). Then have it stay a little loger. Once this easy fix is in get to start in the new map following
+the plane we made before." The plan he approved (`~/.claude/plans/eventual-napping-hanrahan.md`) has this as Step 0.
+
+- **Four Mixamo clips** (export API in his Chrome, as before; ASSETS.md): `sit_idle` (sitting in a chair, hands on
+  the thighs), `fall_idle` (mid-air), and for the river to come `swim` (breaststroke) and `tread_water`. They are
+  held poses on the React layer: a new "Hold" number on the controller and `SoldierFigure.Hold(Held)` (Seated,
+  Falling, Swim, Tread), in and out as it says, out at once if he dies; an act does not interrupt one.
+  `SoldierPreview.RenderHeld` shows them (`captures/soldiers/us_a_held.png`). The swim clip ends climbing out at a
+  pool's edge: its stroke is to be cut when the river is built.
+- **The crew** (`CombatView.Board`, `Crew`): the pilots seated at the controls, down in their seats and back (at the
+  cabin floor's height a helmet stood through the cockpit's roof); the crew chief with his M60 and the medic sitting
+  on the sills of the cargo doors, legs over, facing out. **Nobody hurt comes in with it**: down, the medic climbs out
+  and kneels by his door, a wounded man is on its floor two seconds later, and the medic is back in his door a
+  second and a half before it lifts.
+- **It stays seven seconds on the ground** (was three; `DustoffDown`, `CallLife` 23 s). Its sound in three pieces of
+  the same Bell 222 recording: coming in (74 to 83.5 s), the rotor turning steady on the ground (42 to 51 s, played
+  as it sets down) and lifting and going (79 to 97 s, as it lifts); a shot-down one stops all three.
+- **Men thrown off the falling tower** fall flailing (`fall_idle`), and one the fall kills dies as he strikes the
+  ground, not in the air (`ArmyView`).
+- Captured (`captures/air/crew_sheet.png`, `crew_still.png`): in with its crew, down, the medic out, back, up at 8.4 s.
+  (A capture's frames are at most 0.4 s of match apart, `MatchDriver.MaxCatchUp`: a strip at one frame a second covers
+  0.4 s a frame.)
+- Tests: EditMode 123 of 123; PlayMode 39 of 39 and the capture skipped (the helicopter's test now checks the crew
+  seated and nobody hurt coming in, the medic out and a wounded man aboard once down, the medic back before it lifts;
+  the tower's checks the men falling as they fall and not once down).
 
 ### 12.13 Corrections to earlier sections
 

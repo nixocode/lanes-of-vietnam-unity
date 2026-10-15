@@ -858,7 +858,7 @@ namespace LanesOfVietnam.View
         /// </summary>
         public bool Act(string act, float blend = 0.12f, float from = 0f)
         {
-            if (_deadFor >= 0 || _baked || _reactLayer < 0 || System.Array.IndexOf(Acts, act) < 0) return false;
+            if (_deadFor >= 0 || _baked || _reactLayer < 0 || _held != Held.None || System.Array.IndexOf(Acts, act) < 0) return false;
             var now = Animator.GetCurrentAnimatorStateInfo(_reactLayer);
             if (now.shortNameHash == ClimbInState || now.shortNameHash == ClimbOutState || now.IsName("Melee 0") || now.IsName("Melee 1")) return false;
             Animator.CrossFadeInFixedTime(act, blend, _reactLayer, from);
@@ -1011,6 +1011,32 @@ namespace LanesOfVietnam.View
 
         /// <summary>The ladder clip's speed: it climbs slower than the simulation's man does (8.45 m in 8 s).</summary>
         public const float LadderPace = 1.3f;
+
+        /// <summary>
+        /// A pose held for as long as it is wanted, over whatever his body would otherwise do (the React layer): sitting
+        /// (the medevac's crew), falling through the air (thrown off the tower), swimming and treading water (a river).
+        /// </summary>
+        public enum Held { None = 0, Seated = 1, Falling = 2, Swim = 3, Tread = 4 }
+        private static readonly int HoldId = Animator.StringToHash("Hold");
+        private Held _held;
+        /// <summary>The pose he is held in.</summary>
+        public Held Holding => _held;
+
+        /// <summary>Hold him in a pose (Held.None lets him go). False if his controller has no such pose, or he is a mesh now.</summary>
+        public bool Hold(Held pose)
+        {
+            if (_baked || _reactLayer < 0) return false;
+            if (pose != Held.None && System.Array.IndexOf(Acts, pose.ToString()) < 0) return false;
+            if (pose == _held) return true;
+            _held = pose;
+            Animator.SetInteger(HoldId, (int)pose);
+            if (pose != Held.None && _deadFor < 0)
+            {
+                _act = null;
+                Animator.CrossFadeInFixedTime(pose.ToString(), 0.25f, _reactLayer);
+            }
+            return true;
+        }
 
         /// <summary>In the climb's clip, or going into it.</summary>
         private bool Climbing

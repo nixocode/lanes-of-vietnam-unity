@@ -465,8 +465,28 @@
    "files": [
     {
      "file": "licensed/rotor_0.m4a",
-     "source": "sonniss2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav 74.0-94.0 s",
-     "seconds": 20.0
+     "source": "sonniss2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav 74.0-83.5 s",
+     "seconds": 9.5
+    }
+   ]
+  },
+  {
+   "name": "rotor_idle",
+   "files": [
+    {
+     "file": "licensed/rotor_idle_0.m4a",
+     "source": "sonniss2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav 42.0-51.0 s",
+     "seconds": 9.0
+    }
+   ]
+  },
+  {
+   "name": "rotor_away",
+   "files": [
+    {
+     "file": "licensed/rotor_away_0.m4a",
+     "source": "sonniss2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav 79.0-97.0 s",
+     "seconds": 18.0
     }
    ]
   },

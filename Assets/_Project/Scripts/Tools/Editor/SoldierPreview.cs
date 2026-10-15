@@ -235,6 +235,23 @@ namespace LanesOfVietnam.Tools
             States = orig; Own = null;
         }
 
+        /// <summary>
+        /// The poses held for as long as they are wanted (2026-10-15: sitting, falling, swimming, treading water), each
+        /// through its loop: captures/soldiers/us_a_held.png.
+        /// </summary>
+        public static void RenderHeld()
+        {
+            Directory.CreateDirectory("captures/soldiers");
+            var orig = States;
+            var states = new System.Collections.Generic.List<(string, float, int, bool, bool, int, float)>();
+            var play = new System.Collections.Generic.List<string>();
+            foreach (var (pose, times) in new[] { ("Seated", new[] { 0.5f, 2f }), ("Falling", new[] { 0.3f, 0.9f }), ("Swim", new[] { 0.3f, 0.8f, 1.4f, 2.2f }), ("Tread", new[] { 0.5f, 1.5f }) })
+                foreach (float t in times) { states.Add(($"{pose} {t:F1}", 0f, 0, false, false, 0, t)); play.Add("hold " + pose); }
+            States = states.ToArray(); Play = play.ToArray(); Own = null;
+            Sheet("us_a", 1.6f, "_held", 1.15f);
+            States = orig; Play = null;
+        }
+
         /// <summary>For RenderGore: what is done to each column's man as he is killed.</summary>
         private static System.Action<SoldierFigure>[] Hurt;
         /// <summary>What a column's man is given before he is posed, as the game gives it when he is made (the radio).</summary>
@@ -360,7 +377,8 @@ namespace LanesOfVietnam.Tools
                 if (s.dead)
                     for (float t = 0; t < s.t; t += 1f / 30f) f.Step(t == 0 ? 0f : 1f / 30f, s.speed, s.posture, false, false, 0);   // alive first, in his posture
                 f.Settle(s.speed, s.posture, s.aim, false, seed);
-                if (doing != null && doing.StartsWith("blow ")) f.Strike(int.Parse(doing.Substring(5)));
+                if (doing != null && doing.StartsWith("hold ")) { if (!f.Hold((SoldierFigure.Held)System.Enum.Parse(typeof(SoldierFigure.Held), doing.Substring(5)))) Debug.LogWarning($"[LOV] no pose {doing}"); }
+                else if (doing != null && doing.StartsWith("blow ")) f.Strike(int.Parse(doing.Substring(5)));
                 else if (doing != null && !f.Act(doing)) Debug.LogWarning($"[LOV] no act {doing}");
                 if (!s.dead && s.death == -1) f.React();
                 if (!s.dead && s.death == -2) f.Reload();

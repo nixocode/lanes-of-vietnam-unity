@@ -90,7 +90,12 @@ SINGLES = {
 # in eight seconds later) to twelve after, as it goes.
 # name: [(year/file, from s, to s, fade in s, fade out s)]
 PIECES = {
-    "rotor": [("2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav", 74.0, 94.0, 2.0, 4.0)],
+    # (Three pieces since 2026-10-15, when it came to stand seven seconds on the ground: "in" to a second and a half
+    # after it is loudest, as it sets down; "idle", the rotor turning steady at full speed on the ground (from 42 s,
+    # before it lifts in the recording), played while it sits; and "away", loud as it lifts and fading as it goes.)
+    "rotor": [("2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav", 74.0, 83.5, 2.0, 1.2)],
+    "rotor_idle": [("2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav", 42.0, 51.0, 1.0, 1.0)],
+    "rotor_away": [("2019/Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav", 79.0, 97.0, 0.3, 3.0)],
     # A radio man's request for fire, whole: heard as a US player's call goes out. (It asks for forty
     # millimetre; it is the voice and the net that are wanted, under the fight.)
     "call": [("2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav", 0.0, 4.48, 0.02, 0.12)],

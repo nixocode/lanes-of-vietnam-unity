@@ -198,6 +198,12 @@ namespace LanesOfVietnam.Tests
 
             yield return Ticks(Tune.DustoffWait / 2);
             Assert.IsTrue(combat.HueySeen, "half way in, no helicopter");
+            // Its crew aboard and seated, and nobody hurt yet (the owner, 2026-10-15: "Chopper comes in with someone
+            // already injured just chilling on the side").
+            Assert.AreEqual(2, combat.Pilots.Count(), "no pilots");
+            foreach (var p in combat.Pilots) Assert.AreEqual(SoldierFigure.Held.Seated, p.Holding, "a pilot is not sitting");
+            Assert.AreEqual(SoldierFigure.Held.Seated, combat.Medic.Holding, "the medic is not sitting in his door");
+            Assert.IsFalse(combat.WoundedAboard, "it came in with a wounded man aboard");
             float high = combat.HueyAt.position.y - ground;
             Assert.Greater(high, 4f, "half way in it is already down");
             Assert.Less(combat.HueyAt.position.x, lx - 10f, "it is not coming from behind its own side");
@@ -211,8 +217,16 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(ground, combat.HueyAt.position.y, 0.05f, "it is not on the ground when the simulation says it is in");
             Assert.AreEqual(lx, combat.HueyAt.position.x, 0.05f, "it did not set down where it was called to");
             Assert.IsFalse(st.Areas.Any(a => a.Kind == AreaKind.Relief), "the simulation's medevac is not in");
+            // Down: its medic out by his door, and a wounded man lifted in; back in his door before it lifts.
+            Assert.AreEqual(SoldierFigure.Held.None, combat.Medic.Holding, "down, the medic did not get out");
+            Assert.Less(combat.Medic.transform.position.y - ground, 0.2f, "the medic is not on the ground");
+            Assert.IsTrue(combat.WoundedAboard, "down, nobody hurt was lifted in");
+            yield return Ticks((int)((CombatView.DustoffDown / 2 - 1f) * Tune.TickHz));
+            Assert.AreEqual(SoldierFigure.Held.Seated, combat.Medic.Holding, "the medic is not back in his door as it lifts");
+            Assert.IsTrue(combat.WoundedAboard);
+            yield return Ticks(Tune.TickHz);
             // Up and away, back the way it came.
-            yield return Ticks((int)((CombatView.DustoffDown / 2 + CombatView.DustoffAway - 1f) * Tune.TickHz));
+            yield return Ticks((int)((CombatView.DustoffAway - 1f) * Tune.TickHz));
             Assert.IsTrue(combat.HueySeen);
             Assert.Greater(combat.HueyAt.position.y - ground, 15f, "it has not lifted");
             Assert.Less(combat.HueyAt.position.x, lx - 40f, "it is not going back the way it came");

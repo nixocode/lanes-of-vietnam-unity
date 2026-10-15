@@ -417,6 +417,8 @@ man; one is used.
 | the watchtower's ladder (fetched 2026-10-10, the owner the same day: "have a climb animation for gunners, snipers and rifle squads") | `ladder_climb` (Climbing Ladder: "Climbing Up A Ladder"; looped, its rise left in the root: sha256 `ed76e5b7a74e4894…`) |
 
 | the radio man (fetched 2026-10-14, the owner the same day, yes to "a Mixamo clip of a man kneeling with a handset to his ear") | `radio_talk` (Talking On A Cell Phone: "Male Standing While Talking On A Cell Phone"; 2 to 8 s of its 37 looped, imported left for right, played on the left arm and the head alone: sha256 `729a404fcbb116f4…`). Fetched with it and not used: `radio_grab` (Hiding Grab: "Grabs Radio While Hiding", sha256 `79d0619cfdffb539…`). Nothing in the catalogue kneels with a handset. |
+| the medevac's crew and the men thrown off the tower (fetched 2026-10-15, the owner the same day: "yes download the maixamo clips") | `sit_idle` (Sitting Idle: "Sitting In Chair Hands Resting On Thighs"; looped: the pilots in their seats, the crew chief and medic on the sills of its doors: sha256 `2246f5a903c5eba4…`); `fall_idle` (Falling Idle: "Mid-Air Falling Idle"; looped while a man is in the air: sha256 `27a37fbdfb1e6924…`) |
+| Rice Fields' river (fetched 2026-10-15, the owner's approval of the Rice Fields plan, which lists them) | `swim` (Swimming To Edge: "Swimming Breastroke To Edge Of Pool"; its stroke, its travel left in the root: sha256 `7d68d7494e11a188…`); `tread_water` (Treading Water: "Floating": sha256 `bf95c032000803cd…`). Not used until the river is built (PLAN, the Rice Fields stages). |
 
 ### Weapons — `Assets/_Project/Art/Weapons/`
 

@@ -443,11 +443,15 @@ namespace LanesOfVietnam.View
                                 Out.Play(first, (float)e.X.Value, (float)e.Z.Value, 0.7f, Range(1.0f, 1.08f), 0f, true, ranging);
                             if (rest != null) Out.Play(rest, (float)e.X.Value, (float)e.Z.Value, 0.9f, Range(0.92f, 1.0f), 0f, true, Mathf.Max(0f, lands - Incoming));
                         }
-                        // The helicopter: its recording is loudest eight seconds in, as it sets down, and goes away after.
+                        // The helicopter: coming in, its recording loudest eight seconds in, as it sets down; on the ground, its
+                        // rotor turning steady for as long as it stands there; and lifting, loud, and going away.
                         else if (e.Rounds == Inbound.Dustoff)
                         {
-                            string rotor = Pick("rotor");
-                            if (rotor != null) Out.Play(rotor, (float)e.X.Value, (float)e.Z.Value, 1f, 1f, 0f, true, Mathf.Max(0f, lands - 8f));
+                            float x = (float)e.X.Value, z = (float)e.Z.Value;
+                            string rotor = Pick("rotor"), idle = Pick("rotor_idle"), away = Pick("rotor_away");
+                            if (rotor != null) Out.Play(rotor, x, z, 1f, 1f, 0f, true, Mathf.Max(0f, lands - 8f));
+                            if (idle != null) Out.Play(idle, x, z, 1.5f, 1f, 0f, true, lands + 0.3f);
+                            if (away != null) Out.Play(away, x, z, 1f, 1f, 0f, true, lands + CombatView.DustoffDown - 0.3f);
                         }
                         // The jet: its recording is loudest three seconds in, and that is when it is over the target.
                         else if (e.Rounds == Inbound.Jet)
@@ -466,8 +470,9 @@ namespace LanesOfVietnam.View
                         string burst = Pick("grenade");
                         if (burst != null) Out.Play(burst, (float)e.X.Value, (float)e.Z.Value, 1f, 1.1f, 0f, false, CombatView.RocketFlight / pace);
                         float down = (float)((e.Amount ?? 0) * Tune.Dt) / pace;
-                        if (_sets.TryGetValue("rotor", out var rotors))
-                            foreach (var r in rotors) Out.Stop(r, down, 0.4f);
+                        foreach (var set in new[] { "rotor", "rotor_idle", "rotor_away" })
+                            if (_sets.TryGetValue(set, out var rotors))
+                                foreach (var r in rotors) Out.Stop(r, down, 0.4f);
                         break;
                     }
                     case EventKind.FirstContact:
