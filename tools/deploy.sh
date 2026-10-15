@@ -86,7 +86,7 @@ json.dump(config, open(os.path.join(stage, "vercel.json"), "w"), indent=2)
 
 # What a build is made of. Anything else in the staged folder is a mistake, and stops here.
 allowed = [r"index\.html", r"vercel\.json", r"Build/web\.(loader\.js|framework\.js\.br|wasm\.br|data\.br)",
-           r"StreamingAssets/Audio/audio\.json", r"StreamingAssets/Audio/(licensed/)?[a-z0-9]+_\d+\.m4a"]
+           r"StreamingAssets/Audio/audio\.json", r"StreamingAssets/Audio/(licensed/)?[a-z0-9]+(_[a-z]+)?_\d+\.m4a"]
 bad, total, n = [], 0, 0
 for root, dirs, files in os.walk(stage):
     dirs[:] = [d for d in dirs if d != ".vercel"]
