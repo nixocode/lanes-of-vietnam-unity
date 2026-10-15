@@ -94,12 +94,13 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
-        /// Broken at its first girt (TowerView.Fall's buckle): the stump stands where it stood, upright; all above the
-        /// break goes over about the legs on its falling side there, and lies past level, its top in the ground; the
-        /// broken ends of the legs are closed.
+        /// The owner, 2026-10-15: "i want it to crumble and have dust come up, it just kinda tilts". Brought down either
+        /// way (over whole, or broken at its first girt), it comes apart: in thirty pieces and more, every one of them
+        /// that went with it down on the ground (or a truck's roof) a few seconds after it struck, lying flat, and
+        /// scattered over metres; a tower broken at its girt leaves its stump's bracing standing where it stood.
         /// </summary>
         [UnityTest, Category("Structures")]
-        public IEnumerator A_tower_that_breaks_leaves_its_stump_standing_and_its_top_past_level()
+        public IEnumerator The_tower_comes_apart_as_it_comes_down([Values(false, true)] bool buckle)
         {
             yield return UIAuditInterfaceTests.LoadAndDeploy();
             var root = GameRoot.Instance;
@@ -107,38 +108,52 @@ namespace LanesOfVietnam.Tests
             root.Paused = true;
             yield return null;
             var tower = Object.FindAnyObjectByType<TowerView>();
-            Assert.IsTrue(root.Dressing.TowerBreaks, "the tower's legs were not cut at its first girt");
-            Transform Named(string n) => tower.Group.Find(n);
-            var stump = Named("tower_legs 0");
-            var above = Named("tower_legs 1");
-            Assert.IsNotNull(stump, "no stump");
-            Assert.IsNotNull(above, "no legs above the break");
-            Assert.IsNull(Named("tower_legs"), "the legs whole are still there beside their sections");
-            var stumpMesh = stump.GetComponent<MeshFilter>().sharedMesh;
-            Assert.LessOrEqual(stumpMesh.bounds.max.y, WorldDressing.TowerBreak + 0.2f, "the stump goes on above the break");
-            Assert.GreaterOrEqual(above.GetComponent<MeshFilter>().sharedMesh.bounds.min.y, WorldDressing.TowerBreak - 0.2f, "the legs above the break come down below it");
-            var stumpAt = stump.position;
-            var cabin = Named("tower_cabin").GetComponent<Renderer>();
-            var cabinWas = cabin.bounds.center;
+            Assert.IsTrue(root.Dressing.TowerBreaks, "the tower's legs were not cut at its girts");
+            for (int q = 0; q < 4; q++) Assert.IsNotNull(tower.Group.Find($"tower_legs 0 {q}"), $"no stump of leg {q}");
+            Assert.IsNull(tower.Group.Find("tower_legs"), "the legs whole are still there beside their pieces");
+            Assert.GreaterOrEqual(tower.Pieces, 30, "it is not in enough pieces to come apart");
+            var was = new System.Collections.Generic.Dictionary<Transform, Vector3>();
+            foreach (Transform c in tower.Group) was[c] = c.GetComponent<Renderer>().bounds.center;
 
-            Assert.IsTrue(TowerView.Bring(st, 90, buckle: true), "the tower did not fall");
+            Assert.IsTrue(TowerView.Bring(st, 90, buckle: buckle), "the tower did not fall");
             int steps = 0;
-            for (; steps < 6; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
+            for (; steps < 4; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
             var f = tower.Current;
-            Assert.IsTrue(f.Buckle, "it was asked to break and did not");
-            Assert.AreEqual(WorldDressing.TowerBreak, f.Break, 1e-4f);
-            Assert.That(f.Hits, Is.InRange(1.0f, 3.5f), "the top of a broken tower falls in a second or two");
-            Assert.Greater(f.Down * Mathf.Rad2Deg, 95f, "broken, it should lie past level, its top in the ground");
-            for (; steps * 0.05f < f.Hits + 1.2f; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
-            Assert.AreEqual(0f, Vector3.Angle(Vector3.up, stump.rotation * Vector3.up), 0.5f, "the stump does not stand upright");
-            Assert.Less((stump.position - stumpAt).magnitude, 0.05f, "the stump has moved");
-            Assert.AreEqual(f.Down * Mathf.Rad2Deg, Vector3.Angle(Vector3.up, tower.Over * Vector3.up), 2f, "its top does not lie where its fall says");
-            Assert.AreEqual(f.Down * Mathf.Rad2Deg, Vector3.Angle(Vector3.up, above.rotation * Vector3.up), 2f, "the legs above the break are not with its top");
-            // (Hinged on the stump: the point it went over about is still at the height of the break, give or take what
-            // it turned about itself as it went.)
-            var hinge = above.position + above.rotation * (f.Pivot - stumpAt);
-            Assert.AreEqual(f.Pivot.y, hinge.y, 0.6f, "its top is not hinged at the break");
-            Assert.Less(cabin.bounds.center.y, cabinWas.y - 6f, "its cabin has not come down");
+            Assert.AreEqual(buckle, f.Buckle, "it did not fall the way it was asked to");
+            Assert.Greater(tower.Landings.Count, 20, "too few of its pieces strike the ground");
+            for (; steps * 0.05f < f.Hits + 4f; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
+            int moved = 0, flat = 0, pieces = 0, standing = 0;
+            var spread = new Bounds();
+            bool first = true;
+            foreach (Transform c in tower.Group)
+            {
+                var r = c.GetComponent<Renderer>();
+                var mid = r.bounds.center;
+                bool stump = c.name.StartsWith("tower_legs 0") || c.name.StartsWith("tower_braces") && c.name.EndsWith(" 0");
+                if (buckle && stump)
+                {
+                    // (Each of its stump's panels stands where it stood, or was blown off by the burst that brought it down.)
+                    if (!c.name.StartsWith("tower_braces")) continue;
+                    if ((mid - was[c]).magnitude < 0.05f) standing++;
+                    else Assert.Less(mid.y - (float)root.Ground.HeightAt(mid.x, Coords.SimZ(mid.z)), 1f, $"{c.name}, of the stump, has moved and is not on the ground");
+                    continue;
+                }
+                if (c.name.StartsWith("tower_braces") && (mid - was[c]).magnitude < 0.01f) continue;
+                pieces++;
+                float ground = (float)root.Ground.HeightAt(mid.x, Coords.SimZ(mid.z));
+                Assert.Less(mid.y - ground, 3.6f, $"{c.name} is still up in the air (or on a truck higher than one)");
+                if ((mid - was[c]).magnitude > 2f) moved++;
+                // (Lying flat: its thinnest way upright.)
+                var e = c.GetComponent<MeshFilter>().sharedMesh.bounds.extents;
+                var thin = e.x <= e.y && e.x <= e.z ? Vector3.right : e.y <= e.z ? Vector3.up : Vector3.forward;
+                if (Mathf.Abs(Vector3.Dot(c.rotation * thin, Vector3.up)) > 0.9f) flat++;
+                if (first) { spread = new Bounds(mid, Vector3.zero); first = false; } else spread.Encapsulate(mid);
+            }
+            Assert.Greater(pieces, 20);
+            if (buckle) Assert.GreaterOrEqual(standing, 2, "its stump's bracing has not stood");
+            Assert.Greater(moved, pieces * 0.8f, $"only {moved} of {pieces} pieces came down from where they were");
+            Assert.Greater(flat, pieces * 0.8f, $"only {flat} of {pieces} pieces lie flat");
+            Assert.Greater(Mathf.Max(spread.size.x, spread.size.z), 7f, $"its pieces lie heaped in {spread.size}, not scattered");
         }
 
         /// <summary>

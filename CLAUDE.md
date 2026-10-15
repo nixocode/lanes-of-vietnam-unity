@@ -92,6 +92,9 @@ and say so:
 - `hash 1 ... bearing inbound map emplace satchel destruction` (the game, on `destruction`): 5581 ticks, final `3526591710u`;
   and `scenario hash 1` there: the firebase 4075 `3782637812u`; The Wire 4366 `3110059397u`; First Light 6303
   `2115725450u`; The Earth Fights 9266 `3572325795u`.
+- On `playtest-11` (the Americans open with fewer in The Wire and First Light, §12.52; every `hash` line above
+  unmoved): `scenario hash 1`: the firebase 4075 `3782637812u`; The Wire 6000 `3538541992u`; First Light 6669
+  `3007784689u`; The Earth Fights 9266 `3572325795u`.
 
 ## Rules this project keeps
 

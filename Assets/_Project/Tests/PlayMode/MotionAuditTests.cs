@@ -51,8 +51,9 @@ namespace LanesOfVietnam.Tests
         public IEnumerator Men_walk_where_they_go_and_stand_where_they_stop()
         {
             yield return UIAuditInterfaceTests.LoadAndDeploy();
-            // The same match every run, so one run's numbers can be set against another's.
-            Root.NewMatch(Side.Us, MatchLength.Standard, Seed);
+            // The same match every run, so one run's numbers can be set against another's. (Made as the VC's: a player's
+            // Americans open with nobody, PLAN §12.52, and here nobody plays them.)
+            Root.NewMatch(Side.Vc, MatchLength.Standard, Seed);
             var army = Root.ArmyView;
             var st = Root.Driver.State;
             st.Player = null;                           // both sides raise their own squads: a full fight to watch

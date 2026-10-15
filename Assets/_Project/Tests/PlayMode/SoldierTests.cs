@@ -51,8 +51,8 @@ namespace LanesOfVietnam.Tests
                 else
                 {
                     up++;
-                    Assert.Greater(head, hips + 0.35f, $"man {i} ({m.Posture}, {(army.FigureOf(i) != null ? army.FigureOf(i).State : "-")}, moving {Root.Driver.LastStep(i)}): head {head:F2} m, hips {hips:F2} m — not upright");
-                    Assert.That(hips, Is.InRange(0.3f, 1.2f), $"man {i} ({m.Posture}): hips {hips:F2} m above the ground");
+                    Assert.Greater(head, hips + 0.35f * ArmyView.FigureSize, $"man {i} ({m.Posture}, {(army.FigureOf(i) != null ? army.FigureOf(i).State : "-")}, moving {Root.Driver.LastStep(i)}): head {head:F2} m, hips {hips:F2} m — not upright");
+                    Assert.That(hips, Is.InRange(0.3f * ArmyView.FigureSize, 1.2f * ArmyView.FigureSize), $"man {i} ({m.Posture}): hips {hips:F2} m above the ground");
                 }
             }
             Debug.Log($"[LOV] soldiers: {st.Men.Count} figures ({up} up, {lying} prone, {dead} dead)");

@@ -4426,6 +4426,7 @@ made on this Mac).
 | 6 | the world from a map (M0) | ✅ done (§12.50) |
 | 7 | the tower comes down | ✅ done (§12.51); two items wait on his yes: a timber sound and a falling clip |
 | also | GRENADES card, QUALITY AUTO, the SMOKE fix | ✅ done (§12.47, §12.49), asked for along the way |
+| playtest 11 | the tower crumbles, timber heard, a crew in the Huey, men and Huey at 4/5, the US opens with fewer | ✅ done (§12.52); the sounds are his to judge |
 
 The owner, 2026-10-13: "Don't say it's done if you've done a third of the
 work. Have you been skipping so many steps on other stages? If so write down
@@ -4966,6 +4967,103 @@ cannot be put back up.
   there for them; none is built.
 
 New files: `Sim/Destruction.cs`, `View/TowerView.cs`.
+
+### 12.52 Playtest 11: the tower crumbles, timber heard, a crew in the Huey, smaller men, and the US opens with nobody (2026-10-15)
+
+The owner, after playing the Stage 7 build on localhost: "i want it to crumble and have dust come uo, it just
+kinda tilts and yeah that sound needs to be changed. Med evac has no soldiers in it. I think the game is too
+lobsided for US so try and balance it by having no or less spawns at the start for US", and while it was being
+built: "also make the chopper smaller in scale. Also do it with the soldiers, reduce overall size 1/5". On the
+branch `playtest-11`, from `main` (5bf5a09, Stage 7).
+
+**The tower crumbles** (`View/TowerView.cs`, `View/WorldDressing.cs`, `View/CombatView.cs`). It was drawn in
+about eighteen members that went over together; it is now in forty pieces that come apart: its legs cut through
+at both girts, a timber a leg a bay, each broken end closed with a splintered point; its bracing in its twelve
+panels; its deck in three, a row of planks each; its cabin a side at a time; its roof a sheet at a time with
+the rafters under it; its ladder in two; the bags on its deck a wall at a time. (A member is split whole timber
+by whole timber, by the parts of its mesh that hold together, so no plank is torn.) The fall it rides is the
+same (over whole about its feet, or broken at its first girt with the stump left standing), but each piece
+comes away on its own, by the fall's dice: the bracing pops off as it goes over and turns, the roof's sheets
+tear away if they are to, the cabin's sides and the upper timbers of the legs snap before it strikes, and what
+is still whole when it strikes bursts apart there, thrown on, up and out and tumbling. Each piece flies under
+gravity and its own spin, strikes the ground (or a truck's roof), hops, slides and lies flat; in the order
+they land, a piece that comes to rest over one already lying rests on it, tilted, so it ends in a heap. A
+tall piece left standing (a leg of the stump, the ladder's foot) goes over about its foot instead. All of it
+worked out once from the Collapsed event, so a capture of it is the same every time.
+
+The dust: a billow bursting out round its foot and rising as its legs give; a puff where every piece strikes,
+the size of the piece (TowerView lists the landings); and, when it strikes, a cloud along and about the wreck,
+sixteen puffs each its own (rising two to nine metres, its own size, thickness and life of seven to twelve
+seconds) drifting off downwind, with the low skirt and the thrown earth as before. (A first try had the
+puffs alike: they stood in a wall with a level top; captured, and redone.)
+
+**Timber heard** (`View/AudioView.cs`; the owner's "that sound needs to be changed" read as his yes for the
+download asked for in §12.51). Seven recordings from the Sonniss GDC bundles (2017 and 2019, the licence
+already used; fetched and hashed by `tools/audio/fetch_sonniss.sh`, cut by `slice_shots.py`, logged in
+`ASSETS.md`): a tree's creak as its legs give, wood breaking, branches crushing as its bracing tears off, a log
+striking (played at half speed) and a pile of wood dropping as it lands, a hard knock, and debris settling. The
+shell's report and the slowed body-fall it was made of before are gone from it. **I cannot listen: it is his
+to judge.**
+
+**A crew in the medevac** (`tools/blender/aircraft_import.py`, `View/CombatView.cs`, `SceneBuilder`). The UH-1B's
+cargo doors are slid open (they are bones in the Sketchfab file: their vertices moved 1.05 m aft and 6 cm out
+before it is baked), as a dustoff flew; `aircraft.json` now says where its doorways and its pilots' seats are.
+Aboard, of the army's own American bodies: its two pilots in their seats facing ahead, its crew chief with his
+M60 kneeling in one doorway and its medic in the other, each facing out, and a wounded man lying across the
+floor between them. They idle as it flies. (The pilots kneel, raised to a seat's height: there is no sitting
+clip. One from Mixamo would need his yes.) Captured: `captures/air/huey_crew.png`.
+
+**Smaller** (`ArmyView.FigureSize = 0.8`, `CombatView.HueySize = 0.8`). The men are drawn at four fifths of the
+bodies' size, the helicopter at four fifths of a UH-1's, and the men aboard it at the army's size. A man's
+stride and his climb are played at his size (`SoldierFigure`: the clips' speeds are a full-sized man's; a
+smaller man plays them faster), so his feet keep to the ground: the motion audit (PlayMode) has 0.5% of the
+ground covered without the legs, as before. The structures, the vehicles and the jet are as they were.
+
+**The Americans open with fewer** (`Sim/Scenario.cs`, `Sim/Match.cs`). Measured first, `simcs scenario 192
+level=veteran usopen=N` (new switch), the headless player who buys line squads:
+
+| the Americans open with | firebase, as US | firebase, as VC | The Wire | First Light | The Earth Fights |
+|---|---|---|---|---|---|
+| nobody | 122 | 179 | 93 | 104 | 173 |
+| 4 men (a squad) | 126 (was) | 136 (was) | 124 | 111 | 148 (was) |
+| 8 men | 165 | 83 | 155 (was) | 128 | 84 |
+| 12 men | | | | 155 (was) | |
+
+A player raises his first squad with his opening points the moment the match starts, so opening with nobody
+costs him little (126 to 122); the computer saves for its own, so a computer's Americans opening with nobody
+hand the match to a VC player (179). So: **in the firebase a player's Americans open with nobody** (a new
+`Scenario.UsPlaying`, and `Means.None`), and the computer's Americans keep their squad; **The Wire opens them
+with 4 men** (was 8) and **First Light with 8** (was 12). A side that opens with nobody is not "wiped out" until
+it has had men (`Match.CheckOver`; every pin unmoved). Measured after, `simcs scenario 192` (Recruit, Veteran,
+Elite): firebase as US 132, 122, 108; as VC 170, 136, 98; The Wire 161, 124, 86; First Light 172, 128, 117
+(against a Veteran 73 by taking the line); The Earth Fights 159, 148, 113. Every US operation against a Veteran
+is now 122 to 128 of 192 (the band 112 to 160), where The Wire and First Light were 155. The first field order
+for a US player was already "DEPLOY A RIFLE SQUAD INTO A LANE [Z]"; it is now the first thing he must do. (A
+selection kept from the last match pointed past the end of the new one's squads and threw: the commander now
+drops it when a match begins, and the selection rings check it.)
+
+**Measured.**
+
+- Pins: `determinism` ok; `simcs hash 1` 2256114725u and every flagged hash unmoved (`... satchel destruction`
+  3526591710u). `simcs scenario hash 1`: the firebase 4075 `3782637812u` and The Earth Fights 9266
+  `3572325795u` unmoved (nobody plays them); The Wire and First Light re-recorded (`SimTests`: The Wire 3 and
+  1, First Light 7 and 3; the seeds that end each way changed).
+- Tests: EditMode 120 of 120 (new: `A_players_Americans_open_the_firebase_with_nobody_and_raise_their_own`);
+  PlayMode 38 of 38 and the capture skipped (new: `StructureTests.The_tower_comes_apart_as_it_comes_down`, both
+  ways). The PlayMode tests that play the US raise his first squad at the start as a player does
+  (`UIAuditInterfaceTests.RaiseFirst`); the motion audit and the shot test watch a match made as the VC's, so
+  that nobody's Americans open with their squad as before.
+- WebGL 37.34 MB to start, 45.19 in all. Frame time at 2592 x 1370, seed 3, the five seconds after it is
+  brought down: over whole 4.5 to 4.6 ms mean, 6.0 at the 95th percentile; broken 4.5 to 4.6 and 6.0; no fall
+  4.4 and 6.0.
+- Captured (`captures/tower/c1_sheet.png`, `c2_sheet.png`, `c3_sheet.png`: over whole from the side, through
+  the glasses, and broken at its girt; not committed).
+
+**For him:** listen to the timber; look at the men at four fifths beside the trucks and the tower (they were
+the bodies' own size, about a man's); play the firebase as US from an empty field. Open: a sitting clip for
+the pilots and a falling clip for the men thrown off the tower (Mixamo, each his yes).
+
+New files: none (`.meta` files for the seven sounds come from Unity).
 
 ### 12.13 Corrections to earlier sections
 

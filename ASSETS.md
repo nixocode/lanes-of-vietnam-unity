@@ -795,6 +795,13 @@ quiet (`slice_shots.py` `events`).
 | `call_0` | `Military Radio Voice D (HI-3) Forty Mike Mike Request.wav` (2019, Apple Hill Studios), whole | `512034ba…` | a US player's call-in going out (it asks for 40 mm; it is the voice and the net that are wanted) |
 | `rotor_0` | `Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav` (2019, Airborne Sound: Vehicles Aviation), 74 to 94 s | `71eda572…` | the medevac coming in, setting down and going: a two-bladed Bell 222 standing in for the UH-1 (no Huey is in the bundles, and the one free recording found, on Wikimedia Commons, is CC BY-SA) |
 | `incoming_0`, `incoming_1` | `PM_BBI_Bullet_Passby_Whizzby_Airy_5.wav` (2020, PMSFX), events 0 and 2, played at 0.5 and 0.45 of their speed and cut to stop as they are loudest | `9c697f86…` | **a stand-in** for the rush of a shell coming in, ending as the guns' rounds burst (nothing free or licensed was found with a shell coming in) |
+| `timber_creak_0` | `Bluezone_BC0254_wood_creaking_tree_005.wav` (2019, BlueZone: Wood Sound Effects), 1.2 to 3.3 s | `ba14d88d…` | the watchtower's legs groaning as they give (added 2026-10-15; the owner: "that sound needs to be changed") |
+| `timber_snap_0` | `Destruction_Wooden_2.wav` (2019, InspectorJ: Wooden Fence Destruction) | `2b68b6e3…` | its legs breaking |
+| `timber_crush_0` | `Bluezone_BC0254_wood_crushing_branches_001_001.wav` (2019, BlueZone: Wood Sound Effects) | `a789fe63…` | its bracing tearing off as it goes over |
+| `timber_thud_0` | `Bluezone_BC0254_wood_falling_log_002_006.wav` (2019, BlueZone: Wood Sound Effects), played at half speed | `312d5dc9…` | the weight of it striking the ground |
+| `timber_pile_0` | `Dropping_WoodPile_79.wav` (2019, InspectorJ: Wooden Fence Destruction) | `2c3bd81e…` | its timbers coming down on each other |
+| `timber_knock_0` | `Impacts Hard - Short Wobbly Tail 01.wav` (2017, Double Trouble Audio: Wood Impacts and Debris) | `5213783d…` | a timber striking after |
+| `timber_rustle_0` | `Rustles - Pile, Debris 22.wav` (2017, Double Trouble Audio: Wood Impacts and Debris) | `a94061d2…` | the wreck settling |
 
 Fetched but not used yet: `warfare_t1b_cannon_firing_forest_distant_...wav`
 (2017) and

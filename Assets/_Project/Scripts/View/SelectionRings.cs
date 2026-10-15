@@ -47,7 +47,7 @@ namespace LanesOfVietnam.View
             Shown = 0;
             var root = Commander.Root;
             int squad = Commander.Selected;
-            if (squad >= 0 && root.Driver != null)
+            if (squad >= 0 && root.Driver != null && squad < root.Driver.State.Squads.Count)
             {
                 var st = root.Driver.State;
                 var sq = st.Squads[squad];

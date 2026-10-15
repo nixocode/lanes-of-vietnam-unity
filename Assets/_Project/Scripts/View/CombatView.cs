@@ -319,7 +319,7 @@ namespace LanesOfVietnam.View
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
                 case EventKind.CallIn: return CallLife;
                 case EventKind.Damaged: return SplintersFor;
-                case EventKind.Collapsed: return (float)MaxAge;
+                case EventKind.Collapsed: return 16f;          // (its cloud hangs a dozen seconds after it strikes)
                 default: return -1f;
             }
         }
@@ -1034,6 +1034,20 @@ namespace LanesOfVietnam.View
 
         private Transform _jet, _huey, _rotor;
         private bool _jetShown, _hueyShown;
+
+        /// <summary>How large the helicopter is drawn against its real size. The owner, 2026-10-15: "also make the chopper smaller in scale" (PLAN §12.52).</summary>
+        public const float HueySize = 0.8f;
+        /// <summary>
+        /// Where the medevac's crew sit, in its own space (SceneBuilder, from aircraft.json): its cargo doorways' middles at
+        /// the floor, and its pilots' seats. The owner, 2026-10-15: "Med evac has no soldiers in it".
+        /// </summary>
+        public Vector3[] HueyDoors = new Vector3[0], HueyPilots = new Vector3[0];
+        /// <summary>Who is aboard it: its pilots, its crew chief and medic in its doors, and a wounded man on its floor.</summary>
+        private readonly List<SoldierFigure> _aboard = new List<SoldierFigure>();
+        private readonly List<int> _aboardPosture = new List<int>();
+        private float _aboardAt = -1f;
+        /// <summary>The men aboard the helicopter, for the tests.</summary>
+        public int Aboard => _aboard.Count;
         /// <summary>Whether an aircraft was drawn last frame, for the tests.</summary>
         public bool JetSeen => _jet != null && _jet.gameObject.activeSelf;
         public bool HueySeen => _huey != null && _huey.gameObject.activeSelf;
@@ -1041,6 +1055,40 @@ namespace LanesOfVietnam.View
         public Transform HueyAt => _huey;
         // (The meshes are built with their noses to -x.)
         private static readonly Quaternion NoseAhead = Quaternion.Inverse(Quaternion.LookRotation(Vector3.left, Vector3.up));
+
+        /// <summary>
+        /// Its crew aboard (the owner, 2026-10-15: "Med evac has no soldiers in it"): its two pilots in their seats,
+        /// facing ahead, raised as a man sitting is; its crew chief kneeling in one cargo doorway with his M60 and its
+        /// medic in the other, each facing out; and a wounded man lying across its floor between them. American bodies
+        /// of the army's own, at the army's size (ArmyView.FigureSize) in a helicopter drawn smaller (HueySize).
+        /// </summary>
+        private void Board()
+        {
+            var army = _root.ArmyView;
+            if (army == null || army.UsFigures == null || army.UsFigures.Length == 0 || HueyDoors.Length == 0) return;
+            float size = ArmyView.FigureSize / HueySize;
+            void Man(int body, Vector3 at, float yaw, string arms, int posture, bool down)
+            {
+                var f = Instantiate(army.UsFigures[body % army.UsFigures.Length], _huey);
+                f.name = "aboard";
+                f.transform.SetLocalPositionAndRotation(at, Quaternion.Euler(0f, yaw, 0f));
+                f.transform.localScale = Vector3.one * size;
+                if (arms == null || !f.Carry(arms)) { if (f.Rifle != null) f.Rifle.enabled = false; }
+                f.Settle(0f, posture, false, down, 3);
+                _aboard.Add(f);
+                _aboardPosture.Add(down ? -1 : posture);
+            }
+            // (Its nose is to -x: a man facing ahead is turned -90 degrees.)
+            for (int k = 0; k < HueyPilots.Length; k++) Man(2 + k, HueyPilots[k] + Vector3.up * 0.3f, -90f, null, 1, false);
+            for (int k = 0; k < HueyDoors.Length && k < 2; k++)
+            {
+                var d = HueyDoors[k];
+                float outward = d.z >= 0 ? 1f : -1f;
+                Man(k, new Vector3(d.x, d.y, d.z - outward * 0.5f), outward > 0 ? 0f : 180f, k == 0 ? "m60" : null, 1, false);
+            }
+            var mid = HueyDoors[0];
+            Man(4, new Vector3(mid.x + 0.6f, mid.y, 0.45f), 0f, null, 0, true);
+        }
 
         private Transform Craft(string name, Mesh mesh)
         {
@@ -1178,13 +1226,20 @@ namespace LanesOfVietnam.View
             if (_huey == null)
             {
                 _huey = Craft("aircraft huey", Huey);
+                _huey.localScale = Vector3.one * HueySize;
                 if (Rotor != null)
                 {
                     _rotor = Craft("rotor", Rotor);
                     _rotor.SetParent(_huey, false);
                     _rotor.localPosition = RotorHub;
                 }
+                Board();
             }
+            // Its crew idle as it flies, at the match's pace (still when it is paused).
+            float dt = _aboardAt < 0 || t < _aboardAt ? 0f : t - _aboardAt;
+            _aboardAt = t;
+            for (int k = 0; k < _aboard.Count; k++)
+                if (_aboard[k] != null && _aboardPosture[k] >= 0) _aboard[k].Step(dt, 0f, _aboardPosture[k], false, false, 0);
             var facing = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
             _huey.SetPositionAndRotation(lz + new Vector3(dir * s, h, 0), facing * Quaternion.AngleAxis(-nose, Vector3.right) * NoseAhead);
             if (_rotor != null) _rotor.localRotation = Quaternion.AngleAxis(Mathf.Repeat(t * RotorTurns, 1f) * 360f, Vector3.up);
@@ -1852,10 +1907,12 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
-        /// The tower going over (TowerView.Fall: the same fall the tower is drawn falling). As its legs give, dust
-        /// kicked up at its foot on its falling side; where it strikes, when it strikes, a long low cloud along the
-        /// length of it (of what went over: all of it, or what was above the break), rolling out and rising and drifting off downwind, and earth and timber thrown up where its
-        /// top came down.
+        /// The tower coming down (TowerView.Fall and its pieces' landings: the same fall the tower is drawn falling).
+        /// The owner, 2026-10-15: "i want it to crumble and have dust come up". As its legs give, dust bursting out
+        /// round its foot and rising; where each piece of it strikes, a puff the size of the piece; when it strikes, a
+        /// great cloud along and about the wreck that rolls up to twice a man's height and more, spreads and drifts off
+        /// downwind for a dozen seconds; a low skirt of it rolling out either side; and earth and timber thrown up
+        /// where its top came down.
         /// </summary>
         private void Collapse(SimEvent e, float age)
         {
@@ -1864,38 +1921,65 @@ namespace LanesOfVietnam.View
             var fall = new TowerView.Fall(e, dressing, _root.Ground);
             int seed = fall.Seed;
             var side = Vector3.Cross(Vector3.up, fall.Dir);
-            if (age < 2.5f)
+            var foot = dressing.TowerFoot;
+            // Its legs giving: dust burst out round its foot, rising.
+            if (age < 4f)
             {
-                float t = age / 2.5f, fade = 1 - t;
-                for (int k = 0; k < 3; k++)
+                float t = age / 4f, fade = (1 - t) * Mathf.Clamp01(age / 0.15f);
+                for (int k = 0; k < 8; k++)
                 {
-                    var p = fall.Pivot + fall.Dir * ((k - 1) * 0.8f) + side * ((H(seed, 70 + k) - 0.5f) * 3f);
-                    p.y = GroundAt(p) + 0.6f + 0.8f * age;
-                    Dust(p, 2.2f + 3f * t, new Color(0.32f, 0.28f, 0.23f, 0.55f * fade * fade), H(seed, 75 + k), 0.1f + 0.85f * t, 0.8f);
+                    float az = (k + H(seed, 70 + k)) / 8f * 6.2832f;
+                    float r = 1.6f + 2.5f * Mathf.Sqrt(t) + H(seed, 60 + k);
+                    var p = foot + new Vector3(Mathf.Cos(az) * r, 0f, Mathf.Sin(az) * r);
+                    p.y = GroundAt(p) + 0.5f + 1.3f * age;
+                    Dust(p, 2.4f + 5f * t, new Color(0.33f, 0.29f, 0.24f, 0.6f * fade), H(seed, 75 + k), 0.1f + 0.85f * t, 0.9f);
+                }
+            }
+            // Where each piece strikes: a puff, the bigger for the bigger piece.
+            _towerView ??= FindAnyObjectByType<TowerView>();
+            if (_towerView != null && _towerView.Falling)
+            {
+                var landed = _towerView.Landings;
+                for (int k = 0; k < landed.Count; k++)
+                {
+                    var (at, where, size) = landed[k];
+                    float a = age - at;
+                    if (a < 0) break;
+                    if (a > 2.6f) continue;
+                    float t = a / 2.6f;
+                    var p = where;
+                    p.y = GroundAt(where) + 0.3f + 0.6f * a;
+                    Dust(p, (0.9f + 0.45f * size) * (0.6f + 1.2f * Mathf.Sqrt(t)), new Color(0.31f, 0.27f, 0.22f, 0.7f * (1 - t) * Mathf.Clamp01(a / 0.08f)),
+                         H(seed, 500 + k), 0.05f + 0.9f * t, 0.8f);
                 }
             }
             float u = age - fall.Hits;
             if (u < 0) return;
-            const float life = 8f;
-            for (int k = 0; k < 7 && u < life; k++)
+            // The great cloud: along what came down and about it, each puff of it its own: rolling up as high as its own
+            // dice say (two to nine metres), as big, as thick and as long-lived, and off downwind. (Alike, they stood in a
+            // wall with a level top.)
+            for (int k = 0; k < 16; k++)
             {
-                float a = u - k * 0.03f;
-                if (a < 0) continue;
+                float life = 7f + 5f * H(seed, 85 + k);
+                float a = u - 0.05f * k * H(seed, 95 + k);
+                if (a < 0 || a > life) continue;
                 float t = a / life;
-                var p = fall.Pivot + fall.Dir * ((1.5f + k * 1.6f) * fall.Reach / 9.5f) + side * ((H(seed, 80 + k) - 0.5f) * 1.5f + (H(seed, 90 + k) - 0.5f) * 2f * Mathf.Sqrt(a));
-                p += new Vector3(0.5f * a, 0f, 0f);
-                p.y = GroundAt(p) + 0.5f + 1.6f * (1 - Mathf.Exp(-a * 1.2f)) + 0.25f * a;
-                float size = (3.6f + 5.5f * Mathf.Sqrt(t)) * (0.8f + 0.4f * H(seed, 100 + k));
-                float op = Mathf.SmoothStep(0f, 1f, a / 0.15f) * Mathf.Pow(1 - t, 1.4f) * 0.92f;
-                Dust(p, size, new Color(0.25f, 0.22f, 0.18f, op), H(seed, 110 + k), 0.05f + 0.9f * t, 0.75f);
+                float along = H(seed, 105 + k) * (fall.Reach + 2f) - 0.8f;
+                var p = fall.Pivot + fall.Dir * along + side * ((H(seed, 80 + k) - 0.5f) * 4f + (H(seed, 90 + k) - 0.5f) * 4f * Mathf.Sqrt(a));
+                p += new Vector3((0.35f + 0.4f * H(seed, 125 + k)) * a, 0f, 0f);
+                float high = 2f + 7f * H(seed, 130 + k) * H(seed, 131 + k);
+                p.y = GroundAt(p) + 0.5f + high * (1 - Mathf.Exp(-a * (0.5f + 0.6f * H(seed, 132 + k))));
+                float size = (2.8f + (3.5f + 4f * H(seed, 100 + k)) * Mathf.Sqrt(t)) * (0.75f + 0.5f * H(seed, 133 + k));
+                float op = Mathf.SmoothStep(0f, 1f, a / 0.25f) * Mathf.Pow(1 - t, 1.7f) * (0.45f + 0.35f * H(seed, 134 + k));
+                Dust(p, size, new Color(0.28f, 0.25f, 0.21f, op), H(seed, 110 + k), 0.05f + 0.9f * t, 0.75f + 0.4f * H(seed, 135 + k));
             }
             // A low skirt of it rolling out either side.
-            for (int k = 0; k < 4 && u < 4f; k++)
+            for (int k = 0; k < 6 && u < 4.5f; k++)
             {
-                float t = u / 4f;
-                var p = fall.Pivot + fall.Dir * ((3f + 2.2f * k) * fall.Reach / 9.5f) + side * ((k % 2 == 0 ? 1f : -1f) * (1.5f + 4f * (1 - Mathf.Exp(-u * 1.5f))));
+                float t = u / 4.5f;
+                var p = fall.Pivot + fall.Dir * ((2f + 2.2f * (k / 2)) * fall.Reach / 9.5f) + side * ((k % 2 == 0 ? 1f : -1f) * (1.5f + 5f * (1 - Mathf.Exp(-u * 1.4f))));
                 p.y = GroundAt(p) + 0.35f;
-                Dust(p, 2.4f + 2.5f * t, new Color(0.34f, 0.30f, 0.25f, 0.6f * (1 - t) * (1 - t)), H(seed, 115 + k), 0.1f + 0.85f * t, 0.45f);
+                Dust(p, 2.6f + 3f * t, new Color(0.34f, 0.30f, 0.25f, 0.62f * (1 - t) * (1 - t)), H(seed, 115 + k), 0.1f + 0.85f * t, 0.45f);
             }
             if (u < 2.2f)
             {
@@ -1913,6 +1997,8 @@ namespace LanesOfVietnam.View
                 }
             }
         }
+
+        private TowerView _towerView;
 
         /// <summary>A clod of earth, or a piece of anything, thrown.</summary>
         private void Clod(Vector3 pos, float size, Color col, float seed)

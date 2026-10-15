@@ -52,6 +52,15 @@ LICENSED = {
     # The Browning .30 cal: one three-round burst per take, near and far.
     "mg": [("2016/M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav", 2.5),
            ("2016/M1919A4_Browning_Machine_Gun_.30cal_200m_left_behind_blanks_Triple_shots_x_1.wav", 2.5)],
+    # The watchtower coming down (PLAN §12.52; the owner, 2026-10-15: "that sound needs to be changed": it was a
+    # shell's report and a body's fall, slowed). Timber: wood breaking as its legs give, branches crushing as its
+    # bracing tears off, a log striking and a pile of wood dropping as it comes down, a hard knock, debris settling.
+    "timber_snap": [("2019/Destruction_Wooden_2.wav", 1.7)],
+    "timber_crush": [("2019/Bluezone_BC0254_wood_crushing_branches_001_001.wav", 0.8)],
+    "timber_thud": [("2019/Bluezone_BC0254_wood_falling_log_002_006.wav", 0.3)],
+    "timber_pile": [("2019/Dropping_WoodPile_79.wav", 1.2)],
+    "timber_knock": [("2017/Impacts Hard - Short Wobbly Tail 01.wav", 0.6)],
+    "timber_rustle": [("2017/Rustles - Pile, Debris 22.wav", 0.7)],
 }
 # Takes of many events, cut apart where the sound falls quiet for `gap`
 # seconds: bursts, rounds going by, the phrases of a radio call.
@@ -85,6 +94,8 @@ PIECES = {
     # A radio man's request for fire, whole: heard as a US player's call goes out. (It asks for forty
     # millimetre; it is the voice and the net that are wanted, under the fight.)
     "call": [("2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav", 0.0, 4.48, 0.02, 0.12)],
+    # The tower's legs groaning as they give: a tree's creak, its louder second half.
+    "timber_creak": [("2019/Bluezone_BC0254_wood_creaking_tree_005.wav", 1.2, 3.3, 0.25, 0.25)],
 }
 # A recording played slow, made into a sound of its own: the incoming shell. Nothing free or licensed here
 # has a shell coming in; a round going by has the same rush, a tenth as long. Played at half its speed it is

@@ -527,7 +527,31 @@ namespace LanesOfVietnam.Tools
             float hx = hub.Success ? float.Parse(hub.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0f;
             float hy = hub.Success ? float.Parse(hub.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture) : 0f;
             combat.RotorHub = new Vector3(-hx, 0f, -hy);
-            Debug.Log($"[LOV] aircraft: {string.Join(", ", meshes.Select(x => $"{x.name} {x.triangles.Length / 3}"))}; rotor hub {combat.RotorHub}; jet bounds {combat.Jet?.bounds}; huey bounds {combat.Huey?.bounds}");
+            // Where its crew sit: its cargo doorways (their middle, at the floor) and its pilots' seats. The script's
+            // (x, y, z) is (-x, z, -y) here.
+            combat.HueyDoors = Points(json.text, "doors").ToArray();
+            combat.HueyPilots = Points(json.text, "pilots").ToArray();
+            Debug.Log($"[LOV] aircraft: {string.Join(", ", meshes.Select(x => $"{x.name} {x.triangles.Length / 3}"))}; rotor hub {combat.RotorHub}; jet bounds {combat.Jet?.bounds}; huey bounds {combat.Huey?.bounds}; " +
+                      $"doors {string.Join(" ", combat.HueyDoors)}; pilots {string.Join(" ", combat.HueyPilots)}");
+        }
+
+        /// <summary>The points listed under a key of aircraft.json (each [x, y, z, ...] of the Blender script's), in Unity's space.</summary>
+        private static System.Collections.Generic.IEnumerable<Vector3> Points(string json, string key)
+        {
+            int at = json.IndexOf($"\"{key}\"", System.StringComparison.Ordinal);
+            if (at < 0) yield break;
+            int open = json.IndexOf('[', at), depth = 0, end = open;
+            for (; end < json.Length; end++)
+            {
+                if (json[end] == '[') depth++;
+                else if (json[end] == ']' && --depth == 0) break;
+            }
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(json.Substring(open + 1, end - open - 1), @"\[([^\[\]]*)\]"))
+            {
+                var n = m.Groups[1].Value.Split(',').Select(v => float.Parse(v.Trim(), inv)).ToArray();
+                if (n.Length >= 3) yield return new Vector3(-n[0], n[2], -n[1]);
+            }
         }
 
         /// <summary>A baked prop set (Art/Props): lit like the plants, without wind, leaf glow or field shade.</summary>

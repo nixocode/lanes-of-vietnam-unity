@@ -46,6 +46,13 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>What each side has that the other has not.</summary>
         public Means Us = new Means(), Vc = new Means();
+        /// <summary>
+        /// What the Americans have when the player is them, if it is not <see cref="Us"/>. (The owner, 2026-10-15:
+        /// "I think the game is too lobsided for US so try and balance it by having no or less spawns at the start for
+        /// US". A player raises his first squad with his opening points the moment the match starts; the computer saves
+        /// for its own, so a computer's Americans opening with nobody would hand the match to a VC player.)
+        /// </summary>
+        public Means UsPlaying;
         /// <summary>Each side's cards, by id. Null: all of its side's.</summary>
         public string[] UsDeck, VcDeck;
 
@@ -88,7 +95,7 @@ namespace LanesOfVietnam.Sim
                 CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
                 MusterCost = CostFor(level), MoraleRate = RateFor(len),
                 Player = player,
-                UsMeans = Us, VcMeans = Vc, UsDeck = UsDeck, VcDeck = VcDeck,
+                UsMeans = player == Side.Us && UsPlaying != null ? UsPlaying : Us, VcMeans = Vc, UsDeck = UsDeck, VcDeck = VcDeck,
                 Mode = Mode, Attacker = Attacker, ClockSeconds = Timed ? ClockSeconds : 0,
                 // Its role. In a standard match both sides take ground, as they always have. Against a clock
                 // the side that comes on takes it and the other holds his: his squads go to cover and stay in it.
@@ -113,21 +120,22 @@ namespace LanesOfVietnam.Sim
     public static class Scenarios
     {
         /// <summary>
-        /// The match the game had before there were scenarios: either side, any length, both sides alike.
-        /// (`simcs scenario firebase 192`: as the Americans 170, 125 and 96 of 192 against a Recruit, a Veteran and
-        /// the Elite; as the VC 139, 111 and 76.)
+        /// The match the game had before there were scenarios: either side, any length, both sides alike, but that
+        /// a player's Americans open with nobody (PLAN §12.52). (`simcs scenario firebase 192`, 2026-10-15: as the Americans
+        /// 132, 122 and 108 of 192 against a Recruit, a Veteran and the Elite; as the VC 170, 136 and 98.)
         /// </summary>
         public static readonly Scenario Firebase = new Scenario
         {
             Id = "firebase", Title = "THE FIREBASE", DateLine = "CENTRAL HIGHLANDS · 1965",
             Briefing = "A firebase on a red-dirt track, and the jungle that wants it back. Two lanes: the perimeter, dug in and built up, and the track verge under the treeline, where the only cover is what the fighting left.\n\nNo clock but the men's own will. Break theirs before they break yours.",
             Orders = new[] { "Break the enemy's will to fight", "Hold what you take: ground lost costs will", "Follow your field orders at the top of the screen" },
+            UsPlaying = new Means { Opening = Means.None },
         };
 
         /// <summary>
-        /// A siege, as the Americans: five minutes to hold against an enemy who opens with half as many men
-        /// again and is paid half as much again. Both sides' will lasts longer than in a standard match, so
-        /// it is the clock that decides. (`simcs scenario the-wire 192`: 173, 141 and 119 of 192.)
+        /// A siege, as the Americans: five minutes to hold against an enemy who opens with three times as many men
+        /// (half as many again until 2026-10-15, PLAN §12.52) and is paid half as much again. Both sides' will lasts longer than in a standard match, so
+        /// it is the clock that decides. (`simcs scenario the-wire 192`, 2026-10-15: 161, 124 and 86 of 192.)
         /// </summary>
         public static readonly Scenario TheWire = new Scenario
         {
@@ -135,15 +143,16 @@ namespace LanesOfVietnam.Sim
             Briefing = "They came out of the treeline an hour before dawn, and they have not stopped coming. A main-force battalion against one company behind sandbags and a single strand of wire.\n\nThe relief column is on the track and five minutes out. You do not have to beat them. You have to be here when it arrives.",
             Orders = new[] { "Hold until the clock runs out", "If your will breaks first, the firebase falls", "They have the numbers: make every position cost them" },
             Mode = MatchMode.Siege, ClockSeconds = 300, Attacker = Side.Vc, Plays = Side.Us, Length = MatchLength.Standard,
-            Us = new Means { Opening = 8, Will = 0.6 },
+            Us = new Means { Opening = 4, Will = 0.6 },
             Vc = new Means { Opening = 12, Income = 1.5, Will = 0.6 },
         };
 
         /// <summary>
         /// An assault, as the Americans: seven minutes to take the line in front of the enemy's last, the
         /// trench in the far lane and the berm in the near, and have both at once. They open dug in; the
-        /// Americans open with three squads and are paid more. (`simcs scenario first-light 192`: 181, 137 and 117
-        /// of 192; against a Veteran 68 by taking the line, 69 by breaking him or leaving him no men.)
+        /// Americans open with two squads (three until 2026-10-15, PLAN §12.52) and are paid more. (`simcs scenario
+        /// first-light 192`, 2026-10-15: 172, 128 and 117 of 192; against a Veteran 73 by taking the line, 55 by breaking
+        /// him or leaving him no men.)
         /// </summary>
         public static readonly Scenario FirstLight = new Scenario
         {
@@ -151,7 +160,7 @@ namespace LanesOfVietnam.Sim
             Briefing = "The patrols found where the mortars are coming from: a line of fighting positions dug into the treeline, eight hundred metres up the track. Battalion wants it gone before the sun is over the ridge.\n\nThey are dug in and they know you are coming. Take their trench and the berm beside it, and hold both. A line with one end still in their hands is not taken.",
             Orders = new[] { "Take the trench in the far lane and the berm in the near lane: hold BOTH at once", "Or break their will", "When the clock runs out the attack is called off" },
             Mode = MatchMode.Assault, ClockSeconds = 420, Attacker = Side.Us, LineBack = 1, Plays = Side.Us, Length = MatchLength.Standard,
-            Us = new Means { Opening = 12, Income = 1.4, Will = 0.5 },
+            Us = new Means { Opening = 8, Income = 1.4, Will = 0.5 },
             Vc = new Means { Opening = 8, Income = 0.9, Will = 0.5 },
         };
 
@@ -159,7 +168,7 @@ namespace LanesOfVietnam.Sim
         /// A standard match, as the VC, against an enemy with more of everything: the Americans are paid 1.15
         /// to the VC's 1 (a fifth more until Bearing, PLAN §12.41: at 1.2 the VC player won 108 of 192 against a
         /// Veteran). The VC open with twice the points, for the ground, and their will lasts longer.
-        /// (`simcs scenario earth-fights 192`: 141, 125 and 71 of 192.)
+        /// (`simcs scenario earth-fights 192`, 2026-10-15: 159, 148 and 113 of 192.)
         /// </summary>
         public static readonly Scenario EarthFights = new Scenario
         {

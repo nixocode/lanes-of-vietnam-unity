@@ -64,7 +64,7 @@ namespace LanesOfVietnam.View
         /// <summary>The watchtower's group (its members and its deck's bags), and the middle of its foot: for TowerView.</summary>
         public Transform Tower => _tower;
         public Vector3 TowerFoot { get; private set; }
-        /// <summary>Its legs are cut through at its first girt, so that it can break there (TowerView.Fall's buckle).</summary>
+        /// <summary>Its legs are cut through at its girts, so that it can break there (TowerView.Fall's buckle) and come apart.</summary>
         public bool TowerBreaks { get; private set; }
         /// <summary>The vehicles parked in the firebase: where (the world's), which way their length runs, how long, wide and tall (a tower falling on one rests on it).</summary>
         public readonly List<(Vector3 at, Vector3 along, float length, float width, float height)> Parked = new List<(Vector3, Vector3, float, float, float)>();
@@ -523,19 +523,30 @@ namespace LanesOfVietnam.View
                 var members = new List<Renderer>();
                 foreach (string member in StructureSet.TowerMembers)
                     Structures.Place(_tower, members, member, TowerFoot, 0f);
-                var braces = members.Find(r => r != null && r.name == "tower_braces");
-                if (braces != null) Panels(braces);
-                var legs = members.Find(r => r != null && r.name == "tower_legs");
-                if (legs != null) TowerBreaks = Sections(legs);
+                // In the pieces it comes apart into when it is brought down (TowerView): its bracing in panels, its
+                // legs cut at its girts, a timber a leg a bay; its deck in three, its cabin a side at a time, its roof
+                // a sheet at a time with the rafters under it, its ladder in two.
+                Renderer Member(string name) => members.Find(r => r != null && r.name == name);
+                if (Member("tower_braces") is Renderer braces) Panels(braces);
+                if (Member("tower_legs") is Renderer legs) TowerBreaks = Cut(legs, new[] { TowerBreak, 2f * TowerBreak }, true);
+                if (Member("tower_ladder") is Renderer ladder) Cut(ladder, new[] { TowerDeck * 0.5f }, false);
+                // (Its planks lie in rows across z, its roof's sheets side by side along x: the script's y and x.)
+                if (Member("tower_deck") is Renderer deck) Split(deck, c => Band(c.z, 3));
+                if (Member("tower_roof") is Renderer roof) Split(roof, c => Band(c.x, 3));
+                if (Member("tower_cabin") is Renderer cabin) Split(cabin, c => Mathf.Abs(c.x) >= Mathf.Abs(c.z) ? (c.x >= 0 ? 0 : 2) : (c.z >= 0 ? 1 : 3));
                 if (Bags.Ready)
                 {
                     // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
-                    float deck = foot + TowerDeck;
-                    var bags = new List<Renderer>();
-                    Bags.Wall(_tower, bags, g, tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5, 0.5f, true, 2001, level: deck);
-                    Bags.Wall(_tower, bags, g, tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6, 0.5f, true, 2002, level: deck);
-                    Bags.Wall(_tower, bags, g, tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6, 0.5f, true, 2003, level: deck);
-                    Merge(_tower, bags, "tower bags");
+                    // (A wall to a mesh: each comes off on its own.)
+                    float deckAt = foot + TowerDeck;
+                    var walls = new[] { (tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5), (tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6), (tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6) };
+                    for (int k = 0; k < walls.Length; k++)
+                    {
+                        var bags = new List<Renderer>();
+                        var (x0, z0, x1, z1) = walls[k];
+                        Bags.Wall(_tower, bags, g, x0, z0, x1, z1, 0.5f, true, 2001 + k, level: deckAt);
+                        Merge(_tower, bags, $"tower bags {k}");
+                    }
                 }
             }
             else
@@ -660,90 +671,189 @@ namespace LanesOfVietnam.View
         public const float TowerBreak = 2.8f;
 
         /// <summary>
-        /// The tower's legs cut through at its first girt, a mesh below and a mesh above, named "tower_legs 0" and
-        /// "tower_legs 1": a tower that buckles breaks there, the stump left standing (TowerView). Each broken end is
-        /// closed with a splintered point, so that a leg is not seen to be hollow. True if they were cut; left whole
-        /// if its mesh cannot be read.
+        /// A member of the tower cut through at heights, a mesh a section, and (by quadrants) a mesh a leg: named
+        /// "{its name} {section}" or "{its name} {section} {leg}", from the ground up (legs 0 to 3 by the quadrant of the
+        /// plan they stand in). Each broken end is closed with a splintered point, so that a timber is not seen to be
+        /// hollow. True if it was cut; left whole if its mesh cannot be read.
         /// </summary>
-        private static bool Sections(Renderer legs)
+        private static bool Cut(Renderer whole, float[] heights, bool quadrants)
         {
-            var mesh = legs.GetComponent<MeshFilter>().sharedMesh;
+            var mesh = whole.GetComponent<MeshFilter>().sharedMesh;
             if (mesh == null || !mesh.isReadable) return false;
             var v = mesh.vertices;
             var n = mesh.normals;
             var uv = mesh.uv;
             var tan = mesh.tangents;
             Vtx At(int i) => new Vtx { P = v[i], N = n.Length > i ? n[i] : Vector3.up, U = uv.Length > i ? uv[i] : Vector2.zero, T = tan.Length > i ? tan[i] : Vector4.zero };
-            for (int b = 0; b < 2; b++)
+            int Leg(Vector3 c) => quadrants ? (c.x >= 0 ? 1 : 0) + (c.z >= 0 ? 2 : 0) : 0;
+            for (int b = 0; b <= heights.Length; b++)
             {
-                bool above = b == 1;
+                float lo = b > 0 ? heights[b - 1] : float.NegativeInfinity, hi = b < heights.Length ? heights[b] : float.PositiveInfinity;
+                for (int leg = 0; leg < (quadrants ? 4 : 1); leg++)
+                {
+                    var pv = new List<Vector3>(); var pn = new List<Vector3>(); var puv = new List<Vector2>(); var pt = new List<Vector4>();
+                    var tris = new List<int>[mesh.subMeshCount];
+                    for (int s = 0; s < mesh.subMeshCount; s++)
+                    {
+                        tris[s] = new List<int>();
+                        var t = mesh.GetTriangles(s);
+                        var under = new List<Vtx>();
+                        var over = new List<Vtx>();
+                        for (int k = 0; k < t.Length; k += 3)
+                        {
+                            if (Leg((v[t[k]] + v[t[k + 1]] + v[t[k + 2]]) / 3f) != leg) continue;
+                            var poly = new List<Vtx> { At(t[k]), At(t[k + 1]), At(t[k + 2]) };
+                            if (b > 0) poly = Clip(poly, lo, true, under);
+                            if (b < heights.Length && poly.Count >= 3) poly = Clip(poly, hi, false, over);
+                            if (poly.Count < 3) continue;
+                            int first = pv.Count;
+                            foreach (var q in poly) { pv.Add(q.P); pn.Add(q.N); puv.Add(q.U); pt.Add(q.T); }
+                            for (int j = 1; j + 1 < poly.Count; j++) { tris[s].Add(first); tris[s].Add(first + j); tris[s].Add(first + j + 1); }
+                        }
+                        // Its broken ends closed: the end it was cut from below (facing down), and from above (facing up).
+                        Caps(under, Vector3.down, pv, pn, puv, pt, tris[s]);
+                        Caps(over, Vector3.up, pv, pn, puv, pt, tris[s]);
+                    }
+                    if (pv.Count == 0) continue;
+                    string name = quadrants ? $"{whole.name} {b} {leg}" : $"{whole.name} {b}";
+                    Piece(whole, name, pv, pn, puv, pt, tris, n.Length > 0, uv.Length > 0, tan.Length > 0);
+                }
+            }
+            Destroy(whole.gameObject);
+            return true;
+        }
+
+        /// <summary>
+        /// The ends a cut left, closed: the points made on it gathered into the ends they ring (each within 0.35 m of
+        /// another of its own), each closed round its middle with a splinter standing out of it the way it faces.
+        /// </summary>
+        private static void Caps(List<Vtx> cut, Vector3 face, List<Vector3> pv, List<Vector3> pn, List<Vector2> puv, List<Vector4> pt, List<int> tris)
+        {
+            var rings = new List<List<Vtx>>();
+            foreach (var c in cut)
+            {
+                var ring = rings.Find(r => r.Exists(o => (o.P - c.P).sqrMagnitude < 0.35f * 0.35f));
+                if (ring == null) rings.Add(ring = new List<Vtx>());
+                if (!ring.Exists(o => (o.P - c.P).sqrMagnitude < 1e-6f)) ring.Add(c);
+            }
+            for (int r = 0; r < rings.Count; r++)
+            {
+                var ring = rings[r];
+                if (ring.Count < 3) continue;
+                var mid = Vector3.zero;
+                foreach (var c in ring) mid += c.P;
+                mid /= ring.Count;
+                ring.Sort((x, y) => Mathf.Atan2(x.P.z - mid.z, x.P.x - mid.x).CompareTo(Mathf.Atan2(y.P.z - mid.z, y.P.x - mid.x)));
+                float spread = 0f;
+                foreach (var c in ring) spread = Mathf.Max(spread, (c.P - mid).magnitude);
+                var tip = mid + face * (0.2f + 0.25f * ((r * 7 + ring.Count) % 4) / 3f) * spread * 2f
+                          + new Vector3(r % 2 == 0 ? 0.25f : -0.25f, 0f, r % 3 == 0 ? 0.2f : -0.2f) * spread;
+                int c0 = pv.Count;
+                pv.Add(tip); pn.Add(face); puv.Add(ring[0].U); pt.Add(ring[0].T);
+                foreach (var c in ring) { pv.Add(c.P); pn.Add(face); puv.Add(c.U); pt.Add(c.T); }
+                for (int j = 0; j < ring.Count; j++)
+                {
+                    int a = c0 + 1 + j, z = c0 + 1 + (j + 1) % ring.Count;
+                    // (Unity's front faces turn clockwise as seen: from above, the ring sorted by its angle turns the other way.)
+                    if (face.y < 0) { tris.Add(c0); tris.Add(a); tris.Add(z); }
+                    else { tris.Add(c0); tris.Add(z); tris.Add(a); }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A member of the tower split into pieces whole timber by whole timber (and sheet by sheet): each part of its
+        /// mesh that holds together, put in the piece its middle says, named "{its name} {piece}". Left whole if its
+        /// mesh cannot be read.
+        /// </summary>
+        private static void Split(Renderer whole, System.Func<Vector3, int> piece)
+        {
+            var mesh = whole.GetComponent<MeshFilter>().sharedMesh;
+            if (mesh == null || !mesh.isReadable) return;
+            var v = mesh.vertices;
+            var n = mesh.normals;
+            var uv = mesh.uv;
+            var tan = mesh.tangents;
+            // The parts that hold together: the vertices joined by a triangle, and those at the same place.
+            var root = new int[v.Length];
+            for (int i = 0; i < root.Length; i++) root[i] = i;
+            int Find(int i) { while (root[i] != i) i = root[i] = root[root[i]]; return i; }
+            void Join(int a, int b) { a = Find(a); b = Find(b); if (a != b) root[a] = b; }
+            var same = new Dictionary<Vector3Int, int>();
+            for (int i = 0; i < v.Length; i++)
+            {
+                var key = Vector3Int.RoundToInt(v[i] * 1000f);
+                if (same.TryGetValue(key, out int o)) Join(i, o); else same[key] = i;
+            }
+            var all = new List<int[]>();
+            for (int s = 0; s < mesh.subMeshCount; s++)
+            {
+                var t = mesh.GetTriangles(s);
+                all.Add(t);
+                for (int k = 0; k < t.Length; k += 3) { Join(t[k], t[k + 1]); Join(t[k], t[k + 2]); }
+            }
+            var sum = new Dictionary<int, Vector3>();
+            var count = new Dictionary<int, int>();
+            for (int i = 0; i < v.Length; i++)
+            {
+                int r = Find(i);
+                sum[r] = sum.TryGetValue(r, out var s0) ? s0 + v[i] : v[i];
+                count[r] = count.TryGetValue(r, out int c0) ? c0 + 1 : 1;
+            }
+            var of = new Dictionary<int, int>();
+            foreach (var kv in sum) of[kv.Key] = piece(kv.Value / count[kv.Key]);
+            var pieces = new SortedSet<int>(of.Values);
+            foreach (int k in pieces)
+            {
+                var map = new Dictionary<int, int>();
                 var pv = new List<Vector3>(); var pn = new List<Vector3>(); var puv = new List<Vector2>(); var pt = new List<Vector4>();
                 var tris = new List<int>[mesh.subMeshCount];
-                // The points on the cut, a leg at a time (the four legs are each in a quarter of the plan), with the
-                // part of the mesh they were cut from.
-                var ends = new Dictionary<(int leg, int sub), List<Vtx>>();
                 for (int s = 0; s < mesh.subMeshCount; s++)
                 {
                     tris[s] = new List<int>();
-                    var t = mesh.GetTriangles(s);
-                    var cut = new List<Vtx>();
-                    for (int k = 0; k < t.Length; k += 3)
+                    var t = all[s];
+                    for (int j = 0; j < t.Length; j += 3)
                     {
-                        var poly = Clip(new List<Vtx> { At(t[k]), At(t[k + 1]), At(t[k + 2]) }, TowerBreak, above, cut);
-                        if (poly.Count < 3) continue;
-                        int first = pv.Count;
-                        foreach (var q in poly) { pv.Add(q.P); pn.Add(q.N); puv.Add(q.U); pt.Add(q.T); }
-                        for (int j = 1; j + 1 < poly.Count; j++) { tris[s].Add(first); tris[s].Add(first + j); tris[s].Add(first + j + 1); }
-                    }
-                    foreach (var c in cut)
-                    {
-                        var key = ((c.P.x >= 0 ? 1 : 0) + (c.P.z >= 0 ? 2 : 0), s);
-                        if (!ends.TryGetValue(key, out var list)) ends[key] = list = new List<Vtx>();
-                        list.Add(c);
-                    }
-                }
-                // Each broken end closed: round its middle, a splinter standing out of it (up from the stump, down
-                // from the leg above it), off the middle a little, by the leg.
-                var face = above ? Vector3.down : Vector3.up;
-                foreach (var ((leg, s), list) in ends)
-                {
-                    var mid = Vector3.zero;
-                    var ring = new List<Vtx>();
-                    foreach (var c in list)
-                        if (!ring.Exists(r => (r.P - c.P).sqrMagnitude < 1e-6f)) { ring.Add(c); mid += c.P; }
-                    if (ring.Count < 3) continue;
-                    mid /= ring.Count;
-                    ring.Sort((x, y) => Mathf.Atan2(x.P.z - mid.z, x.P.x - mid.x).CompareTo(Mathf.Atan2(y.P.z - mid.z, y.P.x - mid.x)));
-                    float h = 0.05f + 0.04f * leg;
-                    var tip = mid + face * h + new Vector3(leg % 2 == 0 ? 0.04f : -0.04f, 0f, leg < 2 ? 0.03f : -0.03f);
-                    int c0 = pv.Count;
-                    pv.Add(tip); pn.Add(face); puv.Add(ring[0].U); pt.Add(ring[0].T);
-                    foreach (var r in ring) { pv.Add(r.P); pn.Add(face); puv.Add(r.U); pt.Add(r.T); }
-                    for (int j = 0; j < ring.Count; j++)
-                    {
-                        int a = c0 + 1 + j, z = c0 + 1 + (j + 1) % ring.Count;
-                        // (Unity's front faces turn clockwise as seen: from above, the ring sorted by its angle turns the other way.)
-                        if (above) { tris[s].Add(c0); tris[s].Add(a); tris[s].Add(z); }
-                        else { tris[s].Add(c0); tris[s].Add(z); tris[s].Add(a); }
+                        if (of[Find(t[j])] != k) continue;
+                        for (int q = 0; q < 3; q++)
+                        {
+                            int o = t[j + q];
+                            if (!map.TryGetValue(o, out int m))
+                            {
+                                map[o] = m = pv.Count;
+                                pv.Add(v[o]);
+                                if (n.Length > 0) pn.Add(n[o]);
+                                if (uv.Length > 0) puv.Add(uv[o]);
+                                if (tan.Length > 0) pt.Add(tan[o]);
+                            }
+                            tris[s].Add(m);
+                        }
                     }
                 }
-                if (pv.Count == 0) continue;
-                var part = new Mesh { name = $"tower_legs {b}" };
-                part.SetVertices(pv);
-                if (n.Length > 0) part.SetNormals(pn);
-                if (uv.Length > 0) part.SetUVs(0, puv);
-                if (tan.Length > 0) part.SetTangents(pt);
-                part.subMeshCount = tris.Length;
-                for (int s = 0; s < tris.Length; s++) part.SetTriangles(tris[s], s);
-                part.RecalculateBounds();
-                var go = new GameObject(part.name);
-                go.transform.SetParent(legs.transform.parent, false);
-                go.transform.SetLocalPositionAndRotation(legs.transform.localPosition, legs.transform.localRotation);
-                go.AddComponent<MeshFilter>().sharedMesh = part;
-                go.AddComponent<MeshRenderer>().sharedMaterials = legs.sharedMaterials;
+                if (pv.Count > 0) Piece(whole, $"{whole.name} {k}", pv, pn, puv, pt, tris, pn.Count > 0, puv.Count > 0, pt.Count > 0);
             }
-            Destroy(legs.gameObject);
-            return true;
+            Destroy(whole.gameObject);
+        }
+
+        /// <summary>Which of a number of bands across the tower's top (4.4 m) a distance from its middle is in.</summary>
+        private static int Band(float u, int bands) => Mathf.Clamp(Mathf.FloorToInt((u + 2.2f) / 4.4f * bands), 0, bands - 1);
+
+        /// <summary>A piece of a member: a mesh of its own beside it, with its materials.</summary>
+        private static void Piece(Renderer whole, string name, List<Vector3> pv, List<Vector3> pn, List<Vector2> puv, List<Vector4> pt, List<int>[] tris, bool normals, bool uvs, bool tangents)
+        {
+            var part = new Mesh { name = name };
+            part.SetVertices(pv);
+            if (normals) part.SetNormals(pn);
+            if (uvs) part.SetUVs(0, puv);
+            if (tangents) part.SetTangents(pt);
+            part.subMeshCount = tris.Length;
+            for (int s = 0; s < tris.Length; s++) part.SetTriangles(tris[s], s);
+            part.RecalculateBounds();
+            var go = new GameObject(name);
+            go.transform.SetParent(whole.transform.parent, false);
+            go.transform.SetLocalPositionAndRotation(whole.transform.localPosition, whole.transform.localRotation);
+            go.AddComponent<MeshFilter>().sharedMesh = part;
+            go.AddComponent<MeshRenderer>().sharedMaterials = whole.sharedMaterials;
         }
 
         /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>

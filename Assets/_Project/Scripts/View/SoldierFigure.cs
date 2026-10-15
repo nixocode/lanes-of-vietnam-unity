@@ -370,9 +370,11 @@ namespace LanesOfVietnam.View
                     if (MarchSpeeds.Length > 0 && speed < MarchBelow) { key = MarchKey; own = MarchSpeeds[Mathf.Clamp(Gait, 0, MarchSpeeds.Length - 1)]; }
                     else if (DoubleSpeeds.Length > 0) own = DoubleSpeeds[Mathf.Clamp(Pace, 0, DoubleSpeeds.Length - 1)];
                 }
-                // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2.
-                scale = Mathf.Clamp(speed / Mathf.Max(0.05f, own), 0.5f, posture == 2 ? 2.4f : 1.8f);
-                legs = own * scale;
+                // A crawl may run fast: the sim crawls at 0.45 m/s, Mixamo's man at 0.2. (The clips' speeds are for a
+                // man of their own size: a smaller man covers less ground a stride, and plays them faster.)
+                float size = Mathf.Max(0.1f, transform.lossyScale.y);
+                scale = Mathf.Clamp(speed / Mathf.Max(0.05f, own * size), 0.5f, posture == 2 ? 2.4f : 1.8f);
+                legs = own * size * scale;
             }
             Legs = speed >= 0.05f ? legs : 0f;
             // An act is over when the Animator is back at rest; and a man who has to go, goes: only a fall and a dive
@@ -998,7 +1000,9 @@ namespace LanesOfVietnam.View
         public void Ladder(bool on, bool down = false)
         {
             if (_baked || _reactLayer < 0 || !Ladders) return;
-            if (on) Animator.SetFloat(LadderPaceId, down ? -LadderPace : LadderPace);
+            // (A smaller man's reach is less a rung: he climbs hand over hand faster to rise as fast.)
+            float pace = LadderPace / Mathf.Max(0.1f, transform.lossyScale.y);
+            if (on) Animator.SetFloat(LadderPaceId, down ? -pace : pace);
             if (on == _onLadder) return;
             _onLadder = on;
             Animator.SetBool(LadderId, on);

@@ -351,6 +351,66 @@
    ]
   },
   {
+   "name": "timber_snap",
+   "files": [
+    {
+     "file": "licensed/timber_snap_0.m4a",
+     "source": "sonniss2019/Destruction_Wooden_2.wav",
+     "seconds": 1.659
+    }
+   ]
+  },
+  {
+   "name": "timber_crush",
+   "files": [
+    {
+     "file": "licensed/timber_crush_0.m4a",
+     "source": "sonniss2019/Bluezone_BC0254_wood_crushing_branches_001_001.wav",
+     "seconds": 0.8
+    }
+   ]
+  },
+  {
+   "name": "timber_thud",
+   "files": [
+    {
+     "file": "licensed/timber_thud_0.m4a",
+     "source": "sonniss2019/Bluezone_BC0254_wood_falling_log_002_006.wav",
+     "seconds": 0.3
+    }
+   ]
+  },
+  {
+   "name": "timber_pile",
+   "files": [
+    {
+     "file": "licensed/timber_pile_0.m4a",
+     "source": "sonniss2019/Dropping_WoodPile_79.wav",
+     "seconds": 1.169
+    }
+   ]
+  },
+  {
+   "name": "timber_knock",
+   "files": [
+    {
+     "file": "licensed/timber_knock_0.m4a",
+     "source": "sonniss2017/Impacts Hard - Short Wobbly Tail 01.wav",
+     "seconds": 0.6
+    }
+   ]
+  },
+  {
+   "name": "timber_rustle",
+   "files": [
+    {
+     "file": "licensed/timber_rustle_0.m4a",
+     "source": "sonniss2017/Rustles - Pile, Debris 22.wav",
+     "seconds": 0.655
+    }
+   ]
+  },
+  {
    "name": "mg1",
    "files": [
     {
@@ -417,6 +477,16 @@
      "file": "licensed/call_0.m4a",
      "source": "sonniss2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav 0.0-4.5 s",
      "seconds": 4.48
+    }
+   ]
+  },
+  {
+   "name": "timber_creak",
+   "files": [
+    {
+     "file": "licensed/timber_creak_0.m4a",
+     "source": "sonniss2019/Bluezone_BC0254_wood_creaking_tree_005.wav 1.2-3.3 s",
+     "seconds": 2.1
     }
    ]
   },

@@ -46,9 +46,13 @@ namespace LanesOfVietnam.View
         private Vector2 _press;
         private bool _pressed, _panning;
         private SimState State => Root.Driver.State;
+        private SimState _selectedOf;
 
         private void Update()
         {
+            // A new match: what was selected was a squad of the last one. (Its number may be past the end of this one's
+            // squads, now that a player's Americans open with nobody, PLAN §12.52.)
+            if (Root != null && Root.Driver != null && !ReferenceEquals(State, _selectedOf)) { _selectedOf = State; if (Selected >= 0) Clear(); }
             if (CaptureSettings.Active != null) return;
             // One owner per click: an armed card takes the left click (to place
             // it), the HUD takes clicks on itself, and only then is it a pick.

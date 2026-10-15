@@ -23,6 +23,9 @@ fetch "Charlie Atanasyan - Thailand sound library by Faunethic" "Jungle quiet in
 fetch "Pole Position - The Warfare Library" "warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav" b7cb77aa2f8af5ca9b19d3e817d277b9455f4fb8a4dedcfa046bb7096c2f1bf3
 fetch "Pole Position - The Warfare Library" "warfare_t1b_cannon_firing_forest_distant_MKH8060_2.wav" 3cca62528291adea28c12739dcc7532306606198c60a116bc5a2010a9978afe1
 fetch "Pole Position - The Warfare Library" "warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav" 806acf0c97a53f1c643540c802ce29b64302ce77ffe69cc7350210fc6de9c312
+# The watchtower's timbers settling (PLAN §12.52).
+fetch "Double Trouble Audio - Wood Impacts and Debris" "Rustles - Pile, Debris 22.wav" a94061d20e34f290e98ad298b9aaae1e6caa8441ec8dae0c0c7a9738e3d164aa
+fetch "Double Trouble Audio - Wood Impacts and Debris" "Impacts Hard - Short Wobbly Tail 01.wav" 5213783d0628f1d9359e7b6e5e528c1e3ea3938904ab6edef38dedb3bfbb88bb
 
 Y=2016   # the Browning .30 cal, in service in Vietnam with the ARVN and early US units
 fetch "Pole Position Production - M1919A4 Browning Machine Gun .30cal" "M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav" 35e04fb9302cca6be1a21014588b2eabcc9ff9d9f3d2e552399dd4369295d5c2
@@ -34,6 +37,12 @@ fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C3,105 mm,Distant,
 fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C3,105 mm,Medium Distant,Right Side,Shot,Firm,Heavy,EQ Version,Soft Attack.wav" 86270f9b2446539b0bfcf2629914962f2ceb23e98ef7f59fe3526b21f1a72fc1
 fetch "Airborne Sound - Jet Fighter Maneuvers" "Jet,Fighter,CF-18,Hornet,By,Slow,Rip to Whistle.wav" 588f6a272d6a3d7624ecf52324556dd6e5ad5f8c005afe44e279109a45b2fd86
 fetch "Airborne Sound - Jet Fighter Maneuvers" "Jet,Fighter,F-16,Fighting Falcon,Medium Distant,By,Whip,Buffet.wav" 6bce891e2b8da6aa3d0d02edac4c33fd6a359dae5f139d515c5e9ffb329daae4
+# The watchtower coming down (PLAN §12.52): timber breaking, falling and settling.
+fetch "InspectorJ - Wooden Fence Destruction" "Destruction_Wooden_2.wav" 2b68b6e3c5e5b6cf4f39f706e8d8babc866f3205a042f33d843d891eee004030
+fetch "InspectorJ - Wooden Fence Destruction" "Dropping_WoodPile_79.wav" 2c3bd81eaeefe0f8ddf027ec8a89d95bd38171f6ad3a4e383efe1fca8f84ce05
+fetch "BlueZone - Wood Sound Effects" "Bluezone_BC0254_wood_creaking_tree_005.wav" ba14d88dfab42ce2c3fd143dabb40c74dae98974f978ddfc385ca6f90a4875df
+fetch "BlueZone - Wood Sound Effects" "Bluezone_BC0254_wood_crushing_branches_001_001.wav" a789fe63451006329685bbed71f8ab32a4b6fc203f70175289190afe7cc2847a
+fetch "BlueZone - Wood Sound Effects" "Bluezone_BC0254_wood_falling_log_002_006.wav" 312d5dc970855296bcb671836fe0e020b3b0989a84f8cab6586e58375b613927
 # The medevac: a two-bladed Bell winding up and lifting away (no Huey is in the bundles).
 fetch "Airborne Sound - Vehicles Aviation" "Helicopter,Bell,222,Idle,Grow,Take Off,Away - faint background birds.wav" 71eda5721841db1e8b9a2427b2c2335926c532e7e337f9c41c371d47de03c1c7
 fetch "Red Libraries - Bodyfall" "RL_bodyfall_Dirt_M4_Close_Stereo_Hard_Impact_10.wav" 90d5ae7ee9f62593c8902c2e8008cc2a6a769d3232957807531d47c693272a99

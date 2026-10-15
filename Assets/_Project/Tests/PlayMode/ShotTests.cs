@@ -113,7 +113,8 @@ namespace LanesOfVietnam.Tests
         public IEnumerator Every_round_flashes_is_seen_going_and_throws_its_case()
         {
             yield return UIAuditInterfaceTests.LoadAndDeploy();
-            Root.NewMatch(Side.Us, MatchLength.Standard, MotionAuditTests.Seed);
+            // (Made as the VC's: a player's Americans open with nobody, PLAN §12.52, and here nobody plays them.)
+            Root.NewMatch(Side.Vc, MatchLength.Standard, MotionAuditTests.Seed);
             var st = Root.Driver.State;
             st.Player = null;                           // both sides raise their own squads: a full fight
             int was = Time.captureFramerate;

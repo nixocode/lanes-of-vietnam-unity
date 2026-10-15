@@ -525,6 +525,7 @@ namespace LanesOfVietnam.SimCs
                 Us = new Means { Income = s.Us.Income, Purse = s.Us.Purse, Will = s.Us.Will, Opening = s.Us.Opening },
                 Vc = new Means { Income = s.Vc.Income, Purse = s.Vc.Purse, Will = s.Vc.Will, Opening = s.Vc.Opening },
                 UsDeck = s.UsDeck, VcDeck = s.VcDeck,
+                UsPlaying = s.UsPlaying == null ? null : new Means { Income = s.UsPlaying.Income, Purse = s.UsPlaying.Purse, Will = s.UsPlaying.Will, Opening = s.UsPlaying.Opening },
             };
             if (Arg("mode") is string mode) t.Mode = mode == "siege" ? MatchMode.Siege : mode == "assault" ? MatchMode.Assault : MatchMode.Standard;
             if (Arg("attacker") is string att) t.Attacker = att == "us" ? Side.Us : Side.Vc;
@@ -641,7 +642,7 @@ namespace LanesOfVietnam.SimCs
             {
                 if (only != null && listed.Id != only) continue;
                 var sc = Tried(listed, a);
-                string means = $"us income {sc.Us.Income} purse {sc.Us.Purse} will {sc.Us.Will} opens {(sc.Us.Opening > 0 ? sc.Us.Opening : Scenario.OpeningStrength)}; vc income {sc.Vc.Income} purse {sc.Vc.Purse} will {sc.Vc.Will} opens {(sc.Vc.Opening > 0 ? sc.Vc.Opening : Scenario.OpeningStrength)}";
+                string means = $"us income {sc.Us.Income} purse {sc.Us.Purse} will {sc.Us.Will} opens {(sc.Us.Opening > 0 ? sc.Us.Opening.ToString() : sc.Us.Opening == Means.None ? "none" : Scenario.OpeningStrength.ToString())}{(sc.UsPlaying != null ? $" (played: {(sc.UsPlaying.Opening > 0 ? sc.UsPlaying.Opening.ToString() : sc.UsPlaying.Opening == Means.None ? "none" : Scenario.OpeningStrength.ToString())})" : "")}; vc income {sc.Vc.Income} purse {sc.Vc.Purse} will {sc.Vc.Will} opens {(sc.Vc.Opening > 0 ? sc.Vc.Opening.ToString() : sc.Vc.Opening == Means.None ? "none" : Scenario.OpeningStrength.ToString())}";
                 Console.WriteLine($"  {sc.Id}: {sc.Mode}{(sc.Timed ? $", {sc.ClockSeconds:F0} s, {Match.Name(sc.Attacker)} comes on" : "")}{(sc.Mode == MatchMode.Assault ? $", line {sc.LineBack} back" : "")}; {means}");
                 foreach (var side in new[] { Side.Us, Side.Vc })
                 {
@@ -660,6 +661,14 @@ namespace LanesOfVietnam.SimCs
                             if (a.Contains("nosatchel")) opts.Satchel = false;
                             if (a.Contains("noemplace")) opts.Emplace = false;
                             if (a.Contains("nodestruction")) opts.Destruction = false;
+                            // `usopen=N`: the Americans open with N men at least, in place of the scenario's (`usopen=0`: none).
+                            string usOpen = a.Where(x => x.StartsWith("usopen=")).Select(x => x.Substring(7)).FirstOrDefault();
+                            if (usOpen != null)
+                            {
+                                var u = opts.UsMeans;
+                                int n = int.Parse(usOpen);
+                                opts.UsMeans = new Means { Income = u.Income, Purse = u.Purse, Will = u.Will, Opening = n == 0 ? Means.None : n };
+                            }
                             var m = new LiveMatch(opts);
                             string cardArg = a.Where(x => x.StartsWith("card=")).Select(x => x.Substring(5)).FirstOrDefault();
                             var card = cardArg != null ? Deck.Find(side, cardArg) : Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(m.State, side, c));

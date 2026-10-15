@@ -38,8 +38,13 @@ W, H = 2048, 1024
 # roll: degrees it is to be turned about its length to stand the right way up (its file has it on its side).
 CRAFT = {
     "jet": dict(length=15.2),
-    "huey": dict(length=12.7, rotor=True, flip=True, roll=-90),
+    # doors: the cargo doors (their bones' vertex groups in the file), slid open; pilots: the cockpit's doors, by
+    # which the pilots sit. (A dustoff flew with its cargo doors open; the owner, 2026-10-15: "Med evac has no
+    # soldiers in it".)
+    "huey": dict(length=12.7, rotor=True, flip=True, roll=-90, doors=("L.side_door_04", "R.side_door_06"), pilots=("L.door_03", "R.door_05")),
 }
+# How far a cargo door slides aft to stand open, and how far it stands off the side it slides along, m.
+SLIDE, STAND_OFF = 1.05, 0.06
 
 
 def log(msg):
@@ -106,6 +111,54 @@ def bring(name, cfg):
     for p in me.polygons:
         p.use_smooth = True
     return obj
+
+
+def group_box(obj, name):
+    """The least and greatest corner of the vertices a group holds (more than half), in the object's space; None if none."""
+    g = obj.vertex_groups.get(name)
+    if g is None:
+        return None
+    vs = [v.co for v in obj.data.vertices if any(e.group == g.index and e.weight > 0.5 for e in v.groups)]
+    if not vs:
+        return None
+    return (Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs))),
+            Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs))))
+
+
+def open_doors(obj, cfg):
+    """
+    The cargo doors slid aft along the sides to stand open, and where the men sit: the doorways (their middle at
+    the floor, and their length), and the pilots' seats (inboard of the cockpit's doors, at their foot). In the
+    space it is built in: nose to +x, top to +z.
+    """
+    seats = {}
+    doors = []
+    for name in cfg.get("doors", ()):
+        box = group_box(obj, name)
+        if box is None:
+            log(f"{obj.name}: no door {name}")
+            continue
+        lo, hi = box
+        out = 1.0 if (lo.y + hi.y) > 0 else -1.0
+        doors.append([round((lo.x + hi.x) / 2, 3), round(hi.y if out > 0 else lo.y, 3), round(lo.z, 3), round(hi.x - lo.x, 3)])
+        g = obj.vertex_groups[name]
+        for v in obj.data.vertices:
+            if any(e.group == g.index and e.weight > 0.5 for e in v.groups):
+                v.co.x -= SLIDE
+                v.co.y += out * STAND_OFF
+    pilots = []
+    for name in cfg.get("pilots", ()):
+        box = group_box(obj, name)
+        if box is None:
+            continue
+        lo, hi = box
+        side = 1.0 if (lo.y + hi.y) > 0 else -1.0
+        pilots.append([round((lo.x + hi.x) / 2, 3), round((hi.y if side > 0 else lo.y) - side * 0.45, 3), round(lo.z, 3)])
+    obj.data.update()
+    seats["doors"] = doors
+    seats["pilots"] = pilots
+    log(f"{obj.name}: doors {doors}, pilots {pilots}")
+    return seats
 
 
 def cut_rotor(obj):
@@ -210,8 +263,11 @@ def main():
     sc.world.light_settings.distance = 0.4
 
     objs, info = [], {}
+    seats = {}
     for i, (name, cfg) in enumerate(CRAFT.items()):
         obj = bring(name, cfg)
+        if cfg.get("doors"):
+            seats[name] = open_doors(obj, cfg)
         obj.location = (0, i * 40.0, 0)
         unwrap(obj, i)
         for mat in obj.data.materials:
@@ -260,6 +316,8 @@ def main():
         info[obj.name] = dict(length=round(float(co[:, 0].max() - co[:, 0].min()), 2), span=round(float(co[:, 1].max() - co[:, 1].min()), 2),
                               height=round(float(co[:, 2].max()), 2))
         out_objs.append(obj)
+        if obj.name in seats:
+            info[obj.name].update(seats[obj.name])
         if CRAFT[obj.name].get("rotor"):
             rotor, hub = cut_rotor(obj)
             rotor.data.materials.append(final)

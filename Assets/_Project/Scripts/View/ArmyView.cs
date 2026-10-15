@@ -250,6 +250,11 @@ namespace LanesOfVietnam.View
         private Vector3[] _tumbleFrom = new Vector3[0];
         private float[] _tumbleAt = new float[0];
         public const float Carried = 0.35f;
+        /// <summary>
+        /// How large the men are drawn, against the clips' and the bodies' own size. The owner, 2026-10-15: "also make
+        /// the chopper smaller in scale. Also do it with the soldiers, reduce overall size 1/5" (PLAN §12.52).
+        /// </summary>
+        public const float FigureSize = 0.8f;
         /// <summary>How far an enemy counts as his front, and how fast his drawn height may change (m/s).</summary>
         public const float FrontRange = 45f, ClimbRate = 3.2f;
         /// <summary>Degrees his front has to move before he turns to it, and how fast he turns (degrees a second).</summary>
@@ -722,7 +727,7 @@ namespace LanesOfVietnam.View
                     f.Carry(AudioView.Model(m));
                     if (RadioMan(st, m)) f.WearRadio();
                     // His own height (and with it his stride), his own carriage on the march.
-                    f.transform.localScale = Vector3.one * (0.95f + 0.09f * Hash(m.Id, 2));
+                    f.transform.localScale = Vector3.one * FigureSize * (0.95f + 0.09f * Hash(m.Id, 2));
                     f.Carriage = new Vector2(-2f + 8f * Hash(m.Id, 11), -3f + 6f * Hash(m.Id, 12));
                     // His own walk, on the march and at the double, of those there are. The last of the marches is a
                     // man walking with his rifle up: the first man raised of each squad, its point man, has that
@@ -778,7 +783,7 @@ namespace LanesOfVietnam.View
                 if (!fresh && !jump && _cam != null)
                 {
                     var vp = _cam.WorldToViewportPoint(at + Vector3.up);
-                    float px = vp.z > 0.1f ? 1.8f * pxPerMetre / vp.z : 0f;
+                    float px = vp.z > 0.1f ? 1.8f * FigureSize * pxPerMetre / vp.z : 0f;
                     bool seen = vp.z > 0.1f && vp.x > -0.08f && vp.x < 1.08f && vp.y > -0.1f && vp.y < 1.2f;
                     every = StepAll ? 1 : !seen ? 4 : px < NearPixels && brisk ? 2 : 1;
                     f.Body.quality = px >= NearPixels || StepAll ? SkinQuality.Bone4 : SkinQuality.Bone2;

@@ -82,13 +82,16 @@ namespace LanesOfVietnam.Sim
     /// against <see cref="MatchOptions.CpRate"/>, the points it opens with against
     /// <see cref="MatchOptions.StartCp"/>, how fast its will runs out against
     /// <see cref="MatchOptions.MoraleRate"/>; and the men it opens with, at least (0: the match's
-    /// <see cref="MatchOptions.OpeningStrength"/>). As it stands here the two sides are alike, which is
-    /// the baseline.
+    /// <see cref="MatchOptions.OpeningStrength"/>; <see cref="None"/>: none, everything it has it raises). As it
+    /// stands here the two sides are alike, which is the baseline.
     /// </summary>
     public sealed class Means
     {
         public double Income = 1, Purse = 1, Will = 1;
         public int Opening;
+
+        /// <summary>An opening of no men at all.</summary>
+        public const int None = -1;
     }
 
     public sealed class MatchOptions
@@ -372,7 +375,7 @@ namespace LanesOfVietnam.Sim
             foreach (var side in Sides)
             {
                 var has = side == Side.Us ? opts.UsMeans : opts.VcMeans;
-                int strength = has.Opening > 0 ? has.Opening : opts.OpeningStrength;
+                int strength = has.Opening > 0 ? has.Opening : has.Opening == Means.None ? 0 : opts.OpeningStrength;
                 int placed = 0, lane = opens;
                 while (placed < strength)
                 {
@@ -984,7 +987,8 @@ namespace LanesOfVietnam.Sim
                     End(st, Combat.Other(side), $"{Name(side)} morale broke");
                     return;
                 }
-                if (AliveCount(st, side) == 0)
+                // (Once it has had men: a side that opens with none is not wiped out before it has raised any.)
+                if (AliveCount(st, side) == 0 && st.Men.Exists(m => m.Side == side))
                 {
                     End(st, Combat.Other(side), $"{Name(side)} wiped out");
                     return;

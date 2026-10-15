@@ -2930,6 +2930,7 @@ namespace LanesOfVietnam.Tests
                 for (int seed = 1; seed <= 4; seed++)
                 {
                     var o = Scenarios.Firebase.Options(seed, Side.Us, Difficulty.Veteran);
+                    o.UsMeans = Scenarios.Firebase.Us;      // (a squad to open with: this player raises nobody, PLAN §12.52)
                     o.FragCard = rule;
                     var lm = new LiveMatch(o);
                     while (!lm.State.Over && lm.State.Tick < 4000) lm.Step();
@@ -2942,7 +2943,9 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(Thrown(true, Side.Vc), 0, "the computer's men stopped throwing");
 
             // Played.
-            var m = new LiveMatch(Scenarios.Firebase.Options(2, Side.Us, Difficulty.Veteran));
+            var po = Scenarios.Firebase.Options(2, Side.Us, Difficulty.Veteran);
+            po.UsMeans = Scenarios.Firebase.Us;
+            var m = new LiveMatch(po);
             var st = m.State;
             Assert.IsTrue(Deck.Has(st, Side.Us, card));
             for (int t = 0; t < 200; t++) m.Step();
@@ -3071,10 +3074,11 @@ namespace LanesOfVietnam.Tests
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
         [TestCase("firebase", 1, 4075, 3468518776u, 3500188192u, 3782637812u, "us morale broke")]
-        [TestCase("the-wire", 1, 4366, 1694346790u, 933659491u, 3110059397u, "us morale broke")]
-        [TestCase("the-wire", 2, 6000, 1903121563u, 1702679254u, 1061064444u, "us held out")]
-        [TestCase("first-light", 7, 2758, 1565973641u, 1870555919u, 3985984790u, "us took the line")]
-        [TestCase("first-light", 8, 8400, 2505033549u, 1808433853u, 3762143734u, "vc held the line")]
+        // (The Wire and First Light again 2026-10-15: the Americans open with fewer men, PLAN §12.52.)
+        [TestCase("the-wire", 3, 5159, 2894096662u, 1502400082u, 4289559225u, "us morale broke")]
+        [TestCase("the-wire", 1, 6000, 2960744763u, 3634959008u, 3538541992u, "us held out")]
+        [TestCase("first-light", 7, 5971, 4151385837u, 3561230234u, 2227549972u, "us took the line")]
+        [TestCase("first-light", 3, 8400, 1396377366u, 4206417747u, 2531584742u, "vc held the line")]
         [TestCase("earth-fights", 1, 9266, 744082594u, 3112911749u, 3572325795u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
@@ -3151,6 +3155,31 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// The owner, 2026-10-15: "too lobsided for US ... no or less spawns at the start for US" (PLAN §12.52). In the
+        /// firebase a player's Americans open with nobody, and are not wiped out for it: he raises his first squad with
+        /// his opening points, and the match goes on to be won or lost. The computer's Americans still open with theirs.
+        /// </summary>
+        [Test]
+        public void A_players_Americans_open_the_firebase_with_nobody_and_raise_their_own()
+        {
+            var o = Scenarios.Firebase.Options(5, Side.Us, Difficulty.Veteran);
+            var m = new LiveMatch(o);
+            var st = m.State;
+            Assert.AreEqual(0, st.Men.Count(x => x.Side == Side.Us), "the player's Americans opened with men");
+            Assert.Greater(st.Men.Count(x => x.Side == Side.Vc), 0, "the VC opened with nobody");
+            var card = Deck.For(Side.Us).First(c => c.Group == CardGroup.Line && Deck.Has(st, Side.Us, c));
+            Assert.IsNull(Deck.Blocked(st, Side.Us, card), "he cannot raise his first squad with his opening points");
+            for (int t = 0; t < 60; t++) m.Step();
+            Assert.IsFalse(st.Over, $"the match ended before he had raised anyone: {st.Reason}");
+            m.Issue(Command.Buy(Side.Us, card.Id, 0, 0));
+            m.Step();
+            Assert.Greater(st.Men.Count(x => x.Side == Side.Us && x.Alive), 0, "his first squad was not raised");
+
+            var computer = new LiveMatch(Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Veteran));
+            Assert.GreaterOrEqual(computer.State.Men.Count(x => x.Side == Side.Us), Scenario.OpeningStrength, "the computer's Americans opened with nobody");
+        }
+
+        /// <summary>
         /// What a scenario gives one side and not the other: the points it opens with, its income, the men it
         /// opens with, and how fast its will runs out. Each is a share of the match's own, so the difficulty and
         /// the length still turn the whole.
@@ -3208,7 +3237,8 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(MatchLength.Standard, o.Length, "a clock is its own length: the start screen's was used");
 
             int held = 0, broke = 0;
-            foreach (int seed in new[] { 1, 2 })
+            // (Seeds 1 and 3 since the Americans opened with fewer, PLAN §12.52: seed 2 now ends with them wiped out.)
+            foreach (int seed in new[] { 1, 3 })
             {
                 var m = new LiveMatch(wire.Options(seed, null, Difficulty.Veteran));
                 var st = m.State;
@@ -3251,7 +3281,7 @@ namespace LanesOfVietnam.Tests
         {
             var light = Scenarios.FirstLight;
             Assert.AreEqual(MatchMode.Assault, light.Mode);
-            var o = light.Options(3, null, Difficulty.Veteran);
+            var o = light.Options(7, null, Difficulty.Veteran);
             Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
             var m = new LiveMatch(o);
             var st = m.State;
@@ -3284,7 +3314,8 @@ namespace LanesOfVietnam.Tests
             foreach (var sq in st.Squads)
                 Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
 
-            // Seed 3 (it was 5 until call-ins took their time to land, PLAN §12.45): the line is taken. The match ends on the tick it is, and not before.
+            // Seed 7 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52):
+            // the line is taken. The match ends on the tick it is, and not before.
             while (!st.Over && st.Tick < m.Cap)
             {
                 Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
@@ -3296,8 +3327,8 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 8 (it was 2, as above, and then 4 until the jet's bombs fell in one pass): it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(8, null, Difficulty.Veteran));
+            // Seed 3 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(3, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

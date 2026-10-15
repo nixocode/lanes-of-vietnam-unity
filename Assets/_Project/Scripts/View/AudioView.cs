@@ -513,10 +513,11 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
-        /// The tower going over (TowerView.Fall: the same fall the tower is drawn falling). Its legs giving, at once;
-        /// where it strikes, when it strikes, a deep crash of earth and timber, and its bounce: a shell's report slowed
-        /// under the dirt of a burst and a body's fall slowed. (No recording of timber coming down is in the set: one
-        /// is a download, and needs the owner's yes. PLAN §12.51.)
+        /// The tower coming down (TowerView.Fall: the same fall the tower is drawn falling), in timber (the owner,
+        /// 2026-10-15: "that sound needs to be changed"; it was a shell's report and a body's fall, slowed). Its legs
+        /// groaning and breaking as they give, at once; its bracing tearing off and crushing as it goes over; where
+        /// its top strikes, when it strikes, the weight of it (a log striking, slowed and deep) and its timbers coming
+        /// down on each other, a knock, more of them, and the debris settling. Recordings in ASSETS.md.
         /// </summary>
         private void Toppled(SimEvent e, SimState st)
         {
@@ -526,18 +527,22 @@ namespace LanesOfVietnam.View
             float pace = Mathf.Max(0.25f, _root.Speed);
             float hit = Mathf.Max(0f, (f.Hits - (float)((st.Tick - e.Tick) * Tune.Dt)) / pace);
             var top = f.Pivot + f.Dir * (0.75f * f.Reach);
+            var half = f.Pivot + f.Dir * (0.4f * f.Reach);
             float fx = f.Pivot.x, fz = (float)Coords.SimZ(f.Pivot.z), tx = top.x, tz = (float)Coords.SimZ(top.z);
+            float hx = half.x, hz = (float)Coords.SimZ(half.z);
             void Later(string clip, float x, float z, float gain, float rate, float delay)
             {
                 if (clip != null) Out.Play(clip, x, z, gain, rate, 0f, false, delay);
             }
-            Later(Pick("thump"), fx, fz, 0.9f, 0.5f, 0f);
-            Later(Pick("bodyfall"), fx, fz, 0.6f, 0.55f, 0.15f / pace);
-            Later(Pick("shell"), tx, tz, 0.7f, 0.55f, hit);
-            Later(Pick("dirt"), tx, tz, 1f, 0.75f, hit + 0.02f);
-            Later(Pick("bodyfall"), tx, tz, 0.9f, 0.6f, hit + 0.05f);
-            Later(Pick("bodyfall"), tx, tz, 0.6f, 0.75f, hit + 0.33f / pace);
-            if (f.RoofOff) Later(Pick("thump"), tx + f.Dir.x * 4f, tz - f.Dir.z * 4f, 0.6f, 0.7f, hit + 0.5f / pace);
+            Later(Pick("timber_creak"), fx, fz, 0.9f, Range(0.8f, 0.95f), 0f);
+            Later(Pick("timber_snap"), fx, fz, 1f, f.Buckle ? 0.85f : 0.7f, 0.05f / pace);
+            Later(Pick("timber_crush"), hx, hz, 0.8f, 0.8f, 0.55f * hit);
+            Later(Pick("timber_thud"), tx, tz, 1f, 0.5f, hit);
+            Later(Pick("timber_pile"), tx, tz, 1f, 0.75f, hit + 0.03f / pace);
+            Later(Pick("timber_knock"), hx, hz, 0.8f, 0.85f, hit + 0.3f / pace);
+            Later(Pick("timber_pile"), hx, hz, 0.7f, 0.95f, hit + 0.55f / pace);
+            Later(Pick("timber_rustle"), tx, tz, 0.8f, 0.85f, hit + 1.0f / pace);
+            Later(Pick("timber_rustle"), hx, hz, 0.5f, 1f, hit + 1.6f / pace);
         }
 
         private void Boom(SimEvent e, string set, float gain, float lx, float lz)

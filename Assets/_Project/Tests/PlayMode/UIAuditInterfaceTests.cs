@@ -38,7 +38,22 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(FlowState.Opening, screens.State);
             screens.Skip();
             Assert.AreEqual(FlowState.Playing, screens.State);
+            RaiseFirst(side);
             yield return null;
+        }
+
+        /// <summary>
+        /// A player's Americans open the firebase with nobody (PLAN §12.52): he raises his first squad with his opening
+        /// points at once, as the field orders tell him to, and so does every test that plays him.
+        /// </summary>
+        public static void RaiseFirst(Side side)
+        {
+            var st = GameRoot.Instance.Driver.State;
+            if (st.Men.Exists(m => m.Side == side)) return;
+            var card = Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(st, side, c));
+            GameRoot.Instance.Driver.Match.Issue(Command.Buy(side, card.Id, 0, 0));
+            GameRoot.Instance.Driver.FastForward(1);
+            Assert.IsTrue(st.Men.Exists(m => m.Side == side), "the player's first squad was not raised");
         }
 
         private static GameRoot Root => GameRoot.Instance;
@@ -717,6 +732,7 @@ namespace LanesOfVietnam.Tests
             Press(screens.Buttons["level-veteran"]);
             Press(screens.Buttons["len-standard"]);
             screens.Deploy(); screens.Skip();
+            RaiseFirst(Side.Us);
             yield return null;
 
             // Every card of both decks says what it buys; a squad's line is its kit's.
@@ -780,6 +796,7 @@ namespace LanesOfVietnam.Tests
                 {
                     var view = hud.Cards.Single(c => c.Card == card);
                     st.Cp[(int)side] = 500;
+                    st.CardCooldown[(int)side][card.Index] = 0;           // (the rifle squad was raised at the start: RaiseFirst)
                     foreach (var m in st.Men) if (m.Alive) m.Pin = 0.6;     // so a medevac has pin to take away
                     // Room under the force cap, through the sim's own kill: buying
                     // every unit card in a row reaches the cap or not depending on
@@ -900,7 +917,8 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(FlowState.Over, screens.State);
             Assert.AreEqual(st.Winner == Side.Us ? "THE LINE HELD" : st.Winner == Side.Vc ? "THE WIRE IS BREACHED" : "NEITHER SIDE BROKE",
                             screens.Outcome);
-            StringAssert.Contains("CARDS PLAYED 1", screens.Report.text, "the after-action report missed the card played");
+            // (Two: his first squad, raised at the start as the firebase has him do, and the smoke.)
+            StringAssert.Contains("CARDS PLAYED 2", screens.Report.text, "the after-action report missed the card played");
             StringAssert.Contains("ORDERS GIVEN 1", screens.Report.text);
 
             // The replay: the same seed and command log must be the same match,
