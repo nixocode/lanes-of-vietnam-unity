@@ -13,6 +13,13 @@ namespace LanesOfVietnam.Sim
         { Kind = k; Lane = lane; X = x; Dz = dz; Length = length; }
     }
 
+    /// <summary>A bridge (Rice Fields): the lane it carries over the river, from X0 to X1, and how wide its deck is.</summary>
+    public sealed class Bridge
+    {
+        public int Lane;
+        public double X0, X1, Width = 3.4;
+    }
+
     /// <summary>
     /// A map, as data (PLAN §12.27, S1): where its cover is, the shape of
     /// the ground under it, the old shell holes away from the lanes, and the
@@ -43,6 +50,8 @@ namespace LanesOfVietnam.Sim
         public bool UsEast;
         /// <summary>Its bank's gaps are where its ground's would be turned end for end (Maps.Mirrored): sin(-x k + p) is sin(x k + pi - p).</summary>
         public bool BankMirrored;
+        /// <summary>Its bridges (Rice Fields): none on the firebase.</summary>
+        public Bridge[] Bridges = new Bridge[0];
 
         /// <summary>
         /// The map's cover, in order from the Americans' end (x order on the firebase), ids assigned. A fresh copy each
@@ -148,7 +157,15 @@ namespace LanesOfVietnam.Sim
             return outv;
         }
 
-        public Ground Ground() => new Ground(GroundShape, Craters(), Mounds(), Trenches());
+        public Ground Ground() => new Ground(GroundShape, Craters(), Mounds(), Trenches(), Decks());
+
+        /// <summary>Its bridges' decks, for whoever walks on them.</summary>
+        public List<BridgeDeck> Decks()
+        {
+            var outv = new List<BridgeDeck>();
+            foreach (var b in Bridges) outv.Add(new BridgeDeck { X0 = b.X0, X1 = b.X1, Z = Tune.Lanes[b.Lane], Width = b.Width });
+            return outv;
+        }
 
         /// <summary>
         /// The bank between the lanes, as the simulation needs it (Gunnery): where it runs, how high, and
@@ -164,7 +181,7 @@ namespace LanesOfVietnam.Sim
         }
     }
 
-    /// <summary>The maps there are. One so far.</summary>
+    /// <summary>The maps there are: the firebase, and Rice Fields (being built, PLAN Rice Fields).</summary>
     public static class Maps
     {
         /// <summary>
@@ -208,7 +225,55 @@ namespace LanesOfVietnam.Sim
             },
         };
 
-        public static readonly MapDef[] All = { Firebase };
+        /// <summary>
+        /// Rice Fields, the lowlands, 1966 (the owner, 2026-10-15; PLAN, Rice Fields): the VC come out of the forest in the
+        /// west; in the middle a river crosses both lanes, the near lane over a timber bridge and the far lane through the
+        /// water; east of it the paddies step up, dike by dike, to an American base on the top step. The near lane is the
+        /// bridge's: a VC position at the forest's edge and another at the west bank, the bridgehead on the east bank, the
+        /// paddies, the base. The far lane fords: a VC trench in the treeline, the reeds on the west bank, the east bank's
+        /// dike, a sluice gate, the base's wall, and the base's watchtower behind it.
+        /// </summary>
+        public static readonly MapDef RiceFields = new MapDef
+        {
+            Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true,
+            Pieces = new[]
+            {
+                // --- near lane: over the bridge -----------------------------------
+                new MapPiece(CoverKind.Trench, Map.Near, -36.0, 0.5, 9.0),     // a VC position of logs and earth in the forest
+                new MapPiece(CoverKind.Berm, Map.Near, -25.0, 0.8, 8.0),       // fallen trees at the forest's edge
+                new MapPiece(CoverKind.Trench, Map.Near, -13.5, 0.4, 6.0),     // dug in at the west bank, before the bridge
+                new MapPiece(CoverKind.Sandbag, Map.Near, 9.0, -0.6, 6.0),     // the bridgehead, on the east bank
+                new MapPiece(CoverKind.Berm, Map.Near, 16.0, 0.9, 8.0),        // a dike across the first paddy
+                new MapPiece(CoverKind.Crater, Map.Near, 22.5, -0.5, 5.0),     // shell holes, full of water
+                new MapPiece(CoverKind.Sandbag, Map.Near, 30.5, 0.8, 7.0),     // the base's revetment
+                new MapPiece(CoverKind.Bunker, Map.Near, 38.5, 1.2, 4.0),      // the base's bunker
+
+                // --- far lane: through the water ----------------------------------
+                new MapPiece(CoverKind.Berm, Map.Far, -34.0, 0.6, 10.0),       // logs in the forest
+                new MapPiece(CoverKind.Trench, Map.Far, -22.0, 0.7, 9.0),      // a VC trench at the treeline
+                new MapPiece(CoverKind.Berm, Map.Far, -11.5, -0.4, 7.0),       // the reeds and the west bank
+                new MapPiece(CoverKind.Berm, Map.Far, 8.5, 0.5, 8.0),          // the east bank's dike
+                new MapPiece(CoverKind.Sandbag, Map.Far, 16.0, -0.6, 5.0),     // the sluice gate
+                new MapPiece(CoverKind.Crater, Map.Far, 24.0, 0.4, 5.0),
+                new MapPiece(CoverKind.Sandbag, Map.Far, 33.0, -0.3, 8.0),     // the base's wall
+            },
+            // The river between x -7 and 3, the paddies' four steps from 7 to 32, the base on the top step; flatter
+            // ground than the highlands', and a raised path along it where the firebase has its track.
+            GroundShape = new GroundParams
+            {
+                Seed = 20261015, FoldHeight = 0.5, TrackCut = -0.16, RutDepth = 0.04, TrackWander = 1.6, BermHeight = 0.7,
+                FarRise = 3.2, FarRiseScale = 48,
+                RiverX0 = -7, RiverX1 = 3, PaddyX0 = 7, PaddyX1 = 32, PaddyFlood = 0.16,
+            },
+            OldCraters = 4,
+            Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 } },
+            Posts = new[]
+            {
+                new Post { Id = 0, Name = "WATCHTOWER", Side = Side.Us, X = -Map.TowerX, Z = Map.TowerZ, Height = 8.45, FootX = -Map.TowerX, FootZ = Map.TowerZ + 0.45, Lane = Map.Far },
+            },
+        };
+
+        public static readonly MapDef[] All = { Firebase, RiceFields };
 
         /// <summary>
         /// A map turned end for end: its cover and its posts at the other ends, and the Americans starting where the VC
@@ -231,11 +296,13 @@ namespace LanesOfVietnam.Sim
                 posts[i].X = -posts[i].X;
                 posts[i].FootX = -posts[i].FootX;
             }
+            var bridges = new Bridge[m.Bridges.Length];
+            for (int i = 0; i < bridges.Length; i++) bridges[i] = new Bridge { Lane = m.Bridges[i].Lane, X0 = -m.Bridges[i].X1, X1 = -m.Bridges[i].X0, Width = m.Bridges[i].Width };
             return new MapDef
             {
                 Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape,
                 CraterSeed = m.CraterSeed, OldCraters = m.OldCraters, OldCraterBandsZ = m.OldCraterBandsZ, Posts = posts, UsEast = !m.UsEast,
-                BankMirrored = !m.BankMirrored,
+                BankMirrored = !m.BankMirrored, Bridges = bridges,
             };
         }
 

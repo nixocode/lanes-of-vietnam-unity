@@ -180,7 +180,22 @@ namespace LanesOfVietnam.Sim
             Vc = new Means { Purse = 2, Will = 0.65 },
         };
 
-        public static readonly Scenario[] All = { Firebase, TheWire, FirstLight, EarthFights };
+        /// <summary>
+        /// Rice Fields (the owner, 2026-10-15; PLAN, Rice Fields): a standard match, either side, on the lowlands map: the
+        /// VC out of the forest in the west, the river and its bridge in the middle, the Americans' base at the top of the
+        /// paddies in the east. Being built: its numbers are not measured yet, and its rules (the water, the bridge brought
+        /// down and put back) are still to come.
+        /// </summary>
+        public static readonly Scenario RiceFields = new Scenario
+        {
+            Id = "rice-fields", Title = "RICE FIELDS", DateLine = "BONG SON PLAIN · JANUARY 1966",
+            Briefing = "The paddies step down from the base to the river, dike by dike, and the forest begins on the far bank. One timber bridge carries the track over. Upstream there is no bridge: men wade, chest deep, and a man in the water cannot fire back.\n\nWhoever holds the bridge holds the crossing. Break their will before they break yours.",
+            Orders = new[] { "Break the enemy's will to fight", "The bridge carries the near lane: hold it", "The far lane crosses through the water: a man in it is easily shot" },
+            Map = Maps.RiceFields,
+            UsPlaying = new Means { Opening = Means.None },
+        };
+
+        public static readonly Scenario[] All = { Firebase, TheWire, FirstLight, EarthFights, RiceFields };
 
         /// <summary>The scenario of that name, or null.</summary>
         public static Scenario ById(string id)

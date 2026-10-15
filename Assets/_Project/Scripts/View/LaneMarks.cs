@@ -124,7 +124,7 @@ namespace LanesOfVietnam.View
                 {
                     float v = j / (float)rows;
                     double z = laneZ + (v * 2 - 1) * HalfWidth;
-                    verts[i * (rows + 1) + j] = Coords.World(x, z, (float)g.HeightAt(x, z) + 0.07f);
+                    verts[i * (rows + 1) + j] = Coords.World(x, z, (float)g.SurfaceAt(x, z) + 0.07f);
                     uv[i * (rows + 1) + j] = new Vector2((float)x, v);
                     if (i == cols - 1 || j == rows) continue;
                     int a = i * (rows + 1) + j, b = a + rows + 1;
@@ -220,7 +220,7 @@ namespace LanesOfVietnam.View
                 for (int i = 0; i < n; i++)
                 {
                     double px = x + (i / (double)DiscGrid * 2 - 1) * r, pz = z + (j / (double)DiscGrid * 2 - 1) * r;
-                    _discVerts[j * n + i] = Coords.World(px, pz, (float)g.HeightAt(px, pz) + 0.1f);
+                    _discVerts[j * n + i] = Coords.World(px, pz, (float)g.SurfaceAt(px, pz) + 0.1f);
                 }
             _discMesh.vertices = _discVerts;
             _discMesh.RecalculateBounds();

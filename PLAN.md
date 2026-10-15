@@ -5163,6 +5163,54 @@ the plane we made before." The plan he approved (`~/.claude/plans/eventual-nappi
   seated and nobody hurt coming in, the medic out and a wounded man aboard once down, the medic back before it lifts;
   the tower's checks the men falling as they fall and not once down).
 
+### 12.55 Rice Fields R1: each side at its own end; and a first look at the map (2026-10-15)
+
+**R1, sides at either end** (the plan's first stage: "VC on the left"). The Americans always came on from the west: a
+map now says which end they start at (`MapDef.UsEast`), the match keeps it as a sign (`SimState.UsSign`, not
+hashed), and every place that had "the US advances +x" asks `Combat.Advance(st, side)`: spawning, the opening, the
+front, a side's last line, the squads' slots and march, the jet's stick, the Huey's approach, the view's previews.
+Cover ids are counted from the Americans' end. A draw that sends something one way along x (where a missed round
+lands to one side, a grenade's, a mortar's and a satchel's scatter, a barrage's rounds, a tunnel's men, the tower's
+fall and the places on its platform) is now seen from a side's own end too, and a man going round a friend dead
+ahead goes round the same side of him seen from his own end.
+
+The test of it: the firebase turned end for end (`Maps.Mirrored`, the Americans in the east) is the same match
+seen in a mirror, every man at -x where he was at x, tick by tick, and won by the same side. `simcs mirror 24` and
+`simcs mirror 24 aiposts` (new; the second with the computer up its tower, so the posts' rules are seen): every
+operation, 24 seeds each, a mirror throughout. Before the draws were turned, the turned firebase played as a
+different game (as the US 94 of 192 against a Veteran where the firebase gives 122). `simcs scenario 192
+level=veteran mirror` (new switch) now gives the firebase's own numbers to the match: 122 and 136, 124, 128, 148.
+Every pinned hash in CLAUDE.md unmoved (`determinism` ok; `hash 1` 2256114725u through `... shootdown`
+3526591710u, seed 7 2300756334u; `scenario hash 1` 3782637812u, 708840890u, 3007784689u, 3312621114u).
+New EditMode test `On_a_map_turned_end_for_end_each_side_starts_and_goes_from_its_own_end`.
+
+**A first look at Rice Fields, out of the plan's order.** The owner: "i want to see progress on the new map, run a
+local host to see it". R1 draws nothing, so the map was roughed out ahead of R2 to R4, to be built on:
+
+- `Maps.RiceFields` (theatre "lowlands", not made yet: the firebase's art stands in) and the operation RICE FIELDS
+  (standard, either side; "Bong Son Plain, January 1966"). The VC in the west, the river across both lanes at x -7 to
+  3, the paddies' four flooded steps from 7 to 32 rising 0.45 m a step to the Americans' base on the top step, its
+  tower at x 39. Fifteen cover pieces (the VC's positions in the forest and at the west bank, the bridgehead, a dike,
+  shell holes full of water, a sluice gate, the base's revetment and bunker). Its bridge as data (`MapDef.Bridges`:
+  the near lane, x -9.4 to 5.4).
+- The ground (`GroundParams`, all off on the firebase: its ground is the same to the bit): the river's channel,
+  winding out of the lanes and true where the bridge stands, its banks ragged; the paddies levelled into steps, a dike
+  along each step and along their sides; `Ground.FootAt` (a man on the bridge walks on its deck), `WaterAt`,
+  `SurfaceAt` (the lane marks on the water).
+- `View/RiverView.cs` (new; its `.meta` made by Unity): the river's water and each step's, the engine's lit surface for
+  now (the water shader and the red are R3), and the bridge built of its members: log piles in bents, caps, braces,
+  stringers, planks, rails.
+- `WorldDressing` with the map: the forest at the VC's end, reeds on the banks, rice in rows in the water (grass tufts
+  stand in until the rice is baked, R4), no plant in the water; the base is the firebase's compound turned to the
+  east end (its walls, trucks and the timber tower, until the bamboo one). The opening's pan turns with the map.
+- Not done (the plan's R2 to R6): nobody swims yet (men wade the river on its bed), the bridge cannot be brought
+  down or rebuilt, the scenario's numbers are not measured into the band (with nobody playing it is 41 of 48 as the
+  Americans, 33 as the VC: `simcs scenario rice-fields 48 level=veteran`), the water shader, the bamboo tower, the
+  sounds. `simcs scenario hash 1`: rice-fields 6361 ticks, `3362701848u` (not pinned until R2).
+- Captured: `captures/rice/a2.png` (the bridge and the river into the forest), `b3.png` (the paddies and the base).
+- WebGL: 37.59 MB to start, 45.70 in all. Frame time at 2592 x 1370 on Rice Fields (`?perf=1&seed=3&scenario=rice-fields`,
+  ticks 600 to 1700): 4.2 to 4.5 ms mean, 5 to 6 at the 95th percentile. Served on :8065 for the owner to look at.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

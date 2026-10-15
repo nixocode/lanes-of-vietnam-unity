@@ -97,8 +97,14 @@ namespace LanesOfVietnam.View
         private Dictionary<string, PlantSpecies> _species;
         private PlantBatch _plants;
 
-        public void Build(Ground g, IReadOnlyList<Cover> cover, int seed)
+        public void Build(Ground g, IReadOnlyList<Cover> cover, int seed, MapDef map = null)
         {
+            // Rice Fields (PLAN, Rice Fields): the Americans' base at the east end, the firebase's compound turned end
+            // for end; no plant in the river or the paddies' water, but the rice; the forest at the VC's end.
+            _map = map ?? Maps.Firebase;
+            _east = _map.UsEast;
+            _lowlands = !double.IsNaN(g.Params.RiverX0) || !double.IsNaN(g.Params.PaddyX0);
+            _ground = g;
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
             _tower = null;
@@ -116,6 +122,12 @@ namespace LanesOfVietnam.View
             Scrub(g, cover, rng.Fork("scrub"));
             Foreground(g, cover, rng.Fork("foreground"));
             Grass(g, cover, rng.Fork("grass"));
+            if (_lowlands)
+            {
+                Forest(g, cover, rng.Fork("forest"));
+                Reeds(g, cover, rng.Fork("reeds"));
+                Rice(g, cover);
+            }
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
             CombineByMaterial();
@@ -124,6 +136,25 @@ namespace LanesOfVietnam.View
         }
 
         private Rng _plantRng;
+        private MapDef _map;
+        private Ground _ground;
+        private bool _east, _lowlands, _planting;
+
+        /// <summary>x as the firebase has it: the base at the west end (on a map with the Americans in the east, turned).</summary>
+        private double F(double x) => _east ? -x : x;
+
+        /// <summary>The base's edge toward the fighting, as the firebase has it (FirebaseEastX); in the lowlands, the top paddy's.</summary>
+        private double BaseEdge => _lowlands && !double.IsNaN(_ground.Params.PaddyX1) ? -(_ground.Params.PaddyX1 - 1.0) * (_east ? 1 : -1) : FirebaseEastX;
+
+        /// <summary>In the lowlands: is (x, z) under water, the river's or a paddy's (where only the rice grows)?</summary>
+        private bool Wet(double x, double z)
+        {
+            if (!_lowlands || _planting) return false;
+            var g = _ground;
+            double w = g.WaterAt(x, z);
+            // (In the paddies, all of a step's floor is the rice's, mud and water alike; the dikes are the grass's.)
+            return !double.IsNaN(w) && g.HeightAt(x, z) < w + (g.InRiver(x, z) || w == g.Params.RiverWater ? 0.06 : 0.16);
+        }
 
         private PlantSpecies Species(string name) => _species.TryGetValue(name, out var s) ? s : null;
 
@@ -144,6 +175,7 @@ namespace LanesOfVietnam.View
         /// </summary>
         private bool Plant(Ground g, double x, double z, float height, params string[] choices)
         {
+            if (Wet(x, z)) return true;
             var avail = new List<PlantSpecies>();
             foreach (var c in choices) { var s = Species(c); if (s != null) avail.Add(s); }
             if (avail.Count == 0) return false;
@@ -350,7 +382,7 @@ namespace LanesOfVietnam.View
             for (int i = 0; i < 420; i++)
             {
                 double x = rng.Range(-150, 150), z = rng.Range(11.5, 22);
-                if (x < FirebaseEastX + 1 || NearCover(cover, x, z, 1.0)) continue;
+                if (F(x) < BaseEdge + 1 || NearCover(cover, x, z, 1.0)) continue;
                 double clump = System.Math.Sin(x * 0.11 + 1.3) * System.Math.Sin(x * 0.037 + z * 0.21);
                 if (rng.Next() > 0.25 + clump * 0.6) continue;
                 Plant(g, x, z, (float)rng.Range(0.45, 1.35), "fern", "calathea", "anthurium");
@@ -384,7 +416,7 @@ namespace LanesOfVietnam.View
                     if (NearCover(cover, px, pz, 0.6)) continue;
                     double patch = 0.5 + 0.5 * System.Math.Sin(px * 0.13 + System.Math.Sin(pz * 0.29) * 2.1)
                                              * System.Math.Cos(pz * 0.17 - px * 0.05);
-                    bool firebase = px < FirebaseEastX && pz > 0;
+                    bool firebase = F(px) < BaseEdge && pz > 0;
                     double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
                     double density;
                     float lo, hi;
@@ -417,6 +449,93 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
+        /// The lowlands: the forest the VC come out of, at their end of the map, closing up to the river's west bank.
+        /// Canopy trees with their undergrowth on a jittered grid, thick behind the far lane, thinner between the lanes,
+        /// a bamboo clump and a palm here and there; the lanes left open, as paths, and nothing tall in front of the near
+        /// lane, where it would hide the fight from the lens (the foreground's own low plants are there).
+        /// </summary>
+        private void Forest(Ground g, IReadOnlyList<Cover> cover, Rng rng)
+        {
+            var p = g.Params;
+            // The VC's end (the west, with the Americans in the east), and how far from the middle the forest begins.
+            double sign = _east ? -1 : 1;
+            const double cell = 4.2;
+            for (double d0 = 4; d0 < 95; d0 += cell)
+                for (double z = -46; z < 10.5; z += cell)
+                {
+                    double d = d0 + rng.Range(-1.6, 1.6), pz = z + rng.Range(-1.6, 1.6), x = sign * d;
+                    // Its ragged edge toward the river; and nothing tall between the lens and the near lane.
+                    var (r0, r1) = double.IsNaN(p.RiverX0) ? (-12.0, 12.0) : g.RiverAt(pz);
+                    double edge = (sign < 0 ? -(r0 - 6.5) : r1 + 6.5) + System.Math.Sin(pz * 0.21) * 2.2 + rng.Range(-2, 2);
+                    if (d < edge || pz > Tune.Lanes[0] - 3.4) continue;
+                    double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
+                    if (lane < 3.4 || NearCover(cover, x, pz, 1.2)) continue;
+                    bool between = pz > Tune.Lanes[1] && pz < Tune.Lanes[0];
+                    if (rng.Next() > (between ? 0.45 : 0.92)) continue;
+                    double roll = rng.Next();
+                    if (roll < 0.12) { Plant(g, x, pz, (float)rng.Range(8, 12.5), "bamboo"); continue; }
+                    if (roll < 0.2 && !between) { Plant(g, x, pz, (float)rng.Range(11, 15), "coconut_palm"); continue; }
+                    float h = (float)(between ? rng.Range(6, 10) : rng.Range(10, 18));
+                    if (Plant(g, x, pz, h, "jacaranda", "island_tree", "ficus", "island_tree"))
+                        Undergrowth(g, x, pz, h);
+                }
+        }
+
+        /// <summary>Reeds along the river's banks, at the water's edge: tall grass in clumps, off the lanes and the bridge.</summary>
+        private void Reeds(Ground g, IReadOnlyList<Cover> cover, Rng rng)
+        {
+            var p = g.Params;
+            if (double.IsNaN(p.RiverX0)) return;
+            _planting = true;
+            for (int side = 0; side < 2; side++)
+                for (double z = -60; z < 24; z += rng.Range(0.7, 1.5))
+                {
+                    double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
+                    if (lane < 2.6) continue;
+                    // Out to where the water is a hand deep, and up the bank a little.
+                    var (r0, r1) = g.RiverAt(z);
+                    double bank = side == 0 ? r0 : r1;
+                    double x = bank + (side == 0 ? -1 : 1) * rng.Range(-0.4, 1.8);
+                    if (System.Math.Abs(g.HeightAt(x, z) - p.RiverWater) > 0.6) continue;
+                    if (rng.Next() < 0.35 + 0.3 * System.Math.Sin(z * 0.23)) continue;
+                    Plant(g, x, z, (float)rng.Range(1.4, 2.6), "elephant_grass");
+                }
+            _planting = false;
+        }
+
+        /// <summary>
+        /// The rice: young plants in rows across each flooded step, a hand and a half apart, standing out of the water;
+        /// not on the dikes, the path or cover, and kept out of the lanes' middle, where men have trodden it down.
+        /// (Grass tufts stand in for it until the rice is baked: PLAN, Rice Fields R4.)
+        /// </summary>
+        private void Rice(Ground g, IReadOnlyList<Cover> cover)
+        {
+            var p = g.Params;
+            if (double.IsNaN(p.PaddyX0) || Species("grass_tuft") == null) return;
+            _planting = true;
+            int steps = (int)System.Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep), n = 0;
+            const double row = 0.62;
+            for (int k = 0; k < steps; k++)
+            {
+                double x0 = p.PaddyX0 + k * p.PaddyStep + 0.8, x1 = p.PaddyX0 + (k + 1) * p.PaddyStep - 0.8;
+                double water = g.TerraceLevel(k) + p.PaddyFlood;
+                for (double x = x0; x < x1; x += row)
+                    for (double z = p.PaddyMidZ - p.PaddyHalfZ + 0.6; z < p.PaddyMidZ + p.PaddyHalfZ - 0.6; z += row)
+                    {
+                        double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
+                        if (lane < 1.3 || NearCover(cover, x, z, 0.3)) continue;
+                        double px = x + _plantRng.Range(-0.08, 0.08), pz = z + _plantRng.Range(-0.08, 0.08);
+                        // Only in the water: not up on a dike, the bank between the lanes or the path.
+                        if (g.HeightAt(px, pz) > water + 0.1) continue;
+                        Plant(g, px, pz, (float)_plantRng.Range(0.45, 0.62), "grass_tuft");
+                        n++;
+                    }
+            }
+            _planting = false;
+            Debug.Log($"[LOV] rice: {n} plants on {steps} steps");
+        }
+
+        /// <summary>
         /// Concertina along the bank, broken where the bank is cut: the gaps are
         /// the crossings, which is where the brief says men cross.
         /// </summary>
@@ -431,10 +550,13 @@ namespace LanesOfVietnam.View
                 double a = rng.Range(-8, 34);
                 runs.Add((a, a + rng.Range(3, 7)));
             }
+            // (The lowlands: strung in front of the base alone, not across the paddies.)
+            if (_lowlands) { runs.Clear(); runs.Add((-52, BaseEdge - 1)); }
             foreach (var (from, to) in runs)
             {
-                for (double x = from; x < to; x += 0.55)
+                for (double fx = from; fx < to; fx += 0.55)
                 {
+                    double x = F(fx);
                     // A gap where the bank is cut through: the crossings.
                     if (g.BermGate(x) < 0.35) continue;
                     double z = WireZ + System.Math.Sin(x * 0.3) * 0.25;
@@ -496,17 +618,17 @@ namespace LanesOfVietnam.View
         {
             // Perimeter revetment: the front facing the near lane, and the east
             // side facing the track.
-            for (double x = -52; x < FirebaseEastX - 3; x += 2.6)
-                Wall(g, x, 2.6, 2.6, 1.1, 0.9);
+            for (double x = -52; x < BaseEdge - 3; x += 2.6)
+                Wall(g, F(x), 2.6, 2.6, 1.1, 0.9);
             // (With a gate in it where the far lane runs out through the wire: the wall used to stand
             // across the lane, and every squad raised there walked through it.)
             for (double z = -14.6; z < 2.6; z += 2.6)
-                if (System.Math.Abs(z - Tune.Lanes[1]) > LaneGate) Wall(g, FirebaseEastX - 3.5, z, 0.9, 1.1, 2.6);
+                if (System.Math.Abs(z - Tune.Lanes[1]) > LaneGate) Wall(g, F(BaseEdge - 3.5), z, 0.9, 1.1, 2.6);
 
             // The watchtower: real elevation for whoever holds it. Its top sits
             // about 7 degrees above the horizon, as the reference's does.
             // (Behind the far lane, not astride it: its legs stood where that lane's squads form up.)
-            double tx = Map.TowerX, tz = Map.TowerZ;
+            double tx = _map.Posts.Length > 0 ? _map.Posts[0].X : Map.TowerX, tz = _map.Posts.Length > 0 ? _map.Posts[0].Z : Map.TowerZ;
             float ty = (float)g.HeightAt(tx, tz);
             if (Structures.Ready)
             {
@@ -562,9 +684,15 @@ namespace LanesOfVietnam.View
 
             // The vehicle park inside the wire: two M35s and the jeep, each on its wheels on the ground under it,
             // and not in a row: one truck nose to the gate, one backed in, the jeep left where it stopped.
-            foreach (var (vx, vz, yaw, len, wide, h, key) in new[] { (-34.3, -1.6, 176f, 7.0f, 2.4f, 2.9f, "m35_covered"), (-26.2, -0.9, 3f, 7.0f, 2.4f, 2.9f, "m35_open"),
-                                                                     (-45.0, -1.2, 152f, 3.6f, 1.7f, 1.8f, "jeep") })
+            var park = new[] { (-34.3, -1.6, 176f, 7.0f, 2.4f, 2.9f, "m35_covered"), (-26.2, -0.9, 3f, 7.0f, 2.4f, 2.9f, "m35_open"),
+                               (-45.0, -1.2, 152f, 3.6f, 1.7f, 1.8f, "jeep") };
+            // (The lowlands' base is smaller: its trucks further back, on its own step.)
+            if (_lowlands) park = new[] { (-37.5, -1.6, 176f, 7.0f, 2.4f, 2.9f, "m35_covered"), (-44.5, -0.9, 3f, 7.0f, 2.4f, 2.9f, "m35_open"),
+                                          (-50.0, -1.2, 152f, 3.6f, 1.7f, 1.8f, "jeep") };
+            foreach (var (fx, vz, fyaw, len, wide, h, key) in park)
             {
+                double vx = F(fx);
+                float yaw = _east ? 180f - fyaw : fyaw;
                 float vy = (float)g.HeightAt(vx, vz);
                 Parked.Add((Coords.World(vx, vz, vy), Quaternion.Euler(0, yaw, 0) * Vector3.right, len, wide, h));
                 if (Structures.Ready && Structures.Park(transform, _built, g, key, vx, vz, yaw, len, wide) != null) continue;
@@ -881,6 +1009,7 @@ namespace LanesOfVietnam.View
 
         private Transform Prim(PrimitiveType type, Vector3 pos, Vector3 scale, Material mat, string name)
         {
+            if (Wet(pos.x, Coords.SimZ(pos.z))) return null;
             var go = GameObject.CreatePrimitive(type);
             Destroy(go.GetComponent<Collider>());
             go.name = name;

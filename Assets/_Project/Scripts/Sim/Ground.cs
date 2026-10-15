@@ -29,6 +29,26 @@ namespace LanesOfVietnam.Sim
         /// <summary>How much the ground lifts toward the treeline, and over what distance.</summary>
         public double FarRise = 2.4;
         public double FarRiseScale = 62;
+
+        /// <summary>
+        /// A river across the lanes (Rice Fields; none on the firebase): its banks' x, the height of its water, and of its
+        /// bed in the middle of it; the banks go down to it over RiverBank metres.
+        /// </summary>
+        public double RiverX0 = double.NaN, RiverX1 = double.NaN, RiverWater = -0.85, RiverBed = -1.75, RiverBank = 2.2;
+
+        /// <summary>
+        /// Terraced paddies (Rice Fields; none on the firebase): from PaddyX0 to PaddyX1 in steps PaddyStep wide, each
+        /// PaddyRise higher than the last toward the east; flat out to PaddyHalfZ either side of the lanes' middle, an earth
+        /// dike along each step, and the water standing PaddyFlood deep in each. Past PaddyX1 the last step, dry.
+        /// </summary>
+        public double PaddyX0 = double.NaN, PaddyX1 = double.NaN, PaddyStep = 6.25, PaddyRise = 0.45, PaddyHalfZ = 17, PaddyMidZ = 0.5;
+        public double DikeHeight = 0.34, DikeTop = 0.35, PaddyFlood = 0.12;
+    }
+
+    /// <summary>A bridge's deck, for whoever walks on it: along x from X0 to X1, its middle at Z, Width across, level at Y.</summary>
+    public struct BridgeDeck
+    {
+        public double X0, X1, Z, Width, Y;
     }
 
     /// <summary>A shell hole: a bowl with a raised lip of thrown earth.</summary>
@@ -72,7 +92,7 @@ namespace LanesOfVietnam.Sim
         private readonly Trench[] _trenches;
 
         public Ground(GroundParams p, IReadOnlyList<Crater> craters,
-                      IReadOnlyList<Mound> mounds = null, IReadOnlyList<Trench> trenches = null)
+                      IReadOnlyList<Mound> mounds = null, IReadOnlyList<Trench> trenches = null, IReadOnlyList<BridgeDeck> decks = null)
         {
             Params = p;
             var rng = new Rng(p.Seed);
@@ -81,6 +101,88 @@ namespace LanesOfVietnam.Sim
             _craters = Copy(craters);
             _mounds = Copy(mounds);
             _trenches = Copy(trenches);
+            // A bridge's deck lies level, a hand above the higher of its two ends.
+            _decks = Copy(decks);
+            for (int i = 0; i < _decks.Length; i++)
+            {
+                var d = _decks[i];
+                d.Y = Math.Max(HeightAt(d.X0, d.Z), HeightAt(d.X1, d.Z)) + 0.22;
+                _decks[i] = d;
+            }
+        }
+
+        private readonly BridgeDeck[] _decks;
+        public IReadOnlyList<BridgeDeck> Decks => _decks;
+
+        /// <summary>Where a man's feet are at (x, z): on a bridge's deck if he is on one, on the ground if not.</summary>
+        public double FootAt(double x, double z)
+        {
+            double h = HeightAt(x, z);
+            for (int i = 0; i < _decks.Length; i++)
+            {
+                var d = _decks[i];
+                if (x >= d.X0 && x <= d.X1 && Math.Abs(z - d.Z) <= d.Width * 0.5) h = Math.Max(h, d.Y);
+            }
+            return h;
+        }
+
+        /// <summary>
+        /// Where the river's banks are at z: RiverX0 and RiverX1 where the near lane crosses it, winding a little either side
+        /// of the lanes and more out of them, the banks ragged; straight and true where a bridge stands on them.
+        /// </summary>
+        public (double x0, double x1) RiverAt(double z)
+        {
+            var p = Params;
+            double wind = 2.2 * Math.Sin(z * 0.045 - 0.315) + 4.0 * Smooth(14, 50, Math.Abs(z)) * Math.Sin(z * 0.021 + 0.6);
+            double true_ = 1;
+            if (_decks != null)
+                for (int i = 0; i < _decks.Length; i++) true_ = Math.Min(true_, Smooth(_decks[i].Width * 0.5 + 0.5, _decks[i].Width * 0.5 + 6, Math.Abs(z - _decks[i].Z)));
+            double r0 = (Math.Sin(z * 0.31 + _o[5]) * 0.5 + Math.Sin(z * 0.73 + _o[6]) * 0.3) * true_;
+            double r1 = (Math.Sin(z * 0.27 + _o[6]) * 0.5 + Math.Sin(z * 0.81 + _o[7]) * 0.3) * true_;
+            return (p.RiverX0 + wind + r0, p.RiverX1 + wind + r1);
+        }
+
+        /// <summary>Is there a river, and is (x, z) in it (between its banks' feet)?</summary>
+        public bool InRiver(double x, double z)
+        {
+            if (double.IsNaN(Params.RiverX0)) return false;
+            var (x0, x1) = RiverAt(z);
+            return x > x0 && x < x1;
+        }
+
+        /// <summary>Which of the paddies' steps x is on (0 nearest the river), or -1 if it is not in them.</summary>
+        public int Terrace(double x)
+        {
+            var p = Params;
+            if (double.IsNaN(p.PaddyX0) || x < p.PaddyX0) return -1;
+            return (int)Math.Min(Math.Floor((x - p.PaddyX0) / p.PaddyStep), Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep));
+        }
+
+        /// <summary>The level of a step's floor (its water stands PaddyFlood above it).</summary>
+        public double TerraceLevel(int k) => (k + 1) * Params.PaddyRise;
+
+        /// <summary>How many of the paddies' steps are flooded (the last, past PaddyX1, is dry: the base is on it).</summary>
+        public int FloodedSteps => double.IsNaN(Params.PaddyX0) ? 0 : (int)Math.Round((Params.PaddyX1 - Params.PaddyX0) / Params.PaddyStep);
+
+        /// <summary>The height of the water at (x, z): the river's, or a flooded paddy's; NaN where there is none.</summary>
+        public double WaterAt(double x, double z)
+        {
+            var p = Params;
+            if (!double.IsNaN(p.RiverX0))
+            {
+                var (r0, r1) = RiverAt(z);
+                if (x > r0 - p.RiverBank && x < r1 + p.RiverBank) return p.RiverWater;
+            }
+            int k = Terrace(x);
+            if (k >= 0 && k < FloodedSteps && Math.Abs(z - p.PaddyMidZ) < p.PaddyHalfZ) return TerraceLevel(k) + p.PaddyFlood;
+            return double.NaN;
+        }
+
+        /// <summary>The top of whatever is there to stand on or float on: a deck, the ground, or the water over it.</summary>
+        public double SurfaceAt(double x, double z)
+        {
+            double h = FootAt(x, z), w = WaterAt(x, z);
+            return double.IsNaN(w) ? h : Math.Max(h, w);
         }
 
         private static T[] Copy<T>(IReadOnlyList<T> src)
@@ -204,7 +306,64 @@ namespace LanesOfVietnam.Sim
             // Small surface detail: hoof prints, tufts, scuffed earth.
             h += Noise.Value2D(x * 0.55 + o[5], z * 0.55 + o[6]) * 0.045;
             h += Noise.Fbm2D(x * 0.17 + o[7], z * 0.17, 3, 2.1, 0.5) * 0.12;
+
+            // Rice Fields: the paddies levelled into their steps, and the river cut through.
+            if (!double.IsNaN(p.PaddyX0)) h = Paddies(x, z, h);
+            if (!double.IsNaN(p.RiverX0)) h = River(x, z, h);
             return h;
+        }
+
+        private static double Smooth(double e0, double e1, double v)
+        {
+            double t = Math.Max(0, Math.Min(1, (v - e0) / (e1 - e0)));
+            return t * t * (3 - 2 * t);
+        }
+
+        /// <summary>
+        /// The paddies: flat steps rising toward the east, each with a dike along its edge, the ground's own small
+        /// unevenness left in their floors (mud standing out of the water here and there) and its banks and cover with it.
+        /// Out of their flat they go back to the ground as it was.
+        /// </summary>
+        private double Paddies(double x, double z, double h)
+        {
+            var p = Params;
+            double into = Smooth(p.PaddyX0 - 3.5, p.PaddyX0 - 0.5, x) * (1 - Smooth(p.PaddyHalfZ, p.PaddyHalfZ + 9, Math.Abs(z - p.PaddyMidZ)));
+            if (into <= 0) return h;
+            int k = Math.Max(0, Terrace(x));
+            double floor = TerraceLevel(k);
+            // What of the ground is the paddies' own: its small detail, the banks and cover raised on it (the folds and the rise go).
+            double natural = Noise.Fbm2D(x * 0.0125 + _o[2], z * 0.0125 + _o[3], 4, 2.02, 0.5) * p.FoldHeight
+                           + p.FarRise * (1 - Math.Exp(-Math.Max(0, -z) / p.FarRiseScale));
+            double detail = Noise.Value2D(x * 0.55 + _o[5], z * 0.55 + _o[6]) * 0.045 + Noise.Fbm2D(x * 0.17 + _o[7], z * 0.17, 3, 2.1, 0.5) * 0.12;
+            // (The banks and cover at three fifths; the small unevenness at a fifth: a paddy's floor is puddled flat.)
+            double level = floor + (h - natural - detail) * 0.6 + detail * 0.2;
+            // The dikes: one along the foot of each step, its top a little over the step above it.
+            int steps = (int)Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep);
+            for (int i = 0; i <= steps; i++)
+            {
+                double xb = p.PaddyX0 + i * p.PaddyStep;
+                double top = TerraceLevel(Math.Min(i, steps)) + p.DikeHeight;
+                double dike = top - Math.Max(0, Math.Abs(x - xb) - p.DikeTop * 0.5) * 1.1;
+                level = Math.Max(level, dike);
+            }
+            // And one along each side, the steps' ends, so their water has an edge to stand against.
+            double side = TerraceLevel(Math.Min(k, steps)) + p.DikeHeight - Math.Max(0, Math.Abs(Math.Abs(z - p.PaddyMidZ) - p.PaddyHalfZ) - p.DikeTop * 0.5) * 1.1;
+            if (x > p.PaddyX0 - 0.5) level = Math.Max(level, side);
+            return h + (level - h) * into;
+        }
+
+        /// <summary>The river: its banks going down to its bed, across the whole of the ground.</summary>
+        private double River(double x, double z, double h)
+        {
+            var p = Params;
+            var (x0, x1) = RiverAt(z);
+            double inside = Math.Min(x - x0, x1 - x);
+            if (inside <= -p.RiverBank) return h;
+            // From the top of the bank to the bed: the bank's slope, then the bed rounded to its deepest in the middle.
+            double half = (x1 - x0) * 0.5;
+            double bed = p.RiverBed + (p.RiverWater - 0.15 - p.RiverBed) * Math.Pow(Math.Max(0, 1 - Math.Max(0, inside) / half), 2);
+            double t = Smooth(-p.RiverBank, p.RiverBank * 0.4, inside);
+            return Math.Min(h, h + (bed - h) * t);
         }
     }
 }

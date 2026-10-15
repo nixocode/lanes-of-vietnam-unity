@@ -34,6 +34,8 @@ namespace LanesOfVietnam.View
         /// <summary>The map the world is built for now, and the theatre it is built in.</summary>
         public MapDef WorldMap { get; private set; }
         public Theatre WorldTheatre { get; private set; }
+        /// <summary>The world's water and bridges (Rice Fields), made when the world is first built.</summary>
+        public RiverView River { get; private set; }
         /// <summary>Times the world has been built since load: for the memory probe and the tests.</summary>
         public int WorldsBuilt { get; private set; }
         private readonly System.Collections.Generic.List<Mesh> _madeMeshes = new System.Collections.Generic.List<Mesh>();
@@ -231,8 +233,15 @@ namespace LanesOfVietnam.View
             {
                 Dressing.Bags = CoverView.Bags;
                 Dressing.Structures = CoverView.Structures;
-                Dressing.Build(Ground, cover, MapSeed);
+                Dressing.Build(Ground, cover, MapSeed, map);
             }
+            // Rice Fields: its river, its paddies' water and its bridge (none on the firebase).
+            if (River == null)
+            {
+                River = new GameObject("river").AddComponent<RiverView>();
+                River.transform.SetParent(transform, false);
+            }
+            River.Build(Ground, map, Dressing != null ? Dressing.Timber : null, Dressing != null ? Dressing.Vehicle : null);
             // What this build made for itself, to be freed with it.
             _madeMeshes.Clear();
             foreach (var m in Resources.FindObjectsOfTypeAll<Mesh>()) if (!before.Contains(m)) _madeMeshes.Add(m);
@@ -252,7 +261,7 @@ namespace LanesOfVietnam.View
         /// </summary>
         public void TeardownWorld()
         {
-            foreach (var view in new Component[] { GroundView, CoverView, Mountains, Dressing })
+            foreach (var view in new Component[] { GroundView, CoverView, Mountains, Dressing, River })
             {
                 if (view == null) continue;
                 foreach (Transform c in view.transform) Destroy(c.gameObject);

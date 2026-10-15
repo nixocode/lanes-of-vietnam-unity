@@ -761,7 +761,7 @@ namespace LanesOfVietnam.View
                 bool stepping = atRest && Mathf.Abs(Mathf.DeltaAngle(wasYaw, _yaw[i])) > PivotRate * dt * 0.25f;
                 f.Twist(atRest ? Mathf.Clamp(Mathf.DeltaAngle(_yaw[i], yaw), -f.TwistRoom(posture), f.TwistRoom(posture)) : 0f);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
-                float ground = (float)g.HeightAt(x, z);
+                float ground = (float)g.FootAt(x, z);
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
                                                        : Mathf.MoveTowards(_height[i], ground, ClimbRate * dt);
                 // Vantage: up a post's ladder, or on its platform. (Killed on the ladder, he comes off it.)

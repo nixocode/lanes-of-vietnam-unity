@@ -67,6 +67,9 @@ namespace LanesOfVietnam.View.UI
         /// <summary>The opening: seconds, and where the camera travels (sim x).</summary>
         public const float OpeningSeconds = 7f;
         private const float OpeningFromX = 38f, OpeningToX = -14f;
+        /// <summary>The opening's pan, from the enemy's end toward the Americans', on the map's own ends (Rice Fields has them the other way).</summary>
+        private float OpeningFrom => Root.Scenario.Map.UsEast ? -OpeningFromX : OpeningFromX;
+        private float OpeningTo => Root.Scenario.Map.UsEast ? -OpeningToX : OpeningToX;
 
         private void OnEnable()
         {
@@ -301,7 +304,7 @@ namespace LanesOfVietnam.View.UI
         public void Skip()
         {
             if (State != FlowState.Opening) return;
-            Root.CameraRig.Focus(OpeningToX, instant: true);
+            Root.CameraRig.Focus(OpeningTo, instant: true);
             Enter(FlowState.Playing);
         }
 
@@ -389,7 +392,7 @@ namespace LanesOfVietnam.View.UI
             ReplayBanner.style.display = replay && play ? DisplayStyle.Flex : DisplayStyle.None;
             _openingT = 0;
             _overT = 0;
-            if (s == FlowState.Opening) Root.CameraRig.Focus(OpeningFromX, instant: true);
+            if (s == FlowState.Opening) Root.CameraRig.Focus(OpeningFrom, instant: true);
             SyncChoices();
         }
 
@@ -475,7 +478,7 @@ namespace LanesOfVietnam.View.UI
                     // the simulation's own opening, the infiltration, is running.
                     _openingT += dt;
                     float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_openingT / OpeningSeconds));
-                    Root.CameraRig.Focus(Mathf.Lerp(OpeningFromX, OpeningToX, k), instant: true);
+                    Root.CameraRig.Focus(Mathf.Lerp(OpeningFrom, OpeningTo, k), instant: true);
                     Subtitle.text = Root.Settings.Subtitles && _openingT > 1.2f && _openingT < 6.5f
                         ? Radio(Root.Scenario, Root.PlayerSide)
                         : "";
