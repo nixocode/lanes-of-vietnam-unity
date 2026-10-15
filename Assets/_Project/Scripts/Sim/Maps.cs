@@ -52,6 +52,14 @@ namespace LanesOfVietnam.Sim
         public bool BankMirrored;
         /// <summary>Its bridges (Rice Fields): none on the firebase.</summary>
         public Bridge[] Bridges = new Bridge[0];
+        /// <summary>
+        /// The view's, for a map whose ground climbs (Rice Fields): the camera rises and falls with the lanes' ground as
+        /// it pans, so high ground is framed as low ground is; and it looks CameraDrop degrees further down, the lanes
+        /// higher in the frame, clear of the cards along the bottom (the owner, 2026-10-15: "the lanes are too close to
+        /// the HUD ... giving proper space where needed").
+        /// </summary>
+        public bool CameraRides;
+        public double CameraDrop;
 
         /// <summary>
         /// The map's cover, in order from the Americans' end (x order on the firebase), ids assigned. A fresh copy each
@@ -235,35 +243,41 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static readonly MapDef RiceFields = new MapDef
         {
-            Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true,
+            Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true, CameraRides = true, CameraDrop = 2.8,
             Pieces = new[]
             {
-                // --- near lane: over the bridge -----------------------------------
+                // --- near lane: over the bridge, and up the steps -------------------
                 new MapPiece(CoverKind.Trench, Map.Near, -36.0, 0.5, 9.0),     // a VC position of logs and earth in the forest
                 new MapPiece(CoverKind.Berm, Map.Near, -25.0, 0.8, 8.0),       // fallen trees at the forest's edge
-                new MapPiece(CoverKind.Trench, Map.Near, -13.5, 0.4, 6.0),     // dug in at the west bank, before the bridge
-                new MapPiece(CoverKind.Sandbag, Map.Near, 9.0, -0.6, 6.0),     // the bridgehead, on the east bank
-                new MapPiece(CoverKind.Berm, Map.Near, 16.0, 0.9, 8.0),        // a dike across the first paddy
-                new MapPiece(CoverKind.Crater, Map.Near, 22.5, -0.5, 5.0),     // shell holes, full of water
-                new MapPiece(CoverKind.Sandbag, Map.Near, 30.5, 0.8, 7.0),     // the base's revetment
-                new MapPiece(CoverKind.Bunker, Map.Near, 38.5, 1.2, 4.0),      // the base's bunker
+                new MapPiece(CoverKind.Trench, Map.Near, -19.0, 0.4, 6.0),     // dug in short of the bridge's ramp
+                new MapPiece(CoverKind.Sandbag, Map.Near, 12.3, -0.6, 4.4),    // the bridgehead, behind the first step's dike
+                new MapPiece(CoverKind.Berm, Map.Near, 16.6, 0.9, 2.8),        // the second step's dike
+                new MapPiece(CoverKind.Crater, Map.Near, 23.6, -0.5, 4.0),     // shell holes, full of water
+                new MapPiece(CoverKind.Sandbag, Map.Near, 29.3, 0.8, 4.4),     // bags along the fourth step's dike
+                new MapPiece(CoverKind.Sandbag, Map.Near, 35.0, 0.8, 4.0),     // the base's revetment, at the top
+                new MapPiece(CoverKind.Bunker, Map.Near, 40.5, 1.2, 4.0),      // the base's bunker
 
-                // --- far lane: through the water ----------------------------------
+                // --- far lane: through the water, and up the steps ------------------
                 new MapPiece(CoverKind.Berm, Map.Far, -34.0, 0.6, 10.0),       // logs in the forest
                 new MapPiece(CoverKind.Trench, Map.Far, -22.0, 0.7, 9.0),      // a VC trench at the treeline
-                new MapPiece(CoverKind.Berm, Map.Far, -11.5, -0.4, 7.0),       // the reeds and the west bank
-                new MapPiece(CoverKind.Berm, Map.Far, 8.5, 0.5, 8.0),          // the east bank's dike
-                new MapPiece(CoverKind.Sandbag, Map.Far, 16.0, -0.6, 5.0),     // the sluice gate
-                new MapPiece(CoverKind.Crater, Map.Far, 24.0, 0.4, 5.0),
-                new MapPiece(CoverKind.Sandbag, Map.Far, 33.0, -0.3, 8.0),     // the base's wall
+                new MapPiece(CoverKind.Berm, Map.Far, -12.5, -0.4, 5.0),       // the reeds and the west bank
+                new MapPiece(CoverKind.Berm, Map.Far, 8.4, 0.5, 3.2),          // the first step's dike, over the east bank
+                new MapPiece(CoverKind.Sandbag, Map.Far, 17.6, -0.6, 3.6),     // the sluice gate
+                new MapPiece(CoverKind.Crater, Map.Far, 24.7, 0.4, 3.0),
+                new MapPiece(CoverKind.Sandbag, Map.Far, 29.4, -0.3, 4.4),     // bags along the fourth step's dike
+                new MapPiece(CoverKind.Sandbag, Map.Far, 35.0, -0.3, 4.0),     // the base's wall
             },
-            // The river between x -7 and 3, the paddies' four steps from 7 to 32, the base on the top step; flatter
-            // ground than the highlands', and a raised path along it where the firebase has its track.
+            // The river between x -7 and 3, cut deep (its water 1.25 m under its banks); the paddies' four steps from 8 to
+            // 34, each 1.1 m over the last, their edges winding; the base on the top step, 5.5 m up. Flatter ground than
+            // the highlands', and a raised path along it where the firebase has its track. (The steps' feet at the near
+            // lane: 9.7, 15.1, 20.6, 26.8 and 32.9; at the far lane 6.4, 15.6, 22.8, 26.6 and 32.9: the cover is on them.)
             GroundShape = new GroundParams
             {
                 Seed = 20261015, FoldHeight = 0.5, TrackCut = -0.16, RutDepth = 0.04, TrackWander = 1.6, BermHeight = 0.7,
                 FarRise = 3.2, FarRiseScale = 48,
-                RiverX0 = -7, RiverX1 = 3, PaddyX0 = 7, PaddyX1 = 32, PaddyFlood = 0.16,
+                RiverX0 = -7, RiverX1 = 3, RiverWater = -1.25, RiverBed = -2.3,
+                PaddyX0 = 8, PaddyX1 = 34, PaddyStep = 6.5, PaddyRise = 1.1, PaddyWave = 2.2, PaddyFlood = 0.16,
+                DeckRise = 0.9, RampLength = 5,
             },
             OldCraters = 4,
             Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 } },

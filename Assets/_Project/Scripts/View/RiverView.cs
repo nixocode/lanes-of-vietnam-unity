@@ -16,7 +16,7 @@ namespace LanesOfVietnam.View
     /// </summary>
     public sealed class RiverView : MonoBehaviour
     {
-        private Material _river, _paddy;
+        private Material _river, _paddy, _planks;
         private readonly List<Renderer> _built = new List<Renderer>();
         public IReadOnlyList<Renderer> Built => _built;
 
@@ -38,6 +38,8 @@ namespace LanesOfVietnam.View
             // Measured by eye against the owner's second picture: a muddy brown river; the paddies darker, olive.
             _river = Water("River", new Color(0.27f, 0.22f, 0.13f), 0.62f);
             _paddy = Water("Paddy", new Color(0.12f, 0.14f, 0.11f), 0.95f);
+            // The bridge's timber: weathered, grey-brown, dull (until it is textured, R4).
+            _planks = Water("Bridge Timber", new Color(0.33f, 0.26f, 0.19f), 0.12f);
         }
 
         public void Build(Ground g, MapDef map, Material timber, Material lit)
@@ -48,12 +50,8 @@ namespace LanesOfVietnam.View
             if (double.IsNaN(p.RiverX0) && double.IsNaN(p.PaddyX0)) return;
             Materials(lit);
             if (!double.IsNaN(p.RiverX0)) RiverSheet(g, (float)p.RiverWater);
-            for (int k = 0; k < g.FloodedSteps; k++)
-            {
-                double x0 = p.PaddyX0 + k * p.PaddyStep, x1 = x0 + p.PaddyStep;
-                Sheet($"paddy water {k}", x0, x1, p.PaddyMidZ - p.PaddyHalfZ, p.PaddyMidZ + p.PaddyHalfZ, (float)(g.TerraceLevel(k) + p.PaddyFlood), _paddy, 2.0);
-            }
-            foreach (var d in g.Decks) Bridge(g, d, timber);
+            for (int k = 0; k < g.FloodedSteps; k++) PaddySheet(g, k);
+            foreach (var d in g.Decks) Bridge(g, d, _planks != null ? _planks : timber);
             Debug.Log($"[LOV] river: water {(double.IsNaN(p.RiverX0) ? "none" : $"x {p.RiverX0:F0}..{p.RiverX1:F0} at {p.RiverWater:F2} m")}, {g.FloodedSteps} paddies, {g.Decks.Count} bridge{(g.Decks.Count == 1 ? "" : "s")}");
         }
 
@@ -89,6 +87,43 @@ namespace LanesOfVietnam.View
             mesh.normals = norms; mesh.uv = uv;
             mesh.RecalculateBounds();
             Add("river water", mesh, _river, castShadows: false);
+        }
+
+        /// <summary>
+        /// A step's water: level, from a hand inside its own dike to a hand short of the next one's face, following both
+        /// as they wind, across the step's width between its side dikes (its edges are under the earth).
+        /// </summary>
+        private void PaddySheet(Ground g, int k)
+        {
+            var p = g.Params;
+            float y = (float)(g.TerraceLevel(k) + p.PaddyFlood);
+            const int across = 8;
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            int rows = 0;
+            for (double z = p.PaddyMidZ - p.PaddyHalfZ; z <= p.PaddyMidZ + p.PaddyHalfZ + 1e-6; z += 0.5, rows++)
+            {
+                double a = g.Boundary(k, z) + 0.2, b = g.Boundary(k + 1, z) - 0.2;
+                for (int i = 0; i <= across; i++) verts.Add(Coords.World(a + (b - a) * i / across, z, y));
+            }
+            for (int j = 0; j + 1 < rows; j++)
+                for (int i = 0; i < across; i++)
+                {
+                    int q = j * (across + 1) + i, r = q + 1, s = q + across + 1, t = s + 1;
+                    tris.Add(q); tris.Add(s); tris.Add(r);
+                    tris.Add(r); tris.Add(s); tris.Add(t);
+                }
+            var mesh = new Mesh { name = $"paddy water {k}", indexFormat = IndexFormat.UInt32 };
+            mesh.SetVertices(verts);
+            var n = Vector3.Cross(verts[tris[1]] - verts[tris[0]], verts[tris[2]] - verts[tris[0]]);
+            if (n.y < 0) for (int i = 0; i < tris.Count; i += 3) (tris[i + 1], tris[i + 2]) = (tris[i + 2], tris[i + 1]);
+            mesh.SetTriangles(tris, 0);
+            var norms = new Vector3[verts.Count];
+            var uv = new Vector2[verts.Count];
+            for (int i = 0; i < norms.Length; i++) { norms[i] = Vector3.up; uv[i] = new Vector2(verts[i].x * 0.1f, verts[i].z * 0.1f); }
+            mesh.normals = norms; mesh.uv = uv;
+            mesh.RecalculateBounds();
+            Add(mesh.name, mesh, _paddy, castShadows: false);
         }
 
         /// <summary>A level sheet of water over a rectangle (the simulation's x and z), in cells so it is lit and fogged evenly.</summary>

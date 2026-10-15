@@ -242,10 +242,30 @@ namespace LanesOfVietnam.View
                 River.transform.SetParent(transform, false);
             }
             River.Build(Ground, map, Dressing != null ? Dressing.Timber : null, Dressing != null ? Dressing.Vehicle : null);
+            // A map whose ground climbs has the camera ride with it, and look down a little more (MapDef.CameraRides).
+            if (CameraRig != null)
+            {
+                var g = Ground;
+                CameraRig.LanesHeight = map.CameraRides ? x => LanesHeightAt(g, x) : (System.Func<float, float>)null;
+                CameraRig.FrameDrop = (float)map.CameraDrop;
+            }
             // What this build made for itself, to be freed with it.
             _madeMeshes.Clear();
             foreach (var m in Resources.FindObjectsOfTypeAll<Mesh>()) if (!before.Contains(m)) _madeMeshes.Add(m);
             WorldsBuilt++;
+        }
+
+        /// <summary>
+        /// The lanes' ground height about a pan position: the surface (a deck, the ground, the water) under both lanes,
+        /// over twenty metres either side, for the camera to ride at.
+        /// </summary>
+        public static float LanesHeightAt(Ground g, float x)
+        {
+            double sum = 0;
+            int n = 0;
+            for (double dx = -10; dx <= 10; dx += 2.5, n += 2)
+                sum += g.SurfaceAt(x + dx, Tune.Lanes[0]) + g.SurfaceAt(x + dx, Tune.Lanes[1]);
+            return (float)(sum / n);
         }
 
         /// <summary>The theatre a map names, or the first there is (a map that names none is built in it).</summary>

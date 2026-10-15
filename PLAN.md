@@ -5211,6 +5211,30 @@ local host to see it". R1 draws nothing, so the map was roughed out ahead of R2 
 - WebGL: 37.59 MB to start, 45.70 in all. Frame time at 2592 x 1370 on Rice Fields (`?perf=1&seed=3&scenario=rice-fields`,
   ticks 600 to 1700): 4.2 to 4.5 ms mean, 5 to 6 at the 95th percentile. Served on :8065 for the owner to look at.
 
+**His first look** (the same evening): "looks quite nice but have the bridge higher up so you can see water under it.
+And also make the rice fields ondulate higher, like have more of an hieght advantage and make the map taller on that
+side ... we have this issue as well on the first map where the lanes are too close to the HUD. try and avoid that
+this time giving proper space where needed."
+
+- **The bridge higher.** The river cut deeper (its water 1.25 m under the banks, its bed 2.3), and the deck stands
+  0.9 m over the higher bank on earth ramps 5 m long (`GroundParams.DeckRise`, `RampLength`; `Ground.Ramp`): 2.7 m
+  of open water and piles under it.
+- **The paddies climb.** Four steps each 1.1 m over the last (0.45 before), the base on the top one 5.5 m over the
+  river; their edges wind along the hillside as contours do (`PaddyWave` 2.2 m, `Ground.Boundary`, `Terrace(x, z)`);
+  the land round them rises with them (behind the far lane the hill goes on up; in front of the near lane it falls
+  away toward the lens, so it hides nobody). The water and the rice follow each step's winding edges. The cover is
+  on the steps' dikes where they cross the lanes (the steps' feet at the near lane 9.7, 15.1, 20.6, 26.8, 32.9).
+- **Room for the HUD** (`MapDef.CameraRides`, `CameraDrop`; `CameraRig.LanesHeight`, `FrameDrop`): on a map whose
+  ground climbs, the camera rises and falls with the lanes' ground as it pans (eased, as a crane), so the lanes on
+  the top step are framed as those by the river are; and it looks 2.8 degrees further down than the firebase's, the
+  lanes higher in the frame. Captured with the HUD at the owner's shape (`captures/rice/d_steps.png`, `d_base.png`,
+  `e_bridge.png`, 1944 x 1027): the near lane's men stand 6% of the height or more over the cards where the steps
+  are lowest in the frame, more elsewhere; the far lane well under the minimap. What does not fit: with the camera
+  on the base, the timber tower's platform (14 m up) is behind the minimap. The bamboo tower (R4) is to be lower
+  (a 6.5 m platform on a hill is height enough). The firebase's framing is not changed: his to say.
+- The bridge in a plain weathered brown for now (the tower's textured timber is laid out for its members). `simcs
+  scenario hash 1` rice-fields 766631850u (the cover moved; not pinned until R2). Every CLAUDE.md pin unmoved.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

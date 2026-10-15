@@ -38,11 +38,15 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>
         /// Terraced paddies (Rice Fields; none on the firebase): from PaddyX0 to PaddyX1 in steps PaddyStep wide, each
-        /// PaddyRise higher than the last toward the east; flat out to PaddyHalfZ either side of the lanes' middle, an earth
-        /// dike along each step, and the water standing PaddyFlood deep in each. Past PaddyX1 the last step, dry.
+        /// PaddyRise higher than the last toward the east, their edges winding PaddyWave either way as a hillside's contours
+        /// do; flat out to PaddyHalfZ either side of the lanes' middle, an earth dike along each step's lower edge, and the
+        /// water standing PaddyFlood deep in each. Past PaddyX1 the last step, dry; and the land round them rises with them.
         /// </summary>
-        public double PaddyX0 = double.NaN, PaddyX1 = double.NaN, PaddyStep = 6.25, PaddyRise = 0.45, PaddyHalfZ = 17, PaddyMidZ = 0.5;
+        public double PaddyX0 = double.NaN, PaddyX1 = double.NaN, PaddyStep = 6.25, PaddyRise = 0.45, PaddyHalfZ = 17, PaddyMidZ = 0.5, PaddyWave = 0;
         public double DikeHeight = 0.34, DikeTop = 0.35, PaddyFlood = 0.12;
+
+        /// <summary>A bridge's deck stands DeckRise over the higher of its two banks, on earth ramps RampLength long.</summary>
+        public double DeckRise = 0, RampLength = 5;
     }
 
     /// <summary>A bridge's deck, for whoever walks on it: along x from X0 to X1, its middle at Z, Width across, level at Y.</summary>
@@ -101,15 +105,18 @@ namespace LanesOfVietnam.Sim
             _craters = Copy(craters);
             _mounds = Copy(mounds);
             _trenches = Copy(trenches);
-            // A bridge's deck lies level, a hand above the higher of its two ends.
+            // A bridge's deck lies level, DeckRise and a plank over the higher of its two banks; then the ramps up to it.
             _decks = Copy(decks);
             for (int i = 0; i < _decks.Length; i++)
             {
                 var d = _decks[i];
-                d.Y = Math.Max(HeightAt(d.X0, d.Z), HeightAt(d.X1, d.Z)) + 0.22;
+                d.Y = Math.Max(HeightAt(d.X0, d.Z), HeightAt(d.X1, d.Z)) + p.DeckRise + 0.22;
                 _decks[i] = d;
             }
+            _ramps = true;
         }
+
+        private bool _ramps;
 
         private readonly BridgeDeck[] _decks;
         public IReadOnlyList<BridgeDeck> Decks => _decks;
@@ -150,19 +157,27 @@ namespace LanesOfVietnam.Sim
             return x > x0 && x < x1;
         }
 
-        /// <summary>Which of the paddies' steps x is on (0 nearest the river), or -1 if it is not in them.</summary>
-        public int Terrace(double x)
-        {
-            var p = Params;
-            if (double.IsNaN(p.PaddyX0) || x < p.PaddyX0) return -1;
-            return (int)Math.Min(Math.Floor((x - p.PaddyX0) / p.PaddyStep), Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep));
-        }
-
-        /// <summary>The level of a step's floor (its water stands PaddyFlood above it).</summary>
-        public double TerraceLevel(int k) => (k + 1) * Params.PaddyRise;
-
         /// <summary>How many of the paddies' steps are flooded (the last, past PaddyX1, is dry: the base is on it).</summary>
         public int FloodedSteps => double.IsNaN(Params.PaddyX0) ? 0 : (int)Math.Round((Params.PaddyX1 - Params.PaddyX0) / Params.PaddyStep);
+
+        /// <summary>Where the foot of step i is at z (its lower edge, its dike): straight lines PaddyStep apart, winding.</summary>
+        public double Boundary(int i, double z)
+        {
+            var p = Params;
+            return p.PaddyX0 + i * p.PaddyStep + p.PaddyWave * (0.65 * Math.Sin(z * 0.11 + i * 1.3) + 0.35 * Math.Sin(z * 0.29 + i * 2.1));
+        }
+
+        /// <summary>Which of the paddies' steps (x, z) is on (0 nearest the river; FloodedSteps, the dry top), or -1 if none.</summary>
+        public int Terrace(double x, double z)
+        {
+            if (double.IsNaN(Params.PaddyX0)) return -1;
+            int k = -1;
+            for (int i = 0; i <= FloodedSteps && x >= Boundary(i, z); i++) k = i;
+            return k;
+        }
+
+        /// <summary>The level of a step's floor (its water stands PaddyFlood above it); 0 below the first.</summary>
+        public double TerraceLevel(int k) => (k + 1) * Params.PaddyRise;
 
         /// <summary>The height of the water at (x, z): the river's, or a flooded paddy's; NaN where there is none.</summary>
         public double WaterAt(double x, double z)
@@ -173,7 +188,7 @@ namespace LanesOfVietnam.Sim
                 var (r0, r1) = RiverAt(z);
                 if (x > r0 - p.RiverBank && x < r1 + p.RiverBank) return p.RiverWater;
             }
-            int k = Terrace(x);
+            int k = Terrace(x, z);
             if (k >= 0 && k < FloodedSteps && Math.Abs(z - p.PaddyMidZ) < p.PaddyHalfZ) return TerraceLevel(k) + p.PaddyFlood;
             return double.NaN;
         }
@@ -310,7 +325,18 @@ namespace LanesOfVietnam.Sim
             // Rice Fields: the paddies levelled into their steps, and the river cut through.
             if (!double.IsNaN(p.PaddyX0)) h = Paddies(x, z, h);
             if (!double.IsNaN(p.RiverX0)) h = River(x, z, h);
+            if (_ramps) for (int i = 0; i < _decks.Length; i++) h = Ramp(_decks[i], x, z, h);
             return h;
+        }
+
+        /// <summary>The earth ramp up to a bridge's end: level with its deck at the end, down to the ground over RampLength.</summary>
+        private double Ramp(BridgeDeck d, double x, double z, double h)
+        {
+            var p = Params;
+            double outside = x < d.X0 ? d.X0 - x : x > d.X1 ? x - d.X1 : 0;
+            if (outside <= 0 || outside > p.RampLength + 3) return h;
+            double across = Math.Max(0, Math.Abs(z - d.Z) - d.Width * 0.5 - 0.3);
+            return Math.Max(h, d.Y - 0.22 - outside * (p.DeckRise + 0.3) / p.RampLength - across * 0.9);
         }
 
         private static double Smooth(double e0, double e1, double v)
@@ -327,29 +353,35 @@ namespace LanesOfVietnam.Sim
         private double Paddies(double x, double z, double h)
         {
             var p = Params;
-            double into = Smooth(p.PaddyX0 - 3.5, p.PaddyX0 - 0.5, x) * (1 - Smooth(p.PaddyHalfZ, p.PaddyHalfZ + 9, Math.Abs(z - p.PaddyMidZ)));
-            if (into <= 0) return h;
-            int k = Math.Max(0, Terrace(x));
-            double floor = TerraceLevel(k);
+            if (x < p.PaddyX0 - 9) return h;
+            // From the river's east bank, the paddies' ground; in their flat, the steps; round them, the hill they climb.
+            double east = Smooth(p.PaddyX0 - 9, p.PaddyX0 - 4, x);
+            double dz = Math.Abs(z - p.PaddyMidZ);
+            double flat = 1 - Smooth(p.PaddyHalfZ, p.PaddyHalfZ + 5, dz);
+            int k = Terrace(x, z);
+            double floor = k < 0 ? 0 : TerraceLevel(k);
             // What of the ground is the paddies' own: its small detail, the banks and cover raised on it (the folds and the rise go).
             double natural = Noise.Fbm2D(x * 0.0125 + _o[2], z * 0.0125 + _o[3], 4, 2.02, 0.5) * p.FoldHeight
                            + p.FarRise * (1 - Math.Exp(-Math.Max(0, -z) / p.FarRiseScale));
             double detail = Noise.Value2D(x * 0.55 + _o[5], z * 0.55 + _o[6]) * 0.045 + Noise.Fbm2D(x * 0.17 + _o[7], z * 0.17, 3, 2.1, 0.5) * 0.12;
             // (The banks and cover at three fifths; the small unevenness at a fifth: a paddy's floor is puddled flat.)
             double level = floor + (h - natural - detail) * 0.6 + detail * 0.2;
-            // The dikes: one along the foot of each step, its top a little over the step above it.
-            int steps = (int)Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep);
+            // The dikes: one along the foot of each step, its top a little over the step above it; below it, the step's
+            // face of earth down to the one before.
+            int steps = FloodedSteps;
             for (int i = 0; i <= steps; i++)
             {
-                double xb = p.PaddyX0 + i * p.PaddyStep;
-                double top = TerraceLevel(Math.Min(i, steps)) + p.DikeHeight;
-                double dike = top - Math.Max(0, Math.Abs(x - xb) - p.DikeTop * 0.5) * 1.1;
+                double top = TerraceLevel(i) + p.DikeHeight;
+                double dike = top - Math.Max(0, Math.Abs(x - Boundary(i, z)) - p.DikeTop * 0.5) * 1.1;
                 level = Math.Max(level, dike);
             }
             // And one along each side, the steps' ends, so their water has an edge to stand against.
-            double side = TerraceLevel(Math.Min(k, steps)) + p.DikeHeight - Math.Max(0, Math.Abs(Math.Abs(z - p.PaddyMidZ) - p.PaddyHalfZ) - p.DikeTop * 0.5) * 1.1;
-            if (x > p.PaddyX0 - 0.5) level = Math.Max(level, side);
-            return h + (level - h) * into;
+            if (k >= 0) level = Math.Max(level, TerraceLevel(k) + p.DikeHeight - Math.Max(0, Math.Abs(dz - p.PaddyHalfZ) - p.DikeTop * 0.5) * 1.1);
+            // Round the flat: the hillside, rising as the steps do, falling away toward the lens in front of them.
+            double trend = TerraceLevel(steps) * Math.Max(0, Math.Min(1, (x - p.PaddyX0) / (p.PaddyX1 - p.PaddyX0)));
+            double front = 1 - Smooth(p.PaddyMidZ + p.PaddyHalfZ + 1, p.PaddyMidZ + p.PaddyHalfZ + 16, z);
+            double target = flat * level + (1 - flat) * (h + trend * front);
+            return h + (target - h) * east;
         }
 
         /// <summary>The river: its banks going down to its bed, across the whole of the ground.</summary>

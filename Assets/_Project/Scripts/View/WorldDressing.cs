@@ -513,24 +513,24 @@ namespace LanesOfVietnam.View
             var p = g.Params;
             if (double.IsNaN(p.PaddyX0) || Species("grass_tuft") == null) return;
             _planting = true;
-            int steps = (int)System.Math.Round((p.PaddyX1 - p.PaddyX0) / p.PaddyStep), n = 0;
+            int steps = g.FloodedSteps, n = 0;
             const double row = 0.62;
-            for (int k = 0; k < steps; k++)
-            {
-                double x0 = p.PaddyX0 + k * p.PaddyStep + 0.8, x1 = p.PaddyX0 + (k + 1) * p.PaddyStep - 0.8;
-                double water = g.TerraceLevel(k) + p.PaddyFlood;
-                for (double x = x0; x < x1; x += row)
-                    for (double z = p.PaddyMidZ - p.PaddyHalfZ + 0.6; z < p.PaddyMidZ + p.PaddyHalfZ - 0.6; z += row)
-                    {
-                        double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
-                        if (lane < 1.3 || NearCover(cover, x, z, 0.3)) continue;
-                        double px = x + _plantRng.Range(-0.08, 0.08), pz = z + _plantRng.Range(-0.08, 0.08);
-                        // Only in the water: not up on a dike, the bank between the lanes or the path.
-                        if (g.HeightAt(px, pz) > water + 0.1) continue;
-                        Plant(g, px, pz, (float)_plantRng.Range(0.45, 0.62), "grass_tuft");
-                        n++;
-                    }
-            }
+            for (double x = p.PaddyX0 - p.PaddyWave; x < p.PaddyX1 + p.PaddyWave; x += row)
+                for (double z = p.PaddyMidZ - p.PaddyHalfZ + 0.6; z < p.PaddyMidZ + p.PaddyHalfZ - 0.6; z += row)
+                {
+                    int k = g.Terrace(x, z);
+                    if (k < 0 || k >= steps) continue;
+                    // Clear of the step's own dike and of the next one's face.
+                    if (x < g.Boundary(k, z) + 0.8 || x > g.Boundary(k + 1, z) - 0.8) continue;
+                    double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
+                    if (lane < 1.3 || NearCover(cover, x, z, 0.3)) continue;
+                    double px = x + _plantRng.Range(-0.08, 0.08), pz = z + _plantRng.Range(-0.08, 0.08);
+                    // Only in the water: not up on the bank between the lanes or the path.
+                    double water = g.TerraceLevel(k) + p.PaddyFlood;
+                    if (g.HeightAt(px, pz) > water + 0.1) continue;
+                    Plant(g, px, pz, (float)_plantRng.Range(0.45, 0.62), "grass_tuft");
+                    n++;
+                }
             _planting = false;
             Debug.Log($"[LOV] rice: {n} plants on {steps} steps");
         }

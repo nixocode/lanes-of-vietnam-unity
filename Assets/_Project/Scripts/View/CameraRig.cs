@@ -83,6 +83,20 @@ namespace LanesOfVietnam.View
         /// may be more the further in the zoom is.
         /// </summary>
         public float AimUp { get; private set; }
+
+        /// <summary>
+        /// A map whose ground climbs (MapDef.CameraRides, Rice Fields): the lanes' ground height at a pan position, which
+        /// the camera rises and falls with, so the lanes up on the top step are framed as those by the river are. Null:
+        /// it stays at its height (the firebase).
+        /// </summary>
+        public System.Func<float, float> LanesHeight;
+        /// <summary>Degrees the map has the camera look further down than the authored view (MapDef.CameraDrop): the lanes higher in the frame.</summary>
+        public float FrameDrop;
+        private float _ride;
+        private bool _riding;
+
+        /// <summary>The height the camera rides at over its authored one, as it is now.</summary>
+        public float Ride => _riding ? _ride : 0f;
         private float _targetAimUp;
         /// <summary>The most the zoom may point off the lanes, degrees, at full zoom; and how far a pixel of steering turns it.</summary>
         public const float MaxAimUp = 7f, SteerDegreesPerPixel = 0.03f;
@@ -283,9 +297,17 @@ namespace LanesOfVietnam.View
             float vHalf = Coords.Camera.Fov * 0.5f;
             float hHalf = Mathf.Atan(Mathf.Tan(vHalf * Mathf.Deg2Rad) * (cam != null ? cam.aspect : 16f / 9f)) * Mathf.Rad2Deg;
             float yaw = _glassesAim.x * 2f * hHalf * e, pitch = -_glassesAim.y * 2f * vHalf * e;
-            pitch += ZoomPitch(simZ, lens) - AimUp;
+            pitch += ZoomPitch(simZ, lens) - AimUp + FrameDrop * lens / Coords.Camera.Fov;
             var rot = Coords.Camera.Rotation * Quaternion.Euler(pitch, yaw, 0);
-            var pos = Coords.World(X, simZ, Coords.Camera.Height);
+            // (Riding with the ground: eased, so a pan across the steps lifts it as a crane would, not in jumps.)
+            if (LanesHeight != null)
+            {
+                float target = LanesHeight(X);
+                _ride = _riding ? Mathf.Lerp(_ride, target, 1f - Mathf.Exp(-5f * Time.unscaledDeltaTime)) : target;
+                _riding = true;
+            }
+            else _riding = false;
+            var pos = Coords.World(X, simZ, Coords.Camera.Height + Ride);
             if (_trauma > 0.001f)
             {
                 // Squared, so a small blast barely moves it; a few centimetres and a fraction of a degree at most.
