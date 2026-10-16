@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using LanesOfVietnam.Sim;
 using UnityEngine;
@@ -46,12 +47,14 @@ namespace LanesOfVietnam.View
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
+            _spans.Clear();
+            _ground = g;
             var p = g.Params;
             if (double.IsNaN(p.RiverX0) && double.IsNaN(p.PaddyX0)) return;
             Materials(lit);
             if (!double.IsNaN(p.RiverX0)) RiverSheet(g, (float)p.RiverWater);
             for (int k = 0; k < g.FloodedSteps; k++) PaddySheet(g, k);
-            foreach (var d in g.Decks) Bridge(g, d, _planks != null ? _planks : timber);
+            for (int i = 0; i < g.Decks.Count; i++) Bridge(g, g.Decks[i], _planks != null ? _planks : timber, i);
             Debug.Log($"[LOV] river: water {(double.IsNaN(p.RiverX0) ? "none" : $"x {p.RiverX0:F0}..{p.RiverX1:F0} at {p.RiverWater:F2} m")}, {g.FloodedSteps} paddies, {g.Decks.Count} bridge{(g.Decks.Count == 1 ? "" : "s")}");
         }
 
@@ -165,10 +168,10 @@ namespace LanesOfVietnam.View
             Add(name, mesh, mat, castShadows: false);
         }
 
-        private void Add(string name, Mesh mesh, Material mat, bool castShadows)
+        private void Add(string name, Mesh mesh, Material mat, bool castShadows, Transform under = null)
         {
             var go = new GameObject(name);
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(under != null ? under : transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = go.AddComponent<MeshRenderer>();
             r.sharedMaterial = mat;
@@ -181,10 +184,12 @@ namespace LanesOfVietnam.View
         /// <summary>
         /// A timber trestle, as in the owner's picture: bents of three log piles every three metres, a cap across each,
         /// three stringers along, planks across them with a finger's gap and a little out of true, a post-and-rail each side.
+        /// The bents stand by themselves; the deck is in two halves, each with its rails, hinged at its own bank, so that
+        /// brought down it breaks in the middle and each half goes into the river from its bank (MatchOptions.Water).
         /// </summary>
-        private void Bridge(Ground g, BridgeDeck d, Material timber)
+        private void Bridge(Ground g, BridgeDeck d, Material timber, int index)
         {
-            var b = new Builder();
+            var bents = new Builder();
             float deck = (float)d.Y, half = (float)d.Width * 0.5f;
             var rng = new Rng(7919 + (int)(d.X0 * 13));
             // The bents: from the river's bed (and into it) up to under the stringers.
@@ -197,35 +202,139 @@ namespace LanesOfVietnam.View
                     double z = d.Z + dz;
                     float foot = (float)g.HeightAt(x, z) - 0.6f;
                     if (foot > cap - 0.3f) continue;
-                    b.Log(W(x + rng.Range(-0.04, 0.04), z, foot), W(x, z, capTop), 0.13f + (float)rng.Range(0, 0.03f));
+                    bents.Log(W(x + rng.Range(-0.04, 0.04), z, foot), W(x, z, capTop), 0.13f + (float)rng.Range(0, 0.03f));
                 }
-                b.Box(W(x, d.Z, cap + 0.07f), new Vector3(0.26f, 0.2f, (float)d.Width + 0.4f), Quaternion.identity);
+                bents.Box(W(x, d.Z, cap + 0.07f), new Vector3(0.26f, 0.2f, (float)d.Width + 0.4f), Quaternion.identity);
                 // Two braces across the bent, from the cap at one side down to the piles at the other.
                 float low = Mathf.Max((float)g.HeightAt(x, d.Z) + 0.2f, cap - 1.6f);
                 if (cap - low > 0.6f)
                 {
-                    b.Plank(W(x + 0.15, d.Z - half + 0.35, cap), W(x + 0.15, d.Z + half - 0.35, low), 0.18f, 0.06f);
-                    b.Plank(W(x - 0.15, d.Z + half - 0.35, cap), W(x - 0.15, d.Z - half + 0.35, low), 0.18f, 0.06f);
+                    bents.Plank(W(x + 0.15, d.Z - half + 0.35, cap), W(x + 0.15, d.Z + half - 0.35, low), 0.18f, 0.06f);
+                    bents.Plank(W(x - 0.15, d.Z + half - 0.35, cap), W(x - 0.15, d.Z - half + 0.35, low), 0.18f, 0.06f);
                 }
             }
-            // Stringers, along the whole of it, resting on the caps and on the banks at its ends.
-            foreach (double dz in new[] { -half + 0.3, 0.0, half - 0.3 })
-                b.Box(W((d.X0 + d.X1) * 0.5, d.Z + dz, capTop + 0.11f), new Vector3((float)(d.X1 - d.X0), 0.22f, 0.2f), Quaternion.identity);
-            // The deck: planks across, each a little out of true.
-            for (double x = d.X0 + 0.14; x < d.X1 - 0.1; x += 0.29)
+            Add($"bridge {index} bents", bents.Mesh($"bridge {index} bents", Vector3.zero), timber, castShadows: true);
+
+            var span = new Span { Index = index, Deck = d, Seed = 0 };
+            double mid = (d.X0 + d.X1) * 0.5;
+            for (int side = 0; side < 2; side++)
             {
-                var turn = Quaternion.Euler((float)rng.Range(-0.6, 0.6), (float)rng.Range(-1.5, 1.5), 0f);
-                b.Box(W(x, d.Z, deck - 0.03f + (float)rng.Range(-0.012, 0.012)), new Vector3(0.27f, 0.06f, (float)d.Width + (float)rng.Range(-0.1, 0.15)), turn);
+                double a = side == 0 ? d.X0 : mid, b = side == 0 ? mid : d.X1;
+                var pivot = W(side == 0 ? d.X0 : d.X1, d.Z, capTop);
+                var floor = new Builder();
+                // Stringers, resting on the caps and on the bank at its end.
+                foreach (double dz in new[] { -half + 0.3, 0.0, half - 0.3 })
+                    floor.Box(W((a + b) * 0.5, d.Z + dz, capTop + 0.11f), new Vector3((float)(b - a), 0.22f, 0.2f), Quaternion.identity);
+                // The deck: planks across, each a little out of true.
+                for (double x = d.X0 + 0.14; x < d.X1 - 0.1; x += 0.29)
+                {
+                    var turn = Quaternion.Euler((float)rng.Range(-0.6, 0.6), (float)rng.Range(-1.5, 1.5), 0f);
+                    float dy = (float)rng.Range(-0.012, 0.012), wide = (float)d.Width + (float)rng.Range(-0.1, 0.15);
+                    if (x >= a && x < b) floor.Box(W(x, d.Z, deck - 0.03f + dy), new Vector3(0.27f, 0.06f, wide), turn);
+                }
+                // The rails: a post every metre and a half, a rail on top and one half way.
+                var rails = new Builder();
+                foreach (double dz in new[] { -half + 0.08, half - 0.08 })
+                {
+                    for (double x = d.X0 + 0.3; x <= d.X1 - 0.2; x += 1.5)
+                    {
+                        float lean = (float)rng.Range(-2, 2);
+                        if (x >= a && x < b) rails.Box(W(x, d.Z + dz, deck + 0.5f), new Vector3(0.12f, 1.0f, 0.12f), Quaternion.Euler(0f, 0f, lean));
+                    }
+                    double r0 = Math.Max(a, d.X0 + 0.2), r1 = Math.Min(b, d.X1 - 0.2);
+                    rails.Box(W((r0 + r1) * 0.5, d.Z + dz, deck + 0.98f), new Vector3((float)(r1 - r0), 0.1f, 0.1f), Quaternion.identity);
+                    rails.Box(W((r0 + r1) * 0.5, d.Z + dz, deck + 0.52f), new Vector3((float)(r1 - r0), 0.08f, 0.06f), Quaternion.identity);
+                }
+                var hinge = new GameObject($"bridge {index} span {side}").transform;
+                hinge.SetParent(transform, false);
+                hinge.position = pivot;
+                Add($"bridge {index} deck {side}", floor.Mesh($"bridge {index} deck {side}", pivot), timber, castShadows: true, under: hinge);
+                Add($"bridge {index} rails {side}", rails.Mesh($"bridge {index} rails {side}", pivot), timber, castShadows: true, under: hinge);
+                if (side == 0) span.West = hinge; else span.East = hinge;
             }
-            // The rails: a post every metre and a half, a rail on top and one half way.
-            foreach (double dz in new[] { -half + 0.08, half - 0.08 })
+            span.Drop = deck - ((float)g.Params.RiverWater - 0.45f);
+            _spans.Add(span);
+        }
+
+        /// <summary>A bridge's two halves as they hang: standing, going down, or down in the river; put back without rails.</summary>
+        private sealed class Span
+        {
+            public int Index, Seed;
+            public BridgeDeck Deck;
+            public Transform West, East;
+            public bool Down, Rough;
+            /// <summary>When it went down (or was put back), on the match's clock; -1 while it has stood all along.</summary>
+            public float Since = -1f, Drop;
+        }
+
+        private readonly List<Span> _spans = new List<Span>();
+        private Ground _ground;
+
+        /// <summary>
+        /// Bring bridge i down (for a capture and the tests): bursts on the middle of its deck until it falls, as rockets and
+        /// charges would. False if the match has no such bridge, or the rule is off.
+        /// </summary>
+        public static bool Bring(SimState st, int i)
+        {
+            if (!st.Water || !st.Destruction || i < 0 || i >= st.Bridges.Count) return false;
+            var b = st.Bridges[i];
+            double x = (b.X0 + b.X1) * 0.5, z = Tune.Lanes[b.Lane];
+            for (int n = 0; n < 8 && !b.Fallen; n++)
             {
-                for (double x = d.X0 + 0.3; x <= d.X1 - 0.2; x += 1.5)
-                    b.Box(W(x, d.Z + dz, deck + 0.5f), new Vector3(0.12f, 1.0f, 0.12f), Quaternion.Euler(0f, 0f, (float)rng.Range(-2, 2)));
-                b.Box(W((d.X0 + d.X1) * 0.5, d.Z + dz, deck + 0.98f), new Vector3((float)(d.X1 - d.X0) - 0.4f, 0.1f, 0.1f), Quaternion.identity);
-                b.Box(W((d.X0 + d.X1) * 0.5, d.Z + dz, deck + 0.52f), new Vector3((float)(d.X1 - d.X0) - 0.4f, 0.08f, 0.06f), Quaternion.identity);
+                st.Events.Add(new SimEvent { Kind = EventKind.Shell, Tick = st.Tick, Side = Side.Vc, Id = -1, X = x, Z = z });
+                Destruction.Burst(st, x, z, 0, Tune.TowerSatchel);
             }
-            Add("bridge", b.Mesh("bridge"), timber, castShadows: true);
+            return b.Fallen;
+        }
+
+        /// <summary>The bridges as the match has them: brought down, it breaks and goes into the river; put back, it lies level again.</summary>
+        private void Update()
+        {
+            var root = GameRoot.Instance;
+            var d = root != null ? root.Driver : null;
+            var st = d != null ? d.State : null;
+            if (st == null || _ground == null) return;
+            // (On the match's own clock, as the tower's fall is: a capture or a paused game sees it where the match is.)
+            float now = (float)((st.Tick - 1 + d.Alpha) * Tune.Dt);
+            foreach (var s in _spans)
+            {
+                bool fallen = st.Water && s.Index < st.Bridges.Count && st.Bridges[s.Index].Fallen;
+                if (fallen != s.Down)
+                {
+                    s.Down = fallen;
+                    _ground.SetDeckDown(s.Index, fallen);
+                    var kind = fallen ? EventKind.BridgeFell : EventKind.BridgeRebuilt;
+                    int k = st.Events.FindLastIndex(e => e.Kind == kind && e.Id == s.Index);
+                    s.Since = k >= 0 ? (float)(st.Events[k].Tick * Tune.Dt) : now;
+                    if (fallen) s.Seed = k >= 0 ? st.Events[k].Rounds : 0;
+                    // Put back, it is a rough crossing: its planks laid again, no rails.
+                    else s.Rough = true;
+                }
+                if (s.Since < 0f) continue;
+                Pose(s, Mathf.Max(0f, now - s.Since));
+            }
+        }
+
+        /// <summary>Each half about its own bank, as long after it went (or came back) as this.</summary>
+        private void Pose(Span s, float t)
+        {
+            float half = (float)(s.Deck.X1 - s.Deck.X0) * 0.5f;
+            for (int side = 0; side < 2; side++)
+            {
+                var hinge = side == 0 ? s.West : s.East;
+                if (hinge == null) continue;
+                // How far its free end goes down: into the river, by its own dice a little more or less, and turned over a little.
+                float dice = TowerView.H(s.Seed, 70 + side);
+                float angle = Mathf.Asin(Mathf.Clamp01(s.Drop / half)) * Mathf.Rad2Deg * (0.85f + 0.4f * dice);
+                float roll = (TowerView.H(s.Seed, 80 + side) - 0.5f) * 16f;
+                // Down: under gravity, about its bank, in a second; back: laid level over half a second.
+                float k = s.Down ? Mathf.Clamp01(t / 0.95f) : 1f - Mathf.Clamp01(t / 0.5f);
+                k = s.Down ? k * k : k;
+                hinge.localRotation = Quaternion.AngleAxis((side == 0 ? -angle : angle) * k, Vector3.forward) * Quaternion.AngleAxis(roll * k, Vector3.right);
+                // (Its rails gone, once it is put back.)
+                var rails = hinge.Find($"bridge {s.Index} rails {side}");
+                if (rails != null) rails.gameObject.SetActive(!(s.Rough && !s.Down));
+            }
         }
 
         private static Vector3 W(double x, double z, float y) => Coords.World(x, z, y);
@@ -301,9 +410,11 @@ namespace LanesOfVietnam.View
                 for (int k = 0; k < sides; k++) { _t.Add(c); _t.Add(c + 2 + k); _t.Add(c + 1 + k); }
             }
 
-            public Mesh Mesh(string name)
+            /// <summary>The mesh, its vertices about an origin (a hinge it turns on).</summary>
+            public Mesh Mesh(string name, Vector3 origin)
             {
                 var m = new Mesh { name = name, indexFormat = _v.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
+                for (int i = 0; i < _v.Count; i++) _v[i] -= origin;
                 m.SetVertices(_v); m.SetNormals(_n); m.SetUVs(0, _uv); m.SetTriangles(_t, 0);
                 m.RecalculateBounds();
                 m.RecalculateTangents();

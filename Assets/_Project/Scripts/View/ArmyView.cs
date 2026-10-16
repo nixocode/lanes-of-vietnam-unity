@@ -762,8 +762,19 @@ namespace LanesOfVietnam.View
                 f.Twist(atRest ? Mathf.Clamp(Mathf.DeltaAngle(_yaw[i], yaw), -f.TwistRoom(posture), f.TwistRoom(posture)) : 0f);
                 // Over a parapet his height takes a moment to follow the ground: he climbs, he does not snap.
                 float ground = (float)g.FootAt(x, z);
+                // Water: a man killed in the river floats, face down, at its top (one wading walks on its bed, the water
+                // to his chest).
+                if (!m.Alive)
+                {
+                    double water = g.WaterAt(x, z);
+                    if (!double.IsNaN(water) && water - ground > 0.4) ground = (float)water - 0.12f;
+                }
                 _height[i] = fresh || jump || !m.Alive ? (m.Alive || fresh || jump ? ground : _height[i])
                                                        : Mathf.MoveTowards(_height[i], ground, ClimbRate * dt);
+                // (On a map with a river the dead go with what is under them: up to float, down when the bridge they lay on
+                // is gone.)
+                if (!m.Alive && !double.IsNaN(g.Params.RiverX0))
+                    _height[i] = Mathf.MoveTowards(_height[i], ground, (_height[i] > ground ? 7f : 0.8f) * dt);
                 // Vantage: up a post's ladder, or on its platform. (Killed on the ladder, he comes off it.)
                 float high = (float)m.High;
                 // (Followed a little faster than he climbs, to smooth the simulation's twenty steps a second; more than

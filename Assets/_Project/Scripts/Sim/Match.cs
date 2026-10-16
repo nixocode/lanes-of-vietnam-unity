@@ -158,6 +158,10 @@ namespace LanesOfVietnam.Sim
         public bool Destruction;
         /// <summary>Part 2 rule: the medevac's helicopter can be brought down by a rocket as it comes in (<see cref="Sim.Shootdown"/>; with Inbound). Off is the baseline.</summary>
         public bool Shootdown;
+        /// <summary>Part 2: a man in a river swims (slow, cannot fire, easily hit), and its bridge can be brought down and rebuilt (Water). Nothing on a map without one.</summary>
+        public bool Water;
+        /// <summary>Part 2: the higher ground tells: shooting up at it hits less often, down from it a little more (Heights). Nothing on a flat map.</summary>
+        public bool Heights;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -334,6 +338,8 @@ namespace LanesOfVietnam.Sim
                 Satchel = opts.Satchel,
                 Destruction = opts.Destruction,
                 Shootdown = opts.Shootdown && opts.Inbound,
+                Water = opts.Water,
+                Heights = opts.Heights,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -362,6 +368,8 @@ namespace LanesOfVietnam.Sim
             var map = opts.Map ?? Maps.Firebase;
             (st.BankZ, st.BankHeight, st.BankPhase) = map.Bank();
             if (opts.Vantage) st.Posts = map.PostList();
+            if (opts.Water) Water.Lay(st, map);
+            if (opts.Heights) foreach (var s in map.Steps) st.Steps.Add(s);
             // Where each side's front starts: at its own end (MapDef.UsEast: a map may have the Americans in the east).
             st.UsSign = (opts.Map ?? Maps.Firebase).UsEast ? -1 : 1;
             st.Front[(int)Side.Us] = -st.UsSign * Tune.HalfLength * 0.6;
@@ -493,6 +501,8 @@ namespace LanesOfVietnam.Sim
         {
             double dir = Combat.Advance(st, m.Side);
             m.Idle = Idle.No;
+            // Water: in the river he swims, on to his place: no waiting his turn, no going to ground, no cover.
+            bool swim = st.Water && Water.In(st, m);
 
             // Posture, with one dwell where every input funnels through
             // (§9 finding 3).
@@ -531,10 +541,12 @@ namespace LanesOfVietnam.Sim
                 if (behind > 0 && behind < Tune.FileWait) { tx = m.X; if (st.Tactics) tz = m.Z; m.Idle = Idle.FileWait; }
             }
             // Tactics: in contact a squad moves by halves. It is the other half's turn: he stays where he is, down, and fires.
-            if (st.Tactics && quarry == null && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
+            if (st.Tactics && quarry == null && !swim && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
+            // Water: in the river, his place is out of it: he does not stop in it.
+            if (swim && quarry == null) tx = Water.Out(st, sq, tx, dir);
             // Bearing: down, he gets up only for a move he can make now; on his feet with his way barred, he does not stand there.
             bool sapper = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen;
-            if (st.Bearing && quarry == null && !sapper)
+            if (st.Bearing && quarry == null && !sapper && !swim)
             {
                 var why = Bearing.WhyDown(st, sq, m, tx, tz, slot.InCover);
                 if (why != Idle.No) { tx = m.X; tz = m.Z; m.Idle = why; }
@@ -581,11 +593,13 @@ namespace LanesOfVietnam.Sim
             if (st.Gunnery) want = Gunnery.Carry(st, m, sq, want, quarry != null, stalking, JsMath.Hypot(tx - m.X, tz - m.Z));
             // Bearing: and a man who is flat is not got onto a knee and put flat again.
             if (st.Bearing) want = Bearing.Keep(st, m, sq, want, quarry == null && sq.Order != Order.Fallback && !stalking);
-            if (want != m.Posture && m.Dwell >= Tune.PostureDwell)
+            // Water: a man in the river is upright in it, and at once.
+            if (swim) want = Posture.Standing;
+            if (want != m.Posture && (m.Dwell >= Tune.PostureDwell || swim))
             {
                 // Gunnery: getting up to go, a man waits his turn, the lead man first: a squad does not rise as one.
                 bool turn = true;
-                if (st.Gunnery && want == Posture.Standing && quarry == null && sq.Order != Order.Fallback && m.Pin < Tune.PinDrop)
+                if (st.Gunnery && !swim && want == Posture.Standing && quarry == null && sq.Order != Order.Fallback && m.Pin < Tune.PinDrop)
                 {
                     if (m.Wait == 0) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
                     if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; turn = false; }
@@ -600,11 +614,11 @@ namespace LanesOfVietnam.Sim
 
             // Pinned men drop, shoot less and stop advancing. He still has to be
             // placed in whatever he is lying behind, so only movement is skipped.
-            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback;
+            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback && !swim;
             double wasX = m.X, wasZ = m.Z;
             bool stepped = false, waited = false;
             // Gunnery: getting to his feet takes its time, and a man who is down stays where he is.
-            bool held = st.Gunnery && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
+            bool held = st.Gunnery && !swim && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
             if (!pinnedDown && !climbing && !held)
             {
                 double speed = Tune.Speed(m.Posture);
@@ -613,6 +627,8 @@ namespace LanesOfVietnam.Sim
                 double d = JsMath.Hypot(dx, dz);
                 // Cohesion: a man left behind runs to his place.
                 if (st.Cohesion && m.Posture == Posture.Standing && quarry == null && d > Tune.RejoinBeyond) speed = Math.Max(speed, Tune.SpeedRush);
+                // Water: swimming, a third of a walk.
+                if (swim) speed = Tune.SpeedWalk * Tune.SwimPace;
                 // With drill a man close enough to his place stays put (falling back, he always moves).
                 // Fieldcraft: and once at rest he stays at rest until his place has moved a good pace off,
                 // then goes all the way to it: no shuffling a step at a time after a slot that drifts.
@@ -627,9 +643,11 @@ namespace LanesOfVietnam.Sim
                     m.Still = d <= slack;
                 }
                 else m.Still = false;
+                // Water: in the river nobody is near enough his place to stay where he is.
+                if (swim) { slack = 0.05; m.Still = false; }
                 // Gunnery: on his feet and at rest, he sets off in his turn too (one already up waits no longer).
                 bool waiting = false;
-                if (st.Gunnery && d > slack && quarry == null && sq.Order != Order.Fallback)
+                if (st.Gunnery && !swim && d > slack && quarry == null && sq.Order != Order.Fallback)
                 {
                     if (m.Wait == 0 && m.Rest >= Tune.RestToKneel) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
                     if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; waiting = true; }
@@ -641,9 +659,10 @@ namespace LanesOfVietnam.Sim
                 {
                     stepped = true;
                     // Bearing: he gathers pace, and slows into his place.
-                    double stepLen = st.Bearing ? Bearing.Stride(m, speed, d) : Math.Min(d, speed * Tune.Dt);
+                    double stepLen = st.Bearing && !swim ? Bearing.Stride(m, speed, d) : Math.Min(d, speed * Tune.Dt);
                     // (Senses: men running to their places in the strongpoint behind go round each other too.)
-                    if (st.Fieldcraft && (sq.Order != Order.Fallback || (st.Senses && sq.Target >= 0)))
+                    // (Water: not in the river, where they get past each other as they can, and nobody waits.)
+                    if (st.Fieldcraft && !swim && (sq.Order != Order.Fallback || (st.Senses && sq.Target >= 0)))
                     {
                         double nx = m.X + (dx / d) * stepLen, nz = m.Z + (dz / d) * stepLen;
                         bool blocked = Fieldcraft.Clear(st, m, ref nx, ref nz, stepLen);
@@ -681,7 +700,7 @@ namespace LanesOfVietnam.Sim
             // casualties by 3% where it should have cut them by about 25.
             int was = m.Cover;
             m.Cover = -1;
-            if (plan.UseCover)
+            if (plan.UseCover && !swim)
             {
                 for (int i = 0; i < st.Cover.Count; i++)
                 {
@@ -831,6 +850,7 @@ namespace LanesOfVietnam.Sim
             // --- grenades (Part 2, MatchOptions.Frag) -------------------------------
             if ((st.Frag || st.Arms || st.FragCard || st.Satchel) && !opening) Frag.Tick(st);
             if (st.Satchel && !opening) Satchel.Tick(st);
+            if (st.Water && !opening) Water.Tick(st);
             if (st.SquadSmoke && !opening) SquadSmoke.Tick(st);
 
             // --- fire ------------------------------------------------------------

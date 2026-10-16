@@ -128,7 +128,8 @@ namespace LanesOfVietnam.View
         public void Focus(float x, bool instant = false)
         {
             _targetX = Mathf.Clamp(x, -PanLimit, PanLimit);
-            if (instant) { X = _targetX; Apply(); }
+            // (A jump is a jump in height too, where the camera rides with the ground.)
+            if (instant) { X = _targetX; _riding = false; Apply(); }
         }
 
         public void SetDolly(float d, bool instant = false)

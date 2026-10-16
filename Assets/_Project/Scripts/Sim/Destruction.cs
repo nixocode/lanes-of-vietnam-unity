@@ -31,6 +31,8 @@ namespace LanesOfVietnam.Sim
         public static void Burst(SimState st, double x, double z, double high, double power)
         {
             if (!st.Destruction || power <= 0) return;
+            // Water: a bridge near it takes it too.
+            if (st.Water) Water.Burst(st, x, z, high, power);
             for (int i = 0; i < st.Posts.Count; i++)
             {
                 var p = st.Posts[i];

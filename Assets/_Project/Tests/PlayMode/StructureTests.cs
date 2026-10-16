@@ -120,10 +120,11 @@ namespace LanesOfVietnam.Tests
 
         /// <summary>
         /// How far a piece lies above whatever is under it, where it is nearest to it: each of its corners against the
-        /// ground there and the faces of the other pieces straight under it. A piece lying on the ground, on a piece or
+        /// ground there (or a parked truck's roof) and the faces of the other pieces straight under it. A piece lying on the ground, on a piece or
         /// across two has a corner on them: nothing. One lying in the air: the gap.
         /// </summary>
-        public static float Gap(Transform c, System.Collections.Generic.Dictionary<Transform, Vector3[]> faces, LanesOfVietnam.Sim.Ground ground)
+        public static float Gap(Transform c, System.Collections.Generic.Dictionary<Transform, Vector3[]> faces, LanesOfVietnam.Sim.Ground ground,
+                                System.Collections.Generic.IReadOnlyList<(Vector3 at, Vector3 along, float length, float width, float height)> parked = null)
         {
             float gap = float.MaxValue;
             var mine = faces[c];
@@ -132,6 +133,14 @@ namespace LanesOfVietnam.Tests
             {
                 if (!seen.Add(p)) continue;
                 float under = (float)ground.HeightAt(p.x, Coords.SimZ(p.z));
+                // (A truck's roof, where one is parked under it.)
+                if (parked != null)
+                    foreach (var v in parked)
+                    {
+                        var d = p - v.at;
+                        if (Mathf.Abs(Vector3.Dot(d, v.along)) <= v.length * 0.5f && Mathf.Abs(Vector3.Dot(d, Vector3.Cross(Vector3.up, v.along))) <= v.width * 0.5f && v.at.y + v.height <= p.y + 0.05f)
+                            under = Mathf.Max(under, v.at.y + v.height);
+                    }
                 foreach (var kv in faces)
                 {
                     if (kv.Key == c) continue;
@@ -179,6 +188,7 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(tower.Landings.Count, 20, "too few of its pieces strike the ground");
             for (; steps * 0.05f < f.Hits + 4f; steps++) { root.AdvanceForCapture(0.05f); yield return null; }
             int moved = 0, flat = 0, pieces = 0, standing = 0;
+            var faces = Faces(tower.Group);
             var spread = new Bounds();
             bool first = true;
             foreach (Transform c in tower.Group)
@@ -198,16 +208,11 @@ namespace LanesOfVietnam.Tests
                 pieces++;
                 float ground = (float)root.Ground.HeightAt(mid.x, Coords.SimZ(mid.z));
                 Assert.Less(mid.y - ground, 3.6f, $"{c.name} is still up in the air (or on a truck higher than one)");
-                // (Nothing lies in the air: its lowest point down on the ground, or on a piece under it. The owner,
-                // 2026-10-15: "end planels that seem to be floating".)
-                float under = ground;
-                foreach (Transform o in tower.Group)
-                {
-                    if (o == c) continue;
-                    var ob = o.GetComponent<Renderer>().bounds;
-                    if (mid.x >= ob.min.x && mid.x <= ob.max.x && mid.z >= ob.min.z && mid.z <= ob.max.z && ob.max.y <= mid.y + 0.05f) under = Mathf.Max(under, ob.max.y);
-                }
-                Assert.Less(r.bounds.min.y - under, 0.35f, $"{c.name} lies in the air: its lowest point {r.bounds.min.y - ground:F2} m up, with nothing under it higher than {under - ground:F2} m");
+                // (Nothing lies in the air: a corner of it is on the ground, a truck's roof, or a face of a piece under it.
+                // The owner, 2026-10-15: "end planels that seem to be floating". Measured on the pieces' own faces: the boxes
+                // round them, which this measured by once, stand higher than the timbers do.)
+                float gap = Gap(c, faces, root.Ground, root.Dressing.Parked);
+                Assert.Less(gap, 0.1f, $"{c.name} lies in the air: {gap:F2} m over the nearest thing under it");
                 if ((mid - was[c]).magnitude > 2f) moved++;
                 // (Lying flat: its thinnest way upright.)
                 var e = c.GetComponent<MeshFilter>().sharedMesh.bounds.extents;
@@ -218,7 +223,9 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(pieces, 20);
             if (buckle) Assert.GreaterOrEqual(standing, 2, "its stump's bracing has not stood");
             Assert.Greater(moved, pieces * 0.8f, $"only {moved} of {pieces} pieces came down from where they were");
-            Assert.Greater(flat, pieces * 0.8f, $"only {flat} of {pieces} pieces lie flat");
+            // (Seven in ten: resting on what is really under them, more lean on each other than when they rested on
+            // boxes, as a heap does; and a timber that goes over stops where it meets something.)
+            Assert.Greater(flat, pieces * 0.7f, $"only {flat} of {pieces} pieces lie flat");
             Assert.Greater(Mathf.Max(spread.size.x, spread.size.z), 7f, $"its pieces lie heaped in {spread.size}, not scattered");
         }
 

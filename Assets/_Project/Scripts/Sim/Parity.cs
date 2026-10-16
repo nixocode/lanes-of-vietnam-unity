@@ -79,6 +79,8 @@ namespace LanesOfVietnam.Sim
                 foreach (var m in st.Men) h = MixI(h, m.Pack);
             if (st.Destruction)
                 foreach (var p in st.Posts) { h = MixD(h, p.Strength); h = MixB(h, p.Fallen); }
+            if (st.Water)
+                foreach (var b in st.Bridges) { h = MixD(h, b.Strength); h = MixB(h, b.Fallen); h = MixI(h, b.Work); h = MixI(h, b.Builder); }
             if (st.Satchel)
             {
                 foreach (var m in st.Men) { h = MixI(h, m.Satchels); h = MixI(h, m.SatchelWait); }

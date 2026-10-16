@@ -3260,6 +3260,195 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// Water (MatchOptions.Water; Rice Fields, PLAN §12.56; the owner: "can also swim but easy to get shot and killed").
+        /// A man in the river goes at a swimmer's pace, cannot fire, and is hit half as often again; nobody stops in it;
+        /// the bridge carries its lane over until it is brought down. On the firebase, with no river, nothing changes.
+        /// </summary>
+        [Test]
+        public void In_the_river_a_man_is_slow_cannot_fire_is_easily_hit_and_does_not_stop()
+        {
+            var m = new LiveMatch(Scenarios.RiceFields.Options(3, null, Difficulty.Veteran));
+            var st = m.State;
+            Assert.IsTrue(st.Water && st.Heights, "the game plays Rice Fields with its rules");
+            Assert.AreEqual(2, st.Fords.Count); Assert.AreEqual(1, st.Bridges.Count);
+            Assert.IsTrue(Water.Carried(st, Map.Near, -2), "the bridge does not carry the near lane over the river");
+            Assert.IsFalse(Water.Wet(st, Map.Near, -2), "a man on the bridge is in the water");
+            Assert.IsTrue(Water.Wet(st, Map.Far, -2), "the far lane has no bridge: it fords");
+            Assert.IsFalse(Water.Wet(st, Map.Far, 10), "the paddies are not the river");
+            for (int t = 0; t < 400; t++) m.Step();
+            // A man of the far lane put in the water, and one of the other side on the bank to shoot at him.
+            var a = st.Men.First(x => x.Alive && st.Squads[x.Squad].Lane == Map.Far && x.High <= 0);
+            var b = st.Men.First(x => x.Alive && x.Side != a.Side && x.High <= 0);
+            a.X = -3; a.Z = Tune.Lanes[Map.Far];
+            Assert.IsTrue(Water.In(st, a));
+            a.Cooldown = 0;
+            Assert.IsFalse(Combat.Fire(st, a, new Rng(1)), "a man in the river fired");
+            // (Heights off for the comparison: in the water his ground is the river's, lower.)
+            st.Heights = false;
+            double wet = Combat.HitChance(st, b, a);
+            st.Water = false;
+            double dry = Combat.HitChance(st, b, a);
+            st.Water = true;
+            st.Heights = true;
+            Assert.AreEqual(dry * Tune.SwimExposed, wet, 1e-12, "a man in the river is not hit half as often again");
+
+            // Played out with nobody playing: nobody goes faster than a swimmer in it, no squad halts with men in it (but
+            // sappers and engineers at work), and nobody alive stays in it for long.
+            int still = 0, fast = 0, longest = 0;
+            var since = new Dictionary<int, int>();
+            var was = new Dictionary<int, double>();
+            for (int seed = 1; seed <= 4; seed++)
+            {
+                var g = new LiveMatch(Scenarios.RiceFields.Options(seed, null, Difficulty.Veteran));
+                var s2 = g.State;
+                since.Clear(); was.Clear();
+                while (!s2.Over && s2.Tick < g.Cap)
+                {
+                    // (Where each man in the water was before the step: one walking in from the bank has not been in it.)
+                    was.Clear();
+                    foreach (var man in s2.Men) if (Water.In(s2, man)) was[man.Id] = man.X;
+                    g.Step();
+                    foreach (var man in s2.Men)
+                    {
+                        bool inIt = Water.In(s2, man);
+                        if (!inIt) { since.Remove(man.Id); continue; }
+                        if (was.TryGetValue(man.Id, out double x0) && Math.Abs(man.X - x0) > Tune.SpeedWalk * Tune.SwimPace * Tune.Dt + 1e-9) fast++;
+                        if (!since.ContainsKey(man.Id)) since[man.Id] = s2.Tick;
+                        longest = Math.Max(longest, s2.Tick - since[man.Id]);
+                    }
+                    // (A man in a fight with his hands is where his enemy is.)
+                    foreach (var man in s2.Men)
+                        if (Water.In(s2, man) && man.Rest >= Tune.TickHz && since.TryGetValue(man.Id, out int inSince) && s2.Tick - inSince > Tune.TickHz
+                            && !(s2.Fieldcraft && Fieldcraft.InReach(s2, man) != null)) still++;
+                }
+            }
+            Assert.AreEqual(0, fast, "a man went faster than a swimmer in the river");
+            Assert.AreEqual(0, still, "a man stood still in the river for a second or more");
+            Assert.Less(longest * Tune.Dt, 45.0, $"a man stayed {longest * Tune.Dt:F0} s in the river");
+        }
+
+        /// <summary>
+        /// The bridge (MatchOptions.Water with Destruction): bursts on it bring it down, the men on it go into the river
+        /// (some killed by the fall), and both lanes ford; sappers or engineers at its end put it back in twenty-five
+        /// seconds while they are not pinned, and not at all while they are.
+        /// </summary>
+        [Test]
+        public void The_bridge_comes_down_into_the_river_with_its_men_and_is_put_back()
+        {
+            var m = new LiveMatch(Scenarios.RiceFields.Options(5, null, Difficulty.Veteran));
+            var st = m.State;
+            for (int t = 0; t < 300; t++) m.Step();
+            var b = st.Bridges[0];
+            double mid = (b.X0 + b.X1) * 0.5, z = Tune.Lanes[b.Lane];
+            // Three men of the near lane on its deck.
+            var on = st.Men.Where(x => x.Alive && st.Squads[x.Squad].Lane == b.Lane && x.High <= 0).Take(3).ToList();
+            for (int i = 0; i < on.Count; i++) { on[i].X = mid - 2 + 2 * i; on[i].Z = z; }
+            Assert.IsTrue(on.All(x => !Water.In(st, x)), "a man on the bridge is in the water");
+            int bursts = 0;
+            while (!b.Fallen && bursts < 10) { Destruction.Burst(st, mid, z, 0, Tune.TowerRocket); bursts++; }
+            Assert.IsTrue(b.Fallen, "rockets on its deck did not bring it down");
+            Assert.AreEqual(3, bursts, "three rockets' bursts on its deck, not more, not fewer");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.BridgeFell && e.Id == b.Id));
+            Assert.IsFalse(Water.Carried(st, b.Lane, mid));
+            Assert.IsTrue(on.All(x => !x.Alive || Water.In(st, x)), "a man on it did not go into the river with it");
+            Assert.IsTrue(on.Where(x => x.Alive).All(x => x.Pin >= 1), "a man it threw into the river was not shaken");
+
+            // An engineer squad at its end, on its own side's bank.
+            st.Cp[(int)Side.Us] = 200;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, Deck.Find(Side.Us, "us-engineer"), b.Lane, new Rng(9)));
+            var eng = st.Squads.Last(q => q.Side == Side.Us && q.Card == "us-engineer");
+            double dir = Combat.Advance(st, Side.Us), end = dir > 0 ? b.X0 : b.X1;
+            void Place()
+            {
+                eng.AnchorX = end - dir * 2;
+                foreach (var x in st.Men.Where(x => x.Squad == eng.Id && x.Alive)) { x.X = end - dir * 2.5; x.Z = z; x.Pin = 0; }
+            }
+            Place();
+            // Pinned, it does not get on with it.
+            for (int t = 0; t < 100; t++) { foreach (var x in st.Men.Where(x => x.Squad == eng.Id && x.Alive)) x.Pin = 1; m.Step(); }
+            Assert.IsTrue(b.Fallen);
+            Assert.AreEqual(0, b.Work, "it worked at the bridge pinned flat");
+            Place();
+            // (The enemy goes on shooting at them, and while that has them down the work stops: it is put back after
+            // twenty-five seconds of work, however long that takes.)
+            int start = st.Tick, done = -1, worked = 0, prev = b.Work;
+            for (int t = 0; t < 90 * Tune.TickHz && done < 0 && !st.Over; t++)
+            {
+                foreach (var x in st.Men.Where(x => x.Squad == eng.Id && x.Alive)) x.Pin = 0;
+                m.Step();
+                if (!b.Fallen) { done = st.Tick; worked++; }
+                else if (b.Work > prev) worked++;
+                prev = b.Work;
+            }
+            Assert.Greater(done, 0, "the engineers did not put it back");
+            Assert.AreEqual((int)(Tune.BridgeRebuildSeconds * Tune.TickHz), worked, "it was not put back after its time's work");
+            Assert.GreaterOrEqual((done - start) * Tune.Dt, Tune.BridgeRebuildSeconds - Tune.Dt, "it was put back sooner than its time");
+            Assert.AreEqual(Tune.BridgeStrength * Tune.BridgeRebuilt, b.Strength, 1e-9);
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.BridgeWork && e.Target == eng.Id));
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.BridgeRebuilt && e.Id == b.Id && e.Side == Side.Us));
+            Assert.IsTrue(Water.Carried(st, b.Lane, mid), "put back, it does not carry the lane");
+        }
+
+        /// <summary>
+        /// Heights (MatchOptions.Heights; the owner: "have more of an hieght advantage"): up the paddies' steps, a man shooting
+        /// at one higher than him hits less often, and down them a little more; at one level, as before.
+        /// </summary>
+        [Test]
+        public void Shooting_up_the_steps_hits_less_often_than_shooting_down_them()
+        {
+            var m = new LiveMatch(Scenarios.RiceFields.Options(2, null, Difficulty.Veteran));
+            var st = m.State;
+            for (int t = 0; t < 300; t++) m.Step();
+            var a = st.Men.First(x => x.Alive && st.Squads[x.Squad].Lane == Map.Near && x.High <= 0);
+            var b = st.Men.First(x => x.Alive && x.Side != a.Side && st.Squads[x.Squad].Lane == Map.Near && x.High <= 0);
+            a.X = 12; b.X = 30; a.Z = b.Z = Tune.Lanes[Map.Near];
+            Assert.AreEqual(1.1, Heights.Level(st, a), 1e-9); Assert.AreEqual(4.4, Heights.Level(st, b), 1e-9);
+            double up = Combat.HitChance(st, a, b), down = Combat.HitChance(st, b, a);
+            st.Heights = false;
+            double flatUp = Combat.HitChance(st, a, b), flatDown = Combat.HitChance(st, b, a);
+            st.Heights = true;
+            Assert.AreEqual(flatUp * (1 - Tune.Uphill * 3.3), up, 1e-12, "shooting up three steps");
+            Assert.AreEqual(flatDown * (1 + Tune.Downhill * 3.3), down, 1e-12, "shooting down three steps");
+            b.X = 13;
+            Assert.AreEqual(1.0, Heights.Factor(st, a, b), 1e-12, "on one step there is no height between them");
+        }
+
+        /// <summary>
+        /// Rice Fields as the game plays it, pinned (`simcs scenario hash 1`, and `simcs hash 1 ... water heights
+        /// map=ricefields`); and with no river and no steps, the firebase is the same match with both rules on.
+        /// </summary>
+        [Test]
+        public void Rice_fields_is_pinned_and_the_firebase_is_unmoved_by_its_rules()
+        {
+            var (h, done) = Played(Scenarios.RiceFields.Options(1, null, Difficulty.Veteran));
+            Assert.AreEqual(RiceTicks, done.State.Tick);
+            Assert.AreEqual(RiceFinal, h[h.Count - 1]);
+            // `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol ballistics vantage
+            // commander cohesion bearing inbound emplace satchel destruction shootdown water heights map=ricefields`.
+            var flags = new MatchOptions
+            {
+                Seed = 1, Us = Plan.Ceiling, Vc = Plan.Ceiling, Map = Maps.RiceFields, Cover = Maps.RiceFields.Cover(),
+                Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true, Gunnery = true, Ammo = true,
+                Tactics = true, Fortune = true, FireControl = true, Ballistics = true, Vantage = true, Commander = true, Cohesion = true,
+                Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true,
+            };
+            var (fh, fm) = Played(flags);
+            Assert.AreEqual(5402, fm.State.Tick);
+            Assert.AreEqual(1149155459u, fh[fh.Count - 1]);
+            var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            Assert.IsTrue(o.Water && o.Heights);
+            var (with, _) = Played(o);
+            o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            o.Water = false; o.Heights = false;
+            var (without, _) = Played(o);
+            Assert.AreEqual(without[without.Count - 1], with[with.Count - 1], "the firebase moved with Rice Fields' rules on");
+        }
+
+        // `simcs scenario hash 1` (rice-fields), 2026-10-16.
+        private const int RiceTicks = 7635;
+        private const uint RiceFinal = 279122041u;
+
+        /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
         /// by an RPG that turns into it spinning losing control and crashing into flames", PLAN §12.53). A medevac brought
         /// down does not steady the line; it comes down where its event says, when it says, and bursts there as a shell

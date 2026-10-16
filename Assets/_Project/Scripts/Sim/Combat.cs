@@ -96,6 +96,11 @@ namespace LanesOfVietnam.Sim
             // Gunnery: a man shooting from his feet hits a third as often.
             if (st.Gunnery && a.Posture == Posture.Standing) p *= Tune.StandingHit;
 
+            // Water: a man in the river is in the open, and slow in it.
+            if (st.Water && Water.In(st, b)) p *= Tune.SwimExposed;
+            // Heights: up at the higher ground, or down from it.
+            if (st.Heights && st.Steps.Count > 0) p *= Heights.Factor(st, a, b);
+
             var c = CoverOf(st, b);
             // Fieldcraft: a parapet is no cover from a man standing on it.
             if (c != null && !(st.Fieldcraft && d < Tune.ChargeRange * 0.5))
@@ -172,6 +177,8 @@ namespace LanesOfVietnam.Sim
             if (!a.Alive || a.Cooldown > 0) return false;
             // Vantage: on a post's ladder he does nothing else.
             if (st.Vantage && a.Climb != 0) return false;
+            // Water: nor swimming.
+            if (st.Water && Water.In(st, a)) return false;
 
             if (st.Fieldcraft)
             {

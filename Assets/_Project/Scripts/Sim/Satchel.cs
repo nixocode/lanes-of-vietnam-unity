@@ -38,11 +38,15 @@ namespace LanesOfVietnam.Sim
                 if (a.Satchels == 0) continue;
                 if (a.SatchelWait > 0) { a.SatchelWait--; continue; }
                 if (a.Pin >= Tune.PinStop || a.High > 0 || a.Climb != 0) continue;
+                if (st.Water && Water.In(st, a)) continue;
                 var into = Target(st, a);
                 if (into != null) { Throw(st, a, into.X, into.Z, into.Id); continue; }
                 // Destruction: a sapper or an engineer within reach of the enemy's tower puts a charge at its foot.
                 var tower = Tower(st, a);
-                if (tower != null) Throw(st, a, tower.X, tower.Z, null);
+                if (tower != null) { Throw(st, a, tower.X, tower.Z, null); continue; }
+                // Water: and on a bridge the enemy is crossing.
+                var on = Water.Charge(st, a);
+                if (on.HasValue) Throw(st, a, on.Value.x, on.Value.z, null);
             }
         }
 

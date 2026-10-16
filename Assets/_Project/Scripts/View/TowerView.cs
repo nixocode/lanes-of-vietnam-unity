@@ -657,60 +657,158 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
-        /// What comes down lies in a heap: in the order they land, each piece rests on what is under its four corners,
-        /// the ground or the top of a piece already lying there (or a truck's roof), tilted to sit on them, as steeply as a
-        /// timber leans on a truck (no more than 55 degrees: held flatter, one end of it stood in the air). (It
-        /// was raised onto any piece it came near and tilted by dice, and a panel lay in the air over a timber that
-        /// was not under it: the owner, 2026-10-15, "end planels that seem to be floating".)
+        /// What comes down lies in a heap: in the order they land, each piece rests on what is under it, the ground (or a
+        /// truck's roof), the stump left standing, the timbers that went over about their feet, and the pieces already
+        /// lying there, as they are, faces and all: tilted to sit on what is under its four corners, as steeply as a
+        /// timber leans on a truck (no more than 55 degrees), then let down until its lowest corner touches. (Before, what
+        /// was under it was each lying piece's box: a timber across a panel of bracing lay on the panel's box, in the air
+        /// between its braces: the owner, 2026-10-15, "end planels that seem to be floating"; and the PlayMode test caught
+        /// a deck lying 0.45 m up over pieces whose boxes stood higher than they did.)
         /// </summary>
         private void Heap()
         {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            _placed.Clear();
+            // What lies there before the heap: a panel of bracing blown off before it fell, where it lies; the stump of a tower
+            // that breaks, standing; the timbers that go over about their feet.
+            for (int k = 0; k < _flights.Length; k++)
+            {
+                var fl = _flights[k];
+                var p = _pieces[k];
+                if (fl.Stays && _gone.Exists(g => g.piece == k))
+                {
+                    var (at, turn, pivot) = PanelLies(p);
+                    Place(k, at, turn, pivot);
+                }
+                else if (fl.Stays) Place(k, p.Origin, Quaternion.identity, Vector3.zero);
+            }
+            // (The timbers that go over about their feet, in the order they go: each over until it meets what is under it,
+            // short of flat on level ground, past flat where the ground falls away.)
+            var over = new List<int>();
+            for (int k = 0; k < _flights.Length; k++) if (_flights[k].Topples) over.Add(k);
+            over.Sort((a, b) => _flights[a].From.CompareTo(_flights[b].From));
+            foreach (int k in over)
+            {
+                var fl = _flights[k];
+                var foot = fl.Foot + fl.Way * 0.25f;
+                float th = 60f * Mathf.Deg2Rad;
+                for (; th < 120f * Mathf.Deg2Rad; th += Mathf.Deg2Rad)
+                {
+                    var r = Tilt(fl.Way, th) * fl.R0;
+                    float gap = float.PositiveInfinity;
+                    foreach (var corner in Corners(_pieces[k]))
+                    {
+                        var w = r * (corner - fl.C0);
+                        if (new Vector2(w.x, w.z).sqrMagnitude < 0.3f * 0.3f) continue;     // (its foot, which it goes over on)
+                        var at = foot + w;
+                        gap = Mathf.Min(gap, at.y - Support(at));
+                    }
+                    if (gap <= 0.02f) break;
+                }
+                fl.Over = th;
+                _flights[k] = fl;
+                Place(k, foot, Tilt(fl.Way, fl.Over) * fl.R0, fl.C0);
+            }
             var order = new List<int>();
             for (int k = 0; k < _flights.Length; k++) if (!_flights[k].Stays && !_flights[k].Topples) order.Add(k);
             order.Sort((a, b) => (_flights[a].From + _flights[a].Land).CompareTo(_flights[b].From + _flights[b].Land));
-            // Each piece lying: the middle of its top, its two level ways, half its size along them, and how its top
-            // rises along each (it lies tilted: a piece across its low end is low too).
-            var lying = new List<(Vector3 top, Vector3 u, Vector3 v, float hu, float hv, float su, float sv)>();
             foreach (int k in order)
             {
                 var p = _pieces[k];
                 var fl = _flights[k];
                 var e = p.B.extents;
                 // Its thin way upright (Lie): its other two ways lie level.
-                Vector3 a1, a2; float e1, e2, half;
-                if (e.x <= e.y && e.x <= e.z) { half = e.x; a1 = Vector3.up; e1 = e.y; a2 = Vector3.forward; e2 = e.z; }
-                else if (e.y <= e.z) { half = e.y; a1 = Vector3.right; e1 = e.x; a2 = Vector3.forward; e2 = e.z; }
-                else { half = e.z; a1 = Vector3.right; e1 = e.x; a2 = Vector3.up; e2 = e.y; }
+                Vector3 a1, a2; float e1, e2;
+                if (e.x <= e.y && e.x <= e.z) { a1 = Vector3.up; e1 = e.y; a2 = Vector3.forward; e2 = e.z; }
+                else if (e.y <= e.z) { a1 = Vector3.right; e1 = e.x; a2 = Vector3.forward; e2 = e.z; }
+                else { a1 = Vector3.right; e1 = e.x; a2 = Vector3.up; e2 = e.y; }
                 var u = fl.Lie * a1; u.y = 0f; u = u.sqrMagnitude > 1e-6f ? u.normalized : Vector3.right;
                 var v = fl.Lie * a2; v.y = 0f; v = v.sqrMagnitude > 1e-6f ? v.normalized : Vector3.forward;
-                // What is under each of its corners.
-                float Under(Vector3 at)
-                {
-                    float y = GroundUnder(at);
-                    foreach (var (top, ou, ov, hu, hv, su, sv) in lying)
-                    {
-                        var d = at - top;
-                        float du = Vector3.Dot(d, ou), dv = Vector3.Dot(d, ov);
-                        if (Mathf.Abs(du) <= hu && Mathf.Abs(dv) <= hv) y = Mathf.Max(y, top.y + su * du + sv * dv);
-                    }
-                    return y;
-                }
                 var c = fl.Rest;
-                float pp = Under(c + u * e1 + v * e2), pm = Under(c + u * e1 - v * e2), mp = Under(c - u * e1 + v * e2), mm = Under(c - u * e1 - v * e2);
-                // Sitting on them: as high as their middle, tilted along each way by how they differ.
+                float pp = Support(c + u * e1 + v * e2), pm = Support(c + u * e1 - v * e2), mp = Support(c - u * e1 + v * e2), mm = Support(c - u * e1 - v * e2);
+                // Tilted to sit on them along each way by how they differ.
                 float slopeU = ((pp + pm) - (mp + mm)) / (4f * Mathf.Max(0.05f, e1)), slopeV = ((pp + mp) - (pm + mm)) / (4f * Mathf.Max(0.05f, e2));
                 float most = Mathf.Tan(55f * Mathf.Deg2Rad);
                 slopeU = Mathf.Clamp(slopeU, -most, most); slopeV = Mathf.Clamp(slopeV, -most, most);
-                float mid = (pp + pm + mp + mm) * 0.25f;
-                // (Not below any corner's support by more than its own thickness.)
-                float floor = Mathf.Max(Mathf.Max(pp - slopeU * e1 - slopeV * e2, pm - slopeU * e1 + slopeV * e2), Mathf.Max(mp + slopeU * e1 - slopeV * e2, mm + slopeU * e1 + slopeV * e2));
-                mid = Mathf.Max(mid, floor);
                 var up = new Vector3(0f, 1f, 0f) - u * slopeU - v * slopeV;
                 fl.Lie = Quaternion.FromToRotation(Vector3.up, up.normalized) * fl.Lie;
-                fl.Rest.y = mid + half / Mathf.Max(0.5f, up.normalized.y) + 0.01f;
+                // Let down until its lowest corner is on what is under it, and none of it is in it.
+                var mid = p.B.center;
+                float y = float.NegativeInfinity;
+                foreach (var corner in Corners(p))
+                {
+                    var w = fl.Lie * (corner - mid);
+                    y = Mathf.Max(y, Support(new Vector3(c.x + w.x, 0f, c.z + w.z)) - w.y);
+                }
+                fl.Rest.y = y + 0.01f;
                 _flights[k] = fl;
-                lying.Add((new Vector3(c.x, mid + 2f * half, c.z), u, v, e1, e2, slopeU, slopeV));
+                Place(k, fl.Rest, fl.Lie, mid);
             }
+            Debug.Log($"[LOV] tower: {order.Count} pieces laid in a heap in {clock.Elapsed.TotalMilliseconds:F1} ms");
+        }
+
+        /// <summary>The pieces lying (or standing) where the heap is, as they will be: the bounds of each, and its faces.</summary>
+        private readonly List<(Bounds box, Vector3[] faces)> _placed = new List<(Bounds, Vector3[])>();
+        private readonly Dictionary<Mesh, (Vector3[] corners, Vector3[] faces)> _shapes = new Dictionary<Mesh, (Vector3[], Vector3[])>();
+
+        /// <summary>A piece's mesh: its corners (each once) and its faces (three corners a face), in its own space.</summary>
+        private (Vector3[] corners, Vector3[] faces) Shape(Piece p)
+        {
+            var mf = p.T.GetComponent<MeshFilter>();
+            var mesh = mf != null ? mf.sharedMesh : null;
+            if (mesh == null || !mesh.isReadable)
+            {
+                // (Unreadable: its box's eight corners and twelve faces.)
+                var b = p.B;
+                var box = new Vector3[8];
+                for (int i = 0; i < 8; i++) box[i] = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                int[] q = { 0, 1, 3, 0, 3, 2, 4, 6, 7, 4, 7, 5, 0, 4, 5, 0, 5, 1, 2, 3, 7, 2, 7, 6, 0, 2, 6, 0, 6, 4, 1, 5, 7, 1, 7, 3 };
+                return (box, System.Array.ConvertAll(q, i => box[i]));
+            }
+            if (_shapes.TryGetValue(mesh, out var known)) return known;
+            var verts = mesh.vertices;
+            var tris = mesh.triangles;
+            var faces = new Vector3[tris.Length];
+            for (int i = 0; i < tris.Length; i++) faces[i] = verts[tris[i]];
+            var corners = new HashSet<Vector3>(verts);
+            var shape = (new List<Vector3>(corners).ToArray(), faces);
+            _shapes[mesh] = shape;
+            return shape;
+        }
+
+        private Vector3[] Corners(Piece p) => Shape(p).corners;
+
+        /// <summary>A piece as it will lie: at <paramref name="at"/>, turned so, its point <paramref name="pivot"/> (in its own space) there.</summary>
+        private void Place(int k, Vector3 at, Quaternion turn, Vector3 pivot)
+        {
+            var local = Shape(_pieces[k]).faces;
+            var world = new Vector3[local.Length];
+            var box = new Bounds(at, Vector3.zero);
+            for (int i = 0; i < local.Length; i++) { world[i] = at + turn * (local[i] - pivot); box.Encapsulate(world[i]); }
+            _placed.Add((box, world));
+        }
+
+        /// <summary>What a piece coming down meets at a point: the ground (or a truck's roof), or the top of what lies there.</summary>
+        private float Support(Vector3 at)
+        {
+            float y = GroundUnder(at);
+            foreach (var (box, faces) in _placed)
+            {
+                if (at.x < box.min.x || at.x > box.max.x || at.z < box.min.z || at.z > box.max.z) continue;
+                for (int i = 0; i + 2 < faces.Length; i += 3)
+                {
+                    Vector3 a = faces[i], b = faces[i + 1], d = faces[i + 2];
+                    if (Mathf.Max(a.y, Mathf.Max(b.y, d.y)) <= y) continue;
+                    float den = (b.z - d.z) * (a.x - d.x) + (d.x - b.x) * (a.z - d.z);
+                    if (Mathf.Abs(den) < 1e-9f) continue;
+                    float l1 = ((b.z - d.z) * (at.x - d.x) + (d.x - b.x) * (at.z - d.z)) / den;
+                    float l2 = ((d.z - a.z) * (at.x - d.x) + (a.x - d.x) * (at.z - d.z)) / den;
+                    float l3 = 1f - l1 - l2;
+                    if (l1 < 0f || l2 < 0f || l3 < 0f) continue;
+                    y = Mathf.Max(y, l1 * a.y + l2 * b.y + l3 * d.y);
+                }
+            }
+            return y;
         }
 
         /// <summary>A piece standing on the ground that goes over about its foot: from when, from how it stood, which way.</summary>
@@ -807,6 +905,13 @@ namespace LanesOfVietnam.View
         private void Panel(Piece p, float u)
         {
             if (u < 0) return;
+            var (footAt, r, footLocal) = PanelAt(p, u);
+            p.T.SetPositionAndRotation(footAt - r * footLocal, r);
+        }
+
+        /// <summary>Where a blown-off panel's foot is, how it is turned, and its foot in its own space, so long after it went.</summary>
+        private (Vector3 foot, Quaternion turn, Vector3 footLocal) PanelAt(Piece p, float u)
+        {
             var n = Normal(p.Face);
             var footLocal = new Vector3(p.B.center.x, p.B.min.y, p.B.center.z);
             var foot0 = _foot + footLocal;
@@ -814,8 +919,10 @@ namespace LanesOfVietnam.View
             var footAt = foot0 + n * (0.6f * Mathf.Min(1f, u / 0.6f));
             footAt.y = foot0.y - Mathf.Min(drop, 0.5f * G * u * u);
             float th = Mathf.Min(86f * Mathf.Deg2Rad, 1.1f * u * u + 0.3f * u);
-            var r = Tilt(n, th);
-            p.T.SetPositionAndRotation(footAt - r * footLocal, r);
+            return (footAt, Tilt(n, th), footLocal);
         }
+
+        /// <summary>A blown-off panel as it lies at last.</summary>
+        private (Vector3 at, Quaternion turn, Vector3 pivot) PanelLies(Piece p) => PanelAt(p, 10f);
     }
 }

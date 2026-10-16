@@ -463,6 +463,11 @@ namespace LanesOfVietnam.Sim
         // Shootdown (MatchOptions.Shootdown): man Id fired at the helicopter of call Target and hit it; it comes down
         // at X, Z in Amount ticks, Rounds the seed of how it goes down.
         ShotDown,
+        // Water (MatchOptions.Water, with Destruction): bridge Id was hurt by a burst at X, Z, Amount of it left;
+        // BridgeFell: bridge Id fell into the river (X, Z its middle, Rounds the seed of how it came apart; the men on it
+        // went into the water, those it killed after it as Kill events); BridgeWork: squad Target of Side has started
+        // rebuilding fallen bridge Id; BridgeRebuilt: it stands again, at Amount of its strength.
+        BridgeHit, BridgeFell, BridgeWork, BridgeRebuilt,
     }
 
     public struct SimEvent
@@ -582,10 +587,19 @@ namespace LanesOfVietnam.Sim
         public bool Destruction;
         /// <summary>Part 2: the medevac can be shot down as it comes in (MatchOptions.Shootdown, with Inbound).</summary>
         public bool Shootdown;
+        /// <summary>Part 2: a man in a river swims, and its bridge can be brought down and rebuilt (MatchOptions.Water).</summary>
+        public bool Water;
+        /// <summary>Part 2: a man shooting up at higher ground hits less often, down from it a little more (MatchOptions.Heights).</summary>
+        public bool Heights;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>
         public List<Post> Posts = new List<Post>();
+        /// <summary>MatchOptions.Water: where each lane crosses a river (the map's fords), and its bridges as they stand now.</summary>
+        public List<Ford> Fords = new List<Ford>();
+        public List<BridgeState> Bridges = new List<BridgeState>();
+        /// <summary>MatchOptions.Heights: where each lane steps up (the map's terraces), for the height between two men.</summary>
+        public List<Step> Steps = new List<Step>();
         /// <summary>The commander's own random stream: one time in four, and a tie between lanes.</summary>
         public Rng CommandRng;
         /// <summary>The tick each side's commander last laid a trap: it does not lay them one on another (MatchOptions.Commander).</summary>

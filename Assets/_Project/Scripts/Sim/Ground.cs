@@ -120,6 +120,14 @@ namespace LanesOfVietnam.Sim
 
         private readonly BridgeDeck[] _decks;
         public IReadOnlyList<BridgeDeck> Decks => _decks;
+        private bool[] _down;
+
+        /// <summary>A bridge brought down (MatchOptions.Water): nobody walks on its deck until it is put back.</summary>
+        public void SetDeckDown(int i, bool down)
+        {
+            if (_down == null) _down = new bool[_decks.Length];
+            if (i >= 0 && i < _down.Length) _down[i] = down;
+        }
 
         /// <summary>Where a man's feet are at (x, z): on a bridge's deck if he is on one, on the ground if not.</summary>
         public double FootAt(double x, double z)
@@ -128,6 +136,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < _decks.Length; i++)
             {
                 var d = _decks[i];
+                if (_down != null && _down[i]) continue;
                 if (x >= d.X0 && x <= d.X1 && Math.Abs(z - d.Z) <= d.Width * 0.5) h = Math.Max(h, d.Y);
             }
             return h;

@@ -5235,6 +5235,64 @@ this time giving proper space where needed."
 - The bridge in a plain weathered brown for now (the tower's textured timber is laid out for its members). `simcs
   scenario hash 1` rice-fields 766631850u (the cover moved; not pinned until R2). Every CLAUDE.md pin unmoved.
 
+### 12.56 Rice Fields R2: the river, the bridge brought down and put back, the high ground; balanced (2026-10-16)
+
+The plan's R2, and the owner's "have more of an hieght advantage" read as a rule as well as a look.
+
+- **Water** (`MatchOptions.Water`, `Sim/Water.cs`, new; on in the game): a map's fords (`MapDef.Fords`, measured
+  from its ground with `simcs ground ricefields`: the near lane x -5.75 to 1.75 under the bridge, the far lane -7 to
+  0.5). A man on one and not on a standing bridge is in the river: half a walk's pace (`Tune.SwimPace` 0.5; at 0.35 a
+  7.5 m crossing took 17 s), upright, cannot fire, throw or put a charge, no cover, hit half as often again
+  (`SwimExposed` 1.5). Nobody stops in it: his place, if it is in the water, is out on the bank his squad is making
+  for (`Water.Out`), he gets past friends there as he can, and his squad's anchor goes on through (`Water.Press`).
+  (Measured: men standing in the river a second or more, 447 ticks in 8 matches before, 1 in 24 after.)
+- **The bridge** (with Destruction): bursts near its deck take from its strength (1.4; a rocket's burst 0.5, a
+  satchel charge 0.7: three rockets on it bring it down); at nothing it falls, the men on it go into the river and a
+  third of them are killed by it (`BridgeFell`). Sappers and engineers put a charge on it when the enemy is on it and
+  their own are not. **Put back** (the owner's yes): sappers or engineers at its end on their own side work at it
+  while they are not pinned, and after 25 s of work it stands again at half its strength, a rough crossing with no
+  rails (`BridgeWork`, `BridgeRebuilt`). New events at the end of the enum: `BridgeHit`, `BridgeFell`, `BridgeWork`,
+  `BridgeRebuilt`; all four fire in `simcs audit` (which now plays Rice Fields too).
+- **Heights** (`MatchOptions.Heights`, `Sim/Heights.cs`, new; on in the game): a lane's steps (`MapDef.Steps`: the
+  paddies' feet where they cross each lane, 1.1 m each). Shooting up at a man on higher ground hits 8% less a metre
+  of it (never under 55%), shooting down 3.5% more a metre (to 20%); in the river a man is 1.25 m under its banks.
+- **Balance** (`simcs scenario rice-fields 192 level=veteran`, the new `usplaying=` switch): with the river and the
+  steps the Americans' as player 158 of 192, the VC's 80. The VC are paid 1.4 and their will lasts longer (0.75); a
+  player's Americans, who leave the high ground with every squad they raise (paid more, the headless player won
+  fewer: 1.35 gave 80, 1.6 gave 54), open with two squads and their will lasts a little longer (`UsPlaying` will 0.8,
+  opening 8). Now: as the Americans **132**, mean 251 s; as the VC **122**, mean 220 s. With nobody playing
+  (`simcs river 24`): the US 14, the VC 10; 746 men into the river, 311 across (12 s the middle crossing), 340 killed in
+  it; the bridge brought down in 16, rebuilt 4 times.
+- **Seen** (`View/RiverView.cs`): the deck in two halves hinged at their banks: brought down, it breaks in the middle
+  and each half goes into the river (`captures/rice/f_down.png`, capture key `bridgefall=N`, `RiverView.Bring`); put
+  back, it lies level without its rails. Men walk the deck only while it stands (`Ground.SetDeckDown`). Men in the river
+  wade on its bed, the water at their chests (the Mixamo breaststroke is a swimmer's, not a soldier's crossing with
+  his rifle: not used); the dead float at its top, and fall with a deck that goes from under them.
+- **The camera** looks 3.6 degrees further down on this map (2.8 before): the PlayMode test below found the near lane's
+  men 1.5% of the screen from the cards at the lowest step; now 5.8%, the far lane 25% under the top bar.
+- **The tower's heap, fixed for good** (`TowerView.Heap`): a piece now comes to rest on the actual faces of what is
+  under it (the stump, the panels blown off, the timbers that went over, the pieces already lying, the trucks' roofs),
+  let down until its lowest corner touches; a timber going over about its foot goes over until it meets something.
+  Measured on the pieces' own faces over 48 falls (a sweep, not committed): every piece within 1 cm of what is under it;
+  up to 0.58 m before. The box test that flickered (`The_tower_comes_apart_as_it_comes_down`) now measures that way
+  (`StructureTests.Gap`, with the trucks), and asks seven pieces in ten to lie flat, not eight. The heap takes 40 to 75 ms
+  in the editor, once, as the tower falls: **to be measured in the build** (`?perf=1&towerfall=1`).
+- **Pins**: every CLAUDE.md pin unmoved (both rules do nothing on the firebase, checked to the bit in
+  `Rice_fields_is_pinned_and_the_firebase_is_unmoved_by_its_rules`). New: `simcs scenario hash 1` rice-fields 7635
+  ticks `279122041u`; `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
+  ballistics vantage commander cohesion bearing inbound emplace satchel destruction shootdown water heights
+  map=ricefields` 5402 `1149155459u`. simcs: `map=<id>`, `water`, `heights`, `ground [map]`, `river [seeds]`,
+  `usplaying=income,will,opening`.
+- **Tests**: EditMode 128 of 128 (new: `In_the_river_a_man_is_slow_cannot_fire_is_easily_hit_and_does_not_stop`,
+  `The_bridge_comes_down_into_the_river_with_its_men_and_is_put_back`, `Shooting_up_the_steps_hits_less_often_than_
+  shooting_down_them`, `Rice_fields_is_pinned_and_the_firebase_is_unmoved_by_its_rules`); PlayMode 41 of 41 and the
+  capture skipped (new: `Tests/PlayMode/RiverTests.cs`: its lanes clear of the HUD at every pan position, its bridge
+  carrying the lane and coming down into the river).
+- **Not done**: the WebGL build of this (the owner stopped it: "start to save"); frame times; R3 (the water shader,
+  the red), R4 (rice, the trestle bridge and the bamboo tower built in Blender, the owner's installed apps for any
+  texture work: Photoshop 2026, Affinity), R5 (splashes, spouts, the bridge's fall heard). New files for the Mac:
+  `Sim/Water.cs`, `Sim/Heights.cs`, `Tests/PlayMode/RiverTests.cs` (their `.meta` made by Unity, committed).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

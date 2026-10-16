@@ -91,7 +91,7 @@ namespace LanesOfVietnam.Sim
                 Seed = seed, Map = Map, Cover = Map.Cover(), Length = len,
                 Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true,
                 Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
-                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, FragCard = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, FragCard = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true,
                 CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
                 MusterCost = CostFor(level), MoraleRate = RateFor(len),
                 Player = player,
@@ -181,10 +181,13 @@ namespace LanesOfVietnam.Sim
         };
 
         /// <summary>
-        /// Rice Fields (the owner, 2026-10-15; PLAN, Rice Fields): a standard match, either side, on the lowlands map: the
-        /// VC out of the forest in the west, the river and its bridge in the middle, the Americans' base at the top of the
-        /// paddies in the east. Being built: its numbers are not measured yet, and its rules (the water, the bridge brought
-        /// down and put back) are still to come.
+        /// Rice Fields (the owner, 2026-10-15; PLAN §12.55-56): a standard match, either side, on the lowlands map: the VC
+        /// out of the forest in the west, the river and its bridge in the middle, the Americans' base at the top of the
+        /// paddies in the east. The river (MatchOptions.Water) and the steps (Heights) are the defender's: the VC have to
+        /// cross the one and climb the other, so they are paid more and their will lasts longer; a player's Americans,
+        /// who leave their high ground with every squad they raise, open with two squads and their will lasts a little
+        /// longer. (`simcs scenario rice-fields 192 level=veteran`, 2026-10-16: as the Americans 132 of 192, mean 251 s; as
+        /// the VC 122, mean 220 s. Without its means: 158 and 80.)
         /// </summary>
         public static readonly Scenario RiceFields = new Scenario
         {
@@ -192,7 +195,8 @@ namespace LanesOfVietnam.Sim
             Briefing = "The paddies step down from the base to the river, dike by dike, and the forest begins on the far bank. One timber bridge carries the track over. Upstream there is no bridge: men wade, chest deep, and a man in the water cannot fire back.\n\nWhoever holds the bridge holds the crossing. Break their will before they break yours.",
             Orders = new[] { "Break the enemy's will to fight", "The bridge carries the near lane: hold it", "The far lane crosses through the water: a man in it is easily shot" },
             Map = Maps.RiceFields,
-            UsPlaying = new Means { Opening = Means.None },
+            Vc = new Means { Income = 1.4, Will = 0.75 },
+            UsPlaying = new Means { Will = 0.8, Opening = 8 },
         };
 
         public static readonly Scenario[] All = { Firebase, TheWire, FirstLight, EarthFights, RiceFields };

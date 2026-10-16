@@ -20,6 +20,30 @@ namespace LanesOfVietnam.Sim
         public double X0, X1, Width = 3.4;
     }
 
+    /// <summary>Where a lane steps up (MatchOptions.Heights): from X on along it, the ground is Rise metres higher.</summary>
+    public sealed class Step
+    {
+        public int Lane;
+        public double X, Rise;
+    }
+
+    /// <summary>Where a lane crosses a river (MatchOptions.Water): from X0 to X1 a man on it is in water deep enough to swim.</summary>
+    public sealed class Ford
+    {
+        public int Lane;
+        public double X0, X1;
+    }
+
+    /// <summary>A bridge as it stands in a match (MatchOptions.Water): its strength, fallen or not, and its rebuilding.</summary>
+    public sealed class BridgeState
+    {
+        public int Id, Lane;
+        public double X0, X1, Strength = Tune.BridgeStrength;
+        public bool Fallen;
+        /// <summary>Ticks of work done putting it back, and the squad doing it (-1: nobody).</summary>
+        public int Work, Builder = -1;
+    }
+
     /// <summary>
     /// A map, as data (PLAN §12.27, S1): where its cover is, the shape of
     /// the ground under it, the old shell holes away from the lanes, and the
@@ -52,6 +76,10 @@ namespace LanesOfVietnam.Sim
         public bool BankMirrored;
         /// <summary>Its bridges (Rice Fields): none on the firebase.</summary>
         public Bridge[] Bridges = new Bridge[0];
+        /// <summary>Where its lanes cross a river, measured from its ground (`simcs ground`): none on the firebase.</summary>
+        public Ford[] Fords = new Ford[0];
+        /// <summary>Where its lanes step up (its terraces, where their feet cross each lane): none on the firebase.</summary>
+        public Step[] Steps = new Step[0];
         /// <summary>
         /// The view's, for a map whose ground climbs (Rice Fields): the camera rises and falls with the lanes' ground as
         /// it pans, so high ground is framed as low ground is; and it looks CameraDrop degrees further down, the lanes
@@ -243,7 +271,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static readonly MapDef RiceFields = new MapDef
         {
-            Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true, CameraRides = true, CameraDrop = 2.8,
+            Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true, CameraRides = true, CameraDrop = 3.6,
             Pieces = new[]
             {
                 // --- near lane: over the bridge, and up the steps -------------------
@@ -281,6 +309,16 @@ namespace LanesOfVietnam.Sim
             },
             OldCraters = 4,
             Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 } },
+            // Where its water is half a metre deep or more on each lane (`simcs ground ricefields`, 2026-10-16).
+            Fords = new[] { new Ford { Lane = Map.Near, X0 = -5.75, X1 = 1.75 }, new Ford { Lane = Map.Far, X0 = -7.0, X1 = 0.5 } },
+            // The paddies' steps, each 1.1 m, where their feet cross the lanes (GroundShape's PaddyX0, PaddyStep, PaddyWave).
+            Steps = new[]
+            {
+                new Step { Lane = Map.Near, X = 9.69, Rise = 1.1 }, new Step { Lane = Map.Near, X = 15.11, Rise = 1.1 }, new Step { Lane = Map.Near, X = 20.64, Rise = 1.1 },
+                new Step { Lane = Map.Near, X = 26.76, Rise = 1.1 }, new Step { Lane = Map.Near, X = 32.91, Rise = 1.1 },
+                new Step { Lane = Map.Far, X = 6.36, Rise = 1.1 }, new Step { Lane = Map.Far, X = 15.63, Rise = 1.1 }, new Step { Lane = Map.Far, X = 22.82, Rise = 1.1 },
+                new Step { Lane = Map.Far, X = 26.6, Rise = 1.1 }, new Step { Lane = Map.Far, X = 32.87, Rise = 1.1 },
+            },
             Posts = new[]
             {
                 new Post { Id = 0, Name = "WATCHTOWER", Side = Side.Us, X = -Map.TowerX, Z = Map.TowerZ, Height = 8.45, FootX = -Map.TowerX, FootZ = Map.TowerZ + 0.45, Lane = Map.Far },
@@ -312,11 +350,15 @@ namespace LanesOfVietnam.Sim
             }
             var bridges = new Bridge[m.Bridges.Length];
             for (int i = 0; i < bridges.Length; i++) bridges[i] = new Bridge { Lane = m.Bridges[i].Lane, X0 = -m.Bridges[i].X1, X1 = -m.Bridges[i].X0, Width = m.Bridges[i].Width };
+            var steps = new Step[m.Steps.Length];
+            for (int i = 0; i < steps.Length; i++) steps[i] = new Step { Lane = m.Steps[i].Lane, X = -m.Steps[i].X, Rise = -m.Steps[i].Rise };
+            var fords = new Ford[m.Fords.Length];
+            for (int i = 0; i < fords.Length; i++) fords[i] = new Ford { Lane = m.Fords[i].Lane, X0 = -m.Fords[i].X1, X1 = -m.Fords[i].X0 };
             return new MapDef
             {
                 Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape,
                 CraterSeed = m.CraterSeed, OldCraters = m.OldCraters, OldCraterBandsZ = m.OldCraterBandsZ, Posts = posts, UsEast = !m.UsEast,
-                BankMirrored = !m.BankMirrored, Bridges = bridges,
+                BankMirrored = !m.BankMirrored, Bridges = bridges, Fords = fords, Steps = steps,
             };
         }
 

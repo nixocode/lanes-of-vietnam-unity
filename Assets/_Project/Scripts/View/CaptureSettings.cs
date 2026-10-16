@@ -63,6 +63,8 @@ namespace LanesOfVietnam.View
         public int TowerBuckle = -1;
         /// <summary>The fall's own dice (its event's seed) in place of the match's, for a heap seen again (towerseed=127706).</summary>
         public int TowerSeed = -1;
+        /// <summary>Bring the bridge down (MatchOptions.Water, Rice Fields), then run this many ticks on (bridgefall=40).</summary>
+        public int BridgeFall = -1;
         /// <summary>The way it goes over (the simulation's degrees, 0 is +x) in place of its event's (towerway=90).</summary>
         public float? TowerWay;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
@@ -255,6 +257,7 @@ namespace LanesOfVietnam.View
                     case "towerfrom": c.TowerFrom = float.Parse(v, inv); break;
                     case "towerbuckle": c.TowerBuckle = int.Parse(v, inv); break;
                     case "towerseed": c.TowerSeed = int.Parse(v, inv); break;
+                    case "bridgefall": c.BridgeFall = int.Parse(v, inv); break;
                     case "towerway": c.TowerWay = float.Parse(v, inv); break;
                     case "glasses":
                     {

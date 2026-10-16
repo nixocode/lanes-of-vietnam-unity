@@ -98,6 +98,9 @@ and say so:
 - `hash 1 ... satchel destruction shootdown` (the game, on `playtest-12`): 5581 ticks, final `3526591710u` (seed 7:
   4870, `2300756334u`); `scenario hash 1` there: the firebase 4075 `3782637812u`; The Wire 6000 `708840890u`; First
   Light 6669 `3007784689u`; The Earth Fights 7735 `3312621114u`.
+- On `ricefields-r1` (Rice Fields, PLAN §12.55-56; every line above unmoved, `water` and `heights` do nothing on the
+  firebase): `scenario hash 1` rice-fields 7635 `279122041u`; `hash 1 ... shootdown water heights map=ricefields` 5402
+  `1149155459u`. `simcs mirror 24` (a map turned end for end is the same match mirrored), `simcs river`, `simcs ground`.
 
 ## Rules this project keeps
 
@@ -106,7 +109,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown, Water, Heights: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

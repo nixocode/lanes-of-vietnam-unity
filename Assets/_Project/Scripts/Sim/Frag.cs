@@ -43,6 +43,8 @@ namespace LanesOfVietnam.Sim
                 if (st.FragCard && a.Side == st.Player) continue;
                 if (a.FragCooldown > 0) { a.FragCooldown--; continue; }
                 if (a.Grenades <= 0 || a.Pin >= Tune.PinStop || a.Posture == Posture.Prone) continue;
+                // Water: nor swimming.
+                if (st.Water && Water.In(st, a)) continue;
                 // Ammo: a squad throws one at a time.
                 if (st.Ammo && Ammo.SquadThrowing(st, a)) continue;
                 var target = PickTarget(st, a);
@@ -90,6 +92,7 @@ namespace LanesOfVietnam.Sim
             {
                 var m = st.Men[i];
                 if (!m.Alive || m.Side != side || m.Grenades <= 0 || m.High > 0 || m.Climb != 0) continue;
+                if (st.Water && Water.In(st, m)) continue;
                 double dx = m.X - x, dz = m.Z - z, d2 = dx * dx + dz * dz;
                 if (d2 <= best) { best = d2; nearest = m; }
             }
@@ -99,6 +102,7 @@ namespace LanesOfVietnam.Sim
             {
                 var m = st.Men[i];
                 if (!m.Alive || m.Squad != nearest.Squad || m.Grenades <= 0 || m.High > 0 || m.Climb != 0) continue;
+                if (st.Water && Water.In(st, m)) continue;
                 double dx = m.X - x, dz = m.Z - z;
                 if (dx * dx + dz * dz <= far * far) them.Add(m);
             }

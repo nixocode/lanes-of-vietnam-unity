@@ -200,6 +200,15 @@ namespace LanesOfVietnam.View
                 if (fell && dressing != null && dressing.Tower != null) root.CameraRig.Focus(dressing.TowerFoot.x, instant: true);
                 Debug.Log($"[LOV] capture: the tower {(fell ? "brought down" : "not brought down")}, {cap.TowerFall} ticks before tick {sim.Tick}");
             }
+            if (cap.BridgeFall >= 0)
+            {
+                // A charge's worth and more on the middle of its deck, then on to the moment asked for, the camera on it.
+                var sim = root.Driver.State;
+                bool fell = RiverView.Bring(sim, 0);
+                root.Driver.FastForward(cap.BridgeFall);
+                if (sim.Bridges.Count > 0) root.CameraRig.Focus((float)((sim.Bridges[0].X0 + sim.Bridges[0].X1) * 0.5), instant: true);
+                Debug.Log($"[LOV] capture: the bridge {(fell ? "brought down" : "not brought down")}, {cap.BridgeFall} ticks before tick {sim.Tick}");
+            }
             if (cap.SatchelThrow)
             {
                 // On until a satchel charge is thrown, then the glasses on where it lands.

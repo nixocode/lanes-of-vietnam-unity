@@ -170,6 +170,22 @@ namespace LanesOfVietnam.Sim
                             TowerHitRadius = 4.0, TowerFallKill = 0.65, TowerFallSpread = 0.7;
         /// <summary>Destruction: metres from a tower's middle within which a round fired at the men up on it strikes the tower itself.</summary>
         public const double TowerStruck = 6.5;
+
+        /// <summary>
+        /// Water (MatchOptions.Water). A man in a river goes at SwimPace of a walk, cannot fire or throw, has no cover and
+        /// is hit SwimExposed times as often. A bridge takes BridgeStrength (the tower 1; a rocket's burst on it 0.5, a
+        /// satchel charge 0.7) from bursts within BridgeHitRadius of its deck; its fall kills BridgeFallKill of the men on
+        /// it. Sappers or engineers at a fallen bridge's end rebuild it in BridgeRebuildSeconds while they are not pinned,
+        /// and it stands again at BridgeRebuilt of its strength. A squad crossing makes for BridgeBank past the far edge.
+        /// </summary>
+        public const double SwimPace = 0.5, SwimExposed = 1.5, BridgeStrength = 1.4, BridgeHitRadius = 4.5, BridgeFallKill = 0.35,
+                            BridgeRebuildSeconds = 25, BridgeRebuilt = 0.5, BridgeWorkReach = 4.5, BridgeBank = 2.5;
+
+        /// <summary>
+        /// Heights (MatchOptions.Heights): a man shooting at one higher than him hits Uphill less often a metre of it (but
+        /// never under UphillFloor of what he would), and at one lower a little more, Downhill a metre to DownhillCap.
+        /// </summary>
+        public const double Uphill = 0.08, UphillFloor = 0.55, Downhill = 0.035, DownhillCap = 1.2;
         /// <summary>FragCard: the most men of the nearest squad who throw when GRENADES is played.</summary>
         public const int FragCardThrowers = 3;
         /// <summary>With Arms, where every distance is the frame's: a throw is 12 m, and not inside 5.</summary>
