@@ -795,6 +795,9 @@ namespace LanesOfVietnam.Tests
                 foreach (var card in Deck.For(side))
                 {
                     var view = hud.Cards.Single(c => c.Card == card);
+                    // (A card this match has not got is not shown, and not played: NAPALM on the forest, on the firebase.
+                    // StrikeTests plays it where there is a forest.)
+                    if (!Deck.Has(st, side, card)) { Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, view.resolvedStyle.display, $"{card.Id} shown in a match without it"); continue; }
                     st.Cp[(int)side] = 500;
                     st.CardCooldown[(int)side][card.Index] = 0;           // (the rifle squad was raised at the start: RaiseFirst)
                     foreach (var m in st.Men) if (m.Alive) m.Pin = 0.6;     // so a medevac has pin to take away

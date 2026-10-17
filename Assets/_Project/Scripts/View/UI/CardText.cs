@@ -16,7 +16,8 @@ namespace LanesOfVietnam.View.UI
         private static readonly Dictionary<string, string> Calls = new Dictionary<string, string>
         {
             ["us-arty"] = "A BATTERY ON THE SPOT FOR NINE SECONDS: WIDE, LONG, AND IT PINS MORE THAN IT KILLS",
-            ["us-airstrike"] = "ONE PASS: A STICK OF BOMBS ALONG THE LANE, AND IT KILLS WHAT IS UNDER IT",
+            ["us-airstrike"] = "BOMBS, THEN NAPALM, ALONG THE LANE: IT KILLS AND WRECKS WHAT IS UNDER IT, TOWER AND BRIDGE TOO",
+            ["us-napalm"] = "LAST RESORT, WHEN YOU ARE LOSING: NAPALM ON THE FOREST. IT BURNS, AND HIDES NOBODY AFTER",
             ["us-frag"] = "THE SQUAD NEAREST THROWS: UP TO THREE GRENADES WHERE YOU PUT THEM. YOUR MEN THROW NONE ON THEIR OWN",
             ["vc-frag"] = "THE SQUAD NEAREST THROWS: UP TO THREE GRENADES WHERE YOU PUT THEM. YOUR MEN THROW NONE ON THEIR OWN",
             ["us-smoke"] = "A SCREEN FOR TWENTY SECONDS: NOBODY SHOOTS THROUGH IT, EITHER WAY",

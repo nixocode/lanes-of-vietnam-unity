@@ -192,6 +192,23 @@ namespace LanesOfVietnam.View.UI
         private int _costShown;
         private readonly VisualElement _art;
 
+        private Label _note;
+        /// <summary>A word on the card under its name, or none: "LAST RESORT" on the napalm until the Americans are losing.</summary>
+        public void Note(string text)
+        {
+            if (string.IsNullOrEmpty(text)) { if (_note != null) _note.style.display = DisplayStyle.None; return; }
+            if (_note == null)
+            {
+                _note = new Label { name = "card-note" };
+                _note.AddToClassList("card-note");
+                _note.style.fontSize = 9; _note.style.unityTextAlign = TextAnchor.MiddleCenter;
+                _note.style.color = new Color(0.95f, 0.55f, 0.25f);
+                Add(_note);
+            }
+            _note.text = text;
+            _note.style.display = DisplayStyle.Flex;
+        }
+
         /// <summary>What it costs in this match (Deck.CostOf: the air strike is dearer with MatchOptions.Strike).</summary>
         public void ShowCost(int cost)
         {
@@ -355,6 +372,17 @@ namespace LanesOfVietnam.View.UI
                     p.lineWidth = s * 0.28f;
                     Line(p, c + new Vector2(0, -s * 0.45f), c + new Vector2(0, s * 0.45f));
                     Line(p, c + new Vector2(-s * 0.45f, 0), c + new Vector2(s * 0.45f, 0));
+                    break;
+                case "us-napalm":         // flames, three tongues of them, over a line of trees
+                    foreach (var (dx, hgt) in new[] { (-0.5f, 0.75f), (0f, 1.0f), (0.5f, 0.7f) })
+                    {
+                        var b = c + new Vector2(dx * s, s * 0.55f);
+                        p.BeginPath(); p.MoveTo(b + new Vector2(-s * 0.24f, 0));
+                        p.BezierCurveTo(b + new Vector2(-s * 0.3f, -s * hgt * 0.5f), b + new Vector2(s * 0.05f, -s * hgt * 0.6f), b + new Vector2(0, -s * hgt));
+                        p.BezierCurveTo(b + new Vector2(s * 0.12f, -s * hgt * 0.55f), b + new Vector2(s * 0.3f, -s * hgt * 0.4f), b + new Vector2(s * 0.24f, 0));
+                        p.ClosePath(); p.Fill();
+                    }
+                    Line(p, new Vector2(r.xMin + 8, c.y + s * 0.7f), new Vector2(r.xMax - 8, c.y + s * 0.7f));
                     break;
                 case "us-airstrike":      // a swept-wing jet diving in
                     p.BeginPath();

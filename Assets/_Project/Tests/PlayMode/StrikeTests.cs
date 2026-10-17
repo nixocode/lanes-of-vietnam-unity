@@ -86,5 +86,53 @@ namespace LanesOfVietnam.Tests
             var figure = Object.FindObjectsByType<SoldierFigure>(FindObjectsSortMode.None).FirstOrDefault(f => f.IsCharred);
             Assert.IsNotNull(figure, "the man it burned is not drawn charred");
         }
+
+        /// <summary>
+        /// NAPALM on the forest, the Americans' last resort (PLAN §12.62), on Rice Fields: its card is on the HUD and says it
+        /// is a last resort while they are not losing; losing, it is theirs; laid on the forest, the forest burns: the
+        /// trees' shader is told where (its globals), the fire is drawn, and the burned stretch stays.
+        /// </summary>
+        [UnityTest, Category("Strike")]
+        public IEnumerator Napalm_on_the_forest_burns_it_and_it_stays_burned()
+        {
+            yield return RiverTests.LoadRiceFields();
+            Root.Paused = true;
+            var st = Root.Driver.State;
+            var combat = Object.FindAnyObjectByType<CombatView>();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            var card = hud.Cards.Single(c => c.Card.Id == "us-napalm");
+            for (int i = 0; i < 4; i++) { Root.AdvanceForCapture(0.5f); yield return null; }
+            Assert.AreEqual(DisplayStyle.Flex, card.resolvedStyle.display, "no napalm card on a map with a forest");
+            // (On into the fight: in its opening nobody is losing yet.)
+            for (int i = 0; i < 120 && st.Phase != Phase.Fight; i++) Root.Driver.FastForward(Tune.TickHz);
+            Assume.That(st.Phase, Is.EqualTo(Phase.Fight), "no fight in two minutes");
+            st.Cp[(int)Side.Us] = 200;
+            st.Morale[(int)Side.Us] = 0.9f;
+            yield return null; yield return null;
+            Assert.IsTrue(card.Q<Label>("card-note") != null && card.Q<Label>("card-note").text == "LAST RESORT", "its card does not say it is a last resort");
+            Assert.IsTrue(card.Poor, "it is to be had while the Americans are not losing");
+
+            st.Morale[(int)Side.Us] = Tune.LastResortWill - 0.05;
+            yield return null; yield return null;
+            Assert.IsFalse(card.Poor, "losing, it is not to be had");
+            var f = st.Forests[0];
+            double aim = (f.X0 + f.X1) * 0.5;
+            Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-napalm", Map.Far, aim));
+            Root.Driver.FastForward(Tune.JetWait + 4);
+            yield return null; yield return null;
+            Assert.AreEqual(1, st.Burnt.Count, "the forest did not catch");
+            Assert.Greater(Shader.GetGlobalFloat("_LOV_BurnCount"), 0f, "the trees are not told they are burning");
+            int quads = 0;
+            for (int i = 0; i < 8; i++) { Root.AdvanceForCapture(0.1f); yield return null; quads = System.Math.Max(quads, combat.Puffs); }
+            Assert.Greater(quads, 20, "the forest is not drawn burning");
+            // A minute on, it is still burned.
+            Root.Driver.FastForward(60 * Tune.TickHz);
+            yield return null; yield return null;
+            if (!st.Over)
+            {
+                Assert.AreEqual(1, st.Burnt.Count);
+                Assert.Greater(Shader.GetGlobalFloat("_LOV_BurnCount"), 0f, "the forest grew back");
+            }
+        }
     }
 }

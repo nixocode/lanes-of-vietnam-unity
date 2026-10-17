@@ -34,6 +34,22 @@ namespace LanesOfVietnam.Sim
         public double X0, X1;
     }
 
+    /// <summary>
+    /// Where a map's trees stand thick enough to hide a man (MatchOptions.Strike: the Americans' napalm on the forest,
+    /// their last resort): x0 to x1 along the lanes, z0 to z1 across them.
+    /// </summary>
+    public sealed class Forest
+    {
+        public double X0, X1, Z0, Z1;
+    }
+
+    /// <summary>What of a forest has burned (MatchOptions.Strike): x0 to x1 of it, z0 to z1, from tick Lit on.</summary>
+    public sealed class Burn
+    {
+        public double X0, X1, Z0, Z1;
+        public int Lit;
+    }
+
     /// <summary>A bridge as it stands in a match (MatchOptions.Water): its strength, fallen or not, and its rebuilding.</summary>
     public sealed class BridgeState
     {
@@ -80,6 +96,8 @@ namespace LanesOfVietnam.Sim
         public Ford[] Fords = new Ford[0];
         /// <summary>Where its lanes step up (its terraces, where their feet cross each lane): none on the firebase.</summary>
         public Step[] Steps = new Step[0];
+        /// <summary>Its forests (MatchOptions.Strike's napalm on the forest): none on the firebase, where the jungle is behind the lanes.</summary>
+        public Forest[] Forests = new Forest[0];
         /// <summary>
         /// The view's, for a map whose ground climbs (Rice Fields): the camera rises and falls with the lanes' ground as
         /// it pans, so high ground is framed as low ground is; and it looks CameraDrop degrees further down, the lanes
@@ -311,6 +329,9 @@ namespace LanesOfVietnam.Sim
             Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 } },
             // Where its water is half a metre deep or more on each lane (`simcs ground ricefields`, 2026-10-16).
             Fords = new[] { new Ford { Lane = Map.Near, X0 = -5.75, X1 = 1.75 }, new Ford { Lane = Map.Far, X0 = -7.0, X1 = 0.5 } },
+            // The VC's forest, west of the river (WorldDressing.Forest plants it from the bank 6.5 m back): both lanes run
+            // out of it.
+            Forests = new[] { new Forest { X0 = -45, X1 = -14, Z0 = -15, Z1 = 12 } },
             // The paddies' steps, each 1.1 m, where their feet cross the lanes (GroundShape's PaddyX0, PaddyStep, PaddyWave).
             Steps = new[]
             {
@@ -356,11 +377,13 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < steps.Length; i++) steps[i] = new Step { Lane = m.Steps[i].Lane, X = -m.Steps[i].X, Rise = -m.Steps[i].Rise };
             var fords = new Ford[m.Fords.Length];
             for (int i = 0; i < fords.Length; i++) fords[i] = new Ford { Lane = m.Fords[i].Lane, X0 = -m.Fords[i].X1, X1 = -m.Fords[i].X0 };
+            var forests = new Forest[m.Forests.Length];
+            for (int i = 0; i < forests.Length; i++) forests[i] = new Forest { X0 = -m.Forests[i].X1, X1 = -m.Forests[i].X0, Z0 = m.Forests[i].Z0, Z1 = m.Forests[i].Z1 };
             return new MapDef
             {
                 Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape,
                 CraterSeed = m.CraterSeed, OldCraters = m.OldCraters, OldCraterBandsZ = m.OldCraterBandsZ, Posts = posts, UsEast = !m.UsEast,
-                BankMirrored = !m.BankMirrored, Bridges = bridges, Fords = fords, Steps = steps,
+                BankMirrored = !m.BankMirrored, Bridges = bridges, Fords = fords, Steps = steps, Forests = forests,
             };
         }
 

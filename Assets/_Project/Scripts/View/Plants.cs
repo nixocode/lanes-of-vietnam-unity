@@ -76,6 +76,8 @@ namespace LanesOfVietnam.View
             public readonly List<Vector3> Pos = new List<Vector3>();
             public readonly List<Vector2> Uv = new List<Vector2>();
             public readonly List<Vector2> Plant = new List<Vector2>();
+            /// <summary>Where across its card a vertex is (0 one edge, 1 the other): a burned plant thins out toward its card's edges (LOV/Foliage).</summary>
+            public readonly List<Vector2> Across = new List<Vector2>();
             public readonly List<Color32> Col = new List<Color32>();
         }
 
@@ -104,6 +106,7 @@ namespace LanesOfVietnam.View
                 q.Pos.Add(root + new Vector3(x, y, 0));
                 q.Uv.Add(new Vector2(u, vv));
                 q.Plant.Add(new Vector2(Mathf.Max(0, y) / top, m));
+                q.Across.Add(new Vector2(x == x0 ? 0f : 1f, 0f));
                 q.Col.Add(c);
             }
             Vtx(x0, y0, u0, v.Uv.yMin);
@@ -134,6 +137,7 @@ namespace LanesOfVietnam.View
                 mesh.SetVertices(q.Pos);
                 mesh.SetUVs(0, q.Uv);
                 mesh.SetUVs(1, q.Plant);
+                mesh.SetUVs(2, q.Across);
                 mesh.SetColors(q.Col);
                 mesh.SetTriangles(idx, 0);
                 mesh.RecalculateBounds();

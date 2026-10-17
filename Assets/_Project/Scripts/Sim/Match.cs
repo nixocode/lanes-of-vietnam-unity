@@ -364,6 +364,8 @@ namespace LanesOfVietnam.Sim
                     foreach (var card in Deck.For(side)) st.Barred[(int)side][card.Index] = Array.IndexOf(deck, card.Id) < 0;
                 // GRENADES is in every deck when its rule is on, and in none when it is off.
                 st.Barred[(int)side][Deck.Grenades(side).Index] = !opts.FragCard;
+                // NAPALM (on the forest) is the Americans', with MatchOptions.Strike, on a map with a forest.
+                if (side == Side.Us) st.Barred[(int)side][Deck.Find(side, "us-napalm").Index] = !(opts.Strike && opts.Inbound && (opts.Map ?? Maps.Firebase).Forests.Length > 0);
             }
             // A fork reads the parent's state without drawing from it.
             if (opts.Frag || opts.Arms || opts.FragCard || opts.Satchel || opts.Destruction) st.FragRng = rng.Fork("frag");
@@ -376,6 +378,7 @@ namespace LanesOfVietnam.Sim
             if (opts.Vantage) st.Posts = map.PostList();
             if (opts.Water) Water.Lay(st, map);
             if (opts.Heights) foreach (var s in map.Steps) st.Steps.Add(s);
+            if (st.Strike) foreach (var f in map.Forests) st.Forests.Add(new Forest { X0 = f.X0, X1 = f.X1, Z0 = f.Z0, Z1 = f.Z1 });
             // Where each side's front starts: at its own end (MapDef.UsEast: a map may have the Americans in the east).
             st.UsSign = (opts.Map ?? Maps.Firebase).UsEast ? -1 : 1;
             st.Front[(int)Side.Us] = -st.UsSign * Tune.HalfLength * 0.6;
@@ -509,6 +512,8 @@ namespace LanesOfVietnam.Sim
             m.Idle = Idle.No;
             // Water: in the river he swims, on to his place: no waiting his turn, no going to ground, no cover.
             bool swim = st.Water && Water.In(st, m);
+            // Strike: in fire, he runs out of it: nothing else, no waiting his turn, no going to ground.
+            bool flee = st.Strike && Sim.Strike.Burning(st, m.X, m.Z) != null;
 
             // Posture, with one dwell where every input funnels through
             // (§9 finding 3).
@@ -527,7 +532,7 @@ namespace LanesOfVietnam.Sim
                 quarry = Fieldcraft.Quarry(st, m, sq);
                 // Water: a man in the river does not go for anyone with his hands (nobody fights hand to hand in it): he
                 // makes for the bank. (Going for one, he stopped a rifle's length from him, and the two stood in the water.)
-                if (swim) quarry = null;
+                if (swim || flee) quarry = null;
             }
             // Always the slot. Cover is reached by moving the anchor.
             double tx = slot.X, tz = slot.Z;
@@ -550,14 +555,14 @@ namespace LanesOfVietnam.Sim
                 if (behind > 0 && behind < Tune.FileWait) { tx = m.X; if (st.Tactics) tz = m.Z; m.Idle = Idle.FileWait; }
             }
             // Tactics: in contact a squad moves by halves. It is the other half's turn: he stays where he is, down, and fires.
-            if (st.Tactics && quarry == null && !swim && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
+            if (st.Tactics && quarry == null && !swim && !flee && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
             // Water: in the river, his place is out of it: he does not stop in it.
             if (swim && quarry == null) tx = Water.Out(st, sq, tx, dir);
             // Strike: nobody goes into the fire, and a man in it gets out of it.
             if (st.Strike) tx = Sim.Strike.Short(st, m, tx, dir);
             // Bearing: down, he gets up only for a move he can make now; on his feet with his way barred, he does not stand there.
             bool sapper = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen;
-            if (st.Bearing && quarry == null && !sapper && !swim)
+            if (st.Bearing && quarry == null && !sapper && !swim && !flee)
             {
                 var why = Bearing.WhyDown(st, sq, m, tx, tz, slot.InCover);
                 if (why != Idle.No) { tx = m.X; tz = m.Z; m.Idle = why; }
@@ -605,8 +610,8 @@ namespace LanesOfVietnam.Sim
             // Bearing: and a man who is flat is not got onto a knee and put flat again.
             if (st.Bearing) want = Bearing.Keep(st, m, sq, want, quarry == null && sq.Order != Order.Fallback && !stalking);
             // Water: a man in the river is upright in it, and at once.
-            if (swim) want = Posture.Standing;
-            if (want != m.Posture && (m.Dwell >= Tune.PostureDwell || swim))
+            if (swim || flee) want = Posture.Standing;
+            if (want != m.Posture && (m.Dwell >= Tune.PostureDwell || swim || flee))
             {
                 // Gunnery: getting up to go, a man waits his turn, the lead man first: a squad does not rise as one.
                 bool turn = true;
@@ -625,11 +630,11 @@ namespace LanesOfVietnam.Sim
 
             // Pinned men drop, shoot less and stop advancing. He still has to be
             // placed in whatever he is lying behind, so only movement is skipped.
-            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback && !swim;
+            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback && !swim && !flee;
             double wasX = m.X, wasZ = m.Z;
             bool stepped = false, waited = false;
             // Gunnery: getting to his feet takes its time, and a man who is down stays where he is.
-            bool held = st.Gunnery && !swim && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
+            bool held = st.Gunnery && !swim && !flee && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
             if (!pinnedDown && !climbing && !held)
             {
                 double speed = Tune.Speed(m.Posture);
@@ -640,6 +645,8 @@ namespace LanesOfVietnam.Sim
                 if (st.Cohesion && m.Posture == Posture.Standing && quarry == null && d > Tune.RejoinBeyond) speed = Math.Max(speed, Tune.SpeedRush);
                 // Water: swimming, a third of a walk.
                 if (swim) speed = Tune.SpeedWalk * Tune.SwimPace;
+                // Strike: out of the fire at a run.
+                else if (flee) speed = Tune.SpeedRush;
                 // With drill a man close enough to his place stays put (falling back, he always moves).
                 // Fieldcraft: and once at rest he stays at rest until his place has moved a good pace off,
                 // then goes all the way to it: no shuffling a step at a time after a slot that drifts.
@@ -655,10 +662,10 @@ namespace LanesOfVietnam.Sim
                 }
                 else m.Still = false;
                 // Water: in the river nobody is near enough his place to stay where he is.
-                if (swim) { slack = 0.05; m.Still = false; }
+                if (swim || flee) { slack = 0.05; m.Still = false; }
                 // Gunnery: on his feet and at rest, he sets off in his turn too (one already up waits no longer).
                 bool waiting = false;
-                if (st.Gunnery && !swim && d > slack && quarry == null && sq.Order != Order.Fallback)
+                if (st.Gunnery && !swim && !flee && d > slack && quarry == null && sq.Order != Order.Fallback)
                 {
                     if (m.Wait == 0 && m.Rest >= Tune.RestToKneel) m.Wait = Gunnery.Stagger(m) > 0 ? Gunnery.Stagger(m) : -1;
                     if (m.Wait > 0) { if (--m.Wait == 0) m.Wait = -1; waiting = true; }
@@ -896,6 +903,8 @@ namespace LanesOfVietnam.Sim
                     // Concealment is a state, not a side: flat and still is hard
                     // to find, up and walking is not.
                     double reach = Tune.SpotRange(m.Posture) + (Squads.IsMoving(m) ? Tune.SpotMovingBonus : 0);
+                    // (Strike: the burned forest hides nobody.)
+                    if (st.Strike && st.Burnt.Count > 0 && Sim.Strike.InBurnt(st, m.X, m.Z)) reach *= Tune.BurntSeen;
                     double r2 = reach * reach;
                     for (int j = 0; j < st.Men.Count; j++)
                     {
@@ -1245,8 +1254,9 @@ namespace LanesOfVietnam.Sim
                     }
                 }
 
-                // Strike: the napalm, lit and burning.
+                // Strike: the napalm, lit and burning; and on the forest.
                 if (a.Kind == AreaKind.Napalm) Sim.Strike.Tick(st, a, rng);
+                if (a.Kind == AreaKind.Firestorm) Sim.Strike.Firestorm(st, a, rng);
 
                 if (a.Kind == AreaKind.Trap)
                 {

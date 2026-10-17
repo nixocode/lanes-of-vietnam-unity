@@ -27,7 +27,8 @@ namespace LanesOfVietnam.View
         public Material LaneMaterial;
         public LaneMarks Marks { get; private set; }
 
-        public static readonly KeyCode[] CallKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T };
+        // (Y: NAPALM, on the forest, the Americans' last resort, MatchOptions.Strike.)
+        public static readonly KeyCode[] CallKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y };
         public static readonly KeyCode[] UnitKeys = { KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N };
 
         /// <summary>The card in hand, or null.</summary>

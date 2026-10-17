@@ -244,8 +244,17 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static bool Saving(SimState st, Side side)
         {
-            if (side != Side.Us || st.Phase != Phase.Fight || Match.AliveCount(st, side) < Tune.MenFirst) return false;
+            if (side != Side.Us || st.Phase != Phase.Fight) return false;
             Know(st, side);
+            // Strike: losing, it saves for its last resort while the enemy is in the forest in strength (short of men or
+            // not: the napalm is what it has left).
+            if (st.Strike)
+            {
+                var forest = Deck.Find(side, "us-napalm");
+                if (Deck.Has(st, side, forest) && Deck.CooldownLeft(st, side, forest) == 0 && Strike.LastResort(st)
+                    && st.Cp[(int)side] < Deck.CostOf(st, forest) && Strike.ForestCrowd(st, side, _known, out _, out _) > 0) return true;
+            }
+            if (Match.AliveCount(st, side) < Tune.MenFirst) return false;
             if (!Level(st, side)) return false;
             var air = Deck.Find(side, "us-airstrike"); var arty = Deck.Find(side, "us-arty");
             double cp = st.Cp[(int)side];
@@ -353,6 +362,11 @@ namespace LanesOfVietnam.Sim
 
         private static bool Sky(SimState st, Side side, LaneView[] lanes, Rng rng)
         {
+            // Strike: napalm on the forest, its last resort: losing, and the enemy in the forest in strength.
+            var forest = Deck.Find(side, "us-napalm");
+            // (On the men it knows are there, seen or not: in the forest they seldom are.)
+            if (st.Strike && Deck.Blocked(st, side, forest) == null && Strike.ForestCrowd(st, side, _known, out double fx, out int fl) > 0)
+            { Deck.Buy(st, side, forest, fl, rng, fx); return false; }
             // An air strike: short, tight and murderous. Four or more close together.
             var air = Deck.Find(side, "us-airstrike");
             bool level = Level(st, side);

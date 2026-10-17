@@ -342,15 +342,20 @@ namespace LanesOfVietnam.Tests
                 {
                     // (GRENADES only with its rule, and played a few paces in front of the side's own men.)
                     bool grenades = card == Deck.Grenades(side);
-                    var st = Match.Create(new MatchOptions { Seed = 7, Frag = grenades, FragCard = grenades });
+                    // (NAPALM on the forest only with MatchOptions.Strike, on a map with a forest, laid on it, and the
+                    // Americans losing.)
+                    bool napalm = card.Id == "us-napalm";
+                    var st = Match.Create(new MatchOptions { Seed = 7, Frag = grenades, FragCard = grenades, Strike = napalm, Inbound = napalm,
+                                                             Map = napalm ? Maps.RiceFields : null, Cover = napalm ? Maps.RiceFields.Cover() : null });
                     st.Cp[(int)side] = 999;
                     foreach (var m in st.Men) m.Pin = 0.6;
-                    st.Morale[(int)side] = 0.5;
+                    st.Morale[(int)side] = napalm ? Tune.LastResortWill - 0.05 : 0.5;
+                    if (napalm) st.Phase = Phase.Fight;
                     int men = st.Men.Count, areas = st.Areas.Count, thrown = st.Grenades.Count;
                     double morale = st.Morale[(int)side];
                     double pin = st.Men.Where(m => m.Side == side).Sum(m => m.Pin);
                     int lane = 1;
-                    double x = 5;
+                    double x = napalm ? (st.Forests[0].X0 + st.Forests[0].X1) * 0.5 : 5;
                     if (grenades)
                     {
                         var by = st.Men.First(m => m.Alive && m.Side == side && m.Grenades > 0);
@@ -3107,7 +3112,8 @@ namespace LanesOfVietnam.Tests
         [TestCase("the-wire", 3, 5089, 2599423814u, 2839148562u, 2162707902u, "us morale broke")]
         [TestCase("the-wire", 1, 6000, 536941371u, 60351264u, 1636961866u, "us held out")]
         [TestCase("first-light", 7, 4691, 1157080429u, 780317383u, 683158631u, "us took the line")]
-        [TestCase("first-light", 3, 5837, 1381744726u, 2566677261u, 1587602501u, "vc morale broke")]
+        // (First Light's seed 3 again with napalm on the forest the same day: men run from fire, PLAN §12.62.)
+        [TestCase("first-light", 3, 5837, 1381744726u, 2566677261u, 37002923u, "vc morale broke")]
         [TestCase("earth-fights", 1, 9781, 1211388018u, 3607008661u, 482486745u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
@@ -3181,8 +3187,9 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(0, st.ClockTicks); Assert.AreEqual(-1, Match.ClockLeft(st)); Assert.IsEmpty(st.Objectives);
             foreach (var side in Match.Sides)
                 foreach (var card in Deck.For(side))
-                    // (GRENADES is a card only with its rule, MatchOptions.FragCard: off here, as every rule is.)
-                    Assert.AreEqual(card != Deck.Grenades(side), Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck, or GRENADES is in one without its rule");
+                    // (GRENADES is a card only with its rule, MatchOptions.FragCard, and NAPALM on the forest only with
+                    // MatchOptions.Strike: off here, as every rule is.)
+                    Assert.AreEqual(card != Deck.Grenades(side) && card.Id != "us-napalm", Deck.Has(st, side, card), $"{card.Id} is missing from a match that named no deck, or GRENADES or NAPALM is in one without its rule");
         }
 
         /// <summary>
@@ -3525,6 +3532,74 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// NAPALM on the forest (MatchOptions.Strike; the owner, 2026-10-17: "Add the napalm to the plan which burns the
+        /// forest and changes the map. Add this as a last resort if US is losing"). The Americans' card on a map with a
+        /// forest and on no other; not to be had until they are losing; laid on the forest and nowhere else; the forest
+        /// burns the run of it, the whole of its depth: the positions in it burned out, whoever is in it burning, and the
+        /// ground it burned hides nobody for the rest of the match.
+        /// </summary>
+        [Test]
+        public void Napalm_on_the_forest_is_a_last_resort_and_the_forest_stays_burned()
+        {
+            var fb = new LiveMatch(Scenarios.Firebase.Options(2, null, Difficulty.Veteran));
+            var card = Deck.Find(Side.Us, "us-napalm");
+            Assert.IsFalse(Deck.Has(fb.State, Side.Us, card), "napalm on the forest on a map with no forest");
+
+            var m = new LiveMatch(Scenarios.RiceFields.Options(6, null, Difficulty.Veteran));
+            var st = m.State;
+            Assert.IsTrue(Deck.Has(st, Side.Us, card));
+            Assert.AreEqual(1, st.Forests.Count);
+            var f = st.Forests[0];
+            while (st.Phase != Phase.Fight && st.Tick < 4000) m.Step();
+            st.Cp[(int)Side.Us] = 200;
+            st.Morale[(int)Side.Us] = 0.9;
+            Assert.AreEqual("last resort", Deck.Blocked(st, Side.Us, card), "it was to be had while the Americans were winning");
+            st.Morale[(int)Side.Us] = Tune.LastResortWill - 0.05;
+            Assert.IsNull(Deck.Blocked(st, Side.Us, card), "losing, it was not to be had");
+            Assert.IsFalse(Deck.Buy(st, Side.Us, card, Map.Near, new Rng(3), 20), "it was laid outside the forest");
+            Assert.AreEqual(200, st.Cp[(int)Side.Us], 1e-9, "points were spent on napalm laid nowhere");
+
+            // Laid on the forest: men of the VC in it, one out of it beside it, and a position in it.
+            double aim = (f.X0 + f.X1) * 0.5;
+            var vc = st.Men.Where(x => x.Alive && x.Side == Side.Vc && x.High <= 0 && x.Climb == 0).Take(4).ToList();
+            Assume.That(vc.Count, Is.EqualTo(4));
+            for (int i = 0; i < 3; i++) { vc[i].X = aim - 2 + 2 * i; vc[i].Z = Tune.Lanes[Map.Far]; }
+            var c = st.Cover.First(x => x.X > f.X0 + 2 && x.X < f.X1 - 2 && Math.Abs(x.X - aim) < Tune.ForestRun * 0.5);
+            Assert.IsTrue(Deck.Buy(st, Side.Us, card, Map.Far, new Rng(3), aim));
+            Assert.AreEqual(200 - Tune.ForestCost, st.Cp[(int)Side.Us], 1e-9);
+            Assert.AreEqual(Tune.MaxTicks, Deck.CooldownLeft(st, Side.Us, card), "it could be had twice in a match");
+            for (int t = 0; t < Tune.JetWait + 3; t++)
+            {
+                for (int i = 0; i < 3; i++) if (vc[i].Alive) { vc[i].X = aim - 2 + 2 * i; vc[i].Z = Tune.Lanes[Map.Far]; }
+                m.Step();
+            }
+            Assert.AreEqual(1, st.Burnt.Count, "the forest did not catch");
+            var b = st.Burnt[0];
+            Assert.AreEqual(Math.Max(f.X0, aim - Tune.ForestRun * 0.5), b.X0, 1e-9);
+            Assert.AreEqual(f.Z0, b.Z0, 1e-9); Assert.AreEqual(f.Z1, b.Z1, 1e-9);
+            Assert.IsTrue(c.Wrecked, "a position in the burned forest stands");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.NapalmLit && e.Rounds == Inbound.Napalm));
+            // Held in it, they burn.
+            for (int t = 0; t < 10 * Tune.TickHz && vc.Take(3).Any(x => x.Alive); t++)
+            {
+                for (int i = 0; i < 3; i++) if (vc[i].Alive) { vc[i].X = aim - 2 + 2 * i; vc[i].Z = Tune.Lanes[Map.Far]; }
+                m.Step();
+            }
+            Assert.IsFalse(vc.Take(3).Any(x => x.Alive), "men held in the burning forest did not burn");
+            // A man free in it runs out of it: his place is its edge.
+            var runner = new Man { X = aim + 3, Z = Tune.Lanes[Map.Near] };
+            double edge = Sim.Strike.Short(st, runner, aim - 40, -1);
+            Assert.IsTrue(edge <= b.X0 - Tune.NapalmShort + 1e-9 || edge >= b.X1 + Tune.NapalmShort - 1e-9, "a man in the fire did not make for its edge");
+            // And burned, it hides nobody: seen from BurntSeen times as far.
+            var us = st.Men.First(x => x.Alive && x.Side == Side.Us);
+            var them = vc[3].Alive ? vc[3] : st.Men.First(x => x.Alive && x.Side == Side.Vc);
+            them.X = aim; them.Z = Tune.Lanes[Map.Far];
+            double burnt = Senses.Sight(st, us, them);
+            st.Burnt.Clear();
+            Assert.AreEqual(Senses.Sight(st, us, them) * Tune.BurntSeen, burnt, 1e-9, "the burned forest hid him as before");
+        }
+
+        /// <summary>
         /// Strike is a rule: with it off the game's match is the one it was before it, to the bit (the firebase, `simcs
         /// scenario hash 1` of 2026-10-15, and the flags' `hash` lines in CLAUDE.md, which do not name it).
         /// </summary>
@@ -3551,9 +3626,9 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(3126363294u, fh[fh.Count - 1]);
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-10-17 (with MatchOptions.Strike, PLAN §12.61).
-        private const int RiceTicks = 7509;
-        private const uint RiceFinal = 1582004784u;
+        // `simcs scenario hash 1` (rice-fields), 2026-10-17 (with MatchOptions.Strike and napalm on the forest, PLAN §12.61-62).
+        private const int RiceTicks = 6703;
+        private const uint RiceFinal = 3691508404u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down

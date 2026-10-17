@@ -35,6 +35,8 @@ namespace LanesOfVietnam.Sim
         public const int Guns = 1, Jet = 2, SmokeShells = 3, Dustoff = 4, Ranging = 9;
         /// <summary>MatchOptions.Shootdown: a medevac hit on its way in, coming down where it will burst.</summary>
         public const int Crash = 5;
+        /// <summary>MatchOptions.Strike: the jet with napalm for the forest (the Americans' last resort).</summary>
+        public const int Napalm = 6;
 
         public static int Ticks(int call)
         {
@@ -45,6 +47,7 @@ namespace LanesOfVietnam.Sim
                 case SmokeShells: return Tune.SmokeWait;
                 case Dustoff: return Tune.DustoffWait;
                 case Crash: return Tune.CrashTicks;
+                case Napalm: return Tune.JetWait;
                 default: return 0;
             }
         }

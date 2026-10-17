@@ -22,6 +22,13 @@ namespace LanesOfVietnam.Sim
     /// The computer calls it when it is worth StrikeCost (Worth): StrikeMen of the enemy along a stick's line, or
     /// StrikeMenAt with a bridge or a watchtower of his on it; none of its own within StrikeClear.
     ///
+    /// And NAPALM, on the forest (the owner, 2026-10-17: "Add the napalm to the plan which burns the forest and changes
+    /// the map. Add this as a last resort if US is losing"): a card of the Americans' on a map with a forest (MapDef.
+    /// Forests), offered while they are losing (LastResort), once a match. The jet comes in with it and the forest burns
+    /// ForestRun along the lanes and the whole of its depth (AreaKind.Firestorm), for ForestTicks: whoever is in it burns,
+    /// the positions in it are burned out, and the ground it burned hides nobody for the rest of the match (SimState.
+    /// Burnt; Senses.Sight). The computer plays it on ForestMen it has seen in the forest.
+    ///
     /// It needs Inbound (the game's): without it the strike is as it was. Its draws are the match's stream's, made only
     /// when it is on; what it changes is hashed only when it is on (a wrecked position's kind and quality are its cover's).
     /// </summary>
@@ -88,16 +95,138 @@ namespace LanesOfVietnam.Sim
         /// <summary>Is the napalm alight?</summary>
         public static bool Lit(Area a) => a.Kind == AreaKind.Napalm && a.Next <= 0;
 
-        /// <summary>Is (x, z) inside this napalm's fire (lit or about to be)?</summary>
-        public static bool Inside(Area a, double x, double z)
-            => a.Kind == AreaKind.Napalm && Math.Abs(x - a.X) <= a.Radius && Math.Abs(z - a.Z) <= Tune.NapalmWide * 0.5;
+        /// <summary>
+        /// Where this fire is (lit or coming): the strike's napalm, along its line on its lane; or napalm on the forest,
+        /// along the lanes and across the whole of the forest it is in. False for any other area.
+        /// </summary>
+        public static bool Band(SimState st, Area a, out double x0, out double x1, out double z0, out double z1)
+        {
+            x0 = x1 = z0 = z1 = 0;
+            if (a.Kind == AreaKind.Napalm)
+            {
+                x0 = a.X - a.Radius; x1 = a.X + a.Radius; z0 = a.Z - Tune.NapalmWide * 0.5; z1 = a.Z + Tune.NapalmWide * 0.5;
+                return true;
+            }
+            if (a.Kind != AreaKind.Firestorm || a.Wait > 0) return false;
+            var f = ForestAt(st, a.X, a.Z);
+            if (f == null) return false;
+            x0 = Math.Max(f.X0, a.X - a.Radius); x1 = Math.Min(f.X1, a.X + a.Radius); z0 = f.Z0; z1 = f.Z1;
+            return x1 > x0;
+        }
 
-        /// <summary>The napalm burning (or about to be lit) at (x, z), or null.</summary>
+        /// <summary>Is (x, z) inside this fire (lit or about to be)?</summary>
+        public static bool Inside(SimState st, Area a, double x, double z)
+            => Band(st, a, out double x0, out double x1, out double z0, out double z1) && x >= x0 && x <= x1 && z >= z0 && z <= z1;
+
+        /// <summary>The fire burning (or about to be lit) at (x, z), or null.</summary>
         public static Area Burning(SimState st, double x, double z)
         {
             if (!st.Strike) return null;
-            for (int i = 0; i < st.Areas.Count; i++) if (Inside(st.Areas[i], x, z)) return st.Areas[i];
+            for (int i = 0; i < st.Areas.Count; i++) if (Inside(st, st.Areas[i], x, z)) return st.Areas[i];
             return null;
+        }
+
+        // --- napalm on the forest: the Americans' last resort --------------------------------
+
+        /// <summary>The forest (x, z) is in, or null.</summary>
+        public static Forest ForestAt(SimState st, double x, double z)
+        {
+            for (int i = 0; i < st.Forests.Count; i++)
+            {
+                var f = st.Forests[i];
+                if (x >= f.X0 && x <= f.X1 && z >= f.Z0 && z <= f.Z1) return f;
+            }
+            return null;
+        }
+
+        /// <summary>Has the forest burned at (x, z)? Then it hides nobody.</summary>
+        public static bool InBurnt(SimState st, double x, double z)
+        {
+            for (int i = 0; i < st.Burnt.Count; i++)
+            {
+                var b = st.Burnt[i];
+                if (x >= b.X0 && x <= b.X1 && z >= b.Z0 && z <= b.Z1) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Are the Americans losing, so that napalm on the forest is theirs to call? In the fight (not its opening), their
+        /// will under LastResortWill; or under LastResortHeld with the enemy ahead in every lane by LastResortAhead of the
+        /// field or more. (Ahead in every lane alone, it was theirs at the start of most matches, before anyone had met:
+        /// whoever has no men in a lane yet is behind in it.)
+        /// </summary>
+        public static bool LastResort(SimState st)
+        {
+            if (!st.Strike || st.Phase != Phase.Fight) return false;
+            double will = st.Morale[(int)Side.Us];
+            if (will < Tune.LastResortWill) return true;
+            if (will >= Tune.LastResortHeld) return false;
+            var lanes = Match.LaneControl(st);
+            for (int i = 0; i < lanes.Length; i++) if (lanes[i].side != Side.Vc || lanes[i].margin < Tune.LastResortAhead) return false;
+            return lanes.Length > 0;
+        }
+
+        /// <summary>
+        /// One tick of napalm on the forest, once it is in: on its first, the forest catches all along its run (what burns
+        /// is burned for good, and the positions in it burned out); then whoever is in it burns.
+        /// </summary>
+        public static void Firestorm(SimState st, Area a, Rng rng)
+        {
+            if (!Band(st, a, out double x0, out double x1, out double z0, out double z1)) return;
+            if (a.Next > 0)
+            {
+                a.Next--;
+                if (a.Next > 0) return;
+                st.Burnt.Add(new Burn { X0 = x0, X1 = x1, Z0 = z0, Z1 = z1, Lit = st.Tick });
+                st.Events.Add(new SimEvent { Kind = EventKind.NapalmLit, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z, Amount = a.Radius, Rounds = Inbound.Napalm });
+                for (int i = 0; i < st.Cover.Count; i++)
+                {
+                    var c = st.Cover[i];
+                    if (!c.Wrecked && c.X + c.Length * 0.5 >= x0 && c.X - c.Length * 0.5 <= x1 && c.Z >= z0 && c.Z <= z1) Wreck(st, c, a.Side);
+                }
+            }
+            for (int j = 0; j < st.Men.Count; j++)
+            {
+                var m = st.Men[j];
+                if (!m.Alive || m.X < x0 || m.X > x1 || m.Z < z0 || m.Z > z1) continue;
+                if (st.Vantage && m.High > Tune.NapalmHigh) continue;
+                // (Not pinned: a man in fire runs from it, Short. Put flat by it, he lay in it and burned.)
+                if (rng.Next() >= a.Power) continue;
+                st.Events.Add(new SimEvent { Kind = EventKind.Burned, Tick = st.Tick, Side = a.Side, Id = m.Id, X = m.X, Z = m.Z, Target = a.Id });
+                Combat.Kill(st, m);
+            }
+        }
+
+        /// <summary>
+        /// The computer's napalm on the forest: the enemy it knows of (squads <paramref name="seen"/>) in a forest, ForestMen
+        /// of them or more within the run of where it would lay it (their middle), none of its own there. The count (0 if
+        /// nothing), where, which lane.
+        /// </summary>
+        public static int ForestCrowd(SimState st, Side side, bool[] seen, out double x, out int lane)
+        {
+            int best = 0;
+            x = 0; lane = 0;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var b = st.Men[i];
+                if (!b.Alive || b.Side == side || b.Squad < 0 || !seen[b.Squad]) continue;
+                var f = ForestAt(st, b.X, b.Z);
+                if (f == null) continue;
+                int n = 0;
+                double sum = 0;
+                bool own = false;
+                for (int j = 0; j < st.Men.Count && !own; j++)
+                {
+                    var o = st.Men[j];
+                    if (!o.Alive || o.Squad < 0 || o.Z < f.Z0 || o.Z > f.Z1 || Math.Abs(o.X - b.X) > Tune.ForestRun * 0.5) continue;
+                    if (o.Side == side) own = true;
+                    else if (seen[o.Squad] && o.X >= f.X0 && o.X <= f.X1) { n++; sum += o.X; }
+                }
+                if (own || n <= best) continue;
+                best = n; x = sum / n; lane = st.Squads[b.Squad].Lane;
+            }
+            return best >= Tune.ForestMen ? best : 0;
         }
 
         /// <summary>One tick of a napalm area: lit when its jet comes round; then whoever is in it burns.</summary>
@@ -112,9 +241,9 @@ namespace LanesOfVietnam.Sim
             for (int j = 0; j < st.Men.Count; j++)
             {
                 var m = st.Men[j];
-                if (!m.Alive || !Inside(a, m.X, m.Z)) continue;
+                if (!m.Alive || !Inside(st, a, m.X, m.Z)) continue;
                 if (st.Vantage && m.High > Tune.NapalmHigh) continue;
-                Combat.ApplyPin(st, m, 1.0);
+                // (Not pinned: a man in fire runs from it, Short. Put flat by it, he lay in it and burned.)
                 if (rng.Next() >= a.Power) continue;
                 st.Events.Add(new SimEvent { Kind = EventKind.Burned, Tick = st.Tick, Side = a.Side, Id = m.Id, X = m.X, Z = m.Z, Target = a.Id });
                 Combat.Kill(st, m);
@@ -132,13 +261,15 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
-                if (a.Kind != AreaKind.Napalm || Math.Abs(Tune.Lanes[sq.Lane] - a.Z) > Tune.NapalmWide * 0.5 + 1) continue;
+                double lz = Tune.Lanes[sq.Lane];
+                if (!Band(st, a, out double x0, out double x1, out double z0, out double z1) || lz < z0 - 1 || lz > z1 + 1) continue;
+                double ax = (x0 + x1) * 0.5, half = (x1 - x0) * 0.5;
                 // Its near edge, as the squad comes to it; the squad's men are this side of it (the middle of them).
-                double near = a.X - way * (a.Radius + Tune.NapalmShort);
+                double near = ax - way * (half + Tune.NapalmShort);
                 double mid = 0;
                 for (int k = 0; k < live.Count; k++) mid += live[k].X;
                 mid = live.Count > 0 ? mid / live.Count : sq.AnchorX;
-                if ((mid - a.X) * way > a.Radius) continue;          // already past it
+                if ((mid - ax) * way > half) continue;          // already past it
                 // (Not in a river: on its bank, this side of it.)
                 near = Dry(st, sq.Lane, near, mid);
                 if ((sq.AnchorX - near) * way > 0) { sq.AnchorX = near; sq.Halted = true; }
@@ -154,8 +285,8 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
-                if (a.Kind != AreaKind.Napalm || Math.Abs(m.Z - a.Z) > Tune.NapalmWide * 0.5 + 1) continue;
-                double lo = a.X - a.Radius - Tune.NapalmShort, hi = a.X + a.Radius + Tune.NapalmShort;
+                if (!Band(st, a, out double x0, out double x1, out double z0, out double z1) || m.Z < z0 - 1 || m.Z > z1 + 1) continue;
+                double lo = x0 - Tune.NapalmShort, hi = x1 + Tune.NapalmShort;
                 if (m.X > lo && m.X < hi) return m.X - lo < hi - m.X ? lo : hi;
                 if (m.X <= lo && tx > lo) tx = lo;
                 else if (m.X >= hi && tx < hi) tx = hi;

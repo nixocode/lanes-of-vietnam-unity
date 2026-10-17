@@ -265,7 +265,8 @@ namespace LanesOfVietnam.View
                     case EventKind.Fire: Shot(ev, i, (float)age); break;
                     // (Strike: a 500 lb bomb is a shell's burst, larger.)
                     case EventKind.Shell: Explosion(e, (float)age, e.Rounds == Inbound.Jet ? BombScale : 1f); break;
-                    case EventKind.NapalmLit: Napalm(e, (float)age); break;
+                    // (The forest's is drawn from what has burned, for as long as it burns: Forests.)
+                    case EventKind.NapalmLit: if (e.Rounds != Inbound.Napalm) Napalm(e, (float)age); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
                     // Inbound: the guns' ranging round, a second before the rest: one small burst on the aim point.
                     case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); else Called(e, now); break;
@@ -301,6 +302,7 @@ namespace LanesOfVietnam.View
             SmokeScreens(st, now);
             if (_root.River != null && _root.River.Wet) Splashes((float)now);
             if (st.Water) Smouldering(st, (float)now);
+            Forests(st, (float)now);
             DrawWrecks((float)now);
             if (st.Satchel) Breaches(st, now);
             if (_markMesh != null) GroundMarks(st, now);
@@ -1381,7 +1383,8 @@ namespace LanesOfVietnam.View
             float t = (float)(now - e.Tick * Tune.Dt);
             float lands = (float)((e.Amount ?? 0) * Tune.Dt);
             if (t < 0) return;
-            if (e.Rounds == Inbound.Jet) JetPass(e, t, lands);
+            // (Strike: the jet that brings napalm for the forest comes in as the strike's does, and drops no bombs.)
+            if (e.Rounds == Inbound.Jet || e.Rounds == Inbound.Napalm) JetPass(e, t, lands);
             else if (e.Rounds == Inbound.Dustoff) Dustoff(e, t, lands);
         }
 
@@ -1430,7 +1433,7 @@ namespace LanesOfVietnam.View
                 return Coords.World(ax + dir * s, az, ground + low + (s < 0 ? -s * 0.10f : 0f) + 16f * up * up) + beyond;
             }
             // Its bombs: each off the jet as it comes, nose along its fall, to where it will burst.
-            for (int k = 0; k < Tune.StickBombs; k++)
+            for (int k = 0; k < Tune.StickBombs && e.Rounds == Inbound.Jet; k++)
             {
                 float bursts = lands + (float)Tune.Dt * (1 + k * Tune.StickGap);
                 float u = (t - (bursts - BombFalls)) / BombFalls;
@@ -2057,6 +2060,91 @@ namespace LanesOfVietnam.View
 
         // --- the air strike's napalm (MatchOptions.Strike) ------------------------------------
 
+        /// <summary>The trees' burning (LOV/Foliage): up to four burned stretches, in the world's x and z, and how long each has burned.</summary>
+        private const int BurnsDrawn = 4;
+        private readonly Vector4[] _burns = new Vector4[BurnsDrawn], _burnState = new Vector4[BurnsDrawn];
+        private static readonly int BurnsId = Shader.PropertyToID("_LOV_Burns"), BurnStateId = Shader.PropertyToID("_LOV_BurnState"), BurnCountId = Shader.PropertyToID("_LOV_BurnCount");
+
+        /// <summary>
+        /// Napalm on the forest (Strike.Firestorm; the Americans' last resort): what has burned, from the simulation's record
+        /// of it. The trees in it are burned by their own shader (LOV/Foliage, from the globals set here: burning, then
+        /// charred and bare for the rest of the match). Drawn here: the fire through the whole depth of the forest along the
+        /// run, rolling in as it catches, at its height for as long as it burns and dying down after; columns of black smoke
+        /// out of it, leaning off downwind and hanging for half a minute; the light of it.
+        /// </summary>
+        private void Forests(SimState st, float now)
+        {
+            int n = Mathf.Min(BurnsDrawn, st.Burnt.Count);
+            for (int k = 0; k < BurnsDrawn; k++)
+            {
+                if (k >= n) { _burns[k] = Vector4.zero; _burnState[k] = Vector4.zero; continue; }
+                var b = st.Burnt[k];
+                // (World z is the simulation's turned over.)
+                _burns[k] = new Vector4((float)b.X0, -(float)b.Z1, (float)b.X1, -(float)b.Z0);
+                _burnState[k] = new Vector4(now - (float)(b.Lit * Tune.Dt), Tune.ForestTicks * (float)Tune.Dt, 0, 0);
+            }
+            Shader.SetGlobalVectorArray(BurnsId, _burns);
+            Shader.SetGlobalVectorArray(BurnStateId, _burnState);
+            Shader.SetGlobalFloat(BurnCountId, n);
+            float burns = Tune.ForestTicks * (float)Tune.Dt;
+            for (int k = 0; k < st.Burnt.Count; k++)
+            {
+                var b = st.Burnt[k];
+                float age = now - (float)(b.Lit * Tune.Dt);
+                if (age < 0 || age > burns + 30f) continue;
+                int seed = b.Lit * 13 + k;
+                // (A flame every three metres along it and six across: at two by four and a half, two each, a hundred and
+                // seventy flames at a flash's brightness were one white wall, and the trees could not be seen burning.)
+                int nx = Mathf.CeilToInt((float)(b.X1 - b.X0) / 3f), nz = Mathf.CeilToInt((float)(b.Z1 - b.Z0) / 6f);
+                float glow = 0f;
+                Vector3 middle = Coords.World((b.X0 + b.X1) * 0.5, (b.Z0 + b.Z1) * 0.5, 2f);
+                for (int i = 0; i < nx; i++)
+                    for (int j = 0; j < nz; j++)
+                    {
+                        int s = seed * 977 + i * 31 + j;
+                        double x = b.X0 + (i + 0.5) * (b.X1 - b.X0) / nx + (Hash(s, 1) - 0.5) * 1.6;
+                        double z = b.Z0 + (j + 0.5) * (b.Z1 - b.Z0) / nz + (Hash(s, 2) - 0.5) * 2.5;
+                        var p = Coords.World(x, z, (float)_root.Ground.SurfaceAt(x, z));
+                        // It catches from where it was laid along the run, in a second and a half, and higher in the trees.
+                        float a = age - 1.5f * (float)((x - b.X0) / System.Math.Max(1.0, b.X1 - b.X0)) - 0.4f * H(s, 3);
+                        if (a < 0) continue;
+                        float strength = a < burns ? Mathf.Clamp01(a / 1.2f) * (1f - 0.35f * Mathf.Clamp01((a - burns * 0.6f) / (burns * 0.4f)))
+                                                   : Mathf.Clamp01(1 - (a - burns) / 4f);
+                        if (strength > 0f)
+                        {
+                            float flicker = 0.85f + 0.15f * Mathf.Sin(a * (8f + 4f * H(s, 4)) + i + j);
+                            int flames = ((i + j) & 3) == 0 ? 2 : 1;
+                            for (int q = 0; q < flames; q++)
+                            {
+                                float up = (1.0f + 2.2f * q) * strength * flicker;
+                                float size = (3.0f - 0.8f * q) * strength * (0.9f + 0.2f * H(s, 5 + q));
+                                float frame = (a * (18f + 5f * q) + H(s, 7 + q) * 32f) % 32f;
+                                var col = Lit(Color.Lerp(new Color(1f, 0.7f, 0.4f), new Color(1f, 0.42f, 0.16f), 0.5f * q), (1.1f - 0.3f * q) * strength);
+                                AddSprite(FxSheets.Flame, frame, p + new Vector3(0.4f * q * strength, up, 0f), size, col, (H(s, 9 + q) - 0.5f) * 0.6f);
+                            }
+                            if (((i + 2 * j) % 8) == 0) AddGlow(p + Vector3.up * 1.5f, 4f * strength, new Color(1f, 0.45f, 0.12f) * (0.6f * strength), 2, H(s, 11));
+                            glow += strength;
+                        }
+                        // Its smoke: a column out of one place in three, black, rising high, leaning off downwind.
+                        if ((i + 2 * j) % 3 == 0)
+                            for (int c = 0; c < 2; c++)
+                            {
+                                float sa = a - (0.5f + 1.5f * c);
+                                float life = burns + 25f - 1.5f * c;
+                                if (sa < 0 || sa > life) continue;
+                                float rise = 1.6f * sa + 3f * (1 - Mathf.Exp(-sa));
+                                var off = new Vector3(0.7f * sa + (H(s, 20 + c) - 0.5f) * 2f, Mathf.Min(rise, 28f), (H(s, 22 + c) - 0.5f) * 2f);
+                                float op = Mathf.SmoothStep(0, 1, sa / 0.8f) * Mathf.Pow(1 - sa / life, 1.2f) * 0.8f;
+                                var col = Color.Lerp(new Color(0.2f, 0.19f, 0.18f), new Color(0.05f, 0.045f, 0.04f), Mathf.Exp(-sa * 0.08f));
+                                col.a = op * 0.85f;
+                                // (Round puffs, not the wisps' tiles: twenty metres of those stood as hard-edged columns.)
+                                Dust(p + Vector3.up * 3f + off, 3.5f + 0.4f * Mathf.Min(sa, 20f), col, H(s, 24 + c), 0.35f + 0.6f * Mathf.Clamp01(sa / life));
+                            }
+                    }
+                if (glow > 0f) _flashes.Add((middle + Vector3.up * 3f, 7f * Mathf.Min(1f, glow / (nx * nz))));
+            }
+        }
+
         /// <summary>How much larger a 500 lb bomb's burst is drawn than a shell's.</summary>
         public const float BombScale = 1.8f;
         /// <summary>Seconds the napalm's smoke hangs after its fire is out.</summary>
@@ -2413,7 +2501,25 @@ namespace LanesOfVietnam.View
         {
             if (age < 0) return;
             float grow = Mathf.Clamp01(age / 1.5f);
-            // (Strike: a bomb's crater, wider and darker; the napalm's burn, black all along its line.)
+            // (Strike: a bomb's crater, wider and darker; the napalm's burn, black all along its line; and the forest's, black
+            // all the way through it.)
+            if (e.Kind == EventKind.NapalmLit && e.Rounds == Inbound.Napalm)
+            {
+                var f = Strike.ForestAt(_root.Driver.State, e.X.Value, e.Z.Value);
+                if (f == null) return;
+                double x0 = System.Math.Max(f.X0, e.X.Value - (e.Amount ?? 0)), x1 = System.Math.Min(f.X1, e.X.Value + (e.Amount ?? 0));
+                int nx = Mathf.CeilToInt((float)(x1 - x0) / 4.5f), nz = Mathf.CeilToInt((float)(f.Z1 - f.Z0) / 4.5f);
+                for (int a = 0; a < nx; a++)
+                    for (int b = 0; b < nz; b++)
+                    {
+                        int k = a * 31 + b;
+                        double x = x0 + (a + 0.5) * (x1 - x0) / nx + (Hash(index * 37 + k, 94) - 0.5) * 1.5;
+                        double z = f.Z0 + (b + 0.5) * (f.Z1 - f.Z0) / nz + (Hash(index * 37 + k, 95) - 0.5) * 1.5;
+                        float w = 6f + 2f * (float)Hash(index * 37 + k, 96);
+                        Flat(into, x, z, w, w, new Color(0.06f, 0.05f, 0.045f, 0.88f * grow), (float)Hash(index * 37 + k, 97), 1f);
+                    }
+                return;
+            }
             if (e.Kind == EventKind.NapalmLit)
             {
                 float half = (float)(e.Amount ?? Tune.NapalmHalf);

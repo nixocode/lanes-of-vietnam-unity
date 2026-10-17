@@ -72,6 +72,8 @@ namespace LanesOfVietnam.Sim
             if (observer.Weapon == Weapon.Sniper) r *= Tune.SightScope;
             // Vantage: a man up on a post sees further and into cover, and is seen from further.
             if (st.Vantage) r = Vantage.Sight(observer, target, r);
+            // Strike: the burned forest hides nobody.
+            if (st.Strike && st.Burnt.Count > 0 && Strike.InBurnt(st, target.X, target.Z)) r *= Tune.BurntSeen;
             return r * st.Sight;
         }
 

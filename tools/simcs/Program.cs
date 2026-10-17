@@ -945,11 +945,13 @@ namespace LanesOfVietnam.SimCs
             {
                 if (only != null && sc.Id != only) continue;
                 double strikes = 0, bombKilled = 0, bombOwn = 0, burned = 0, burnedOwn = 0, wrecked = 0, towers = 0, bridges = 0, held = 0, inside = 0;
+                double forests = 0, forestBurned = 0, forestWrecked = 0, forestWon = 0, forestWill = 0;
                 for (int seed = 1; seed <= seeds; seed++)
                 {
                     var m = new LiveMatch(sc.Options(seed, null, Difficulty.Veteran));
                     var st = m.State;
                     var jets = new Dictionary<int, Side>();
+                    var fires = new HashSet<int>();
                     while (!st.Over && st.Tick < m.Cap)
                     {
                         int from = st.Events.Count;
@@ -959,6 +961,7 @@ namespace LanesOfVietnam.SimCs
                         {
                             var e = st.Events[i];
                             if (e.Kind == EventKind.CallIn && e.Rounds == Inbound.Jet) { strikes++; jets[e.Id] = e.Side; }
+                            if (e.Kind == EventKind.CallIn && e.Rounds == Inbound.Napalm) { forests++; fires.Add(e.Id); forestWill += st.Morale[(int)Side.Us]; }
                             if (e.Kind == EventKind.Shell && e.Rounds == Inbound.Jet)
                             {
                                 bombAt = i; bomber = e.Side;
@@ -972,19 +975,24 @@ namespace LanesOfVietnam.SimCs
                             {
                                 if (st.Men[e.Id].Side == bomber) bombOwn++; else bombKilled++;
                             }
+                            if (e.Kind == EventKind.Burned && e.Id < st.Men.Count && e.Target is int fa && fires.Contains(fa)) { forestBurned++; continue; }
                             if (e.Kind == EventKind.Burned && e.Id < st.Men.Count)
                             {
                                 if (st.Men[e.Id].Side == e.Side) burnedOwn++; else burned++;
                             }
+                            if (e.Kind == EventKind.Wrecked && fires.Count > 0 && st.Areas.Any(ar => ar.Kind == AreaKind.Firestorm && fires.Contains(ar.Id))) { forestWrecked++; continue; }
                             if (e.Kind == EventKind.Wrecked) wrecked++;
                             if (e.Kind == EventKind.Collapsed && bombAt >= 0) towers++;
                             if (e.Kind == EventKind.BridgeFell && bombAt >= 0) bridges++;
                         }
+                        if (st.Over && fires.Count > 0 && st.Winner == Side.Us) forestWon++;
                         foreach (var sq in st.Squads)
                             if (sq.Halted && st.Areas.Any(ar => ar.Kind == AreaKind.Napalm && Math.Abs(Tune.Lanes[sq.Lane] - ar.Z) < Tune.NapalmWide && Math.Abs(sq.AnchorX - ar.X) <= ar.Radius + Tune.NapalmShort + 0.01 && Math.Abs(sq.AnchorX - ar.X) >= ar.Radius)) held += Tune.Dt;
                     }
                 }
                 double n = seeds;
+                if (forests > 0)
+                    Console.WriteLine($"  {sc.Id}: napalm on the forest in {forests} of {seeds} matches (the Americans' will {forestWill / forests:F2} as they called it): burned {forestBurned / forests:F1} a time, positions burned out {forestWrecked / forests:F1}; the Americans won {forestWon} of those");
                 Console.WriteLine($"  {sc.Id}, {seeds} matches against a Veteran, nobody playing: air strikes {strikes / n:F2} a match");
                 if (strikes == 0) continue;
                 Console.WriteLine($"    a strike: the enemy on its line {inside / strikes:F1}; killed by its bombs {bombKilled / strikes:F1} (its own {bombOwn / strikes:F1}), burned {burned / strikes:F1} (its own {burnedOwn / strikes:F1}); positions wrecked {wrecked / strikes:F1}; towers down {towers / strikes:F2}, bridges {bridges / strikes:F2}; squad-seconds held short of the fire {held / strikes:F1}");

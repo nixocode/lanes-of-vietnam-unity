@@ -51,6 +51,10 @@ namespace LanesOfVietnam.Sim
             // of 192 in the firebase (as US, as VC), 155 in The Wire and First Light, 144 in The Earth Fights; at 6 CP
             // the last two were 157 and 159, the top of the band (simcs scenario 192 level=veteran, PLAN §12.47).
             new Card { Id = "us-frag", Group = CardGroup.Call, Name = "GRENADES", Cost = 10, Pips = 0, Cooldown = S * 6 },
+            // Appended (2026-10-17, the owner: "Add the napalm to the plan which burns the forest and changes the map. Add this
+            // as a last resort if US is losing"): in the deck with MatchOptions.Strike on a map with a forest, offered only
+            // while the Americans are losing, once a match (Strike.LastResort).
+            new Card { Id = "us-napalm", Group = CardGroup.Call, Name = "NAPALM", Cost = Tune.ForestCost, Pips = 0, Cooldown = Tune.MaxTicks },
         });
 
         public static readonly Card[] Vc = Index(new[]
@@ -117,6 +121,8 @@ namespace LanesOfVietnam.Sim
         {
             if (st.Over) return "match over";
             if (!Has(st, side, card)) return "not in this operation";
+            // Strike: the napalm on the forest is a last resort.
+            if (card.Id == "us-napalm" && !Strike.LastResort(st)) return "last resort";
             if (st.Cp[(int)side] < CostOf(st, card)) return "not enough CP";
             if (CooldownLeft(st, side, card) > 0) return "cooling down";
             if (card.Pips > 0 && Match.AliveCount(st, side) >= Tune.ForceCap) return "force cap";
@@ -135,6 +141,8 @@ namespace LanesOfVietnam.Sim
         public static bool Buy(SimState st, Side side, Card card, int lane, Rng rng, double aimX = 0, int post = -1)
         {
             if (Blocked(st, side, card) != null) return false;
+            // Strike: napalm on the forest is laid on a forest, and nowhere else (nothing is spent on it elsewhere).
+            if (card.Id == "us-napalm" && Strike.ForestAt(st, aimX, Tune.Lanes[lane % Tune.Lanes.Length]) == null) return false;
             // FragCard: thrown by the squad nearest the place, if anyone there can reach it; if nobody can, nothing is spent.
             if (card == Grenades(side))
             {
@@ -173,6 +181,10 @@ namespace LanesOfVietnam.Sim
                     return true;
                 case "us-airstrike":
                     Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = st.Inbound ? Tune.StickBombs * Tune.StickGap : S * 4, Next = 1, Power = 0.62, Call = Inbound.Jet });
+                    return true;
+                // Strike: napalm on the forest, across the whole of it there, by the jet.
+                case "us-napalm":
+                    Push(st, side, new Area { Kind = AreaKind.Firestorm, X = aimX, Z = z, Radius = Tune.ForestRun * 0.5, Ticks = Tune.ForestTicks, Next = 1, Power = Tune.ForestKill, Call = Inbound.Napalm });
                     return true;
                 case "us-smoke":
                     Push(st, side, new Area { Kind = AreaKind.Smoke, X = aimX, Z = z, Radius = 14, Ticks = S * 22, Next = 0, Power = 0, Call = Inbound.SmokeShells });

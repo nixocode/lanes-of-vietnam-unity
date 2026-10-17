@@ -476,6 +476,12 @@ namespace LanesOfVietnam.View
                             if (away != null) Out.Play(away, x, z, 1f, 1f, 0f, true, lands + CombatView.DustoffDown - 0.3f);
                         }
                         // The jet: its recording is loudest three seconds in, and that is when it is over the target.
+                        // (Strike: the jet with the forest's napalm, as loud, over it as the forest catches.)
+                        else if (e.Rounds == Inbound.Napalm)
+                        {
+                            string jet = Pick("jet");
+                            if (jet != null) Out.Play(jet, (float)e.X.Value, (float)e.Z.Value, 1f, Range(0.92f, 0.98f), 0f, true, Mathf.Max(0f, lands - 3f));
+                        }
                         else if (e.Rounds == Inbound.Jet)
                         {
                             string jet = Pick("jet");
@@ -526,7 +532,14 @@ namespace LanesOfVietnam.View
                         if (e.X != null)
                         {
                             float nx = (float)e.X.Value, nz = (float)e.Z.Value;
-                            float burns = (float)(Tune.NapalmTicks * Tune.Dt);
+                            // (The forest's burns longer: its fire twice over, and louder, the whole wood going up.)
+                            bool forest = e.Rounds == Inbound.Napalm;
+                            float burns = (float)((forest ? Tune.ForestTicks : Tune.NapalmTicks) * Tune.Dt);
+                            if (forest)
+                            {
+                                string more = Pick("fire");
+                                if (more != null) Out.Play(more, nx, nz + 6f, 2.8f, 0.92f, 0f, false, 11.5f);
+                            }
                             Play(Pick("napalm_run"), nx, nz, 0.75f, Range(0.95f, 1.05f), false);
                             string catches = Pick("napalm"), fire = Pick("fire"), embers = Pick("embers");
                             if (catches != null) Out.Play(catches, nx, nz, 0.85f, Range(0.9f, 1.0f), 0f, false, 0.25f);

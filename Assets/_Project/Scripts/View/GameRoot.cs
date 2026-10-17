@@ -92,6 +92,8 @@ namespace LanesOfVietnam.View
                     var card = Deck.For(side).FirstOrDefault(c => c.Id == call.card);
                     // (A capture's call is to be looked at, not earned: it is paid for.)
                     if (card != null && Driver.State.Cp[(int)side] < Deck.CostOf(Driver.State, card)) Driver.State.Cp[(int)side] = Deck.CostOf(Driver.State, card);
+                    // (Nor is a last resort: for NAPALM on the forest the Americans are made to be losing.)
+                    if (card != null && card.Id == "us-napalm") Driver.State.Morale[(int)Side.Us] = Math.Min(Driver.State.Morale[(int)Side.Us], Tune.LastResortWill - 0.01);
                     string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
                     Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
                     double callX = call.x;

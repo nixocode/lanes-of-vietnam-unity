@@ -65,7 +65,12 @@ namespace LanesOfVietnam.Sim
         /// <summary>MatchOptions.Inbound: a medevac on its way; when it is in, it steadies the line and is gone.</summary>
         Relief,
         /// <summary>MatchOptions.Strike: the air strike's napalm, along its stick's line: Radius metres either way along the lane, lit when Next reaches 0.</summary>
-        Napalm }
+        Napalm,
+        /// <summary>
+        /// MatchOptions.Strike: the Americans' last resort, napalm on the forest: Radius metres either way along the lanes of
+        /// X, across the whole of the forest it is in; it burns for its Ticks once it is in.
+        /// </summary>
+        Firestorm }
 
     /// <summary>Why a man did not take a step in a tick (<see cref="Man.Idle"/>).</summary>
     public enum Idle : byte
@@ -601,6 +606,9 @@ namespace LanesOfVietnam.Sim
         public bool Heights;
         /// <summary>Part 2: the air strike is bombs and then napalm, and wrecks what it falls on (MatchOptions.Strike, with Inbound).</summary>
         public bool Strike;
+        /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
+        public List<Forest> Forests = new List<Forest>();
+        public List<Burn> Burnt = new List<Burn>();
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

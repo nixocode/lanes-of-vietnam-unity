@@ -16,6 +16,11 @@
 //            baked normal, x baked occlusion x screen-space AO
 //   through  a leaf turned from the sun still passes some of it
 //
+// Burned (MatchOptions.Strike: the Americans' napalm on the forest, their last resort): under up to four
+// stretches of the map (_LOV_Burns, set by CombatView.Forests) a plant burns, glowing from inside as the fire
+// goes through it, and is left charred: what was leaf is gone (its green clipped away, the bark and the
+// branches left), what is left black, for the rest of the match.
+//
 // Vertex data (Plants.cs): uv0 the atlas texel; uv1.x height above the root
 // as a fraction of the plant (for sway), uv1.y +1 or -1 (mirrored: the image
 // is flipped, so the normal's x is too); colour rgb a per-plant tint, a its
@@ -56,6 +61,47 @@ Shader "LOV/Foliage"
             half _FieldOcclusion;
         CBUFFER_END
 
+        // The forest burned (CombatView.Forests): x0, z0, x1, z1 in the world; x seconds since it caught, y how long it burns.
+        float4 _LOV_Burns[4];
+        float4 _LOV_BurnState[4];
+        float _LOV_BurnCount;
+
+        // How burned a plant is at w: charred (0 untouched, 1 burned out) and burning now (0..1). The edge ragged, and the
+        // fire through each stretch from its ends inward, a few seconds behind the napalm's own.
+        void Burn(float3 w, out half charred, out half burning)
+        {
+            charred = 0; burning = 0;
+            int n = (int)_LOV_BurnCount;
+            [loop] for (int k = 0; k < 4; k++)
+            {
+                if (k >= n) break;
+                float4 r = _LOV_Burns[k];
+                float ragged = 1.6 * sin(w.z * 0.37 + w.x * 0.11) + 1.2 * sin(w.x * 0.53 - w.z * 0.21);
+                float inside = min(min(w.x - r.x, r.z - w.x), min(w.z - r.y, r.w - w.z)) + ragged;
+                if (inside < 0) continue;
+                float since = _LOV_BurnState[k].x - 0.12 * (frac(sin(dot(floor(w.xz * 0.5), float2(12.9898, 78.233))) * 43758.5453)) * 8;
+                float lasts = _LOV_BurnState[k].y;
+                charred = max(charred, saturate(since / (lasts * 0.4)) * saturate(inside / 1.5));
+                burning = max(burning, saturate(since / 1.5) * saturate((lasts + 3 - since) / 6) * saturate(inside / 1.5));
+            }
+        }
+
+        // What of a burned plant is left: its leaves (the green of it, dark or light) gone with the fire, its bark and its
+        // branches (brown and grey: as red as they are green) not.
+        half Leafy(half3 albedo) { return saturate((albedo.g - 0.92 * albedo.r) * 14) * saturate((albedo.g - albedo.b) * 10); }
+
+        // The leaves burning away: a pixel's own threshold (fixed noise by where it is in the atlas), so a plant thins and
+        // goes bare as it chars, rather than all at once; at charred 1 every leaf is gone.
+        // (And toward its card's edges it goes first: what was cut straight by the card's edge did not burn with the rest,
+        // and stood as a straight-sided block of black. Grass, with no edges given, burns away whole.)
+        void BurnClip(float2 uv, half3 albedo, half charred, half across)
+        {
+            if (charred <= 0) return;
+            float n = frac(sin(dot(floor(uv * 1024), float2(12.9898, 78.233))) * 43758.5453);
+            half edge = 1 - smoothstep(0.0, 0.22, min(across, 1 - across));
+            clip(0.05 + 0.95 * n - (Leafy(albedo) * 1.25 + edge) * charred);
+        }
+
         // The cutoff, dithered by pixel (interleaved gradient noise, fixed in
         // time): partial coverage becomes a pattern TAA averages into a soft
         // edge, where a hard cutoff flips thin blades on and off with its jitter.
@@ -85,6 +131,7 @@ Shader "LOV/Foliage"
             float4 positionOS : POSITION;
             float2 uv : TEXCOORD0;
             float2 plant : TEXCOORD1;
+            float2 across : TEXCOORD2;
             half4 color : COLOR;
         };
 
@@ -96,6 +143,7 @@ Shader "LOV/Foliage"
             half4 tint : TEXCOORD2;          // rgb tint, a mirror sign
             half fog : TEXCOORD3;
             half height : TEXCOORD4;         // 0 at the root, 1 at the top
+            half across : TEXCOORD5;         // 0 at one edge of the card, 1 at the other (0 on a mesh without it)
         };
 
         Varyings Vert(Attributes i)
@@ -117,6 +165,7 @@ Shader "LOV/Foliage"
             o.uv = i.uv;
             o.tint = half4(i.color.rgb, i.plant.y);
             o.height = h;
+            o.across = i.across.x;
             o.fog = ComputeFogFactor(o.positionCS.z);
             return o;
         }
@@ -161,9 +210,16 @@ Shader "LOV/Foliage"
                 float bias = MipBias(i.positionWS);
                 half4 a = AlbedoAt(i.uv, bias);
                 clip(a.a - Cutoff(i.positionCS));
+                half charred, burning;
+                Burn(i.positionWS, charred, burning);
+                // (Burned: the leaves gone, a little at a time and then all of them.)
+                BurnClip(i.uv, a.rgb, charred, i.across);
                 half4 nt = SurfaceAt(i.uv, bias);
                 float3 n = SurfaceNormal(i, nt);
                 half3 albedo = a.rgb * i.tint.rgb;
+                // Charred: black, but still its own light and dark (one even colour showed where its card's edges cut it).
+                half lum = dot(a.rgb, half3(0.3, 0.55, 0.15));
+                albedo = lerp(albedo, half3(0.03, 0.027, 0.024) + lum * half3(0.16, 0.14, 0.12), charred);
 
                 // The three-argument form applies the sun's cookie: the clouds' shadows (CloudShadows).
                 Light sun = GetMainLight(TransformWorldToShadowCoord(i.positionWS), i.positionWS, half4(1, 1, 1, 1));
@@ -180,6 +236,11 @@ Shader "LOV/Foliage"
                 // its neighbours let the sun reach it (the occlusion stands in).
                 half through = saturate(-dot(n, sun.direction)) * _Translucency * nt.b * sun.shadowAttenuation;
                 half3 c = albedo * (direct + sky + sun.color * through);
+                // Burning: the fire in it, from below, each plant flickering in its own time (by where it stands, in cells
+                // two metres across: by the pixel's own place it drew stripes).
+                float cell = frac(sin(dot(floor(i.positionWS.xz * 0.5), float2(12.9898, 78.233))) * 43758.5453);
+                half flick = 0.65 + 0.35 * sin(_LovTime * (6 + 4 * cell) + cell * 6.2832);
+                c += half3(0.75, 0.26, 0.05) * burning * flick * (1.0 - 0.75 * i.height) * (0.15 + 1.8 * lum * lum);
                 c = MixFog(c, i.fog);
                 return half4(c, 1);
             }
@@ -206,7 +267,11 @@ Shader "LOV/Foliage"
             }
             half4 ShadowFrag(Varyings i) : SV_Target
             {
-                clip(AlbedoAt(i.uv, MipBias(i.positionWS)).a - _Cutoff);
+                half4 a = AlbedoAt(i.uv, MipBias(i.positionWS));
+                clip(a.a - _Cutoff);
+                half charred, burning;
+                Burn(i.positionWS, charred, burning);
+                BurnClip(i.uv, a.rgb, charred, i.across);
                 return 0;
             }
             ENDHLSL
@@ -223,7 +288,11 @@ Shader "LOV/Foliage"
             #pragma fragment DepthFrag
             half DepthFrag(Varyings i) : SV_Target
             {
-                clip(AlbedoAt(i.uv, MipBias(i.positionWS)).a - Cutoff(i.positionCS));
+                half4 a = AlbedoAt(i.uv, MipBias(i.positionWS));
+                clip(a.a - Cutoff(i.positionCS));
+                half charred, burning;
+                Burn(i.positionWS, charred, burning);
+                BurnClip(i.uv, a.rgb, charred, i.across);
                 return i.positionCS.z;
             }
             ENDHLSL
@@ -241,7 +310,11 @@ Shader "LOV/Foliage"
             half4 NormalsFrag(Varyings i) : SV_Target
             {
                 float bias = MipBias(i.positionWS);
-                clip(AlbedoAt(i.uv, bias).a - Cutoff(i.positionCS));
+                half4 a = AlbedoAt(i.uv, bias);
+                clip(a.a - Cutoff(i.positionCS));
+                half charred, burning;
+                Burn(i.positionWS, charred, burning);
+                BurnClip(i.uv, a.rgb, charred, i.across);
                 return LOV_DepthNormalsOutput(SurfaceNormal(i, SurfaceAt(i.uv, bias)));
             }
             ENDHLSL

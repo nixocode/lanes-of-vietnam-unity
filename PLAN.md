@@ -5493,6 +5493,50 @@ as the US's last resort, Rice Fields' third lane, the AI, the soldiers', gore's 
 - New files: `Assets/_Project/Scripts/Sim/Strike.cs`, `Assets/_Project/Tests/PlayMode/StrikeTests.cs` (their `.meta`
   made by Unity, committed).
 
+### 12.62 W1b: napalm on the forest, the Americans' last resort (2026-10-17)
+
+The owner, 2026-10-17: "Add the napalm to the plan which burns the forest and changes the map. Add this as a last
+resort if US is losing" (added to the plan as W1b, built after W1).
+
+- **The forest as data** (`MapDef.Forests`; Rice Fields' VC forest west of the river, x -45 to -14 across both lanes; the
+  firebase none: its jungle stands behind the lanes, where nobody fights) and what of it has burned (`SimState.Burnt`,
+  hashed with the rule).
+- **The card, NAPALM** (`us-napalm`, appended to the Americans' deck; with `MatchOptions.Strike` on a map with a forest,
+  hidden from the HUD where it is not, on the call key Y). 60 points, once a match. Offered only while they are losing
+  (`Strike.LastResort`): in the fight, their will under a third, or under seven tenths with the VC ahead in every lane by
+  three tenths of the field (ahead in every lane alone it was theirs in the opening of most matches). The HUD shows it
+  greyed, "LAST RESORT", until then, and "USED" after. Laid on the forest and nowhere else (no points spent elsewhere).
+- **What it does** (`AreaKind.Firestorm`, appended; the jet, `Inbound.Napalm`, comes in 5 s after the call): the forest
+  catches 15 m either way of the aim, the whole of its depth, and burns 25 s; the positions in it are burned out
+  (wrecked, as a bomb's); a man in it burns at 0.03 a tick, and **runs from it** (nothing holds him: not his turn, not
+  getting up, not his place; at a run: until then a man in fire was pinned flat by it and lay in it and burned, the
+  strike's napalm too); squads hold short of it; and for the rest of the match the ground it burned hides nobody: a man
+  on it is seen from 1.6 times as far (`Senses.Sight`, and the baseline's spotting).
+- **The computer** saves for it when it is losing and knows of three of the enemy or more in the forest within the run,
+  short of men or not (`Captain.Saving`), and plays it on them (`Strike.ForestCrowd`).
+- **Measured** (`simcs strikes 48 rice-fields`): the computer called it in 24 of 48 matches, at a will of 0.21 on
+  average; it burned 9.8 men a time and burned out 6 positions; the Americans won 19 of those 24. Who it catches
+  (`a throwaway probe`, 24 matches at 0.015 a tick): 18.9 of the VC in the forest as it catches, 44% of them burned, 17%
+  alive when it went out (the rest killed otherwise as they ran). The rate barely moves the comeback (17, 19 and 20 of 24
+  at 0.015, 0.03 and 0.06): it is the forest being where the VC mass. So it is a near-sure comeback for the computer; with
+  a player against it (`simcs scenario 192`, Veteran) Rice Fields is still in the band, 129 of 192 as the US and 126 as
+  the VC (122 before); the other four unchanged (122, 140, 124, 128, 155). For the owner to say if a last resort should be
+  this strong: its dials are `Tune.ForestKill`, `ForestRun`, `LastResortWill` and the cost.
+- **Seen** (`CombatView.Forests`, `LOV/Foliage`, ground marks): the jet coming in (no bombs); the fire catching along the
+  run in a second and a half, a flame every three metres along and six across the forest, at its height for 25 s and
+  dying over four; black smoke out of one place in three rising 28 m and leaning off downwind for half a minute; the
+  trees burning by their own shader (`_LOV_Burns`, up to four stretches): glowing from inside as the fire goes through,
+  then charred, their leaves burning away pixel by pixel (green clipped, bark kept, from the edges of each card first: a
+  canopy cut straight by its card stood as a straight-sided block of black), the grass burned away whole; the ground black
+  through the forest. Captured: `captures/forest/a.*`, `b.*`, `c.*` (each match ended within twenty seconds of it, the VC's
+  will broken: the burned forest's later look is not captured yet). At 170 flames as bright as a flash it was one white
+  wall, and the wisps' tiles stood as hard-edged columns: both found in the captures and corrected.
+- **Heard**: the jet over it; the fire catching and burning, its fire twice over, louder (the recordings of §12.61).
+- **Tests**: EditMode 131 (new `Napalm_on_the_forest_is_a_last_resort_and_the_forest_stays_burned`; the deck tests know
+  the card is the rule's). PlayMode 47 and the capture's skip (new `StrikeTests.Napalm_on_the_forest_burns_it_and_it_stays
+  _burned`; the UI audit skips a card the match has not got and checks it is not shown). Every flag line unmoved; `simcs
+  mirror 24` a mirror. Pins: First Light's seed 3 and Rice Fields moved (men running from fire): CLAUDE.md.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.
