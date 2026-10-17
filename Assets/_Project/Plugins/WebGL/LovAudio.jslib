@@ -29,7 +29,7 @@ mergeInto(LibraryManager.library, {
     var A = window.LovAudio = {
       ctx: new (window.AudioContext || window.webkitAudioContext)(),
       buffers: {}, voices: 0, maxVoices: 48,
-      listenerX: 0, listenerZ: 44, ambience: null, ambienceGain: null,
+      listenerX: 0, listenerZ: 44, beds: {},
       SPEED: 343, REF: 40, NEAR: 60, ABSORB: 120, MAX: 900
     };
     var ctx = A.ctx;
@@ -158,16 +158,19 @@ mergeInto(LibraryManager.library, {
     }
   },
 
+  // A bed, looped under everything, by name: the jungle's, and a river's on a map with one. Started the first time
+  // it is asked for at a level above nothing, and from then on only turned up and down.
   LovAudio_Ambience: function (namePtr, level) {
     var A = window.LovAudio; if (!A || A.ctx.state !== 'running') return;
-    var name = UTF8ToString(namePtr);
-    if (!A.ambience && A.buffers[name]) {
+    var name = UTF8ToString(namePtr), beds = A.beds || (A.beds = {}), b = beds[name];
+    level = Math.max(0, Math.min(1, level));
+    if (!b && A.buffers[name] && level > 0) {
       var src = A.ctx.createBufferSource(); src.buffer = A.buffers[name]; src.loop = true;
-      A.ambienceGain = A.ctx.createGain(); A.ambienceGain.gain.value = 0;
-      src.connect(A.ambienceGain); A.ambienceGain.connect(A.bed); src.start();
-      A.ambience = src;
+      var g = A.ctx.createGain(); g.gain.value = 0;
+      src.connect(g); g.connect(A.bed); src.start();
+      b = beds[name] = { src: src, gain: g };
     }
-    if (A.ambienceGain) A.ambienceGain.gain.setTargetAtTime(Math.max(0, Math.min(1, level)), A.ctx.currentTime, 0.6);
+    if (b) b.gain.gain.setTargetAtTime(level, A.ctx.currentTime, 0.6);
   },
 
   // The music: one piece at a time, streamed through an <audio> element into its own gain. Not a decoded

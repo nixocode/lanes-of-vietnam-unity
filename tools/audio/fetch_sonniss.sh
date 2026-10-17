@@ -26,10 +26,19 @@ fetch "Pole Position - The Warfare Library" "warfare_t3_mg_whizzes_ricochets_bul
 # The watchtower's timbers settling (PLAN §12.52).
 fetch "Double Trouble Audio - Wood Impacts and Debris" "Rustles - Pile, Debris 22.wav" a94061d20e34f290e98ad298b9aaae1e6caa8441ec8dae0c0c7a9738e3d164aa
 fetch "Double Trouble Audio - Wood Impacts and Debris" "Impacts Hard - Short Wobbly Tail 01.wav" 5213783d0628f1d9359e7b6e5e528c1e3ea3938904ab6edef38dedb3bfbb88bb
+# Rice Fields' river (PLAN §12.60): a man splashing in the shallows and things going into the water.
+fetch "West Wolf - WATER" "W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav" aec32c1c12cf2d1d774bce66ac3f756d8519f563b1b1d5c3fd7d3c3b1491041b
 
 Y=2016   # the Browning .30 cal, in service in Vietnam with the ARVN and early US units
 fetch "Pole Position Production - M1919A4 Browning Machine Gun .30cal" "M1919A4_Browning_Machine_Gun_.30cal_5m_behind_ORTF_blanks_Triple_shots_x_1.wav" 35e04fb9302cca6be1a21014588b2eabcc9ff9d9f3d2e552399dd4369295d5c2
 fetch "Pole Position Production - M1919A4 Browning Machine Gun .30cal" "M1919A4_Browning_Machine_Gun_.30cal_200m_left_behind_blanks_Triple_shots_x_1.wav" 01ecc109521c4203e3807174bfe7a9bdf83b7d5f2885feac90963da0c0af11e4
+
+Y=2018   # (the licence read 2026-10-17: the same terms as the other years')
+# Rice Fields' river and paddies (PLAN §12.60): the river running, its banks lapping, rounds into it, men in mud.
+fetch "Soundrangers - Hydrology Streams, Rivers And Lakes" "stream_08_60_loop.wav" a4e1d89a9354a6f90e18b77d80b3e8bcebea20732fbe4337f9fcde704b901754
+fetch "Soundrangers - Hydrology Streams, Rivers And Lakes" "lake_waves_lapping_gentle_02_60_loop.wav" d59050075d092c82cc3d2c654d4449d7b1279b8b0c869975551ccdec2fdaac7e
+fetch "Soundrangers - Hydrology Bubbles and Splashes" "fish_small_jump_04.wav" cbbcbf5c298e4a9f92116688e25e93efd7ff2be3baee4768d9aa674d7837d1f7
+fetch "Soundrangers - Hydrology Bubbles and Splashes" "mud_splat_heavy_03.wav" 79ada9772c260ec9bcb27334e953d0d4d99470e2e5484da9428d9aec3f676053
 
 Y=2019
 fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C1,105 mm,Distant,Right Side,Shot,Pound,Thick.wav" 21d5791d1b147ed68ba1223035499dfd9be1381a0da391c53235fd1ddf8584f6

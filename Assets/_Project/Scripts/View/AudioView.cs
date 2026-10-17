@@ -19,6 +19,7 @@ namespace LanesOfVietnam.View
         void Stop(string name, float delay, float fade);
         void Listener(float x, float z);
         void Volume(float master, float effects, float ambience);
+        /// <summary>A bed under everything, looped, at this level (one a name: the jungle's, and a river's where there is one).</summary>
         void Ambience(string name, float level);
         /// <summary>The music: the piece at this address, at this level (0 stops it). One piece at a time.</summary>
         void Music(string url, float level);
@@ -65,6 +66,8 @@ namespace LanesOfVietnam.View
         /// <summary>What was asked for, in order; <c>delay</c> is the seconds after the asking that it was to sound (the rounds of a burst).</summary>
         public readonly List<(string name, float x, float z, float gain, bool immediate, float delay)> Played = new List<(string, float, float, float, bool, float)>();
         public float ListenerX, ListenerZ, AmbienceLevel, MusicLevel;
+        /// <summary>Each bed's level, by its name ("ambience" is also <see cref="AmbienceLevel"/>).</summary>
+        public readonly Dictionary<string, float> Beds = new Dictionary<string, float>();
         public string MusicUrl;
         public void Load(string name, string url) { }
         public bool Loaded(string name) => true;
@@ -78,7 +81,11 @@ namespace LanesOfVietnam.View
         public void Stop(string name, float delay, float fade) => Stopped.Add((name, delay));
         public void Listener(float x, float z) { ListenerX = x; ListenerZ = z; }
         public void Volume(float master, float effects, float ambience) { }
-        public void Ambience(string name, float level) => AmbienceLevel = level;
+        public void Ambience(string name, float level)
+        {
+            Beds[name] = level;
+            if (name == "ambience") AmbienceLevel = level;
+        }
         public void Music(string url, float level) { MusicUrl = url; MusicLevel = level; }
     }
 
@@ -261,6 +268,8 @@ namespace LanesOfVietnam.View
         {
             _cursor = 0; _lastTick = -1; _intensity = 0; Played = Rationed = 0;
             _later.Clear(); _salvoTick = _salvoArea = -1; _radioed = false; _calledTick = -100000;
+            _splashSeen = _root != null && _root.River != null ? _root.River.SplashesMade : 0;
+            _lastStrokeAt = -1; Array.Clear(_worked, 0, _worked.Length); Array.Clear(_knockAt, 0, _knockAt.Length);
         }
 
         /// <summary>One recording of a set, at random; null if there is no such set.</summary>
@@ -344,7 +353,10 @@ namespace LanesOfVietnam.View
                             // Mostly into the dirt; now and then off something hard, whining away.
                             bool ricochet = _rng.NextDouble() < 0.3;
                             // (Gunnery: where the round came down, which the event carries.)
-                            Play(Pick(ricochet ? "crack" : "dirt"), e.X ?? t.X + Range(-3, 3), e.Z ?? t.Z + Range(-2, 2), ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
+                            double mx = e.X ?? t.X + Range(-3, 3), mz = e.Z ?? t.Z + Range(-2, 2);
+                            // Into the water (Rice Fields): a plop, small and high, and nothing whines off it.
+                            if (RiverView.Depth(_root.Ground, mx, mz) > 0.03) Play(Pick("splash"), mx, mz, 0.9f, Range(1.5f, 1.9f), false);
+                            else Play(Pick(ricochet ? "crack" : "dirt"), mx, mz, ricochet ? 0.55f : 0.6f, Range(0.85f, 1.15f), false);
                         }
                         break;
                     case EventKind.Launch:
@@ -370,7 +382,9 @@ namespace LanesOfVietnam.View
                             var k = st.Men[e.Id];
                             float kd = Dist(k.X, k.Z, lx, lz);
                             if (kd < 160) Play(Pick("thump"), k.X, k.Z, 0.8f, Range(0.92f, 1.08f), false);
-                            if (kd < 110) _later.Add((Time.unscaledTime + Range(0.45f, 0.7f), Pick("bodyfall"), (float)k.X, (float)k.Z, 0.7f));
+                            // (Where there is water, he goes down into it: the splash is heard from its own record, below.)
+                            if (kd < 110 && RiverView.Depth(_root.Ground, k.X, k.Z) < 0.1)
+                                _later.Add((Time.unscaledTime + Range(0.45f, 0.7f), Pick("bodyfall"), (float)k.X, (float)k.Z, 0.7f));
                         }
                         break;
                     case EventKind.Pinned:
@@ -475,6 +489,21 @@ namespace LanesOfVietnam.View
                                 foreach (var r in rotors) Out.Stop(r, down, 0.4f);
                         break;
                     }
+                    // Water: the bridge hit (its timber split), going (its timbers breaking; its halves are heard striking
+                    // the water from the splashes' record), and put back (planks thrown down across it).
+                    case EventKind.BridgeHit:
+                        if (e.X != null) Play(Pick("timber_knock"), e.X.Value, e.Z.Value, 0.75f, Range(1.05f, 1.2f), false);
+                        break;
+                    case EventKind.BridgeFell:
+                        if (e.X != null)
+                        {
+                            Play(Pick("timber_snap"), e.X.Value, e.Z.Value, 1f, Range(0.8f, 0.9f), false);
+                            Play(Pick("timber_creak"), e.X.Value, e.Z.Value, 0.8f, Range(0.85f, 0.95f), false);
+                        }
+                        break;
+                    case EventKind.BridgeRebuilt:
+                        if (e.X != null) Play(Pick("timber_pile"), e.X.Value, e.Z.Value, 0.8f, Range(1.0f, 1.1f), false);
+                        break;
                     case EventKind.FirstContact:
                         if (!_radioed && _root.PlayerSide == Side.Us)
                         {
@@ -493,9 +522,20 @@ namespace LanesOfVietnam.View
                 Play(l.clip, l.x, l.z, l.gain, Range(0.93f, 1.07f), false);
             }
 
+            if (_root.River != null && _root.River.Wet) Water(st, lx, lz);
+
             // The bed gets out of the way while the shooting is heavy.
             _intensity += (Mathf.Min(1, fired / 8f) - _intensity) * 0.25f;
             Out.Ambience("ambience", 0.22f * (1 - 0.75f * _intensity));
+            // And the river's, where there is one: louder as the lens comes to it, and under the fight as the jungle's is.
+            if (_root.River != null && _root.River.Wet && !double.IsNaN(_root.Ground.Params.RiverX0))
+            {
+                var (r0, r1) = _root.Ground.RiverAt(0);
+                float away = Mathf.Abs(lx - (float)(r0 + r1) * 0.5f);
+                Out.Ambience("river", RiverBed * Mathf.Clamp01(1.2f - away / 60f) * (1 - 0.6f * _intensity));
+            }
+            else if (_riverOn) Out.Ambience("river", 0f);
+            _riverOn = _root.River != null && _root.River.Wet;
 
             if (shots.Count == 0) return;
             float now = Time.unscaledTime;
@@ -531,6 +571,67 @@ namespace LanesOfVietnam.View
                 // Pitch varies per shot: identical impulses at 20 Hz comb against
                 // each other and read as a machine, not twenty men with rifles.
                 if (Out.Play(clip, (float)m.X, (float)m.Z, 0.9f, Range(0.94f, 1.06f), d > 140 ? 0.5f : 0f, false)) { Played++; Reports++; }
+            }
+        }
+
+        /// <summary>
+        /// How loud the river runs (its bed, at the lens's nearest), against the jungle's 0.22. The gains of the water's
+        /// sounds are measured (their loudest 300 ms, decoded): a splash going in is 5 dB over a body falling on earth and
+        /// the mud 7 dB over it, so each is played that much lower than the earth's sound it stands beside.
+        /// </summary>
+        public const float RiverBed = 0.18f;
+        private bool _riverOn;
+        private int _splashSeen;
+        private float _lastStrokeAt = -1;
+        /// <summary>By bridge: how far its putting back had got when last heard, and when its next knock is.</summary>
+        private readonly int[] _worked = new int[8];
+        private readonly float[] _knockAt = new float[8];
+
+        /// <summary>
+        /// What goes into the water (RiverView.Splashes), heard (Rice Fields R5; the recordings in ASSETS.md): a man going
+        /// into the river, a splash (a body falling in, heavier and lower); a man wading through it, small ones, a few a
+        /// second at most; a man climbing out onto the bank, or a body into a paddy's hand of water, the mud of it; the bridge's
+        /// halves striking the river, deep and slow. And the bridge being put back: its builders' knocks, while they work.
+        /// </summary>
+        private void Water(SimState st, float lx, float lz)
+        {
+            var list = _root.River.Splashes;
+            float now = Time.unscaledTime;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var sp = list[i];
+                if (sp.N <= _splashSeen) continue;
+                _splashSeen = sp.N;
+                float d = Dist(sp.X, sp.Z, lx, lz);
+                switch (sp.Kind)
+                {
+                    case RiverView.Into.Wading:
+                        if (d < 130) Play(Pick("plunge"), sp.X, sp.Z, 0.4f * Mathf.Min(1.3f, sp.Size), Range(1.0f, 1.12f) / Mathf.Sqrt(sp.Size), false);
+                        break;
+                    case RiverView.Into.Stroke:
+                        if (d < 80 && now - _lastStrokeAt > 0.22f) { _lastStrokeAt = now; Play(Pick("splash"), sp.X, sp.Z, 0.32f, Range(0.75f, 0.95f), false); }
+                        break;
+                    case RiverView.Into.Out:
+                        if (d < 90) Play(Pick("mud"), sp.X, sp.Z, 0.25f, Range(0.95f, 1.15f), false);
+                        break;
+                    case RiverView.Into.Body:
+                        if (d < 120) Play(sp.Deep ? Pick("plunge") : Pick("mud"), sp.X, sp.Z, (sp.Deep ? 0.45f : 0.35f) * sp.Size, Range(0.82f, 0.92f), false);
+                        break;
+                    case RiverView.Into.Timber:
+                        Play(Pick("plunge"), sp.X, sp.Z, Mathf.Min(0.85f, 0.4f * sp.Size), Range(0.55f, 0.68f), false);
+                        break;
+                }
+            }
+            // The knocks of the bridge being put back, now and then, while its builders work at it (not while they are pinned).
+            for (int i = 0; i < st.Bridges.Count && i < _worked.Length; i++)
+            {
+                var b = st.Bridges[i];
+                bool working = b.Fallen && b.Work > _worked[i];
+                _worked[i] = b.Fallen ? b.Work : 0;
+                if (!working || now < _knockAt[i]) continue;
+                _knockAt[i] = now + Range(0.5f, 1.3f);
+                double end = Combat.Advance(st, b.Builder >= 0 && b.Builder < st.Squads.Count ? st.Squads[b.Builder].Side : Side.Us) > 0 ? b.X0 : b.X1;
+                Play(Pick("timber_knock"), end, Tune.Lanes[b.Lane] + Range(-1, 1), 0.45f, Range(1.2f, 1.45f), false);
             }
         }
 
@@ -577,6 +678,12 @@ namespace LanesOfVietnam.View
             if (e.X == null) return;
             string clip = Pick(set);
             if (clip != null) Out.Play(clip, (float)e.X.Value, (float)e.Z.Value, gain, Range(0.95f, 1.05f), 0f, false);
+            // In the water (Rice Fields): what it threw up coming down again, a moment after.
+            if (RiverView.Depth(_root.Ground, e.X.Value, e.Z.Value) > 0.12)
+            {
+                string falls = Pick("plunge");
+                if (falls != null) Out.Play(falls, (float)e.X.Value, (float)e.Z.Value, gain, Range(0.5f, 0.6f), 0f, false, 0.55f);
+            }
         }
 
         private static float Dist(double x, double z, float lx, float lz)

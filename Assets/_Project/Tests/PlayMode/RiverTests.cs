@@ -155,9 +155,10 @@ namespace LanesOfVietnam.Tests
             root.Paused = true;
             for (int i = 0; i < 4; i++) { root.AdvanceForCapture(0.05f); yield return null; }
             Assert.AreEqual(0, root.River.StainCount, "the river is stained with nobody dead in it");
-            // Three men of the far lane killed in its ford, close together; one killed on dry ground.
-            var far = st.Men.Where(m => m.Alive && st.Squads[m.Squad].Lane == Map.Far && m.High <= 0).Take(4).ToList();
-            Assume.That(far.Count, Is.EqualTo(4), "not four men in the far lane to kill");
+            // Three men killed in the far lane's ford, close together; one killed on dry ground. (Any four: where a man lies
+            // is what stains the water, not which lane he was fighting in.)
+            var far = st.Men.Where(m => m.Alive && m.High <= 0 && m.Climb == 0).Take(4).ToList();
+            Assume.That(far.Count, Is.EqualTo(4), "not four men to kill");
             for (int k = 0; k < 3; k++) { far[k].X = -3 + 0.6 * k; far[k].Z = Tune.Lanes[Map.Far]; Combat.Kill(st, far[k]); far[k].DiedAt = st.Tick; }
             // (On the base's step, which is dry: a paddy's water would take a stain too.)
             far[3].X = 38; far[3].Z = Tune.Lanes[Map.Far]; Combat.Kill(st, far[3]); far[3].DiedAt = st.Tick;
@@ -190,6 +191,76 @@ namespace LanesOfVietnam.Tests
             // The far end of each half under the water.
             var free = span.TransformPoint(new Vector3((float)(mid - d.X0), 0f, 0f) - Vector3.zero);
             Assert.Less(free.y, (float)g.Params.RiverWater + 0.3f, "its broken end is not in the river");
+        }
+
+        /// <summary>
+        /// What goes into the water is heard and seen (PLAN §12.60): the river running under it all, louder at the river; a
+        /// man going into the river, a splash; a man killed in it, a splash and not a body falling on earth; the bridge's
+        /// halves striking it; a round into it, a spout of water, not dust under it.
+        /// </summary>
+        [UnityTest, Category("River")]
+        public IEnumerator What_goes_into_the_water_is_heard_and_seen()
+        {
+            yield return LoadRiceFields();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            var g = root.Ground;
+            var audio = Object.FindAnyObjectByType<AudioView>();
+            var rec = audio.Out as RecordingSoundOut;
+            Assume.That(rec, Is.Not.Null, "the sound is not recorded here");
+            root.Paused = true;
+            var (r0, r1) = g.RiverAt(0);
+            root.CameraRig.Focus((float)(r0 + r1) * 0.5f, instant: true);
+            for (int i = 0; i < 6; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.IsTrue(rec.Beds.TryGetValue("river", out float atRiver) && atRiver > 0.1f, $"the river is not heard at the river ({atRiver:F2})");
+            root.CameraRig.Focus(42f, instant: true);
+            for (int i = 0; i < 6; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.Less(rec.Beds["river"], atRiver * 0.5f, "the river is as loud at the base as at its bank");
+            root.CameraRig.Focus((float)(r0 + r1) * 0.5f, instant: true);
+            yield return null;
+
+            // A man of the far lane put into its ford (the far lane has no bridge), and one killed in it. (The match's seed is
+            // the clock's: it is played on until the far lane has two men, if it has not yet.)
+            System.Collections.Generic.List<Man> far = null;
+            for (int i = 0; i < 600; i++)
+            {
+                far = st.Men.Where(m => m.Alive && st.Squads[m.Squad].Lane == Map.Far && m.High <= 0 && m.Climb == 0).Take(2).ToList();
+                if (far.Count == 2) break;
+                root.AdvanceForCapture(0.1f);
+                if (i % 20 == 0) yield return null;
+            }
+            Assume.That(far.Count, Is.EqualTo(2), "not two men in the far lane in a minute");
+            rec.Played.Clear();
+            far[0].X = -3; far[0].Z = Tune.Lanes[Map.Far];
+            Assert.IsTrue(Water.In(st, far[0]), "the man is not in the water");
+            // (Two frames: a test goes on after the frame's Update, and the sound is asked for after it, in LateUpdate.)
+            yield return null;
+            yield return null;
+            Assert.IsTrue(root.River.Splashes.Any(s => s.Kind == RiverView.Into.Wading), "a man going into the river made no splash");
+            Assert.IsTrue(rec.Played.Any(p => p.name.StartsWith("plunge")), "a man going into the river was not heard");
+            far[1].X = -1; far[1].Z = Tune.Lanes[Map.Far];
+            Combat.Kill(st, far[1]); far[1].DiedAt = st.Tick;
+            rec.Played.Clear();
+            for (int i = 0; i < 20; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.IsTrue(root.River.Splashes.Any(s => s.Kind == RiverView.Into.Body), "a man killed in the river made no splash");
+            Assert.IsFalse(rec.Played.Any(p => p.name.StartsWith("bodyfall") && Mathf.Abs(p.x - (float)far[1].X) < 0.5f),
+                           "a man killed in the river was heard falling on earth");
+
+            // A round into it: the shot written as the simulation writes a miss, landing in the river.
+            var combat = Object.FindAnyObjectByType<CombatView>();
+            int frames = 0, seen = 0;
+            var shooter = st.Men.First(m => m.Alive && m.Side == Side.Vc);
+            st.Events.Add(new SimEvent { Kind = EventKind.Fire, Tick = st.Tick, Side = Side.Vc, Id = shooter.Id, Target = far[0].Id, X = -2.5, Z = Tune.Lanes[Map.Far] + 1.5 });
+            for (; frames < 30; frames++) { root.AdvanceForCapture(0.02f); yield return null; seen = Mathf.Max(seen, combat.Splashed); }
+            Assert.Greater(seen, 0, "a round into the river was not seen striking the water");
+
+            // The bridge brought down: its halves striking the river, heard.
+            rec.Played.Clear();
+            Assert.IsTrue(RiverView.Bring(st, 0), "the bridge did not come down");
+            for (int i = 0; i < 30; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.GreaterOrEqual(root.River.Splashes.Count(s => s.Kind == RiverView.Into.Timber), 2, "the bridge's halves made no splash");
+            Assert.IsTrue(rec.Played.Any(p => p.name.StartsWith("timber_snap")), "the bridge was not heard breaking");
+            Assert.GreaterOrEqual(rec.Played.Count(p => p.name.StartsWith("plunge")), 2, "the bridge was not heard striking the water");
         }
     }
 }

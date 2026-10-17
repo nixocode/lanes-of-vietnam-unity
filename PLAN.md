@@ -5391,6 +5391,48 @@ installed; Blender was enough).
 - New files: `tools/blender/lowlands_mesh.py`; `Art/Structures/lowlands.fbx`, `.json`, `lowlands_*.png`, `planks_*.png`;
   `Art/Plants/rice_grass*`.
 
+### 12.60 Rice Fields R5: the water heard and seen (2026-10-17)
+
+The plan's R5: what goes into the river is heard and seen, and the river is heard running. Nothing in the simulation
+changed (every pin in CLAUDE.md is where it was); this is the view and the sound.
+
+- **The recordings** (Sonniss #GameAudioGDC 2017 and 2018, under the approved plan's yes for "a river/stream ambience,
+  splashes, swimming"; the 2018 licence read: the same terms; ASSETS.md; git-ignored, `.meta` files only committed):
+  the river's bed (Soundrangers' stream, a 61 s loop), four splashes cut from West Wolf's take of splashing in the
+  shallows (its four strongest, found by loudness over 50 ms, 10 dB over the take's lapping: `slice_shots.py` "plunge"),
+  a small splash (a fish jumping) and a heavy mud splat. Fetched and checked by `fetch_sonniss.sh` (all 36 hashes OK).
+- **What goes into the water** (`RiverView.Splashes`, new): the view keeps a short record of it, on the match's clock,
+  for the sound and the effects to read: a man going into the river (bigger off a bridge as it goes), a man wading it
+  chest deep (a push through it every second or so), a man climbing out on the far bank, a man killed where there is
+  water (as he goes down, 0.55 s on), and the bridge's halves striking the river (0.85 s after it gives, their free
+  ends and then along them). A match looked at from the middle (a capture) does not splash what had already happened.
+- **Heard** (`AudioView.Water`; the gains set from the clips' loudest 300 ms, decoded: a splash going in is 5 dB over a
+  body falling on earth, the mud 7 dB over it): the river's bed under the jungle's, at 0.18 against its 0.22, louder as
+  the lens comes to the river and gone at the base (the browser's audio now keeps a bed a name, `LovAudio_Ambience`); a
+  splash for a man going in, a body (no body falling on earth for a man killed in the water), the bridge's halves (lower
+  and slower); small splashes for men wading, a few a second at most; the mud for a man climbing out and a body into a
+  paddy; a round into the water near the lens a plop, never a ricochet; a burst in the water what it threw up coming
+  down after it; the bridge hit (its timber split), going (breaking and creaking), its builders' knocks while they work
+  at it, and its planks thrown down when it is put back.
+- **Seen** (`CombatView`): a round into the water (river or paddy) comes down on its surface and throws up a spout,
+  drops and a ring, upright (as dust it leaned like a blade), where it had raised dust a metre down on the river's bed
+  that nobody saw; a burst in the water throws up a column of it, spray and a skirt, not earth, and less smoke; a burst
+  on the bridge goes off on its deck, even the one that brings it down, with its timber thrown off; the splashes of the
+  record above, each with its ring, laid as flat as the lens sees the water. Captured: men crossing under fire
+  (`captures/water/b.*.png`, seed 7 tick 4060, a movie), the bridge brought down (`captures/water/c.*.png`).
+- **Tests**: EditMode 128/128; PlayMode 45, all pass but the capture's skip. New:
+  `RiverTests.What_goes_into_the_water_is_heard_and_seen` (the river louder at the river than at the base; a man put
+  in the river splashes and is heard; a man killed in it splashes and no body is heard falling on earth; a round into
+  it is drawn striking water; the bridge's halves splash and are heard). `The_dead_in_the_river_redden_it` was
+  inconclusive on a match with three men in the far lane: it takes any four now.
+- **Measured**: WebGL 40.12 MB to start, 49.09 in all (48.23 before: the new recordings). Frame time at 2592 x 1370:
+  6.0 ms mean on Rice Fields at seed 3 (4.5 at R4), and 10.7 ms with 95 men at seed 7 after tick 5100; **taken while
+  the game ran in another Chrome tab** (the owner testing it on :8065, a renderer at 44 to 50% of a core), so not a
+  measurement of R5's cost: the effects' own share was 0.12 to 0.48 ms a frame (the probe's "combat view"). To be taken
+  again on a quiet machine (R6).
+- **Left**: men walking the paddies' hand of water make no splash (only the river's fords count as water to the
+  simulation); the clip `lake_waves_lapping_gentle_02_60_loop` is fetched for the paddies if wanted. No new `.cs` files.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

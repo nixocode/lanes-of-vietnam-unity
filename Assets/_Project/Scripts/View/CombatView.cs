@@ -157,6 +157,8 @@ namespace LanesOfVietnam.View
         public int Cases { get; private set; }
         /// <summary>Puffs asked for and not drawn, too faint to see: what a barrage's old smoke costs nothing for now.</summary>
         public int Faint { get; private set; }
+        /// <summary>Things drawn going into the water last frame (Rice Fields): rounds, bursts, and what RiverView kept as splashes.</summary>
+        public int Splashed { get; private set; }
 
         /// <summary>The sheets a puff can be a frame of (fx_smoke.png).</summary>
         private enum Sheet : byte { Dust, Blast, Wisp, Curl, Speck, Brass }
@@ -277,6 +279,8 @@ namespace LanesOfVietnam.View
                     case EventKind.Kill: Blasted(ev, i, (float)age); Bleeding(e, i, (float)age); break;
                     // Destruction: the tower hit, and brought down.
                     case EventKind.Damaged: Splinters(ev, i, (float)age); break;
+                    // Water: the bridge hit.
+                    case EventKind.BridgeHit: Splintered(e, (float)age); break;
                     case EventKind.Collapsed: Collapse(e, (float)age); break;
                 }
             }
@@ -291,6 +295,7 @@ namespace LanesOfVietnam.View
                 _root.CameraRig.Shake((e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / 60f));
             }
             SmokeScreens(st, now);
+            if (_root.River != null && _root.River.Wet) Splashes((float)now);
             DrawWrecks((float)now);
             if (st.Satchel) Breaches(st, now);
             if (_markMesh != null) GroundMarks(st, now);
@@ -321,7 +326,7 @@ namespace LanesOfVietnam.View
                 case EventKind.GrenadeBlast: return 6f;
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
                 case EventKind.CallIn: return CallLife;
-                case EventKind.Damaged: return SplintersFor;
+                case EventKind.Damaged: case EventKind.BridgeHit: return SplintersFor;
                 case EventKind.Collapsed: return 16f;          // (its cloud hangs a dozen seconds after it strikes)
                 default: return -1f;
             }
@@ -396,7 +401,7 @@ namespace LanesOfVietnam.View
                     landed = face + Vector3.up * (cover.Kind == CoverKind.Trench ? 0.12f : 0.3f + 0.55f * (float)Hash(i, 43));
                     surface = cover.Kind == CoverKind.Trench ? Earth : Bags;
                 }
-                else landed = Coords.World(lx, lz, (float)_root.Ground.HeightAt(lx, lz) + 0.05f);
+                else landed = Landing(lx, lz, ref surface);
             }
             // A burst is walked along its own line: each round lands a pace beyond the one before, the last where
             // the simulation says the shot went (or, if it killed, in the man: a belt-fed gun's last two).
@@ -410,6 +415,7 @@ namespace LanesOfVietnam.View
                 int s = i * 16 + r;
                 bool strikes = r >= rounds - inHim;
                 Vector3? at = landed;
+                int surf = strikes || !landed.HasValue ? Earth : surface;
                 if (!strikes && rounds > 1)
                 {
                     // Short of the last by a pace for each round still to come, and a little to one side.
@@ -421,15 +427,77 @@ namespace LanesOfVietnam.View
                     else if (toCome > 0 || hit)
                     {
                         var p = last - flat * (toCome * StitchStep * (0.8f + 0.4f * (float)Hash(s, 44))) + new Vector3(-flat.z, 0, flat.x) * (float)((Hash(s, 45) - 0.5) * 0.5);
-                        at = Coords.World(p.x, -p.z, (float)_root.Ground.HeightAt(p.x, -p.z) + 0.05f);
+                        surf = Earth;
+                        at = Landing(p.x, -p.z, ref surf);
                     }
                 }
-                Round(s, ra, by, b, aim, strikes, at, strikes || !landed.HasValue ? Earth : surface);
+                Round(s, ra, by, b, aim, strikes, at, surf);
                 if (r == rounds - 1 && rounds >= 3) Thread(i, ra, by);
             }
         }
 
-        private const int Earth = 0, Bags = 1;
+        private const int Earth = 0, Bags = 1, Wet = 2;
+
+        /// <summary>
+        /// Where a round comes down at (x, z): on the water, where it stands over the ground there (Rice Fields' river and
+        /// paddies: the surface is <see cref="Wet"/>); on a bridge's deck, or the ground. (On the ground under the water, it
+        /// was drawn as dust a metre down in the river, and nobody saw it.)
+        /// </summary>
+        private Vector3 Landing(double x, double z, ref int surface)
+        {
+            var g = _root.Ground;
+            if (RiverView.Depth(g, x, z) > 0.03) { surface = Wet; return Coords.World(x, z, (float)g.WaterAt(x, z) + 0.02f); }
+            return Coords.World(x, z, (float)g.FootAt(x, z) + 0.05f);
+        }
+
+        /// <summary>The water's surface over (x, z), where it stands deep enough for a burst to throw it up rather than the earth under it; NaN if not.</summary>
+        private double BurstWater(double x, double z)
+            => RiverView.Depth(_root.Ground, x, z) > 0.12 ? _root.Ground.WaterAt(x, z) : double.NaN;
+
+        /// <summary>
+        /// The height of a bridge's deck a burst at (x, z) went off on, if the bridge stood there when it burst (it may be the
+        /// burst that brought it down: the deck goes from under the view's men a frame later); NaN if none.
+        /// </summary>
+        private double OnDeck(double x, double z, int tick)
+        {
+            var g = _root.Ground;
+            var st = _root.Driver.State;
+            for (int i = 0; i < g.Decks.Count; i++)
+            {
+                var d = g.Decks[i];
+                if (x < d.X0 || x > d.X1 || Math.Abs(z - d.Z) > d.Width * 0.5 + 0.5) continue;
+                if (i >= st.Bridges.Count || !st.Bridges[i].Fallen) return d.Y;
+                for (int k = st.Events.Count - 1; k >= 0; k--)
+                {
+                    var e = st.Events[k];
+                    if (e.Kind != EventKind.BridgeFell || e.Id != i) continue;
+                    if (e.Tick >= tick) return d.Y;
+                    break;
+                }
+            }
+            return double.NaN;
+        }
+
+        /// <summary>
+        /// A burst at the bridge (Water): pieces of its timber thrown off the deck, out and up, falling into the river or
+        /// back onto it. (Its burst is drawn from its own event.)
+        /// </summary>
+        private void Splintered(SimEvent e, float age)
+        {
+            var g = _root.Ground;
+            if (e.X == null || e.Z == null || age > SplintersFor || e.Id < 0 || e.Id >= g.Decks.Count) return;
+            var d = g.Decks[e.Id];
+            var at = Coords.World(Math.Max(d.X0, Math.Min(d.X1, e.X.Value)), d.Z, (float)d.Y + 0.2f);
+            int seed = e.Tick * 37 + 11 + (int)(e.X.Value * 7);
+            float f = 1 - age / SplintersFor, water = (float)g.Params.RiverWater;
+            for (int k = 0; k < 14; k++)
+            {
+                float az = H(seed, 10 + k) * 6.2832f, vh = 2f + 5f * H(seed, 30 + k), vv = 2f + 6f * H(seed, 40 + k);
+                var pos = at + new Vector3(Mathf.Cos(az) * vh * age, vv * age - 4.9f * age * age, Mathf.Sin(az) * vh * age);
+                if (pos.y < Mathf.Max(water, GroundAt(pos))) continue;
+                Clod(pos, 0.12f + 0.2f * H(seed, 50 + k), new Color(0.24f, 0.17f, 0.11f, 0.95f * Mathf.Min(1f, f * 3f)), H(seed, 60 + k));
+            }
+        }
 
         /// <summary>
         /// The rounds a shot is: as the simulation counted them (MatchOptions.Ammo); without that rule, one from a
@@ -616,7 +684,7 @@ namespace LanesOfVietnam.View
                 var across = new Vector3(-flat.z, 0, flat.x);
                 var p = b + across * (float)(Hash(s, 1) * 3.6 - 1.8) + flat * (float)(Hash(s, 2) * 6.0 - 1.5);
                 var (sx, sz) = (p.x, -p.z);
-                end = Coords.World(sx, sz, (float)_root.Ground.HeightAt(sx, sz) + 0.05f);
+                end = Landing(sx, sz, ref surface);
             }
             float dist = Vector3.Distance(muzzle, end);
             var dir = (end - muzzle) / Mathf.Max(dist, 0.01f);
@@ -677,6 +745,7 @@ namespace LanesOfVietnam.View
                 }
                 return;
             }
+            if (surface == Wet) { WaterStrike(s, ai, end, cal); return; }
             // Into the earth: a spit of dry dirt straight up at once, clods thrown about it, and the dust it leaves
             // hanging. (By the round: a pistol's from a submachine gun kicks up a handful; a rifle's a spurt as high
             // as a man's knee; a machine gun's or a sniper's a fountain to his waist and a cloud that hangs.)
@@ -717,6 +786,143 @@ namespace LanesOfVietnam.View
                 float rhead = 190f * ai, rtail = Mathf.Max(0, rhead - 2.2f);
                 AddStreak(end + off * rtail, end + off * rhead, 0.018f, new Color(1f, 0.62f, 0.25f) * (1.8f * (1 - ai / 0.16f)), H(s, 33));
                 if (ai < 0.05f) AddGlow(end + Vector3.up * 0.05f, 0.22f, Flash * (6f * (1 - ai / 0.05f)), 0, H(s, 34));
+            }
+        }
+
+        /// <summary>
+        /// A round into the water (Rice Fields): a spout of it thrown straight up, white where the brown water is torn, as
+        /// high as a man's shin for a pistol's round and his knee or more for a rifle's or a machine gun's; drops falling back
+        /// about it; and a ring going out over the surface where it went in. No spark, no dust, nothing glancing off.
+        /// </summary>
+        private void WaterStrike(int s, float ai, Vector3 end, float cal)
+        {
+            if (ai < 1.4f) Splashed++;
+            float spout = 0.5f * (0.75f + 0.25f * cal);
+            if (ai < spout)
+            {
+                float f = 1 - ai / spout;
+                float top = (0.45f + 0.35f * H(s, 36)) * cal * Mathf.Min(1f, ai / 0.07f) * (1 - 0.4f * (1 - f) * (1 - f));
+                float wide = (0.14f + 0.28f * ai) * (0.7f + 0.3f * cal);
+                Spray(end + Vector3.up * (0.45f * top), wide, Mathf.Max(wide, 0.9f * top), new Color(0.76f, 0.74f, 0.68f, 0.7f * f), H(s, 37), 0.05f + 0.4f * (1 - f));
+                int drops = Mathf.Clamp(Mathf.RoundToInt(5 * cal), 4, 9);
+                for (int k = 0; k < drops; k++)
+                {
+                    float az = H(s, 20 + k) * 6.2832f;
+                    var v = new Vector3(Mathf.Cos(az) * 0.7f * cal, (3.2f + 2.4f * H(s, 23 + k)) * (0.6f + 0.4f * cal), Mathf.Sin(az) * 0.7f * cal);
+                    var p = end + v * ai + Vector3.down * (4.9f * ai * ai);
+                    if (p.y < end.y) continue;
+                    Drop(p, (0.04f + 0.03f * H(s, 29 + k)) * (0.7f + 0.3f * cal), new Color(0.74f, 0.72f, 0.66f, 0.85f * f), H(s, 26 + k));
+                }
+            }
+            Ring(end, ai, 1.4f, (0.25f + 1.4f * Mathf.Clamp01(ai / 1.4f)) * (0.7f + 0.3f * cal), 0.45f, H(s, 38));
+        }
+
+        /// <summary>
+        /// A ring on the water where something went in: a puff laid flat on it, as flat as the lens sees the water from where
+        /// it is, level, spreading and fading over its seconds.
+        /// </summary>
+        private void Ring(Vector3 at, float age, float lasts, float wide, float strength, float seed)
+        {
+            if (age < 0 || age >= lasts) return;
+            float t = age / lasts, f = 1 - t;
+            float flat = Mathf.Clamp(Mathf.Abs((at - _camPos).normalized.y), 0.12f, 1f);
+            AddPuff(Sheet.Dust, (0.3f + 0.5f * t) * 24f, at + Vector3.up * 0.03f, wide, wide * flat, new Color(0.66f, 0.64f, 0.58f, strength * f * f), 0f,
+                    seed > 0.5f, Mathf.Clamp(wide * 0.2f, 0.05f, 0.6f));
+        }
+
+        /// <summary>Water thrown up: a puff of it standing upright (a spout does not lean as dust blown off the earth does).</summary>
+        private void Spray(Vector3 pos, float wide, float tall, Color col, float seed, float through)
+            => AddPuff(Sheet.Dust, Mathf.Clamp01(through) * 24f, pos, wide, tall, col, (seed - 0.5f) * 0.12f, (int)(seed * 64f) % 2 == 1,
+                       Mathf.Clamp(wide * 0.3f, 0.05f, 1.2f));
+
+        /// <summary>
+        /// A burst in the water (Rice Fields): what it throws up is the water, not the earth. A column of it, pale where it is
+        /// torn and brown at its foot where the mud comes up with it, as high as a house for a shell and a man for a grenade;
+        /// spray thrown out of the top of it and falling back; and a skirt of it rolling out over the surface.
+        /// </summary>
+        private void WaterColumn(Vector3 p0, int seed, float age, float scale)
+        {
+            Splashed++;
+            float lifts = 2.2f * Mathf.Sqrt(scale);
+            if (age < lifts)
+            {
+                float t = age / lifts, f = 1 - t;
+                // Up fast, hanging, falling back into itself.
+                float height = 8f * Mathf.Sqrt(scale) * (1 - Mathf.Exp(-age * 6f)) * (1 - 0.55f * t * t);
+                for (int k = 0; k < 4; k++)
+                {
+                    float h = height * (0.2f + 0.24f * k), wide = (0.9f + 0.5f * k + 2.4f * t) * Mathf.Sqrt(scale);
+                    var col = Color.Lerp(new Color(0.46f, 0.40f, 0.30f), new Color(0.82f, 0.80f, 0.75f), 0.25f + 0.25f * k);
+                    col.a = 0.8f * f * Mathf.Sqrt(f);
+                    var lean = new Vector3((H(seed, 200 + k) - 0.5f) * 0.6f, 0, (H(seed, 204 + k) - 0.5f) * 0.6f) * scale;
+                    Spray(p0 + Vector3.up * h + lean, wide, Mathf.Max(wide, 0.45f * height), col, H(seed, 208 + k), 0.05f + 0.8f * t);
+                }
+                for (int k = 0; k < 14; k++)
+                {
+                    float az = H(seed, 210 + k) * 6.2832f;
+                    float vh = (0.8f + 3.2f * H(seed, 225 + k)) * scale, vv = (7f + 6f * H(seed, 240 + k)) * Mathf.Sqrt(scale);
+                    var pos = p0 + new Vector3(Mathf.Cos(az) * vh * age, vv * age - 4.9f * age * age, Mathf.Sin(az) * vh * age);
+                    if (pos.y < p0.y) continue;
+                    Drop(pos, (0.12f + 0.16f * H(seed, 255 + k)) * Mathf.Sqrt(scale), new Color(0.78f, 0.76f, 0.70f, 0.9f * Mathf.Min(1f, f * 3f)), H(seed, 270 + k));
+                }
+            }
+            // The skirt: out over the water in a ring, low, and gone.
+            float skirt = lifts + 1.2f;
+            if (age < skirt)
+                for (int k = 0; k < 6; k++)
+                {
+                    float az = k * 1.047f + H(seed, 285 + k);
+                    float rr = 4.5f * scale * (1 - Mathf.Exp(-age * 3f)), f = 1 - age / skirt;
+                    float wide = (1.6f + 1.8f * age) * Mathf.Sqrt(scale);
+                    Spray(p0 + new Vector3(Mathf.Cos(az) * rr, 0.3f + 0.25f * age, Mathf.Sin(az) * rr), wide, 0.6f * wide,
+                          new Color(0.74f, 0.72f, 0.66f, 0.45f * f * f), H(seed, 290 + k), 0.2f + 0.7f * (1 - f));
+                }
+            Ring(p0, age, skirt + 1.5f, (2f + 9f * Mathf.Clamp01(age / (skirt + 1.5f))) * Mathf.Sqrt(scale), 0.4f, H(seed, 299));
+        }
+
+        /// <summary>
+        /// What goes into the water (RiverView.Splashes): a man going into the river, water thrown up and out about him; a
+        /// man wading through it, a little at each push; a body going down into it; the bridge's halves striking it, a sheet of water off each.
+        /// Each with its ring spreading where it went in. A man climbing out leaves a ring and no more.
+        /// </summary>
+        private void Splashes(float now)
+        {
+            var list = _root.River.Splashes;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var sp = list[i];
+                float age = now - sp.At;
+                if (age < 0 || age > 3f) continue;
+                Splashed++;
+                var at = Coords.World(sp.X, sp.Z, sp.Y + 0.02f);
+                int seed = sp.N * 13 + 5;
+                float size = sp.Size;
+                if (sp.Kind == RiverView.Into.Out) { Ring(at, age, 1.2f, 0.4f + 1.2f * age, 0.3f, H(seed, 1)); continue; }
+                // (Timber is a long thing striking flat: lower and wider than a man going in, and more of it.)
+                bool timber = sp.Kind == RiverView.Into.Timber;
+                float lasts = 0.7f + 0.35f * size, high = (timber ? 0.8f : 1.1f) * size, broad = (timber ? 1.8f : 1f) * size;
+                if (age < lasts)
+                {
+                    float t = age / lasts, f = 1 - t;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        float az = H(seed, 10 + k) * 6.2832f, r = 0.25f * broad * (0.5f + t);
+                        float h = high * (1 - Mathf.Exp(-age * 9f)) * (1 - 0.6f * t * t) * (0.5f + 0.3f * k);
+                        float wide = (0.25f + 0.6f * t) * broad;
+                        Spray(at + new Vector3(Mathf.Cos(az) * r, 0.45f * h, Mathf.Sin(az) * r), wide, Mathf.Max(wide, 0.9f * h), new Color(0.74f, 0.72f, 0.66f, 0.5f * f * Mathf.Sqrt(f)),
+                              H(seed, 20 + k), 0.05f + 0.6f * t);
+                    }
+                    int drops = Mathf.RoundToInt(Mathf.Clamp(8f * size, 3f, 18f));
+                    for (int k = 0; k < drops; k++)
+                    {
+                        float az = H(seed, 30 + k) * 6.2832f;
+                        float vh = (0.6f + 1.6f * H(seed, 50 + k)) * broad, vv = (2.2f + 2.4f * H(seed, 70 + k)) * Mathf.Sqrt(size);
+                        var pos = at + new Vector3(Mathf.Cos(az) * vh * age, vv * age - 4.9f * age * age, Mathf.Sin(az) * vh * age);
+                        if (pos.y < at.y) continue;
+                        Drop(pos, (0.05f + 0.05f * H(seed, 90 + k)) * Mathf.Sqrt(broad), new Color(0.76f, 0.74f, 0.68f, 0.85f * Mathf.Min(1f, f * 3f)), H(seed, 110 + k));
+                    }
+                }
+                Ring(at, age, 1.6f + size, (0.5f + 2.2f * Mathf.Clamp01(age / (1.6f + size))) * broad, 0.45f, H(seed, 2));
             }
         }
 
@@ -1636,6 +1842,12 @@ namespace LanesOfVietnam.View
             var p0 = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z) + (float)(e.Amount ?? 0));
             int seed = e.Id * 6151 + e.Tick;
             Explosions++;
+            // In the water (Rice Fields): on its surface, and what it throws up is the water. On the bridge, on its deck.
+            double deck = (e.Amount ?? 0) > 0 ? double.NaN : OnDeck(x, z, e.Tick);
+            if (!double.IsNaN(deck)) p0.y = (float)deck;
+            double water = (e.Amount ?? 0) > 0 || !double.IsNaN(deck) ? double.NaN : BurstWater(x, z);
+            bool wet = !double.IsNaN(water);
+            if (wet) { p0.y = (float)water; WaterColumn(p0, seed, age, 0.45f); }
 
             if (age < 0.09f)
             {
@@ -1662,7 +1874,7 @@ namespace LanesOfVietnam.View
                               new Color(1f, 0.7f, 0.3f) * (4f * (1 - age / 0.12f)), H(seed, 120 + k));
                 }
             // The earth it lifted: a dark burst of it, jets out of that, and clods thrown three or four metres up and falling back.
-            if (age < 1.6f)
+            if (age < 1.6f && !wet)
             {
                 float t = age / 1.6f, f = 1 - t;
                 for (int k = 0; k < 2; k++)
@@ -1687,7 +1899,7 @@ namespace LanesOfVietnam.View
                 }
             }
             // Dust along the ground, in a ring.
-            if (age < 2.2f)
+            if (age < 2.2f && !wet)
                 for (int k = 0; k < 6; k++)
                 {
                     float az = k * 1.047f + H(seed, 130 + k);
@@ -1720,6 +1932,13 @@ namespace LanesOfVietnam.View
             var p0 = Coords.World(x, z, (float)_root.Ground.HeightAt(x, z));
             int seed = e.Id * 7919 + e.Tick;
             Explosions++;
+            // In the water (Rice Fields): on its surface, and what it throws up is the water (and less smoke: little burns there).
+            // On the bridge, on its deck.
+            double deck = OnDeck(x, z, e.Tick);
+            if (!double.IsNaN(deck)) p0.y = (float)deck;
+            double water = double.IsNaN(deck) ? BurstWater(x, z) : double.NaN;
+            bool wet = !double.IsNaN(water);
+            if (wet) { p0.y = (float)water; WaterColumn(p0, seed, age, scale); }
 
             if (age < 0.14f)
             {
@@ -1751,7 +1970,7 @@ namespace LanesOfVietnam.View
 
             // The earth it throws up: a dark burst of it, jets out of that, and clods on their arcs.
             float lifts = 2.6f * Mathf.Sqrt(scale);
-            if (age < lifts)
+            if (age < lifts && !wet)
             {
                 float t = age / lifts, f = 1 - t;
                 for (int k = 0; k < 2; k++)
@@ -1778,7 +1997,7 @@ namespace LanesOfVietnam.View
             // the burst's own sheet played slowly through its wide end, so it has a body and an edge. (As eleven
             // soft blobs, and then as six sheets of wisp nineteen metres across, a barrage's smoke was one even
             // brown fog from the grass to the sky.)
-            for (int k = 0; k < 4; k++)
+            for (int k = 0; k < (wet ? 2 : 4); k++)
             {
                 float a = age - (0.12f + 0.16f * k);
                 float life = 8f * Mathf.Sqrt(scale);
@@ -2102,7 +2321,7 @@ namespace LanesOfVietnam.View
         {
             _gp.Clear(); _gc.Clear(); _guv.Clear(); _guv2.Clear(); _gi.Clear();
             _puffs.Clear(); _flashes.Clear();
-            Tracers = Flashes = Explosions = Traces = Cases = Faint = 0;
+            Tracers = Flashes = Explosions = Traces = Cases = Faint = Splashed = 0;
             _ordnanceShown = 0;
             _jetShown = _hueyShown = false;
         }

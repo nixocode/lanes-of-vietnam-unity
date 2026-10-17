@@ -411,6 +411,26 @@
    ]
   },
   {
+   "name": "splash",
+   "files": [
+    {
+     "file": "licensed/splash_0.m4a",
+     "source": "sonniss2018/fish_small_jump_04.wav",
+     "seconds": 0.8
+    }
+   ]
+  },
+  {
+   "name": "mud",
+   "files": [
+    {
+     "file": "licensed/mud_0.m4a",
+     "source": "sonniss2018/mud_splat_heavy_03.wav",
+     "seconds": 0.9
+    }
+   ]
+  },
+  {
    "name": "mg1",
    "files": [
     {
@@ -501,6 +521,31 @@
    ]
   },
   {
+   "name": "plunge",
+   "files": [
+    {
+     "file": "licensed/plunge_0.m4a",
+     "source": "sonniss2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav 1.5-2.8 s",
+     "seconds": 1.35
+    },
+    {
+     "file": "licensed/plunge_1.m4a",
+     "source": "sonniss2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav 10.9-12.2 s",
+     "seconds": 1.35
+    },
+    {
+     "file": "licensed/plunge_2.m4a",
+     "source": "sonniss2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav 89.1-90.5 s",
+     "seconds": 1.35
+    },
+    {
+     "file": "licensed/plunge_3.m4a",
+     "source": "sonniss2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav 107.4-108.8 s",
+     "seconds": 1.35
+    }
+   ]
+  },
+  {
    "name": "timber_creak",
    "files": [
     {
@@ -572,6 +617,16 @@
      "file": "licensed/ambience_0.m4a",
      "source": "sonniss2017/Jungle quiet insects and birds wide _120407_11.wav 30-90 s",
      "seconds": 60.0
+    }
+   ]
+  },
+  {
+   "name": "river",
+   "files": [
+    {
+     "file": "licensed/river_0.m4a",
+     "source": "sonniss2018/stream_08_60_loop.wav",
+     "seconds": 61.39
     }
    ]
   },

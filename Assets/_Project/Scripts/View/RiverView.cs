@@ -12,8 +12,9 @@ namespace LanesOfVietnam.View
     /// timber bridge that carries the near lane over the river, built of its members: log piles in bents, a cap on each,
     /// stringers, a deck of planks, and a rail each side.
     ///
-    /// A first look, to be built on: the water is the engine's lit surface, smooth, not yet the water shader of R3 (flowing,
-    /// faded at the banks, reddened by the dead); the bridge stands whole (it comes apart in R5).
+    /// The water is the theatre's (LOV/Water: flowing, faded at its banks, reddened by the dead in it, R3); the bridge comes
+    /// down in its two halves when the simulation brings it down, and lies level again when it is put back. What goes into
+    /// the water, men, bodies and the bridge's timber, is kept here as splashes for what is heard and seen of it (R5).
     /// </summary>
     public sealed class RiverView : MonoBehaviour
     {
@@ -48,9 +49,12 @@ namespace LanesOfVietnam.View
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
             _spans.Clear();
+            _splashes.Clear();
+            _of = null;
             _ground = g;
             var p = g.Params;
-            if (double.IsNaN(p.RiverX0) && double.IsNaN(p.PaddyX0)) return;
+            Wet = !(double.IsNaN(p.RiverX0) && double.IsNaN(p.PaddyX0));
+            if (!Wet) return;
             Materials(lit);
             // (The theatre's water shader, where it has one: LOV/Water. The lit stand-ins otherwise.)
             if (riverWater != null) _river = riverWater;
@@ -270,6 +274,8 @@ namespace LanesOfVietnam.View
             public bool Down, Rough;
             /// <summary>When it went down (or was put back), on the match's clock; -1 while it has stood all along.</summary>
             public float Since = -1f, Drop;
+            /// <summary>Its timber has struck the water, this time down.</summary>
+            public bool Struck;
         }
 
         private readonly List<Span> _spans = new List<Span>();
@@ -301,13 +307,16 @@ namespace LanesOfVietnam.View
             if (st == null || _ground == null) return;
             // (On the match's own clock, as the tower's fall is: a capture or a paused game sees it where the match is.)
             float now = (float)((st.Tick - 1 + d.Alpha) * Tune.Dt);
+            if (!Wet) return;
             Stain(st, now);
+            Splashing(st, now);
             foreach (var s in _spans)
             {
                 bool fallen = st.Water && s.Index < st.Bridges.Count && st.Bridges[s.Index].Fallen;
                 if (fallen != s.Down)
                 {
                     s.Down = fallen;
+                    s.Struck = false;
                     _ground.SetDeckDown(s.Index, fallen);
                     var kind = fallen ? EventKind.BridgeFell : EventKind.BridgeRebuilt;
                     int k = st.Events.FindLastIndex(e => e.Kind == kind && e.Id == s.Index);
@@ -318,7 +327,142 @@ namespace LanesOfVietnam.View
                 }
                 if (s.Since < 0f) continue;
                 Pose(s, Mathf.Max(0f, now - s.Since));
+                // Its halves striking the river, their free ends first and then along them (not for one that went down long ago).
+                if (s.Down && !s.Struck && now - s.Since >= TimberStrikes)
+                {
+                    s.Struck = true;
+                    if (now - s.Since > TimberStrikes + 2f) continue;
+                    double mid = (s.Deck.X0 + s.Deck.X1) * 0.5, quarter = (s.Deck.X1 - s.Deck.X0) * 0.25;
+                    float y = (float)_ground.Params.RiverWater;
+                    foreach (double x in new[] { mid - 1.2, mid + 1.2 }) Add(Into.Timber, x, s.Deck.Z, y, s.Since + TimberStrikes, 2.2f, true);
+                    foreach (double x in new[] { mid - quarter, mid + quarter }) Add(Into.Timber, x, s.Deck.Z, y, s.Since + TimberStrikes + 0.12f, 1.4f, true);
+                }
             }
+        }
+
+        // --- what goes into the water (R5) --------------------------------------------------
+
+        /// <summary>Is there water on this map (a river, or flooded paddies)?</summary>
+        public bool Wet { get; private set; }
+
+        /// <summary>What went into the water: a man going in, or climbing out; a man wading through it, a push at a time; a body; the bridge's timber.</summary>
+        public enum Into : byte { Wading, Out, Stroke, Body, Timber }
+
+        /// <summary>
+        /// Something going into the water, for what is heard (AudioView) and seen (CombatView): where (the simulation's x and
+        /// z, and the water's height), when (on the match's clock), how big (a man going in is 1), and in how much water.
+        /// </summary>
+        public struct Splash
+        {
+            public Into Kind;
+            public float X, Z, Y, At, Size;
+            /// <summary>The river, or a paddy's hand of water.</summary>
+            public bool Deep;
+            /// <summary>Its number: one more than the splash before it, so a view can keep its place.</summary>
+            public int N;
+        }
+
+        /// <summary>The splashes of the last few seconds, oldest first; and how many there have been.</summary>
+        public IReadOnlyList<Splash> Splashes => _splashes;
+        public int SplashesMade { get; private set; }
+        private readonly List<Splash> _splashes = new List<Splash>();
+        /// <summary>Seconds after a bridge gives that its halves strike the water (Pose: their free ends reach it then).</summary>
+        public const float TimberStrikes = 0.85f;
+        /// <summary>Seconds after a man is killed that he is down: a body falling into water is a splash then (AudioView's fall).</summary>
+        public const float BodyDown = 0.55f;
+
+        /// <summary>How deep the water stands over what is underfoot at (x, z), a deck or the ground; 0 where there is none.</summary>
+        public static double Depth(Ground g, double x, double z)
+        {
+            if (g == null) return 0;
+            double w = g.WaterAt(x, z);
+            return double.IsNaN(w) ? 0 : Math.Max(0, w - g.FootAt(x, z));
+        }
+
+        private SimState _of;
+        private int _lastTick = -1;
+        /// <summary>By man: in the water when last looked at; his body has gone into it (or was down before it was looked for); his next stroke.</summary>
+        private bool[] _in = new bool[0], _fell = new bool[0];
+        private float[] _stroke = new float[0];
+
+        private void Add(Into kind, double x, double z, float y, float at, float size, bool deep)
+        {
+            _splashes.Add(new Splash { Kind = kind, X = (float)x, Z = (float)z, Y = y, At = at, Size = size, Deep = deep, N = ++SplashesMade });
+        }
+
+        /// <summary>
+        /// The men going into the water and out of it, wading through it, and falling dead into it, as the match has them: a
+        /// man stepping off the bank (or off a bridge as it goes) into the river; a man wading it chest deep, a push through
+        /// it a second or so apart; a man killed where there is water, as he goes down in it; a man climbing out on the far bank.
+        /// </summary>
+        private void Splashing(SimState st, float now)
+        {
+            int n = st.Men.Count;
+            bool fresh = !ReferenceEquals(st, _of) || st.Tick < _lastTick;
+            _of = st;
+            _lastTick = st.Tick;
+            if (fresh) _splashes.Clear();
+            if (_in.Length < n)
+            {
+                int size = Math.Max(64, n * 2);
+                Array.Resize(ref _in, size); Array.Resize(ref _fell, size); Array.Resize(ref _stroke, size);
+            }
+            var g = _ground;
+            for (int i = 0; i < n; i++)
+            {
+                var m = st.Men[i];
+                bool wet = st.Water && m.Alive && Water.In(st, m);
+                if (fresh)
+                {
+                    // (A match looked at from the middle: what had already happened has made its splash.)
+                    _in[i] = wet; _fell[i] = !m.Alive; _stroke[i] = now + 0.8f + 0.6f * TowerView.H(i, 3);
+                    continue;
+                }
+                if (!m.Alive)
+                {
+                    if (_fell[i] || m.DiedAt < 0) continue;
+                    float since = now - (float)(m.DiedAt * Tune.Dt);
+                    if (since < BodyDown) continue;
+                    _fell[i] = true;
+                    double depth = Depth(g, m.X, m.Z);
+                    if (since > BodyDown + 2f || depth < 0.1) continue;
+                    // (Shot wading, he is in it already: he goes under, less of a splash than a man falling in.)
+                    Add(Into.Body, m.X, m.Z, (float)g.WaterAt(m.X, m.Z), (float)(m.DiedAt * Tune.Dt) + BodyDown, _in[i] ? 0.6f : 1f, g.InRiver(m.X, m.Z));
+                    continue;
+                }
+                if (wet != _in[i])
+                {
+                    _in[i] = wet;
+                    double w = g.WaterAt(m.X, m.Z);
+                    float y = (float)(double.IsNaN(w) ? g.FootAt(m.X, m.Z) : w);
+                    // (Off a bridge as it goes, he falls in from its deck: a bigger splash than a man wading in.)
+                    bool off = wet && FellWith(st, m);
+                    Add(wet ? Into.Wading : Into.Out, m.X, m.Z, y, now, off ? 1.4f : wet ? 1f : 0.6f, true);
+                    _stroke[i] = now + 0.7f + 0.5f * TowerView.H(i, st.Tick);
+                    continue;
+                }
+                if (wet && now >= _stroke[i])
+                {
+                    Add(Into.Stroke, m.X, m.Z, (float)g.WaterAt(m.X, m.Z), now, 0.35f + 0.15f * TowerView.H(i, st.Tick + 1), true);
+                    _stroke[i] = now + 0.9f + 0.6f * TowerView.H(i, st.Tick + 2);
+                }
+            }
+            // The last few seconds' (and never too many: a hundred men in the river is not a match anybody plays).
+            int old = 0;
+            while (old < _splashes.Count && (now - _splashes[old].At > 4f || _splashes.Count - old > 96)) old++;
+            if (old > 0) _splashes.RemoveRange(0, old);
+        }
+
+        /// <summary>Did he go into the water with a bridge, this tick or the last (he was on it as it went)?</summary>
+        private static bool FellWith(SimState st, Man m)
+        {
+            for (int k = st.Events.Count - 1; k >= 0; k--)
+            {
+                var e = st.Events[k];
+                if (e.Tick < st.Tick - 2) break;
+                if (e.Kind == EventKind.BridgeFell && e.Id >= 0 && e.Id < st.Bridges.Count && m.X >= st.Bridges[e.Id].X0 - 0.5 && m.X <= st.Bridges[e.Id].X1 + 0.5) return true;
+            }
+            return false;
         }
 
         /// <summary>The water's stains (LOV/Water): up to sixteen, the reddest.</summary>

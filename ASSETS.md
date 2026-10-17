@@ -805,7 +805,20 @@ quiet (`slice_shots.py` `events`).
 | `timber_knock_0` | `Impacts Hard - Short Wobbly Tail 01.wav` (2017, Double Trouble Audio: Wood Impacts and Debris) | `5213783d…` | a timber striking after |
 | `timber_rustle_0` | `Rustles - Pile, Debris 22.wav` (2017, Double Trouble Audio: Wood Impacts and Debris) | `a94061d2…` | the wreck settling |
 
-Fetched but not used yet: `warfare_t1b_cannon_firing_forest_distant_...wav`
+**Rice Fields' water: Sonniss #GameAudioGDC 2017 and 2018** (added 2026-10-17, under the approved Rice Fields plan's
+yes for "a river/stream ambience, splashes, swimming"). The 2018 bundle's licence (`SourceArt/audio/sonniss2018/License.pdf`,
+read 2026-10-17) has the same terms as the other years'. Same mirror, same ignored folder, fetched and checked by
+`fetch_sonniss.sh`, cut by `slice_shots.py`.
+
+| set | source (year, pack) | sha256 of the source | used for |
+|---|---|---|---|
+| `plunge_0` … `_3` | `W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav` (2017, West Wolf: WATER), 1.35 s round each of the take's four strongest splashes (at 1.84, 11.25, 89.49 and 107.77 s, found by their loudness over 50 ms, 10 dB over the take's lapping) | `aec32c1c…` | a man going into the river, a body falling into it, the bridge's halves striking it (lower and slower), what a burst in the water throws up coming down |
+| `splash_0` | `fish_small_jump_04.wav` (2018, Soundrangers: Hydrology Bubbles and Splashes) | `cbbcbf5c…` | a man wading through the river, a push at a time; played higher, a round into the water |
+| `mud_0` | `mud_splat_heavy_03.wav` (2018, Soundrangers: Hydrology Bubbles and Splashes) | `79ada977…` | a man climbing out onto the bank; a body into a paddy's hand of water |
+| `river_0` | `stream_08_60_loop.wav` (2018, Soundrangers: Hydrology Streams, Rivers And Lakes), whole: a 61 s loop, −22 dBFS RMS | `a4e1d89a…` | the river's bed, under everything, louder as the lens comes to the river |
+
+Fetched but not used yet: `lake_waves_lapping_gentle_02_60_loop.wav` (2018, Soundrangers; `d5905007…`), for the paddies'
+water if it is wanted; `warfare_t1b_cannon_firing_forest_distant_...wav`
 (2017) and
 `Asia_Echoes_Tam Coc_Forest_Day.wav` (2020, Spectravelers: Asia Echoes, Laos -
 Vietnam; a Vietnamese forest for the bed, to be listened to before use).

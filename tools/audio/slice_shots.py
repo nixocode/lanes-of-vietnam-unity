@@ -61,6 +61,10 @@ LICENSED = {
     "timber_pile": [("2019/Dropping_WoodPile_79.wav", 1.2)],
     "timber_knock": [("2017/Impacts Hard - Short Wobbly Tail 01.wav", 0.6)],
     "timber_rustle": [("2017/Rustles - Pile, Debris 22.wav", 0.7)],
+    # Rice Fields (PLAN §12.60): a round going into the water, a small sharp splash (a fish jumping, Soundrangers'
+    # Hydrology); a man's foot in a paddy's mud, a heavy wet splat (the same).
+    "splash": [("2018/fish_small_jump_04.wav", 0.8)],
+    "mud": [("2018/mud_splat_heavy_03.wav", 0.9)],
 }
 # Takes of many events, cut apart where the sound falls quiet for `gap`
 # seconds: bursts, rounds going by, the phrases of a radio call.
@@ -99,6 +103,10 @@ PIECES = {
     # A radio man's request for fire, whole: heard as a US player's call goes out. (It asks for forty
     # millimetre; it is the voice and the net that are wanted, under the fight.)
     "call": [("2019/Military Radio Voice D (HI-3) Forty Mike Mike Request.wav", 0.0, 4.48, 0.02, 0.12)],
+    # Rice Fields (PLAN §12.60): something going into the water, a man, a body, a timber: the four strongest splashes in
+    # West Wolf's take of splashing in the shallows (each found by its loudness over 50 ms, 10 dB over the take's lapping).
+    "plunge": [("2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav", t - 0.35, t + 1.0, 0.04, 0.35)
+               for t in (1.84, 11.25, 89.49, 107.77)],
     # The tower's legs groaning as they give: a tree's creak, its louder second half.
     "timber_creak": [("2019/Bluezone_BC0254_wood_creaking_tree_005.wav", 1.2, 3.3, 0.25, 0.25)],
 }
@@ -123,6 +131,9 @@ WHOLE = {
 # The bed: Faunethic's Thailand library, a quiet jungle of insects and birds —
 # the forest of this war, recorded in Southeast Asia. A 60 s loop.
 AMBIENCE = ("Jungle quiet insects and birds wide _120407_11.wav", 30.0, 60.0)
+# Rice Fields' river running (PLAN §12.60): Soundrangers' Hydrology stream, made to loop by its recordist, taken whole
+# and brought to a bed's level (RMS, of full scale: 0.08 is -22 dB, under the jungle's -20). name: (year/file, RMS)
+LOOPS = {"river": ("2018/stream_08_60_loop.wav", 0.08)}
 
 # The launchers' and the mortar's own reports (the owner, 2026-10-09; until then the battery's howitzer,
 # pitched up, stood in for all three). Cut from the soundtracks of three videos of US forces firing, which
@@ -457,6 +468,16 @@ def main():
         encode(wav, os.path.join(lic_dir, "ambience_0.m4a"), 2, 96)
         listing["ambience"] = [dict(file="licensed/ambience_0.m4a", source=f"sonniss2017/{f} {at:.0f}-{at + length:.0f} s", seconds=length)]
         print(f"[audio] ambience: {length:.0f} s loop from Sonniss", flush=True)
+        for name, (f, level) in LOOPS.items():
+            body, sr = read_stereo(os.path.join(ART, "sonniss" + f))
+            body = body.copy()
+            body *= level / max(np.sqrt((body ** 2).mean()), 1e-6)
+            body = np.clip(body, -0.99, 0.99)
+            wav = os.path.join(tmp, f"{name}.wav")
+            write_wav_st(wav, body, sr)
+            encode(wav, os.path.join(lic_dir, f"{name}_0.m4a"), 2, 96)
+            listing[name] = [dict(file=f"licensed/{name}_0.m4a", source=f"sonniss{f}", seconds=round(len(body) / sr, 2))]
+            print(f"[audio] {name}: {len(body) / sr:.0f} s loop from Sonniss", flush=True)
     else:
         print("[audio] no SourceArt/audio/sonniss2017: explosions, cracks and the jungle bed are left out "
               "(tools/audio/fetch_sonniss.sh fetches them)", flush=True)
