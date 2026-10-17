@@ -429,6 +429,11 @@ namespace LanesOfVietnam.View
                     else if (pz > -10.5) { density = 0.95; lo = 0.45f; hi = 1.0f; }       // between
                     else { density = 0.9; lo = 0.7f; hi = 1.25f; }                       // scrub, treeline edge
                     if (firebase) density *= 0.2;
+                    // (Lowlands: on the paddies' dikes and their base's step, short grass and not much of it: a dike is a
+                    // path between flooded fields, trodden.)
+                    bool dikes = _lowlands && !double.IsNaN(g.Params.PaddyX0) && g.Terrace(px, pz) >= 0 && px < g.Params.PaddyX1
+                                 && System.Math.Abs(pz - g.Params.PaddyMidZ) < g.Params.PaddyHalfZ + 1.5;
+                    if (dikes) { density *= 0.3; hi = Mathf.Min(hi, 0.55f); lo = Mathf.Min(lo, 0.3f); }
                     density *= 0.45 + 0.9 * patch;
                     if (rng.Next() > density) { why[bandI, 3]++; continue; }
                     why[bandI, 0]++;
@@ -506,15 +511,17 @@ namespace LanesOfVietnam.View
         /// <summary>
         /// The rice: young plants in rows across each flooded step, a hand and a half apart, standing out of the water;
         /// not on the dikes, the path or cover, and kept out of the lanes' middle, where men have trodden it down.
-        /// (Grass tufts stand in for it until the rice is baked: PLAN, Rice Fields R4.)
+        /// (Young rice, baked in Blender: tools/blender/plant_bake.py rice_grass, PLAN §12.59.)
         /// </summary>
         private void Rice(Ground g, IReadOnlyList<Cover> cover)
         {
             var p = g.Params;
-            if (double.IsNaN(p.PaddyX0) || Species("grass_tuft") == null) return;
+            // (The rice baked for it, tools/blender/plant_bake.py rice_grass; grass tufts where it has not been.)
+            string rice = Species("rice_grass") != null ? "rice_grass" : "grass_tuft";
+            if (double.IsNaN(p.PaddyX0) || Species(rice) == null) return;
             _planting = true;
             int steps = g.FloodedSteps, n = 0;
-            const double row = 0.62;
+            const double row = 0.5;
             for (double x = p.PaddyX0 - p.PaddyWave; x < p.PaddyX1 + p.PaddyWave; x += row)
                 for (double z = p.PaddyMidZ - p.PaddyHalfZ + 0.6; z < p.PaddyMidZ + p.PaddyHalfZ - 0.6; z += row)
                 {
@@ -528,7 +535,7 @@ namespace LanesOfVietnam.View
                     // Only in the water: not up on the bank between the lanes or the path.
                     double water = g.TerraceLevel(k) + p.PaddyFlood;
                     if (g.HeightAt(px, pz) > water + 0.1) continue;
-                    Plant(g, px, pz, (float)_plantRng.Range(0.45, 0.62), "grass_tuft");
+                    Plant(g, px, pz, (float)_plantRng.Range(0.5, 0.72), rice);
                     n++;
                 }
             _planting = false;

@@ -105,6 +105,13 @@ RECIPES = {
                        spread=0.16, lean=(0.1, 0.6), droop=(0.5, 1.5), width=0.5),
 }
 
+# Young rice in a flooded paddy (Rice Fields, PLAN §12.59): a hill of seedlings, slender, upright, arching a little at
+# the tips, the bright green of rice a few weeks planted (Foliage006's lime, left out of the field grass for that, and
+# some of Foliage001's), knee-high. Planted in rows a hand and a half apart (WorldDressing.Rice).
+RECIPES["rice_grass"] = dict(build="grass", variants=6, ppm=280, ground="zero",
+                             blades=["Foliage006", "Foliage006", "Foliage001"], count=(26, 42), height=(0.45, 0.75),
+                             spread=0.05, lean=(0.03, 0.22), droop=(0.15, 0.6), width=0.32)
+
 GRASS_SRC = "ambientcg"
 
 # The coconut palm, built: nothing on Poly Haven is a palm, and the Sketchfab
