@@ -41,7 +41,9 @@ namespace LanesOfVietnam.Tests
             var st = Root.Driver.State;
             Assert.IsTrue(st.Inbound, "the game plays with call-ins inbound");
             st.Cp[(int)Side.Us] = 1000;
-            const double x = 20;
+            // (In the middle of the field, clear of both sides' first squads: since MatchOptions.Strike, a strike at x 20 in
+            // the opening seconds wiped out the VC's, and the match was over before the jet was gone.)
+            const double x = 0;
             Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-airstrike", 0, x));
             yield return Ticks(2);
             var call = st.Events.Last(e => e.Kind == EventKind.CallIn);

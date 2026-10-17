@@ -32,7 +32,16 @@ namespace LanesOfVietnam.View
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
             Built.Clear();
+            _pieces.Clear();
+            _wrecked.Clear();
             foreach (var c in cover)
+            {
+                int from = Built.Count;
+                One(c);
+                _pieces[c.Id] = (from, Built.Count);
+            }
+
+            void One(Cover c)
             {
                 if (Bags.Ready && c.Kind != CoverKind.Crater && c.Kind != CoverKind.Berm)
                 {
@@ -60,7 +69,7 @@ namespace LanesOfVietnam.View
                             break;
                         case CoverKind.Trench: Bags.Wall(transform, Built, g, w, c.Z - 1.05, e, c.Z - 1.05, 0.45f, true, c.Id); break;
                     }
-                    continue;
+                    return;
                 }
                 switch (c.Kind)
                 {
@@ -80,6 +89,40 @@ namespace LanesOfVietnam.View
                         break;
                 }
             }
+        }
+
+        /// <summary>Which of <see cref="Built"/> each position is (its first and one past its last), by its id.</summary>
+        private readonly Dictionary<int, (int from, int to)> _pieces = new Dictionary<int, (int, int)>();
+        private readonly HashSet<int> _wrecked = new HashSet<int>();
+        private SimState _of;
+
+        /// <summary>
+        /// A position a bomb has wrecked (MatchOptions.Strike) is gone: its walls, its roof, its parapet. (It goes under
+        /// the bomb's own burst; what is left is the crater the burst leaves on the ground.)
+        /// </summary>
+        private void Update()
+        {
+            var root = GameRoot.Instance;
+            var st = root != null && root.Driver != null ? root.Driver.State : null;
+            if (st == null || !st.Strike) return;
+            if (!ReferenceEquals(st, _of))
+            {
+                // A new match: what the last one wrecked stands again.
+                _of = st;
+                foreach (int id in _wrecked) Show(id, true);
+                _wrecked.Clear();
+            }
+            for (int i = 0; i < st.Cover.Count; i++)
+                if (st.Cover[i].Wrecked && _wrecked.Add(st.Cover[i].Id)) Show(st.Cover[i].Id, false);
+        }
+
+        /// <summary>Is position <paramref name="id"/> drawn wrecked (for the tests)?</summary>
+        public bool IsWrecked(int id) => _wrecked.Contains(id);
+
+        private void Show(int id, bool on)
+        {
+            if (!_pieces.TryGetValue(id, out var r)) return;
+            for (int k = r.from; k < r.to && k < Built.Count; k++) if (Built[k] != null) Built[k].enabled = on;
         }
 
         /// <summary>How high a bunker's posts stand, metres: its roof's logs lie on the beams across their tops.</summary>

@@ -1225,6 +1225,24 @@ namespace LanesOfVietnam.View
             r.position += Vector3.up * (transform.position.y + 0.04f - low);
         }
 
+        /// <summary>The colour a burned man is drawn in: what his albedo is multiplied by (charred, not quite black).</summary>
+        public static readonly Color Charred = new Color(0.11f, 0.095f, 0.085f, 1f);
+        private bool _charred;
+        private MaterialPropertyBlock _char;
+        /// <summary>Is he charred?</summary>
+        public bool IsCharred => _charred;
+
+        /// <summary>
+        /// Burned (MatchOptions.Strike's napalm): his body, what he carried and what has come off him, charred. Kept
+        /// through his being baked into a mesh as he lies.
+        /// </summary>
+        public void Char()
+        {
+            _charred = true;
+            if (_char == null) { _char = new MaterialPropertyBlock(); _char.SetColor("_BaseColor", Charred); }
+            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.SetPropertyBlock(_char);
+        }
+
         /// <summary>The body as it lies, as a plain mesh: no Animator, no skinning.</summary>
         private void Bake()
         {
@@ -1238,6 +1256,7 @@ namespace LanesOfVietnam.View
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = Body.sharedMaterial;
             mr.shadowCastingMode = ShadowCastingMode.On;
+            if (_charred) mr.SetPropertyBlock(_char);
             Body.enabled = false;
             Gather();
         }

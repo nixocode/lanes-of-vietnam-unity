@@ -2903,7 +2903,9 @@ namespace LanesOfVietnam.Tests
         public void With_the_mortar_emplaced_it_fires_only_set_up_and_packs_up_before_it_moves()
         {
             int fired = 0, early = 0, packed = 0;
-            for (int seed = 1; seed <= 6; seed++)
+            // (Twelve matches: with MatchOptions.Strike the computer saves for its air strike and raises a mortar team a
+            // sixth of a match on the firebase; six had none.)
+            for (int seed = 1; seed <= 12; seed++)
             {
                 var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
                 Assert.IsTrue(o.Emplace, "the game plays with the mortar emplaced");
@@ -2931,7 +2933,7 @@ namespace LanesOfVietnam.Tests
                     }
                 }
             }
-            Assert.Greater(fired, 0, "no mortar fired in six matches");
+            Assert.Greater(fired, 0, "no mortar fired in twelve matches");
             Assert.AreEqual(0, early, "a mortar fired before it was set up");
             Assert.Greater(packed, 0, "no mortar was ever packed up to move");
         }
@@ -3099,14 +3101,14 @@ namespace LanesOfVietnam.Tests
         /// A scenario is a match, and a match is a function of its seed. Recorded by `simcs scenario hash N`:
         /// each scenario as the game plays it against a Veteran, with nobody playing.
         /// </summary>
-        [TestCase("firebase", 1, 4075, 3468518776u, 3500188192u, 3782637812u, "us morale broke")]
-        // (The Wire and First Light again 2026-10-15: the Americans open with fewer men, PLAN §12.52.)
-        // (The Wire and The Earth Fights again the same day: a medevac in them was brought down, MatchOptions.Shootdown.)
-        [TestCase("the-wire", 3, 5089, 2894096662u, 1502400082u, 742317118u, "us morale broke")]
-        [TestCase("the-wire", 1, 6000, 2960744763u, 3634959008u, 708840890u, "us held out")]
-        [TestCase("first-light", 7, 5971, 4151385837u, 3561230234u, 2227549972u, "us took the line")]
-        [TestCase("first-light", 3, 8400, 1396377366u, 4206417747u, 2531584742u, "vc held the line")]
-        [TestCase("earth-fights", 1, 7735, 744082594u, 3112911749u, 3312621114u, "us morale broke")]
+        // (All again 2026-10-17: the game plays with MatchOptions.Strike, the air strike bombs then napalm at 100 points,
+        // PLAN §12.61. First Light's seed 3 no longer ends with the line held; seed 1 of The Wire still holds out.)
+        [TestCase("firebase", 1, 5443, 2207081288u, 1273274474u, 3418870374u, "vc morale broke")]
+        [TestCase("the-wire", 3, 5089, 2599423814u, 2839148562u, 2162707902u, "us morale broke")]
+        [TestCase("the-wire", 1, 6000, 536941371u, 60351264u, 1636961866u, "us held out")]
+        [TestCase("first-light", 7, 4691, 1157080429u, 780317383u, 683158631u, "us took the line")]
+        [TestCase("first-light", 3, 5837, 1381744726u, 2566677261u, 1587602501u, "vc morale broke")]
+        [TestCase("earth-fights", 1, 9781, 1211388018u, 3607008661u, 482486745u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3144,7 +3146,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3160,7 +3162,9 @@ namespace LanesOfVietnam.Tests
 
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
-            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true;
+            kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true; kept.Strike = true;
+            // (And the rules that do nothing on it until something happens: a medevac brought down, since the strike, in this one.)
+            kept.Shootdown = true; kept.Water = true; kept.Heights = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
             var (was, _) = Played(kept);
             var (now, _) = Played(Scenarios.Firebase.Options(5, null, Difficulty.Veteran));
@@ -3347,7 +3351,8 @@ namespace LanesOfVietnam.Tests
             int bursts = 0;
             while (!b.Fallen && bursts < 10) { Destruction.Burst(st, mid, z, 0, Tune.TowerRocket); bursts++; }
             Assert.IsTrue(b.Fallen, "rockets on its deck did not bring it down");
-            Assert.AreEqual(3, bursts, "three rockets' bursts on its deck, not more, not fewer");
+            // (Two since 2026-10-17, its strength 1.0: the owner, "bridge needs to collapse if hit too much". Three at 1.4.)
+            Assert.AreEqual(2, bursts, "two rockets' bursts on its deck, not more, not fewer");
             Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.BridgeFell && e.Id == b.Id));
             Assert.IsFalse(Water.Carried(st, b.Lane, mid));
             Assert.IsTrue(on.All(x => !x.Alive || Water.In(st, x)), "a man on it did not go into the river with it");
@@ -3433,8 +3438,9 @@ namespace LanesOfVietnam.Tests
                 Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true,
             };
             var (fh, fm) = Played(flags);
+            // (Again 2026-10-17: the bridge's strength 1.0, and nobody goes for a man with his hands in the river, PLAN §12.61.)
             Assert.AreEqual(5402, fm.State.Tick);
-            Assert.AreEqual(1149155459u, fh[fh.Count - 1]);
+            Assert.AreEqual(1969199554u, fh[fh.Count - 1]);
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             Assert.IsTrue(o.Water && o.Heights);
             var (with, _) = Played(o);
@@ -3444,9 +3450,110 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(without[without.Count - 1], with[with.Count - 1], "the firebase moved with Rice Fields' rules on");
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-10-16.
-        private const int RiceTicks = 7635;
-        private const uint RiceFinal = 279122041u;
+        /// <summary>
+        /// Strike (MatchOptions.Strike; the owner, 2026-10-17: "make the airstrike more expensive and OP, like it should
+        /// destory everything in its path", bombs then napalm). It costs StrikeCost and waits StrikeCooldown. A bomb kills
+        /// everyone within BombKill of it, in cover or not, puts flat the men further out, wrecks the positions it lands
+        /// among into craters for good, and brings down a bridge and a watchtower near it. The napalm is lit along the
+        /// stick's line after its delay and burns whoever is in it; a squad holds short of it and a man in it runs out of it.
+        /// </summary>
+        [Test]
+        public void The_air_strike_bombs_then_burns_and_destroys_what_is_in_its_path()
+        {
+            var o = Scenarios.RiceFields.Options(4, null, Difficulty.Veteran);
+            Assert.IsTrue(o.Strike && o.Inbound && o.Vantage && o.Destruction && o.Water);
+            var m = new LiveMatch(o);
+            var st = m.State;
+            for (int t = 0; t < 400; t++) m.Step();
+            var air = Deck.Find(Side.Us, "us-airstrike");
+            Assert.AreEqual(Tune.StrikeCost, Deck.CostOf(st, air));
+            Assert.AreEqual(Tune.StrikeCooldown, Deck.CooldownOf(st, air));
+            st.Cp[(int)Side.Us] = Tune.StrikeCost - 1;
+            Assert.AreEqual("not enough CP", Deck.Blocked(st, Side.Us, air), "it cost less than its price");
+
+            // A bomb on a position with two men of the VC in it, a third out in the open nine metres off.
+            var jet = new Area { Id = 990, Kind = AreaKind.Barrage, Side = Side.Us, Call = Inbound.Jet, X = 0, Z = Tune.Lanes[Map.Far], Radius = 11, Power = 0.62 };
+            var c = st.Cover.First(x => x.Kind != CoverKind.Crater && Math.Abs(x.Z - Tune.Lanes[Map.Far]) < 4.5 && x.X < 30 && x.X > 5);
+            var vc = st.Men.Where(x => x.Alive && x.Side == Side.Vc && x.High <= 0 && x.Climb == 0).Take(3).ToList();
+            Assume.That(vc.Count, Is.EqualTo(3), "not three men of the VC");
+            for (int i = 0; i < 2; i++) { vc[i].X = c.X - 1 + 2 * i; vc[i].Z = c.Z; vc[i].Cover = c.Id; }
+            vc[2].X = c.X + 9; vc[2].Z = c.Z; vc[2].Cover = -1; vc[2].Pin = 0;
+            Sim.Strike.Bomb(st, jet, c.X, c.Z, new Rng(11));
+            Assert.IsFalse(vc[0].Alive || vc[1].Alive, "a man in cover within six metres of a bomb lived");
+            Assert.IsTrue(!vc[2].Alive || vc[2].Pin >= 1, "a man nine metres from a bomb was not put flat");
+            Assert.IsTrue(c.Wrecked && c.Kind == CoverKind.Crater, "the position it landed in was not wrecked");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Wrecked && e.Id == c.Id));
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Shell && e.Rounds == Inbound.Jet), "its burst was not marked a bomb's");
+
+            // A bomb five metres off the bridge's deck brings it down; one eight metres from the tower brings it down.
+            var b = st.Bridges[0];
+            Assert.IsFalse(b.Fallen);
+            Sim.Strike.Bomb(st, jet, (b.X0 + b.X1) * 0.5, Tune.Lanes[b.Lane] + 5, new Rng(12));
+            Assert.IsTrue(b.Fallen, "a bomb by the bridge did not bring it down");
+            var post = st.Posts[0];
+            Assert.IsFalse(post.Fallen);
+            Sim.Strike.Bomb(st, jet, post.X, post.Z + 7.5, new Rng(13));
+            Assert.IsTrue(post.Fallen, "a bomb by the tower did not bring it down");
+
+            // The whole of it, called: the bombs, and then the napalm lit along their line.
+            st.Cp[(int)Side.Us] = Tune.StrikeCost;
+            double aim = c.X;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, air, Map.Far, new Rng(14), aim));
+            Assert.AreEqual(0, st.Cp[(int)Side.Us], 1e-9);
+            Assert.AreEqual(Tune.StrikeCooldown, Deck.CooldownLeft(st, Side.Us, air));
+            Area fire = null;
+            for (int t = 0; t < 30 * Tune.TickHz && (fire == null || fire.Next > 0); t++)
+            {
+                m.Step();
+                fire = st.Areas.FirstOrDefault(x => x.Kind == AreaKind.Napalm);
+            }
+            Assert.IsNotNull(fire, "no napalm after the bombs");
+            Assert.AreEqual(0, fire.Next, "the napalm never lit");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.NapalmLit && e.Id == fire.Id));
+            Assert.AreEqual(aim, fire.X, 1e-9);
+            // A man put in it burns, within a second or so.
+            var caught = st.Men.First(x => x.Alive && x.Side == Side.Vc && x.High <= 0 && x.Climb == 0);
+            caught.X = fire.X; caught.Z = fire.Z;
+            for (int t = 0; t < Tune.TickHz * 2 && caught.Alive; t++) { caught.X = fire.X; caught.Z = fire.Z; m.Step(); }
+            Assert.IsFalse(caught.Alive, "a man in the napalm did not burn");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Burned && e.Id == caught.Id));
+            // A man in it makes for its near edge; a man short of it, whose place is beyond it, stops short of it.
+            var near = new Man { X = fire.X + fire.Radius - 1, Z = fire.Z };
+            Assert.AreEqual(fire.X + fire.Radius + Tune.NapalmShort, Sim.Strike.Short(st, near, fire.X - 30, 1), 1e-9);
+            var shy = new Man { X = fire.X - fire.Radius - 6, Z = fire.Z };
+            Assert.AreEqual(fire.X - fire.Radius - Tune.NapalmShort, Sim.Strike.Short(st, shy, fire.X + 30, 1), 1e-9);
+        }
+
+        /// <summary>
+        /// Strike is a rule: with it off the game's match is the one it was before it, to the bit (the firebase, `simcs
+        /// scenario hash 1` of 2026-10-15, and the flags' `hash` lines in CLAUDE.md, which do not name it).
+        /// </summary>
+        [Test]
+        public void Without_its_rule_the_air_strike_is_what_it_was()
+        {
+            var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            o.Strike = false;
+            var (h, m) = Played(o);
+            Assert.AreEqual(4075, m.State.Tick);
+            Assert.AreEqual(3782637812u, h[h.Count - 1]);
+            Assert.AreEqual(40, Deck.CostOf(m.State, Deck.Find(Side.Us, "us-airstrike")));
+            // And the flags' line with it: `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+            // firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown strike`.
+            var flags = new MatchOptions
+            {
+                Seed = 1, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(),
+                Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true, Gunnery = true, Ammo = true,
+                Tactics = true, Fortune = true, FireControl = true, Ballistics = true, Vantage = true, Commander = true, Cohesion = true,
+                Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Strike = true,
+            };
+            var (fh, fm) = Played(flags);
+            Assert.AreEqual(5581, fm.State.Tick);
+            Assert.AreEqual(3126363294u, fh[fh.Count - 1]);
+        }
+
+        // `simcs scenario hash 1` (rice-fields), 2026-10-17 (with MatchOptions.Strike, PLAN §12.61).
+        private const int RiceTicks = 7509;
+        private const uint RiceFinal = 1582004784u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
@@ -3666,8 +3773,9 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 3 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52): it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(3, null, Difficulty.Veteran));
+            // Seed 14 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
+            // was bombs and napalm, §12.61): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(14, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

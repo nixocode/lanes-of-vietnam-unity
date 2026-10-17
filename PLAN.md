@@ -5433,6 +5433,66 @@ changed (every pin in CLAUDE.md is where it was); this is the view and the sound
 - **Left**: men walking the paddies' hand of water make no splash (only the river's fords count as water to the
   simulation); the clip `lake_waves_lapping_gentle_02_60_loop` is fetched for the paddies if wanted. No new `.cs` files.
 
+### 12.61 W1: the air strike, bombs then napalm; the bridge that gives (2026-10-17)
+
+The owner, 2026-10-17, after testing R5: "Bridge needs to collapse if hit too much or with airstrike", "lets make the
+airstrike more expensive and OP, like it should destory everything in its path"; asked what it drops, "bombs then
+napalm" at about 100 points. The first stage of the plan approved that day (W1 to W7: the strike, napalm on the forest
+as the US's last resort, Rice Fields' third lane, the AI, the soldiers', gore's and the world's detail, R6).
+
+- **The rule** (`MatchOptions.Strike`, new `Sim/Strike.cs`, on in the game, needs Inbound): the air strike costs 100 and
+  waits 90 s (40 and 45 s without it: `Deck.CostOf`, `CooldownOf`; the HUD's card shows the match's price).
+  - Its bombs (the jet's stick): a man within 6 m of one is killed, in cover or not; to 12 m he is put flat and may be
+    killed (0.6 at 6 m falling to nothing, half that in cover); a watchtower within 8 m falls (`Destruction.Flatten`), a
+    bridge it lands on or within 6 m of falls (`Water.Flatten`); a position within 5 m is wrecked for the match, and is a
+    bomb crater from then on (cover of the crater's kind: the holes are worth fighting for). A bomb's `Shell` event has
+    `Rounds = Inbound.Jet`.
+  - Its napalm: the jet comes round again, 1.5 s after its last bomb, and lays fire along the stick's line, 14 m either
+    way of the aim and 7 m across, for 10 s (`AreaKind.Napalm`, appended). A man in it is killed at 0.14 a tick (nineteen
+    in twenty within a second); squads hold 2 m short of it (`Strike.Hold`, after the river's `Water.Press`), a man's place
+    is short of it and a man in it runs out of it the near way (`Strike.Short`), never into a river (`Dry`).
+  - New events at the end: `Wrecked`, `NapalmLit`, `Burned`. Hashed with the rule only: each position's `Wrecked`.
+  - The computer calls it when it is worth 100 (`Strike.Worth`): five of the enemy it has seen along a stick's line, or
+    three with a bridge or a watchtower on it, none of its own within 15 m; and saves its points for it while three are.
+- **The bridge gives sooner** (Water's numbers; only Rice Fields' pins move): strength 1.4 -> 1.0, two rockets' bursts on
+  its deck bring it down (three before; the test says two). And it shows what it has taken (`RiverView.Hits`): the planks
+  blown out where it was hit (more for a harder blow), the post and rails on that side broken off by a hard one, its halves
+  sagging toward the middle below half its strength (to 0.22 m with nothing left; the men on it go down with it:
+  `Ground.SetDeckSag`), and smoke rising out of it below a quarter (`CombatView.Smouldering`). Put back, a rough crossing
+  of new planks. (The deck is built member by member now, so a hit can leave members out of it.)
+- **Found and fixed**: a man in the river went for an enemy with his hands, stopped a rifle's length from him, and the
+  two stood in the water (nobody fights hand to hand in it): a man in the water now has no quarry and makes for the bank.
+- **Seen** (`CombatView`, `CoverView`, `ArmyView`/`SoldierFigure`): a bomb's burst 1.8 times a shell's, its flash and
+  light no brighter (at a shell's they were a white disc nine metres across for the whole stick), its fire orange, its
+  smoke two thinner clouds (eight bombs' four each were a brown wall for ten seconds); a crater on the ground 9.5 m
+  across; the positions it wrecks gone from the field (`CoverView.Show`); the napalm the canisters bursting along the line
+  in the jet's way, then a wall of flame three to four metres high (balls of fire stacked three high, each through its
+  frames) with black smoke rolling off downwind for fourteen seconds after, and the ground black along it; the burned
+  dead charred (`SoldierFigure.Char`). Drawn from the sheets the game has: the Blender-baked fire and smoke flipbooks the
+  plan named here are made with the rest in W6. Captured: `captures/strike/a.*.png` (the firebase, a strike on the far
+  lane), `captures/strike/bridge.*.png` (`bridgehits=2`, a new capture key).
+- **Heard** (`AudioView`; Sonniss 2018 and 2020, git-ignored, ASSETS.md, 8 files, 89 MB of source, hashes in
+  `fetch_sonniss.sh`): the bombs (three recordings, as loud as a shell with longer bodies) and the earth they throw up
+  coming down; the jet heard coming round again over the line as the fire catches; the canisters bursting, the fire
+  catching, burning, and burned down to a crackle.
+- **Measured** (`simcs scenario 192`, against a Veteran, as the game plays): the firebase 122 of 192 as the US, 140 as the
+  VC; The Wire 124; First Light 128; The Earth Fights 155; Rice Fields 129 and 122: all in the band (112 to 160). `simcs
+  strikes 48`, the computer's strikes: on the firebase 0.15 a match (its line held 6.1 of the enemy; its bombs killed 6.3
+  of them and 0.1 of its own, its fire 1.0; 3.7 positions wrecked); First Light 1.44 (7.4 on its line, 7.6 killed, 0.8
+  burned); The Earth Fights 0.46; Rice Fields 0.04; The Wire none. At 40 points it was 0.83 a match on Rice Fields: dear
+  as it is, the computer seldom has 100 to spend, which is W3's to look at (the commander). `simcs river 24`: 721 men into
+  the water, 315 across, 285 killed in it; the bridge hit 107 times and brought down 14 times. Every pinned hash with the
+  rule off unmoved; `simcs mirror 24` a mirror in 24 of 24.
+- **Tests**: EditMode 130 (new: `The_air_strike_bombs_then_burns_and_destroys_what_is_in_its_path`,
+  `Without_its_rule_the_air_strike_is_what_it_was`; the bridge test two rockets; the scenario pins again; First Light's
+  held line now seed 14; the firebase-is-the-game test with the rules that do nothing until something happens, a medevac
+  brought down in it since the strike; the mortar test over twelve matches, the computer raising a mortar team a sixth of
+  a match while it saves for its strike). PlayMode 46 and the capture's skip (new `StrikeTests`; the call-in test aims its
+  strike at the middle of the field: at x 20 in the opening seconds it now wiped out the VC's first squad and ended the
+  match; the UI audit reads the card's price from the match).
+- New files: `Assets/_Project/Scripts/Sim/Strike.cs`, `Assets/_Project/Tests/PlayMode/StrikeTests.cs` (their `.meta`
+  made by Unity, committed).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

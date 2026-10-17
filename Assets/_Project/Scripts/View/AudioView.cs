@@ -413,6 +413,14 @@ namespace LanesOfVietnam.View
                         Toppled(e, st);
                         break;
                     case EventKind.Shell:
+                        // Strike: a 500 lb bomb, and the earth it threw up coming down after it.
+                        if (e.Rounds == Inbound.Jet && e.X != null)
+                        {
+                            Boom(e, Pick("bomb") != null ? "bomb" : "shell", 1.1f, lx, lz);
+                            string down = Pick("debris");
+                            if (down != null) Out.Play(down, (float)e.X.Value, (float)e.Z.Value, 1.4f, Range(0.85f, 1.05f), 0f, false, Range(0.7f, 1.0f));
+                            break;
+                        }
                         Boom(e, "shell", 1f, lx, lz);
                         // The guns that fired it, once a salvo: far off, heard at once
                         // (the rounds were in the air long before the sim lands them).
@@ -472,6 +480,13 @@ namespace LanesOfVietnam.View
                         {
                             string jet = Pick("jet");
                             if (jet != null) Out.Play(jet, (float)e.X.Value, (float)e.Z.Value, 1f, Range(0.97f, 1.03f), 0f, true, Mathf.Max(0f, lands - 3f));
+                            // Strike: it comes round again with the napalm, over the line as the fire catches.
+                            if (st.Strike)
+                            {
+                                string again = Pick("jet");
+                                float lit = lands + (float)((Tune.StickBombs * Tune.StickGap + Tune.NapalmDelay) * Tune.Dt);
+                                if (again != null) Out.Play(again, (float)e.X.Value, (float)e.Z.Value, 1f, Range(0.92f, 0.98f), 0f, true, Mathf.Max(0f, lit - 3f));
+                            }
                         }
                         break;
                     case EventKind.ShotDown:
@@ -503,6 +518,21 @@ namespace LanesOfVietnam.View
                         break;
                     case EventKind.BridgeRebuilt:
                         if (e.X != null) Play(Pick("timber_pile"), e.X.Value, e.Z.Value, 0.8f, Range(1.0f, 1.1f), false);
+                        break;
+                    // Strike: the napalm going in, the canisters bursting along the line and the fire catching all
+                    // along it; the fire burning while it does (its twelve seconds cover the ten it burns), then dying
+                    // down to a crackle. (Gains from the clips' measured loudness: the fire is 16 dB under a bomb.)
+                    case EventKind.NapalmLit:
+                        if (e.X != null)
+                        {
+                            float nx = (float)e.X.Value, nz = (float)e.Z.Value;
+                            float burns = (float)(Tune.NapalmTicks * Tune.Dt);
+                            Play(Pick("napalm_run"), nx, nz, 0.75f, Range(0.95f, 1.05f), false);
+                            string catches = Pick("napalm"), fire = Pick("fire"), embers = Pick("embers");
+                            if (catches != null) Out.Play(catches, nx, nz, 0.85f, Range(0.9f, 1.0f), 0f, false, 0.25f);
+                            if (fire != null) Out.Play(fire, nx, nz, 2.2f, 1f, 0f, false, 0.4f);
+                            if (embers != null) Out.Play(embers, nx, nz, 3f, 1f, 0f, false, burns - 1.0f);
+                        }
                         break;
                     case EventKind.FirstContact:
                         if (!_radioed && _root.PlayerSide == Side.Us)

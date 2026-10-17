@@ -817,6 +817,23 @@ read 2026-10-17) has the same terms as the other years'. Same mirror, same ignor
 | `mud_0` | `mud_splat_heavy_03.wav` (2018, Soundrangers: Hydrology Bubbles and Splashes) | `79ada977…` | a man climbing out onto the bank; a body into a paddy's hand of water |
 | `river_0` | `stream_08_60_loop.wav` (2018, Soundrangers: Hydrology Streams, Rivers And Lakes), whole: a 61 s loop, −22 dBFS RMS | `a4e1d89a…` | the river's bed, under everything, louder as the lens comes to the river |
 
+**The air strike's bombs and napalm: Sonniss #GameAudioGDC 2018 and 2020** (added 2026-10-17, under the approved plan's
+yes for "napalm / fire whoosh and burning, large bomb explosions"; MatchOptions.Strike, PLAN §12.61). Same mirror, same
+ignored folder, fetched and checked by `fetch_sonniss.sh`, cut by `slice_shots.py`. Loudness of each cut (its loudest
+300 ms, decoded): the bombs -6.5 to -10 dB, a shell -6 (they are played as loud, the bombs with longer bodies); the fire
+-22, the smoulder -33 (played up to be heard over the field).
+
+| set | source (year, pack) | sha256 of the source | used for |
+|---|---|---|---|
+| `bomb_0` | `BigExplosion02.wav` (2020, Stefano Cremona: Explosions), its first 8 s | `25ebf2f4…` | a 500 lb bomb, with its long rumble |
+| `bomb_1` | `DeepExplosion02.wav` (2020, Stefano Cremona: Explosions), 4 s | `871cd928…` | the same, deep |
+| `bomb_2` | `Bluezone_BC0271_explosion_outdoors_large_005.wav` (2020, Bluezone: Tank - Explosion Sound Effects) | `d7950df1…` | the same, sharper |
+| `debris_0` | `Bluezone_BC0271_debris_falling_rock_dust_002.wav` (2020, the same) | `3ce20c63…` | the earth a bomb threw up coming down after it |
+| `napalm_0` | `Designed Fire - Impacts - Large, ignition 03.wav` (2018, Gregor Quendel: Designed Fire), 0 to 4.5 s | `1d0632a6…` | the napalm catching all along its line |
+| `napalm_run_0` | `Designed Fire - Swooshes - Burst, evolving 34.wav` (2018, the same), 1.5 to 8 s | `0517904d…` | its canisters bursting along the line as the jet goes over |
+| `fire_0` | `Burning_House_t2_Fire_high_intensity_with_sizzling_and_some_debris_RE50_1.wav` (2018, Pole Position: The Burning House Library), 20 to 32 s | `afa7a6c9…` | the napalm burning |
+| `embers_0` | `Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav` (2018, the same), 10 to 30 s | `69b70331…` | the fire burned down, crackling |
+
 Fetched but not used yet: `lake_waves_lapping_gentle_02_60_loop.wav` (2018, Soundrangers; `d5905007…`), for the paddies'
 water if it is wanted; `warfare_t1b_cannon_firing_forest_distant_...wav`
 (2017) and

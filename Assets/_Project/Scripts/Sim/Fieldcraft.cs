@@ -457,6 +457,8 @@ namespace LanesOfVietnam.Sim
             March(st, sq, live, tc, dir);
             // Water: in the river it goes on through; at a fallen bridge, sappers and engineers stay and work.
             if (st.Water) Water.Press(st, sq, live, dir);
+            // Strike: and it does not go into the napalm.
+            if (st.Strike) Sim.Strike.Hold(st, sq, live, dir);
             Squads.Reanchor(st, sq, live);
             Slots(st, sq, live, tc, dir, slots);
         }

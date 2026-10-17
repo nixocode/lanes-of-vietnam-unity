@@ -51,6 +51,23 @@ namespace LanesOfVietnam.Sim
             }
         }
 
+        /// <summary>
+        /// A bomb (MatchOptions.Strike): a standing post within this many metres of it falls, away from it, whatever
+        /// strength it had left.
+        /// </summary>
+        public static void Flatten(SimState st, double x, double z, double reach)
+        {
+            for (int i = 0; i < st.Posts.Count; i++)
+            {
+                var p = st.Posts[i];
+                if (p.Fallen || JsMath.Hypot(x - p.X, z - p.Z) > reach) continue;
+                st.Events.Add(new SimEvent { Kind = EventKind.Damaged, Tick = st.Tick, Id = p.Id, X = x, Z = z, Amount = 0 });
+                p.Strength = 0;
+                p.LastHitX = x; p.LastHitZ = z;
+                Fall(st, p);
+            }
+        }
+
         private static void Fall(SimState st, Post p)
         {
             var rng = st.FragRng;

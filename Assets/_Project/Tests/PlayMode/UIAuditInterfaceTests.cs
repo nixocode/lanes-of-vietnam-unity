@@ -832,7 +832,8 @@ namespace LanesOfVietnam.Tests
                     Root.Driver.FastForward(1);
                     yield return null;
 
-                    Assert.AreEqual(500 - card.Cost, st.Cp[(int)side], 1.0, $"{card.Id}: CP not spent");
+                    // (What it costs in this match: the air strike's price is its rule's, MatchOptions.Strike.)
+                    Assert.AreEqual(500 - Deck.CostOf(st, card), st.Cp[(int)side], 1.0, $"{card.Id}: CP not spent");
                     bool changed = st.Men.Count > men
                                    || st.Events.Count(e => e.Kind == EventKind.AreaStart) > areaEvents
                                    || st.Morale[(int)side] > morale

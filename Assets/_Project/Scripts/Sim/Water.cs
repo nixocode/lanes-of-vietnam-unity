@@ -197,6 +197,22 @@ namespace LanesOfVietnam.Sim
             }
         }
 
+        /// <summary>A bomb (MatchOptions.Strike): a standing bridge whose deck it lands on, or within this many metres of, falls.</summary>
+        public static void Flatten(SimState st, double x, double z, double reach)
+        {
+            if (!st.Water) return;
+            for (int i = 0; i < st.Bridges.Count; i++)
+            {
+                var b = st.Bridges[i];
+                if (b.Fallen) continue;
+                double nx = Math.Max(b.X0, Math.Min(b.X1, x));
+                if (JsMath.Hypot(x - nx, z - Tune.Lanes[b.Lane]) > reach) continue;
+                b.Strength = 0;
+                st.Events.Add(new SimEvent { Kind = EventKind.BridgeHit, Tick = st.Tick, Id = b.Id, X = x, Z = z, Amount = 0 });
+                Fall(st, b);
+            }
+        }
+
         /// <summary>It falls: into the river, and the men on it with it.</summary>
         private static void Fall(SimState st, BridgeState b)
         {

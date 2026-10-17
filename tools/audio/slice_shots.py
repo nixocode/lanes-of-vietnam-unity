@@ -65,6 +65,10 @@ LICENSED = {
     # Hydrology); a man's foot in a paddy's mud, a heavy wet splat (the same).
     "splash": [("2018/fish_small_jump_04.wav", 0.8)],
     "mud": [("2018/mud_splat_heavy_03.wav", 0.9)],
+    # The air strike's bombs (MatchOptions.Strike, PLAN §12.61): 500 lb bombs, the first with its long rumble, and what
+    # they throw up coming down after.
+    "bomb": [("2020/BigExplosion02.wav", 8.0), ("2020/DeepExplosion02.wav", 4.0), ("2020/Bluezone_BC0271_explosion_outdoors_large_005.wav", 3.6)],
+    "debris": [("2020/Bluezone_BC0271_debris_falling_rock_dust_002.wav", 2.5)],
 }
 # Takes of many events, cut apart where the sound falls quiet for `gap`
 # seconds: bursts, rounds going by, the phrases of a radio call.
@@ -107,6 +111,14 @@ PIECES = {
     # West Wolf's take of splashing in the shallows (each found by its loudness over 50 ms, 10 dB over the take's lapping).
     "plunge": [("2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav", t - 0.35, t + 1.0, 0.04, 0.35)
                for t in (1.84, 11.25, 89.49, 107.77)],
+    # The napalm (PLAN §12.61): the fire catching all along the line at once (Gregor Quendel's designed ignition, its
+    # first four and a half seconds), the canisters bursting along it as the jet goes over (his evolving burst), and the
+    # fire burning: twelve seconds of a house burning at its height (Pole Position's Burning House, high intensity, away
+    # from its debris falling at 9 s), and twenty of the same fire burned down, crackling.
+    "napalm": [("2018/Designed Fire - Impacts - Large, ignition 03.wav", 0.0, 4.5, 0.02, 1.5)],
+    "napalm_run": [("2018/Designed Fire - Swooshes - Burst, evolving 34.wav", 1.5, 8.0, 0.3, 1.5)],
+    "fire": [("2018/Burning_House_t2_Fire_high_intensity_with_sizzling_and_some_debris_RE50_1.wav", 20.0, 32.0, 1.0, 2.5)],
+    "embers": [("2018/Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav", 10.0, 30.0, 1.5, 3.0)],
     # The tower's legs groaning as they give: a tree's creak, its louder second half.
     "timber_creak": [("2019/Bluezone_BC0254_wood_creaking_tree_005.wav", 1.2, 3.3, 0.25, 0.25)],
 }

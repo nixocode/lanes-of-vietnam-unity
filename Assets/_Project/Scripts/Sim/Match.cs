@@ -163,6 +163,11 @@ namespace LanesOfVietnam.Sim
         /// <summary>Part 2: the higher ground tells: shooting up at it hits less often, down from it a little more (Heights). Nothing on a flat map.</summary>
         public bool Heights;
         /// <summary>
+        /// Part 2: the air strike is bombs and then napalm, costs StrikeCost, and destroys what is in its path (<see
+        /// cref="Sim.Strike"/>; with Inbound). Off is the strike as it was.
+        /// </summary>
+        public bool Strike;
+        /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
         /// </summary>
@@ -340,6 +345,7 @@ namespace LanesOfVietnam.Sim
                 Shootdown = opts.Shootdown && opts.Inbound,
                 Water = opts.Water,
                 Heights = opts.Heights,
+                Strike = opts.Strike && opts.Inbound,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -519,6 +525,9 @@ namespace LanesOfVietnam.Sim
                     if (st.Bearing && st.Gunnery) m.Wait = -1;
                 }
                 quarry = Fieldcraft.Quarry(st, m, sq);
+                // Water: a man in the river does not go for anyone with his hands (nobody fights hand to hand in it): he
+                // makes for the bank. (Going for one, he stopped a rifle's length from him, and the two stood in the water.)
+                if (swim) quarry = null;
             }
             // Always the slot. Cover is reached by moving the anchor.
             double tx = slot.X, tz = slot.Z;
@@ -544,6 +553,8 @@ namespace LanesOfVietnam.Sim
             if (st.Tactics && quarry == null && !swim && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
             // Water: in the river, his place is out of it: he does not stop in it.
             if (swim && quarry == null) tx = Water.Out(st, sq, tx, dir);
+            // Strike: nobody goes into the fire, and a man in it gets out of it.
+            if (st.Strike) tx = Sim.Strike.Short(st, m, tx, dir);
             // Bearing: down, he gets up only for a move he can make now; on his feet with his way barred, he does not stand there.
             bool sapper = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen;
             if (st.Bearing && quarry == null && !sapper && !swim)
@@ -1166,6 +1177,8 @@ namespace LanesOfVietnam.Sim
         /// <summary>One round of a barrage bursting on the ground: every man near it is pinned, and may be killed.</summary>
         internal static void Burst(SimState st, Area a, double bx, double bz, Rng rng)
         {
+            // Strike: the jet's bomb is a 500 lb bomb.
+            if (Sim.Strike.Jet(st, a)) { Sim.Strike.Bomb(st, a, bx, bz, rng); return; }
             st.Events.Add(new SimEvent
             {
                 Kind = EventKind.Shell, Tick = st.Tick, Side = a.Side, Id = a.Id, X = bx, Z = bz,
@@ -1232,6 +1245,9 @@ namespace LanesOfVietnam.Sim
                     }
                 }
 
+                // Strike: the napalm, lit and burning.
+                if (a.Kind == AreaKind.Napalm) Sim.Strike.Tick(st, a, rng);
+
                 if (a.Kind == AreaKind.Trap)
                 {
                     // Springs on the first enemy inside it, then it is gone.
@@ -1266,6 +1282,8 @@ namespace LanesOfVietnam.Sim
 
                 if (a.Ticks <= 0)
                 {
+                    // Strike: the jet comes round again with the napalm.
+                    if (Sim.Strike.Jet(st, a)) Sim.Strike.Lay(st, a);
                     st.Events.Add(new SimEvent
                     {
                         Kind = EventKind.AreaEnd, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z,

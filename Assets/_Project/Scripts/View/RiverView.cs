@@ -229,36 +229,36 @@ namespace LanesOfVietnam.View
             for (int side = 0; side < 2; side++)
             {
                 double a = side == 0 ? d.X0 : mid, b = side == 0 ? mid : d.X1;
-                var pivot = W(side == 0 ? d.X0 : d.X1, d.Z, capTop);
-                var floor = new Builder();
+                var h = span.Halves[side] = new Half { Pivot = W(side == 0 ? d.X0 : d.X1, d.Z, capTop), Z = d.Z, Deck = deck, Timber = timber };
                 // Stringers, resting on the caps and on the bank at its end.
                 foreach (double dz in new[] { -half + 0.3, 0.0, half - 0.3 })
-                    floor.Box(W((a + b) * 0.5, d.Z + dz, capTop + 0.11f), new Vector3((float)(b - a), 0.22f, 0.2f), Quaternion.identity);
+                    h.Stringers.Add((W((a + b) * 0.5, d.Z + dz, capTop + 0.11f), new Vector3((float)(b - a), 0.22f, 0.2f)));
                 // The deck: planks across, each a little out of true.
                 for (double x = d.X0 + 0.14; x < d.X1 - 0.1; x += 0.29)
                 {
                     var turn = Quaternion.Euler((float)rng.Range(-0.6, 0.6), (float)rng.Range(-1.5, 1.5), 0f);
                     float dy = (float)rng.Range(-0.012, 0.012), wide = (float)d.Width + (float)rng.Range(-0.1, 0.15);
-                    if (x >= a && x < b) floor.Box(W(x, d.Z, deck - 0.03f + dy), new Vector3(0.27f, 0.06f, wide), turn);
+                    if (x >= a && x < b) h.Planks.Add((x, W(x, d.Z, deck - 0.03f + dy), new Vector3(0.27f, 0.06f, wide), turn));
                 }
                 // The rails: a post every metre and a half, a rail on top and one half way.
-                var rails = new Builder();
                 foreach (double dz in new[] { -half + 0.08, half - 0.08 })
                 {
                     for (double x = d.X0 + 0.3; x <= d.X1 - 0.2; x += 1.5)
                     {
                         float lean = (float)rng.Range(-2, 2);
-                        if (x >= a && x < b) rails.Box(W(x, d.Z + dz, deck + 0.5f), new Vector3(0.12f, 1.0f, 0.12f), Quaternion.Euler(0f, 0f, lean));
+                        if (x >= a && x < b) h.Posts.Add((x, dz, W(x, d.Z + dz, deck + 0.5f), Quaternion.Euler(0f, 0f, lean)));
                     }
-                    double r0 = Math.Max(a, d.X0 + 0.2), r1 = Math.Min(b, d.X1 - 0.2);
-                    rails.Box(W((r0 + r1) * 0.5, d.Z + dz, deck + 0.98f), new Vector3((float)(r1 - r0), 0.1f, 0.1f), Quaternion.identity);
-                    rails.Box(W((r0 + r1) * 0.5, d.Z + dz, deck + 0.52f), new Vector3((float)(r1 - r0), 0.08f, 0.06f), Quaternion.identity);
+                    h.Rails.Add(dz);
                 }
+                h.R0 = Math.Max(a, d.X0 + 0.2); h.R1 = Math.Min(b, d.X1 - 0.2);
                 var hinge = new GameObject($"bridge {index} span {side}").transform;
                 hinge.SetParent(transform, false);
-                hinge.position = pivot;
-                Add($"bridge {index} deck {side}", floor.Mesh($"bridge {index} deck {side}", pivot), timber, castShadows: true, under: hinge);
-                Add($"bridge {index} rails {side}", rails.Mesh($"bridge {index} rails {side}", pivot), timber, castShadows: true, under: hinge);
+                hinge.position = h.Pivot;
+                Add($"bridge {index} deck {side}", new Mesh(), timber, castShadows: true, under: hinge);
+                Add($"bridge {index} rails {side}", new Mesh(), timber, castShadows: true, under: hinge);
+                h.Floor = hinge.Find($"bridge {index} deck {side}").GetComponent<MeshFilter>();
+                h.Railing = hinge.Find($"bridge {index} rails {side}").GetComponent<MeshFilter>();
+                Draw(h, index, side);
                 if (side == 0) span.West = hinge; else span.East = hinge;
             }
             span.Drop = deck - ((float)g.Params.RiverWater - 0.45f);
@@ -276,6 +276,113 @@ namespace LanesOfVietnam.View
             public float Since = -1f, Drop;
             /// <summary>Its timber has struck the water, this time down.</summary>
             public bool Struck;
+            /// <summary>Its two halves' members, as built and as broken.</summary>
+            public readonly Half[] Halves = new Half[2];
+            /// <summary>Its strength when last looked at (its hits are what it lost since), and how far it sags now, metres at its middle.</summary>
+            public double Strength = Tune.BridgeStrength;
+            public float Sag;
+        }
+
+        /// <summary>
+        /// One half of a bridge's deck, member by member, so that what a burst on it takes away can be left out of it: the
+        /// planks blown out where it was hit (Holes), a post and its rails broken off (Breaks, on one side of it).
+        /// </summary>
+        private sealed class Half
+        {
+            public Vector3 Pivot;
+            public double Z, R0, R1;
+            public float Deck;
+            public Material Timber;
+            public readonly List<(Vector3 c, Vector3 size)> Stringers = new List<(Vector3, Vector3)>();
+            public readonly List<(double x, Vector3 c, Vector3 size, Quaternion turn)> Planks = new List<(double, Vector3, Vector3, Quaternion)>();
+            public readonly List<(double x, double dz, Vector3 c, Quaternion turn)> Posts = new List<(double, double, Vector3, Quaternion)>();
+            public readonly List<double> Rails = new List<double>();
+            public readonly List<(double x0, double x1)> Holes = new List<(double, double)>();
+            public readonly List<(double dz, double x0, double x1)> Breaks = new List<(double, double, double)>();
+            public MeshFilter Floor, Railing;
+        }
+
+        /// <summary>A half's deck and rails, less what has been blown out of them.</summary>
+        private static void Draw(Half h, int index, int side)
+        {
+            var floor = new Builder();
+            foreach (var (c, size) in h.Stringers) floor.Box(c, size, Quaternion.identity);
+            foreach (var p in h.Planks)
+            {
+                bool gone = false;
+                foreach (var (x0, x1) in h.Holes) gone |= p.x >= x0 && p.x <= x1;
+                if (!gone) floor.Box(p.c, p.size, p.turn);
+            }
+            Swap(h.Floor, floor.Mesh($"bridge {index} deck {side}", h.Pivot));
+            var rails = new Builder();
+            foreach (var p in h.Posts)
+            {
+                bool gone = false;
+                foreach (var (dz, x0, x1) in h.Breaks) gone |= dz == p.dz && p.x >= x0 && p.x <= x1;
+                if (!gone) rails.Box(p.c, new Vector3(0.12f, 1.0f, 0.12f), p.turn);
+            }
+            foreach (double dz in h.Rails)
+            {
+                // The rail in the lengths left between its breaks.
+                var cuts = new List<(double, double)>();
+                foreach (var (bz, x0, x1) in h.Breaks) if (bz == dz) cuts.Add((x0, x1));
+                cuts.Sort((p, q) => p.Item1.CompareTo(q.Item1));
+                double from = h.R0;
+                foreach (var (x0, x1) in cuts)
+                {
+                    Rail(rails, h, dz, from, Math.Min(x0, h.R1));
+                    from = Math.Max(from, x1);
+                }
+                Rail(rails, h, dz, from, h.R1);
+            }
+            Swap(h.Railing, rails.Mesh($"bridge {index} rails {side}", h.Pivot));
+        }
+
+        private static void Rail(Builder rails, Half h, double dz, double r0, double r1)
+        {
+            if (r1 - r0 < 0.3) return;
+            rails.Box(W((r0 + r1) * 0.5, h.Z + dz, h.Deck + 0.98f), new Vector3((float)(r1 - r0), 0.1f, 0.1f), Quaternion.identity);
+            rails.Box(W((r0 + r1) * 0.5, h.Z + dz, h.Deck + 0.52f), new Vector3((float)(r1 - r0), 0.08f, 0.06f), Quaternion.identity);
+        }
+
+        private static void Swap(MeshFilter f, Mesh m)
+        {
+            if (f == null) return;
+            if (f.sharedMesh != null) Destroy(f.sharedMesh);
+            f.sharedMesh = m;
+        }
+
+        /// <summary>
+        /// A burst on bridge s, at x (the simulation's), from the side z, that took <paramref name="took"/> of its strength:
+        /// the planks there blown out, more for a harder blow; and, for a hard one, the post and the rails on that side of
+        /// the deck broken off by it.
+        /// </summary>
+        private void Hit(Span s, double x, double z, double took)
+        {
+            var d = s.Deck;
+            x = Math.Max(d.X0 + 0.3, Math.Min(d.X1 - 0.3, x));
+            double hole = 0.25 + 1.0 * Math.Min(1, took / 0.5);
+            double dz = z < d.Z ? -(d.Width * 0.5 - 0.08) : d.Width * 0.5 - 0.08;
+            for (int side = 0; side < 2; side++)
+            {
+                var h = s.Halves[side];
+                if (h == null) continue;
+                if (took > 0.08) h.Holes.Add((x - hole, x + hole));
+                if (took > 0.25) h.Breaks.Add((dz, x - hole - 0.6, x + hole + 0.6));
+                Draw(h, s.Index, side);
+            }
+        }
+
+        /// <summary>Put back (MatchOptions.Water): a rough crossing of new planks, holes and all gone; its rails were not put back.</summary>
+        private void Mend(Span s)
+        {
+            for (int side = 0; side < 2; side++)
+            {
+                var h = s.Halves[side];
+                if (h == null || h.Holes.Count == 0 && h.Breaks.Count == 0) continue;
+                h.Holes.Clear(); h.Breaks.Clear();
+                Draw(h, s.Index, side);
+            }
         }
 
         private readonly List<Span> _spans = new List<Span>();
@@ -310,6 +417,7 @@ namespace LanesOfVietnam.View
             if (!Wet) return;
             Stain(st, now);
             Splashing(st, now);
+            Hits(st);
             foreach (var s in _spans)
             {
                 bool fallen = st.Water && s.Index < st.Bridges.Count && st.Bridges[s.Index].Fallen;
@@ -323,7 +431,14 @@ namespace LanesOfVietnam.View
                     s.Since = k >= 0 ? (float)(st.Events[k].Tick * Tune.Dt) : now;
                     if (fallen) s.Seed = k >= 0 ? st.Events[k].Rounds : 0;
                     // Put back, it is a rough crossing: its planks laid again, no rails.
-                    else s.Rough = true;
+                    else { s.Rough = true; Mend(s); s.Strength = st.Bridges[s.Index].Strength; }
+                }
+                // Standing, it sags as it weakens: each half dips toward the middle.
+                if (!s.Down && (s.Since < 0f || now - s.Since > 0.5f))
+                {
+                    float dip = Mathf.Atan2(s.Sag, (float)(s.Deck.X1 - s.Deck.X0) * 0.5f) * Mathf.Rad2Deg;
+                    if (s.West != null) s.West.localRotation = Quaternion.AngleAxis(-dip, Vector3.forward);
+                    if (s.East != null) s.East.localRotation = Quaternion.AngleAxis(dip, Vector3.forward);
                 }
                 if (s.Since < 0f) continue;
                 Pose(s, Mathf.Max(0f, now - s.Since));
@@ -338,6 +453,75 @@ namespace LanesOfVietnam.View
                     foreach (double x in new[] { mid - quarter, mid + quarter }) Add(Into.Timber, x, s.Deck.Z, y, s.Since + TimberStrikes + 0.12f, 1.4f, true);
                 }
             }
+        }
+
+        private SimState _hitsOf;
+        private int _hitCursor;
+
+        /// <summary>
+        /// The bursts on the bridges since last looked (BridgeHit), drawn on them: holes, rails broken; and, as a bridge
+        /// weakens below half its strength, its halves sagging at the middle where they meet (and the men on it with them:
+        /// Ground.SetDeckSag), BridgeSag at nothing left. A new match puts every bridge back as it was built.
+        /// </summary>
+        private void Hits(SimState st)
+        {
+            if (!ReferenceEquals(st, _hitsOf) || _hitCursor > st.Events.Count)
+            {
+                _hitsOf = st; _hitCursor = 0;
+                foreach (var s in _spans)
+                {
+                    Mend(s);
+                    s.Strength = Tune.BridgeStrength; s.Sag = 0f;
+                    s.Down = false; s.Since = -1f; s.Rough = false; s.Struck = false;
+                    _ground.SetDeckDown(s.Index, false);
+                    _ground.SetDeckSag(s.Index, 0);
+                    foreach (var hinge in new[] { s.West, s.East })
+                    {
+                        if (hinge == null) continue;
+                        hinge.localRotation = Quaternion.identity;
+                        foreach (Transform c in hinge) c.gameObject.SetActive(true);
+                    }
+                }
+                // (A match looked at from the middle: what it had taken so far is drawn too.)
+            }
+            for (; _hitCursor < st.Events.Count; _hitCursor++)
+            {
+                var e = st.Events[_hitCursor];
+                if (e.Kind != EventKind.BridgeHit || e.Id < 0 || e.Id >= _spans.Count || e.X == null) continue;
+                var s = _spans[e.Id];
+                double left = e.Amount ?? 0, took = Math.Max(0, s.Strength - left);
+                s.Strength = left;
+                Hit(s, e.X.Value, e.Z ?? s.Deck.Z, took);
+            }
+            foreach (var s in _spans)
+            {
+                float sag = s.Down ? 0f : BridgeSag * Mathf.Clamp01(1f - (float)(s.Strength / (0.5 * Tune.BridgeStrength)));
+                if (Mathf.Abs(sag - s.Sag) < 0.002f) continue;
+                s.Sag = sag;
+                _ground.SetDeckSag(s.Index, sag);
+            }
+        }
+
+        /// <summary>How far a bridge sags at its middle with nothing of its strength left, metres.</summary>
+        public const float BridgeSag = 0.22f;
+
+        /// <summary>How far bridge i sags now (for the tests).</summary>
+        public float SagOf(int i) => i >= 0 && i < _spans.Count ? _spans[i].Sag : 0f;
+
+        /// <summary>How many planks of bridge i are blown out now (for the tests).</summary>
+        public int HolesOf(int i)
+        {
+            if (i < 0 || i >= _spans.Count) return 0;
+            int n = 0;
+            foreach (var h in _spans[i].Halves)
+                if (h != null)
+                    foreach (var p in h.Planks)
+                    {
+                        bool gone = false;
+                        foreach (var (x0, x1) in h.Holes) gone |= p.x >= x0 && p.x <= x1;
+                        if (gone) n++;
+                    }
+            return n;
         }
 
         // --- what goes into the water (R5) --------------------------------------------------

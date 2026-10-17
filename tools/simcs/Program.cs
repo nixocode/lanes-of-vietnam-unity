@@ -69,6 +69,7 @@ namespace LanesOfVietnam.SimCs
                     "mirror" => MirrorCheck(args),
                     "ground" => GroundProfile(args),
                     "river" => RiverTable(args),
+                    "strikes" => StrikeTable(args),
                     "squadsmoke" => SquadSmokeCount(args),
                     "towerfalls" => TowerFalls(args),
                     "shootdowns" => Shootdowns(args),
@@ -219,12 +220,12 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
-            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard"), emplace = a.Contains("emplace"), satchel = a.Contains("satchel"), destruction = a.Contains("destruction"), shootdown = a.Contains("shootdown"), water = a.Contains("water"), heights = a.Contains("heights");
+            bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard"), emplace = a.Contains("emplace"), satchel = a.Contains("satchel"), destruction = a.Contains("destruction"), shootdown = a.Contains("shootdown"), water = a.Contains("water"), heights = a.Contains("heights"), strike = a.Contains("strike");
             // `map=<id>`: on that map, its cover, its posts and its river (`map=ricefields`); `map` alone is the firebase's cover.
             var named = a.Where(x => x.StartsWith("map=")).Select(x => Maps.ById(x.Substring(4))).FirstOrDefault();
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction" && x != "shootdown" && x != "water" && x != "heights" && !x.StartsWith("map=")).ToArray();
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction" && x != "shootdown" && x != "water" && x != "heights" && x != "strike" && !x.StartsWith("map=")).ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Map = named, Cover = named != null ? named.Cover() : onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Shootdown = shootdown, Bearing = bearing, Water = water, Heights = heights });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Map = named, Cover = named != null ? named.Cover() : onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Shootdown = shootdown, Bearing = bearing, Water = water, Heights = heights, Strike = strike });
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -929,6 +930,68 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// `strikes [N] [scenario]` (MatchOptions.Strike): every operation (or one), N matches each against a Veteran with
+        /// nobody playing, as the game plays them: the air strikes the computer called, what was inside the stick's line
+        /// as the first bomb fell, what the bombs and the napalm killed (of the enemy, of its own), the positions wrecked,
+        /// the towers and bridges brought down, and squads held short of the fire.
+        /// </summary>
+        private static int StrikeTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seeds = nums.Length > 0 ? nums[0] : 24;
+            string only = a.Skip(1).FirstOrDefault(x => Scenarios.ById(x) != null);
+            foreach (var sc in Scenarios.All)
+            {
+                if (only != null && sc.Id != only) continue;
+                double strikes = 0, bombKilled = 0, bombOwn = 0, burned = 0, burnedOwn = 0, wrecked = 0, towers = 0, bridges = 0, held = 0, inside = 0;
+                for (int seed = 1; seed <= seeds; seed++)
+                {
+                    var m = new LiveMatch(sc.Options(seed, null, Difficulty.Veteran));
+                    var st = m.State;
+                    var jets = new Dictionary<int, Side>();
+                    while (!st.Over && st.Tick < m.Cap)
+                    {
+                        int from = st.Events.Count;
+                        m.Step();
+                        int bombAt = -1; Side bomber = Side.Us;
+                        for (int i = from; i < st.Events.Count; i++)
+                        {
+                            var e = st.Events[i];
+                            if (e.Kind == EventKind.CallIn && e.Rounds == Inbound.Jet) { strikes++; jets[e.Id] = e.Side; }
+                            if (e.Kind == EventKind.Shell && e.Rounds == Inbound.Jet)
+                            {
+                                bombAt = i; bomber = e.Side;
+                                // The first of its stick: who is on the line it falls along.
+                                var ar = st.Areas.FirstOrDefault(x => x.Id == e.Id);
+                                if (ar != null && ar.Ticks == Tune.StickBombs * Tune.StickGap - 1)
+                                    foreach (var man in st.Men)
+                                        if (man.Side != e.Side && (man.Alive || man.DiedAt == st.Tick) && Math.Abs(man.X - ar.X) <= Tune.NapalmHalf && Math.Abs(man.Z - ar.Z) <= Tune.NapalmWide * 0.5 + 1) inside++;
+                            }
+                            if (e.Kind == EventKind.Kill && bombAt >= 0 && e.Id < st.Men.Count && (i == 0 || st.Events[i - 1].Kind != EventKind.Burned))
+                            {
+                                if (st.Men[e.Id].Side == bomber) bombOwn++; else bombKilled++;
+                            }
+                            if (e.Kind == EventKind.Burned && e.Id < st.Men.Count)
+                            {
+                                if (st.Men[e.Id].Side == e.Side) burnedOwn++; else burned++;
+                            }
+                            if (e.Kind == EventKind.Wrecked) wrecked++;
+                            if (e.Kind == EventKind.Collapsed && bombAt >= 0) towers++;
+                            if (e.Kind == EventKind.BridgeFell && bombAt >= 0) bridges++;
+                        }
+                        foreach (var sq in st.Squads)
+                            if (sq.Halted && st.Areas.Any(ar => ar.Kind == AreaKind.Napalm && Math.Abs(Tune.Lanes[sq.Lane] - ar.Z) < Tune.NapalmWide && Math.Abs(sq.AnchorX - ar.X) <= ar.Radius + Tune.NapalmShort + 0.01 && Math.Abs(sq.AnchorX - ar.X) >= ar.Radius)) held += Tune.Dt;
+                    }
+                }
+                double n = seeds;
+                Console.WriteLine($"  {sc.Id}, {seeds} matches against a Veteran, nobody playing: air strikes {strikes / n:F2} a match");
+                if (strikes == 0) continue;
+                Console.WriteLine($"    a strike: the enemy on its line {inside / strikes:F1}; killed by its bombs {bombKilled / strikes:F1} (its own {bombOwn / strikes:F1}), burned {burned / strikes:F1} (its own {burnedOwn / strikes:F1}); positions wrecked {wrecked / strikes:F1}; towers down {towers / strikes:F2}, bridges {bridges / strikes:F2}; squad-seconds held short of the fire {held / strikes:F1}");
+            }
+            return 0;
+        }
+
         private static MatchOptions Game(int seed, string[] a)
         {
             // `scenario=<id>`: the scenario as the game plays it against a Veteran with nobody playing, in place of the flags.
@@ -952,6 +1015,7 @@ namespace LanesOfVietnam.SimCs
             if (mapArg != null) { o.Map = Maps.ById(mapArg) ?? throw new ArgumentException($"no map called \"{mapArg}\""); o.Cover = o.Map.Cover(); }
             o.Water = a.Contains("water");
             o.Heights = a.Contains("heights");
+            o.Strike = a.Contains("strike");
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
             if (a.Contains("siege") || a.Contains("long")) o.Length = MatchLength.Long;      // (`siege` is what the long match was called until scenarios)

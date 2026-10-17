@@ -85,6 +85,12 @@ namespace LanesOfVietnam.Sim
             return cards;
         }
 
+        /// <summary>What a card costs in this match: the air strike costs StrikeCost with MatchOptions.Strike.</summary>
+        public static int CostOf(SimState st, Card card) => st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCost : card.Cost;
+
+        /// <summary>The ticks a card waits after it is bought, in this match (the air strike StrikeCooldown with MatchOptions.Strike).</summary>
+        public static int CooldownOf(SimState st, Card card) => st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCooldown : card.Cooldown;
+
         /// <summary>Ticks left before a card can be bought again; 0 is ready.</summary>
         public static int CooldownLeft(SimState st, Side side, Card card) => st.CardCooldown[(int)side][card.Index];
 
@@ -111,7 +117,7 @@ namespace LanesOfVietnam.Sim
         {
             if (st.Over) return "match over";
             if (!Has(st, side, card)) return "not in this operation";
-            if (st.Cp[(int)side] < card.Cost) return "not enough CP";
+            if (st.Cp[(int)side] < CostOf(st, card)) return "not enough CP";
             if (CooldownLeft(st, side, card) > 0) return "cooling down";
             if (card.Pips > 0 && Match.AliveCount(st, side) >= Tune.ForceCap) return "force cap";
             return null;
@@ -133,8 +139,8 @@ namespace LanesOfVietnam.Sim
             if (card == Grenades(side))
             {
                 if (Frag.Throwers(st, side, lane % Tune.Lanes.Length, aimX).Count == 0) return false;
-                st.Cp[(int)side] -= card.Cost;
-                st.CardCooldown[(int)side][card.Index] = card.Cooldown;
+                st.Cp[(int)side] -= CostOf(st, card);
+                st.CardCooldown[(int)side][card.Index] = CooldownOf(st, card);
                 Frag.OnCall(st, side, lane % Tune.Lanes.Length, aimX);
                 return true;
             }
@@ -144,8 +150,8 @@ namespace LanesOfVietnam.Sim
                 if (Vantage.Blocked(st, side, card.Id, post) != null) return false;
                 lane = st.Posts[post].Lane;
             }
-            st.Cp[(int)side] -= card.Cost;
-            st.CardCooldown[(int)side][card.Index] = card.Cooldown;
+            st.Cp[(int)side] -= CostOf(st, card);
+            st.CardCooldown[(int)side][card.Index] = CooldownOf(st, card);
             lane %= Tune.Lanes.Length;
 
             if (card.Pips > 0)

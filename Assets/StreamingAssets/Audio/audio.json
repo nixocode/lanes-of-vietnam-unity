@@ -431,6 +431,36 @@
    ]
   },
   {
+   "name": "bomb",
+   "files": [
+    {
+     "file": "licensed/bomb_0.m4a",
+     "source": "sonniss2020/BigExplosion02.wav",
+     "seconds": 8.0
+    },
+    {
+     "file": "licensed/bomb_1.m4a",
+     "source": "sonniss2020/DeepExplosion02.wav",
+     "seconds": 4.0
+    },
+    {
+     "file": "licensed/bomb_2.m4a",
+     "source": "sonniss2020/Bluezone_BC0271_explosion_outdoors_large_005.wav",
+     "seconds": 3.561
+    }
+   ]
+  },
+  {
+   "name": "debris",
+   "files": [
+    {
+     "file": "licensed/debris_0.m4a",
+     "source": "sonniss2020/Bluezone_BC0271_debris_falling_rock_dust_002.wav",
+     "seconds": 2.418
+    }
+   ]
+  },
+  {
    "name": "mg1",
    "files": [
     {
@@ -542,6 +572,46 @@
      "file": "licensed/plunge_3.m4a",
      "source": "sonniss2017/W 04 Water_24_Splashing, Sailing, Small, Fishing, Ship_T03.wav 107.4-108.8 s",
      "seconds": 1.35
+    }
+   ]
+  },
+  {
+   "name": "napalm",
+   "files": [
+    {
+     "file": "licensed/napalm_0.m4a",
+     "source": "sonniss2018/Designed Fire - Impacts - Large, ignition 03.wav 0.0-4.5 s",
+     "seconds": 4.5
+    }
+   ]
+  },
+  {
+   "name": "napalm_run",
+   "files": [
+    {
+     "file": "licensed/napalm_run_0.m4a",
+     "source": "sonniss2018/Designed Fire - Swooshes - Burst, evolving 34.wav 1.5-8.0 s",
+     "seconds": 6.5
+    }
+   ]
+  },
+  {
+   "name": "fire",
+   "files": [
+    {
+     "file": "licensed/fire_0.m4a",
+     "source": "sonniss2018/Burning_House_t2_Fire_high_intensity_with_sizzling_and_some_debris_RE50_1.wav 20.0-32.0 s",
+     "seconds": 12.0
+    }
+   ]
+  },
+  {
+   "name": "embers",
+   "files": [
+    {
+     "file": "licensed/embers_0.m4a",
+     "source": "sonniss2018/Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav 10.0-30.0 s",
+     "seconds": 20.0
     }
    ]
   },

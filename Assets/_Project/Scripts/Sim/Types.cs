@@ -63,7 +63,9 @@ namespace LanesOfVietnam.Sim
     /// <summary>A called-in effect: a circle on the map with a clock on it.</summary>
     public enum AreaKind { Barrage, Smoke, Trap,
         /// <summary>MatchOptions.Inbound: a medevac on its way; when it is in, it steadies the line and is gone.</summary>
-        Relief }
+        Relief,
+        /// <summary>MatchOptions.Strike: the air strike's napalm, along its stick's line: Radius metres either way along the lane, lit when Next reaches 0.</summary>
+        Napalm }
 
     /// <summary>Why a man did not take a step in a tick (<see cref="Man.Idle"/>).</summary>
     public enum Idle : byte
@@ -375,6 +377,8 @@ namespace LanesOfVietnam.Sim
         public Side? HeldBy;
         /// <summary>Ticks left of its protection being down: a satchel charge has burst in it (MatchOptions.Satchel).</summary>
         public int Breached;
+        /// <summary>A bomb has wrecked it (MatchOptions.Strike): it is a bomb crater now, for the rest of the match.</summary>
+        public bool Wrecked;
 
         /// <summary>Each side's standing order on it (MatchOptions.Fieldcraft; positions only).</summary>
         public Lever LeverUs, LeverVc;
@@ -468,6 +472,10 @@ namespace LanesOfVietnam.Sim
         // went into the water, those it killed after it as Kill events); BridgeWork: squad Target of Side has started
         // rebuilding fallen bridge Id; BridgeRebuilt: it stands again, at Amount of its strength.
         BridgeHit, BridgeFell, BridgeWork, BridgeRebuilt,
+        // Strike (MatchOptions.Strike): position Id was wrecked by a bomb (a crater now) at X, Z; NapalmLit: the napalm of
+        // area Id is alight along its line, centred on X, Z, Amount metres either way along the lane; Burned: man Id burned
+        // in the napalm of area Target (his Kill is the next event). A bomb's Shell event has Rounds = Inbound.Jet.
+        Wrecked, NapalmLit, Burned,
     }
 
     public struct SimEvent
@@ -591,6 +599,8 @@ namespace LanesOfVietnam.Sim
         public bool Water;
         /// <summary>Part 2: a man shooting up at higher ground hits less often, down from it a little more (MatchOptions.Heights).</summary>
         public bool Heights;
+        /// <summary>Part 2: the air strike is bombs and then napalm, and wrecks what it falls on (MatchOptions.Strike, with Inbound).</summary>
+        public bool Strike;
         /// <summary>With Vantage: the computer's side mans its own posts (MatchOptions.ComputerPosts).</summary>
         public bool ComputerPosts;
         /// <summary>The map's posts (MatchOptions.Vantage); none without the rule.</summary>

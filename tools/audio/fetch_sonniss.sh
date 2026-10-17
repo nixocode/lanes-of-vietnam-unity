@@ -39,6 +39,11 @@ fetch "Soundrangers - Hydrology Streams, Rivers And Lakes" "stream_08_60_loop.wa
 fetch "Soundrangers - Hydrology Streams, Rivers And Lakes" "lake_waves_lapping_gentle_02_60_loop.wav" d59050075d092c82cc3d2c654d4449d7b1279b8b0c869975551ccdec2fdaac7e
 fetch "Soundrangers - Hydrology Bubbles and Splashes" "fish_small_jump_04.wav" cbbcbf5c298e4a9f92116688e25e93efd7ff2be3baee4768d9aa674d7837d1f7
 fetch "Soundrangers - Hydrology Bubbles and Splashes" "mud_splat_heavy_03.wav" 79ada9772c260ec9bcb27334e953d0d4d99470e2e5484da9428d9aec3f676053
+# The air strike's napalm and the forest burning (PLAN §12.61): the fire catching, its run, and burning, high and low.
+fetch "Gregor Quendel ? Designed Fire" "Designed Fire - Impacts - Large, ignition 03.wav" 1d0632a644f86c655d1203a5c45478637e1b0b8732ba7e312c1eab585c8a341a
+fetch "Gregor Quendel ? Designed Fire" "Designed Fire - Swooshes - Burst, evolving 34.wav" 0517904da7122d13608ba4dd4d4278290dc981a902242741471ded69f200f183
+fetch "Pole Position - The Burning House Library" "Burning_House_t2_Fire_high_intensity_with_sizzling_and_some_debris_RE50_1.wav" afa7a6c958a5a52a3bda059ad6e4c06221cd73324c0559eb74d11b724f0f9d6e
+fetch "Pole Position - The Burning House Library" "Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav" 69b703317050a1730481246b7578f7565797ec4d4385fdd958595dd0cc10bf47
 
 Y=2019
 fetch "Airborne Sound - Battlefield Howitzers" "Howitzer,M101,C1,105 mm,Distant,Right Side,Shot,Pound,Thick.wav" 21d5791d1b147ed68ba1223035499dfd9be1381a0da391c53235fd1ddf8584f6
@@ -60,6 +65,11 @@ fetch "Apple Hill Studios - Military Radio Voices" "Military Radio Voice A (HHG)
 fetch "Apple Hill Studios - Military Radio Voices" "Military Radio Voice D (HI-3) Forty Mike Mike Request.wav" 512034ba67dee92451981c5f00b7ae37561f39d66e946cdb951aee9c5f6e25d9
 
 Y=2020
+# The air strike's bombs (PLAN §12.61): a 500 lb bomb, deep, and what it throws up coming down.
+fetch "Stefano Cremona - Explosions" "BigExplosion02.wav" 25ebf2f41d6f6f8392c74be31e3d46fb3bcd4d10dfae470c3f12255441ac79ae
+fetch "Stefano Cremona - Explosions" "DeepExplosion02.wav" 871cd92855deb1e21540b139a8b85ae17cbc36492fea5509015ffe719bbfff9f
+fetch "Bluezone - Tank - Explosion Sound Effects" "Bluezone_BC0271_explosion_outdoors_large_005.wav" d7950df12f86c71a77be7768787e4b5e3ced31d63582b2919a615f208d777072
+fetch "Bluezone - Tank - Explosion Sound Effects" "Bluezone_BC0271_debris_falling_rock_dust_002.wav" 3ce20c63844c752a24361abc35b66ea61ec9dba444564ced873812b2faaf8b86
 fetch "Pole Position - Tokarev PPSh-41 submachine gun" "PPSh41, Firing, t1, Burst, Long, MKH416.wav" 238ad768ac01ff6073094622e3451b5742bf57bc2b7b14b9bd4b05e22916f828
 fetch "PMSFX - Bullet Bys &Impacts" "PM_BBI_Bullet_Impact_Dirt_3.wav" ecaa352573b7233ca8a167b4f24ee96ec068be8b106374a40d27d18e29121b63
 fetch "PMSFX - Bullet Bys &Impacts" "PM_BBI_Bullet_Impact_Hit_Body_Flesh_25.wav" 0a7c2e4be3a087c05d04f8ce7e14b9bdccb4b3e79c5acd5cf34147692a70ee73

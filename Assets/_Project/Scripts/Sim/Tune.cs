@@ -174,11 +174,12 @@ namespace LanesOfVietnam.Sim
         /// <summary>
         /// Water (MatchOptions.Water). A man in a river goes at SwimPace of a walk, cannot fire or throw, has no cover and
         /// is hit SwimExposed times as often. A bridge takes BridgeStrength (the tower 1; a rocket's burst on it 0.5, a
-        /// satchel charge 0.7) from bursts within BridgeHitRadius of its deck; its fall kills BridgeFallKill of the men on
+        /// satchel charge 0.7: two or three on its deck bring it down; the owner, 2026-10-17, "bridge needs to collapse if
+        /// hit too much", where 1.4 had taken three to nine) from bursts within BridgeHitRadius of its deck; its fall kills BridgeFallKill of the men on
         /// it. Sappers or engineers at a fallen bridge's end rebuild it in BridgeRebuildSeconds while they are not pinned,
         /// and it stands again at BridgeRebuilt of its strength. A squad crossing makes for BridgeBank past the far edge.
         /// </summary>
-        public const double SwimPace = 0.5, SwimExposed = 1.5, BridgeStrength = 1.4, BridgeHitRadius = 4.5, BridgeFallKill = 0.35,
+        public const double SwimPace = 0.5, SwimExposed = 1.5, BridgeStrength = 1.0, BridgeHitRadius = 4.5, BridgeFallKill = 0.35,
                             BridgeRebuildSeconds = 25, BridgeRebuilt = 0.5, BridgeWorkReach = 4.5, BridgeBank = 2.5;
 
         /// <summary>
@@ -674,9 +675,33 @@ namespace LanesOfVietnam.Sim
         /// <summary>Ticks a squad has sat in a position with nobody known ahead before it is sent on (5 s), and how far ahead "nobody" has to hold, metres.</summary>
         public const int GoAfter = 100;
         public const double GoClear = 30;
-        /// <summary>An air strike: this many of the enemy within this far of one of them, none of its own within this far.</summary>
-        public const int StrikeMen = 5;
+        /// <summary>
+        /// An air strike: this many of the enemy within this far of one of them, none of its own within this far. With
+        /// MatchOptions.Strike (Strike.Worth): along the lane, as its bombs and its fire run (the radius is along it, the
+        /// clearance too); this many, or StrikeMenAt with a bridge or a watchtower on its line; and it saves its points
+        /// for one while StrikeProspect are on a line.
+        /// </summary>
+        public const int StrikeMen = 5, StrikeMenAt = 3, StrikeProspect = 3;
         public const double StrikeRadius = 9, StrikeClear = 15;
+
+        // --- the air strike, bombs and napalm (MatchOptions.Strike) ----------------------------
+
+        /// <summary>What the air strike costs and how long it waits after, with the rule (40 and 45 s without).</summary>
+        public const int StrikeCost = 100, StrikeCooldown = TickHz * 90;
+        /// <summary>
+        /// A bomb: a man within BombKill metres of it is killed, in cover or not; out to BombReach he is put flat and killed
+        /// at BombLethal times how near (BombCover of that in cover); a watchtower within BombTower of it falls, and a bridge
+        /// it lands on or within BombBridge of; a position within BombWreck of it is wrecked.
+        /// </summary>
+        public const double BombKill = 6, BombReach = 12, BombLethal = 0.6, BombCover = 0.5, BombTower = 8, BombBridge = 6, BombWreck = 5;
+        /// <summary>
+        /// The napalm: lit NapalmDelay ticks after the last bomb, burning NapalmTicks, NapalmHalf metres either way along the
+        /// lane from the strike's aim and NapalmWide across it; a man in it is killed at NapalmKill a tick (in a second,
+        /// nineteen in twenty); a man higher than NapalmHigh (on a tower's platform) is above it; men hold NapalmShort
+        /// metres short of it.
+        /// </summary>
+        public const int NapalmDelay = TickHz * 3 / 2, NapalmTicks = TickHz * 10;
+        public const double NapalmHalf = 14, NapalmWide = 7, NapalmKill = 0.14, NapalmHigh = 3, NapalmShort = 2;
         /// <summary>Artillery: this many, staying where they are, within this far of one of them; none of its own within this far.</summary>
         public const int BarrageMen = 7;
         public const double BarrageRadius = 13, BarrageClear = 21;

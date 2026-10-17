@@ -101,6 +101,12 @@ and say so:
 - On `ricefields-r1` (Rice Fields, PLAN §12.55-56; every line above unmoved, `water` and `heights` do nothing on the
   firebase): `scenario hash 1` rice-fields 7635 `279122041u`; `hash 1 ... shootdown water heights map=ricefields` 5402
   `1149155459u`. `simcs mirror 24` (a map turned end for end is the same match mirrored), `simcs river`, `simcs ground`.
+- On `strike` (PLAN §12.61: the air strike is bombs then napalm at 100 points, `MatchOptions.Strike`; every line above
+  with it off is unmoved, and the firebase without it is still `3782637812u`): `hash 1 ... shootdown strike` 5581
+  `3126363294u`; `scenario hash 1`: the firebase 5443 `3418870374u`; The Wire 6000 `1636961866u`; First Light 4543
+  `1692620820u`; The Earth Fights 9781 `482486745u`; rice-fields 7509 `1582004784u`; and `hash 1 ... shootdown water
+  heights map=ricefields` 5402 `1969199554u` (the bridge's strength 1.0; nobody fights hand to hand in the river).
+  `simcs strikes N` (what the computer's strikes do).
 
 ## Rules this project keeps
 
@@ -109,7 +115,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown, Water, Heights: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown, Water, Heights, Strike: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

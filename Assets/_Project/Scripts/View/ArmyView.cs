@@ -91,6 +91,7 @@ namespace LanesOfVietnam.View
             System.Array.Clear(_threw, 0, _threw.Length);
             System.Array.Clear(_bag, 0, _bag.Length);
             System.Array.Clear(_talkUntil, 0, _talkUntil.Length);
+            System.Array.Clear(_burned, 0, _burned.Length);
             foreach (var set in _sets.Values) if (set != null) Destroy(set.gameObject);
             _sets.Clear();
             System.Array.Clear(_reload, 0, _reload.Length);
@@ -148,6 +149,8 @@ namespace LanesOfVietnam.View
         /// <summary>For a man a burst killed: where it went off (the simulation's x and z), until his body has been told.</summary>
         private Vector2[] _burst = new Vector2[0];
         private bool[] _blown = new bool[0];
+        /// <summary>By man: he burned (MatchOptions.Strike's napalm): his body is charred.</summary>
+        private bool[] _burned = new bool[0];
         /// <summary>
         /// A burst went off by a man and did not kill him: 1, near enough to knock him over; 2, to fill his eyes
         /// with dirt. And how he stood when he was last drawn, to know a man who goes to ground at a run.
@@ -302,6 +305,7 @@ namespace LanesOfVietnam.View
                 System.Array.Resize(ref _push, n);
                 System.Array.Resize(ref _burst, n);
                 System.Array.Resize(ref _blown, n);
+                System.Array.Resize(ref _burned, n);
                 System.Array.Resize(ref _shook, n);
                 System.Array.Resize(ref _hitBy, n);
                 System.Array.Resize(ref _hitWay, n);
@@ -427,6 +431,8 @@ namespace LanesOfVietnam.View
                     }
                     _fall[e.Id] = !shot ? SoldierFigure.Fall.Blast
                                 : _moving[e.Id] && _speed[e.Id] > RunAbove ? SoldierFigure.Fall.Running : SoldierFigure.Fall.Shot;
+                    // Strike: burned in the napalm (its Burned event is written just before his Kill).
+                    if (prev.Kind == EventKind.Burned && prev.Id == e.Id && prev.Tick == e.Tick) { _burned[e.Id] = true; _fall[e.Id] = SoldierFigure.Fall.Running; continue; }
                     // A burst: where it went off (the shell or the grenade whose event comes before its kills, this tick).
                     if (!shot)
                         for (int k = _eventCursor - 1; k >= 0 && st.Events[k].Tick == e.Tick; k--)
@@ -899,6 +905,8 @@ namespace LanesOfVietnam.View
                 if (talking) Talking = i; else if (Talking == i) Talking = -1;
                 if (_threw[i]) { if (!jump) f.Throw(Ordnance.Get(_bag[i] ? Ordnance.Kind.Satchel : m.Side == Side.Us ? Ordnance.Kind.Lemon : Ordnance.Kind.Stick)); _threw[i] = false; _bag[i] = false; }
                 if (_struck[i]) { if (!jump) f.Strike((int)(Hash(m.Id + st.Tick, 6) * 2)); _struck[i] = false; }
+                // Burned: what is left of him is black.
+                if (_burned[i] && !m.Alive) { f.Char(); _burned[i] = false; }
                 // A burst killed him: it throws him, and close enough may take a limb off him.
                 if (_blown[i] && !m.Alive)
                 {

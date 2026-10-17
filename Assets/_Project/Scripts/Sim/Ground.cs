@@ -129,6 +129,15 @@ namespace LanesOfVietnam.Sim
             if (i >= 0 && i < _down.Length) _down[i] = down;
         }
 
+        private double[] _sag;
+
+        /// <summary>A weakened bridge sagging (the view's): its deck this many metres lower at its middle, less toward its ends.</summary>
+        public void SetDeckSag(int i, double metres)
+        {
+            if (_sag == null) _sag = new double[_decks.Length];
+            if (i >= 0 && i < _sag.Length) _sag[i] = metres;
+        }
+
         /// <summary>Where a man's feet are at (x, z): on a bridge's deck if he is on one, on the ground if not.</summary>
         public double FootAt(double x, double z)
         {
@@ -137,7 +146,12 @@ namespace LanesOfVietnam.Sim
             {
                 var d = _decks[i];
                 if (_down != null && _down[i]) continue;
-                if (x >= d.X0 && x <= d.X1 && Math.Abs(z - d.Z) <= d.Width * 0.5) h = Math.Max(h, d.Y);
+                if (x >= d.X0 && x <= d.X1 && Math.Abs(z - d.Z) <= d.Width * 0.5)
+                {
+                    double y = d.Y;
+                    if (_sag != null && _sag[i] > 0) y -= _sag[i] * (1 - Math.Abs(x - (d.X0 + d.X1) * 0.5) / ((d.X1 - d.X0) * 0.5));
+                    h = Math.Max(h, y);
+                }
             }
             return h;
         }

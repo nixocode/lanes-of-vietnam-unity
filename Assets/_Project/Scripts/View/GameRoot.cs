@@ -91,7 +91,7 @@ namespace LanesOfVietnam.View
                     var side = call.card.StartsWith("us-") ? Side.Us : Side.Vc;
                     var card = Deck.For(side).FirstOrDefault(c => c.Id == call.card);
                     // (A capture's call is to be looked at, not earned: it is paid for.)
-                    if (card != null && Driver.State.Cp[(int)side] < card.Cost) Driver.State.Cp[(int)side] = card.Cost;
+                    if (card != null && Driver.State.Cp[(int)side] < Deck.CostOf(Driver.State, card)) Driver.State.Cp[(int)side] = Deck.CostOf(Driver.State, card);
                     string blocked = card == null ? "no such card" : Deck.Blocked(Driver.State, side, card);
                     Debug.Log($"[LOV] capture call-in {call.card} lane {call.lane} x {call.x} at tick {call.tick}: {blocked ?? "issued"}");
                     double callX = call.x;
@@ -113,7 +113,7 @@ namespace LanesOfVietnam.View
                         }
                         Debug.Log($"[LOV] capture: grenades played at {callX:F1} in lane {callLane}, tick {Driver.State.Tick}");
                         if (!double.IsNaN(callX)) cap.CameraX = (float)callX;
-                        if (Driver.State.Cp[(int)side] < card.Cost) Driver.State.Cp[(int)side] = card.Cost;
+                        if (Driver.State.Cp[(int)side] < Deck.CostOf(Driver.State, card)) Driver.State.Cp[(int)side] = Deck.CostOf(Driver.State, card);
                         blocked = Deck.Blocked(Driver.State, side, card) ?? (Frag.Throwers(Driver.State, side, callLane, callX).Count == 0 ? "nobody can reach it" : null);
                         Debug.Log($"[LOV] capture: grenades {blocked ?? "thrown"}");
                     }

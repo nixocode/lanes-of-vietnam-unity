@@ -200,6 +200,21 @@ namespace LanesOfVietnam.View
                 if (fell && dressing != null && dressing.Tower != null) root.CameraRig.Focus(dressing.TowerFoot.x, instant: true);
                 Debug.Log($"[LOV] capture: the tower {(fell ? "brought down" : "not brought down")}, {cap.TowerFall} ticks before tick {sim.Tick}");
             }
+            if (cap.BridgeHits > 0 && root.Driver.State.Bridges.Count > 0)
+            {
+                // Rockets' bursts on its deck, a third and two thirds along it and to one side, short of bringing it down.
+                var sim = root.Driver.State;
+                var b = sim.Bridges[0];
+                for (int k = 0; k < cap.BridgeHits && !b.Fallen; k++)
+                {
+                    double x = b.X0 + (b.X1 - b.X0) * (k % 2 == 0 ? 0.35 : 0.68), z = Tune.Lanes[b.Lane] + (k % 2 == 0 ? 1.2 : -1.0);
+                    double power = b.Strength > Tune.TowerRocket * 0.9 ? Tune.TowerRocket * 0.8 : b.Strength * 0.6;
+                    Destruction.Burst(sim, x, z, 0, power);
+                }
+                root.Driver.FastForward(2);
+                root.CameraRig.Focus((float)((b.X0 + b.X1) * 0.5), instant: true);
+                Debug.Log($"[LOV] capture: the bridge hit {cap.BridgeHits} times, {b.Strength:F2} of it left");
+            }
             if (cap.BridgeFall >= 0)
             {
                 // A charge's worth and more on the middle of its deck, then on to the moment asked for, the camera on it.

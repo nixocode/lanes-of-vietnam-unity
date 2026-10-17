@@ -426,7 +426,9 @@ namespace LanesOfVietnam.View.UI
             foreach (var v in Cards)
             {
                 int cd = Deck.CooldownLeft(st, Root.PlayerSide, v.Card);
-                v.Set(cpNow < v.Card.Cost, v.Card.Cooldown > 0 ? (float)cd / v.Card.Cooldown : 0f, Deployer.Armed == v.Card);
+                int cost = Deck.CostOf(st, v.Card), wait = Deck.CooldownOf(st, v.Card);
+                v.ShowCost(cost);
+                v.Set(cpNow < cost, wait > 0 ? (float)cd / wait : 0f, Deployer.Armed == v.Card);
             }
 
             PlaceCallTags(st);

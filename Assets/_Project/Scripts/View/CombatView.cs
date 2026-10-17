@@ -263,7 +263,9 @@ namespace LanesOfVietnam.View
                 switch (e.Kind)
                 {
                     case EventKind.Fire: Shot(ev, i, (float)age); break;
-                    case EventKind.Shell: Explosion(e, (float)age, 1f); break;
+                    // (Strike: a 500 lb bomb is a shell's burst, larger.)
+                    case EventKind.Shell: Explosion(e, (float)age, e.Rounds == Inbound.Jet ? BombScale : 1f); break;
+                    case EventKind.NapalmLit: Napalm(e, (float)age); break;
                     case EventKind.TrapSprung: Explosion(e, (float)age, 0.45f); break;
                     // Inbound: the guns' ranging round, a second before the rest: one small burst on the aim point.
                     case EventKind.CallIn: if (e.Rounds == Inbound.Ranging) Explosion(e, (float)age, 0.4f); else Called(e, now); break;
@@ -292,10 +294,13 @@ namespace LanesOfVietnam.View
                 if (e.X == null || (e.Kind != EventKind.Shell && e.Kind != EventKind.GrenadeBlast && e.Kind != EventKind.TrapSprung)) continue;
                 if (st.Tick - e.Tick > 3) continue;                 // a fast-forward's backlog is not felt
                 float away = Mathf.Abs((float)e.X.Value - _root.CameraRig.X);
-                _root.CameraRig.Shake((e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / 60f));
+                // (A bomb shakes it harder, and from further off.)
+                bool bomb = e.Kind == EventKind.Shell && e.Rounds == Inbound.Jet;
+                _root.CameraRig.Shake((bomb ? 1.7f : e.Kind == EventKind.Shell ? 1f : 0.55f) * Mathf.Clamp01(1.2f - away / (bomb ? 110f : 60f)));
             }
             SmokeScreens(st, now);
             if (_root.River != null && _root.River.Wet) Splashes((float)now);
+            if (st.Water) Smouldering(st, (float)now);
             DrawWrecks((float)now);
             if (st.Satchel) Breaches(st, now);
             if (_markMesh != null) GroundMarks(st, now);
@@ -327,6 +332,7 @@ namespace LanesOfVietnam.View
                 case EventKind.Shell: case EventKind.TrapSprung: case EventKind.Launch: return (float)MaxAge;
                 case EventKind.CallIn: return CallLife;
                 case EventKind.Damaged: case EventKind.BridgeHit: return SplintersFor;
+                case EventKind.NapalmLit: return Tune.NapalmTicks * (float)Tune.Dt + NapalmSmokes;
                 case EventKind.Collapsed: return 16f;          // (its cloud hangs a dozen seconds after it strikes)
                 default: return -1f;
             }
@@ -1940,21 +1946,28 @@ namespace LanesOfVietnam.View
             bool wet = !double.IsNaN(water);
             if (wet) { p0.y = (float)water; WaterColumn(p0, seed, age, scale); }
 
+            // (A bomb's, larger than a shell's, is not brighter or wider in its light: at 1.8 times a shell's glow it was a
+            // hard white shape fifteen metres across.)
+            float lit = Mathf.Min(scale, 1f), wide = Mathf.Min(scale, 1.25f);
             if (age < 0.14f)
             {
                 float k = 1 - age / 0.14f;
                 // Intensity with size too: at a grenade's scale the full flash
                 // saturated into a hard white shape.
-                AddGlow(p0 + Vector3.up * 1.2f * scale, (5f + 26f * age) * scale, Flash * (20f * k * scale), 2, H(seed, 0));
-                AddSprite(FxSheets.Flame, H(seed, 2) * 32f + age * 40f, p0 + Vector3.up * 1.2f * scale, (2.4f + 14f * age) * scale, Lit(Flash, 9f * k), H(seed, 3) * 6.2832f);
+                // (A stick of bombs bursts one every tenth of a second: each one's flash at a shell's brightness kept a white
+                // disc nine metres across on the screen the whole time it fell. A bomb's is a fifth as bright.)
+                AddGlow(p0 + Vector3.up * 1.2f * scale, (5f + 26f * age) * wide, Flash * ((scale > 1.2f ? 4f : 20f) * k * lit), 2, H(seed, 0));
+                AddSprite(FxSheets.Flame, H(seed, 2) * 32f + age * 40f, p0 + Vector3.up * 1.2f * scale, (2.4f + 14f * age) * scale,
+                          scale > 1.2f ? Lit(new Color(1f, 0.7f, 0.4f), 2.6f * k) : Lit(Flash, 9f * k), H(seed, 3) * 6.2832f);
             }
             if (age < 0.6f)
             {
                 float t = age / 0.6f;
                 var col = Color.Lerp(new Color(1f, 0.55f, 0.22f) * 6f, new Color(0.75f, 0.2f, 0.06f) * 1.5f, t) * (1 - t);
-                AddGlow(p0 + Vector3.up * (1.1f + 2.5f * age) * scale, (1.8f + 5f * age) * scale, col, 2, H(seed, 1));
+                AddGlow(p0 + Vector3.up * (1.1f + 2.5f * age) * scale, (1.8f + 5f * age) * wide, col * lit, 2, H(seed, 1));
             }
-            if (age < 0.3f) _flashes.Add((p0 + Vector3.up * 2f, 90f * Mathf.Exp(-age * 18f) * scale));
+            // (A stick of bombs is eight bursts in under a second: at a shell's light each, the smoke about them burned white.)
+            if (age < 0.3f) _flashes.Add((p0 + Vector3.up * 2f, 90f * Mathf.Exp(-age * 18f) * (scale > 1.2f ? 0.3f : lit)));
             // The fire of it: a ball of flame gone to black smoke in under a second, drawn over the scene, and
             // the light of the flame added on top. (High explosive on earth is mostly earth: the fire is brief.
             // Played over a second and a half, flames hung in the air after every shell like burning fuel.)
@@ -1964,8 +1977,10 @@ namespace LanesOfVietnam.View
                 float t = age / burns;
                 var at = p0 + Vector3.up * ((1.5f + 1.8f * age) * scale);
                 float size = (4.4f + 3.0f * t) * scale, turn = (H(seed, 4) - 0.5f) * 0.5f;
-                AddPuff(Sheet.Blast, t * 24f, at, size, size, new Color(1f, 1f, 1f, Mathf.Clamp01((1 - t) / 0.5f)), turn, false, 1.2f * scale);
-                if (t < 0.4f) AddSprite(FxSheets.Fire, t * 24f, at, size, Lit(Color.white, 3.2f * (1 - t / 0.4f)), turn);
+                // (A bomb's: darker, or its first frames, at its size, were one white shape.)
+                AddPuff(Sheet.Blast, t * 24f, at, size, size, scale > 1.2f ? new Color(0.55f, 0.42f, 0.32f, Mathf.Clamp01((1 - t) / 0.5f)) : new Color(1f, 1f, 1f, Mathf.Clamp01((1 - t) / 0.5f)), turn, false, 1.2f * scale);
+                // (A bomb's fire, as large as it is, burns orange: as white as a shell's it was a white shape.)
+                if (t < 0.4f) AddSprite(FxSheets.Fire, t * 24f, at, size, scale > 1.2f ? Lit(new Color(1f, 0.72f, 0.42f), 1.5f * (1 - t / 0.4f)) : Lit(Color.white, 3.2f * (1 - t / 0.4f)), turn);
             }
 
             // The earth it throws up: a dark burst of it, jets out of that, and clods on their arcs.
@@ -1975,7 +1990,7 @@ namespace LanesOfVietnam.View
                 float t = age / lifts, f = 1 - t;
                 for (int k = 0; k < 2; k++)
                     Dust(p0 + Vector3.up * ((1.2f + 2.0f * age + 0.8f * k) * scale) + new Vector3((H(seed, 150 + k) - 0.5f) * 2.4f, 0, (H(seed, 153 + k) - 0.5f) * 2.4f) * scale,
-                         (6.8f + 4.5f * t) * (0.85f + 0.3f * k) * scale, new Color(0.115f, 0.095f, 0.075f, 0.96f * f * Mathf.Sqrt(f)), H(seed, 156 + k), 0.03f + 0.92f * (1 - f * f), 1.2f);
+                         (6.8f + 4.5f * t) * (0.85f + 0.3f * k) * scale, new Color(0.115f, 0.095f, 0.075f, (scale > 1.2f ? 0.8f : 0.96f) * f * Mathf.Sqrt(f)), H(seed, 156 + k), 0.03f + 0.92f * (1 - f * f), 1.2f);
                 for (int k = 0; k < 5; k++)
                 {
                     float lean = (H(seed, 160 + k) - 0.5f) * 2.2f;
@@ -1997,20 +2012,125 @@ namespace LanesOfVietnam.View
             // the burst's own sheet played slowly through its wide end, so it has a body and an edge. (As eleven
             // soft blobs, and then as six sheets of wisp nineteen metres across, a barrage's smoke was one even
             // brown fog from the grass to the sky.)
-            for (int k = 0; k < (wet ? 2 : 4); k++)
+            // (A bomb's stick is eight of them together: two clouds each, thinner, or they were one brown wall for ten seconds.)
+            bool stick = scale > 1.2f;
+            for (int k = 0; k < (wet || stick ? 2 : 4); k++)
             {
                 float a = age - (0.12f + 0.16f * k);
-                float life = 8f * Mathf.Sqrt(scale);
+                float life = 8f * Mathf.Sqrt(stick ? 1.2f : scale);
                 if (a < 0 || a > life) continue;
                 float rise = 0.7f * a + 2.0f * (1 - Mathf.Exp(-a * 1.5f));
                 var off = new Vector3((H(seed, 50 + k) - 0.5f) * 2.5f + 0.7f * a, rise * (0.6f + 0.6f * H(seed, 60 + k)), (H(seed, 70 + k) - 0.5f) * 2.5f) * scale;
                 // HE on earth: brown-grey, dark while it is still mostly dirt, thinning as it rises.
-                float op = Mathf.SmoothStep(0, 1, a / 0.4f) * Mathf.Pow(1 - a / life, 1.6f) * 0.85f;
+                float op = Mathf.SmoothStep(0, 1, a / 0.4f) * Mathf.Pow(1 - a / life, 1.6f) * (stick ? 0.5f : 0.85f);
                 float dirt = Mathf.Exp(-a * 0.6f);
                 var col = Color.Lerp(new Color(0.20f, 0.19f, 0.17f), new Color(0.10f, 0.085f, 0.07f), dirt);
                 col.a = op;
                 Dust(p0 + Vector3.up * scale + off, (4.9f + 0.85f * a) * scale, col, H(seed, 80 + k), 0.32f + 0.6f * a / life);
             }
+        }
+
+        /// <summary>
+        /// A bridge with a quarter of its strength or less (Water), still standing: smoke rising out of its timbers where it
+        /// was hit, thin and grey, going off downwind: it is about to go.
+        /// </summary>
+        private void Smouldering(SimState st, float now)
+        {
+            var g = _root.Ground;
+            for (int i = 0; i < st.Bridges.Count && i < g.Decks.Count; i++)
+            {
+                var b = st.Bridges[i];
+                if (b.Fallen || b.Strength > 0.25 * Tune.BridgeStrength) continue;
+                var d = g.Decks[i];
+                float thick = 1f - (float)(b.Strength / (0.25 * Tune.BridgeStrength));
+                for (int k = 0; k < 4; k++)
+                {
+                    double x = d.X0 + (d.X1 - d.X0) * (0.2 + 0.6 * Hash(i * 13 + k, 70));
+                    const float life = 6f;
+                    float s = (now + life * H(i * 13 + k, 71)) % life;
+                    var at = Coords.World(x, d.Z + (Hash(i * 13 + k, 72) - 0.5) * 1.5, (float)d.Y) + new Vector3(0.5f * s, 0.3f + 0.9f * s, 0f);
+                    var col = new Color(0.36f, 0.34f, 0.32f, (0.25f + 0.35f * thick) * Mathf.SmoothStep(0, 1, s / 0.8f) * (1 - s / life));
+                    Hang(at, 1.2f + 0.8f * s, col, H(i * 13 + k, 73), s);
+                }
+            }
+        }
+
+        // --- the air strike's napalm (MatchOptions.Strike) ------------------------------------
+
+        /// <summary>How much larger a 500 lb bomb's burst is drawn than a shell's.</summary>
+        public const float BombScale = 1.8f;
+        /// <summary>Seconds the napalm's smoke hangs after its fire is out.</summary>
+        public const float NapalmSmokes = 14f;
+
+        /// <summary>
+        /// The napalm (Strike.Lay): the jet's canisters bursting one after another along its line, in the way it flies,
+        /// each a rolling ball of fire; then a wall of flame along the whole of it, two and three metres high, flickering,
+        /// at its height for as long as it burns and dying over a few seconds; thick black smoke rolling up out of it and
+        /// leaning off downwind, hanging long after. It lights the ground about it. (Its burn on the ground: Scorch.)
+        /// </summary>
+        private void Napalm(SimEvent e, float age)
+        {
+            if (e.X == null || e.Z == null) return;
+            var st = _root.Driver.State;
+            float half = (float)(e.Amount ?? Tune.NapalmHalf), burns = Tune.NapalmTicks * (float)Tune.Dt;
+            int seed = e.Id * 7717 + e.Tick;
+            // (The jet comes from behind its own side: its fire runs the way that side advances.)
+            float way = (float)Combat.Advance(st, e.Side);
+            int n = Mathf.CeilToInt(2 * half / 1.3f);
+            float glow = 0f;
+            Vector3 middle = Vector3.zero;
+            for (int k = 0; k < n; k++)
+            {
+                float along = (k + 0.5f) / n;
+                double x = e.X.Value + (along - 0.5) * 2 * half * way;
+                double z = e.Z.Value + (Hash(seed + k, 1) - 0.5) * (Tune.NapalmWide - 1.5);
+                var p = Coords.World(x, z, (float)_root.Ground.SurfaceAt(x, z));
+                if (k == n / 2) middle = p;
+                float a = age - 0.55f * along;
+                if (a < 0) continue;
+                // The burst it catches with: a ball of fire rolling up and out, in its first second and a half.
+                if (a < 1.5f)
+                {
+                    float t = a / 1.5f;
+                    float size = (3.2f + 4.5f * Mathf.Sqrt(t)) * (0.85f + 0.3f * H(seed + k, 2));
+                    var at = p + Vector3.up * (1.0f + 2.6f * t) + new Vector3(0.6f * way * t, 0, 0);
+                    AddPuff(Sheet.Blast, t * 24f, at, size, size, new Color(1f, 1f, 1f, Mathf.Clamp01((1 - t) / 0.5f)), (H(seed + k, 3) - 0.5f) * 0.6f, false, 1.4f);
+                    if (t < 0.6f) AddSprite(FxSheets.Fire, t * 24f / 0.6f, at, size * 0.9f, Lit(Color.white, 3.5f * (1 - t / 0.6f)), H(seed + k, 4) * 6.2832f);
+                }
+                // The flames: at full height while it burns, and down to nothing in three seconds after.
+                float strength = a < burns ? Mathf.Clamp01(a / 0.4f) : Mathf.Clamp01(1 - (a - burns) / 3f);
+                if (strength > 0f)
+                {
+                    float flicker = 0.85f + 0.15f * Mathf.Sin(a * (9f + 4f * H(seed + k, 5)) + k);
+                    // A wall of it: balls of fire stacked three high, three to four metres, each burning through its frames
+                    // out of step with the next, smaller and redder as they rise, leaning off downwind.
+                    for (int j = 0; j < 3; j++)
+                    {
+                        float up = (0.8f + 1.15f * j) * strength * flicker;
+                        float size = (2.8f - 0.55f * j) * strength * (0.9f + 0.2f * H(seed + k, 10 + j));
+                        float frame = (a * (20f + 4f * j) + H(seed + k, 7 + j) * 32f) % 32f;
+                        var col = Lit(Color.Lerp(new Color(1f, 0.8f, 0.55f), new Color(1f, 0.45f, 0.18f), 0.4f * j), (2.0f - 0.45f * j) * strength);
+                        AddSprite(FxSheets.Flame, frame, p + new Vector3(0.35f * j * strength, up, 0f), size, col, (H(seed + k, 8 + j) - 0.5f) * 0.6f);
+                    }
+                    if ((k & 1) == 0) AddGlow(p + Vector3.up * 0.8f, 3.2f * strength, new Color(1f, 0.45f, 0.12f) * (1.4f * strength), 2, H(seed + k, 9));
+                    glow += strength;
+                }
+                // Its smoke: black and thick, out of every other part of it, rising, spreading, leaning downwind (+x).
+                if ((k & 1) == 1)
+                    for (int j = 0; j < 3; j++)
+                    {
+                        float s = a - (0.3f + 0.9f * j);
+                        float life = burns + NapalmSmokes - 0.9f * j;
+                        if (s < 0 || s > life) continue;
+                        float rise = 1.1f * s + 2.5f * (1 - Mathf.Exp(-s * 1.2f));
+                        var off = new Vector3(0.55f * s + (H(seed + k, 20 + j) - 0.5f) * 1.5f, rise, (H(seed + k, 23 + j) - 0.5f) * 1.5f);
+                        float op = Mathf.SmoothStep(0, 1, s / 0.6f) * Mathf.Pow(1 - s / life, 1.3f) * 0.8f;
+                        var col = Color.Lerp(new Color(0.16f, 0.15f, 0.14f), new Color(0.05f, 0.045f, 0.04f), Mathf.Exp(-s * 0.15f));
+                        col.a = op;
+                        Hang(p + Vector3.up * 1.5f + off, 3.0f + 0.9f * s, col, H(seed + k, 26 + j), s);
+                    }
+            }
+            if (glow > 0f) _flashes.Add((middle + Vector3.up * 2f, 9f * Mathf.Min(1f, glow / n)));
         }
 
         // --- smoke screens -------------------------------------------------------------------
@@ -2186,7 +2306,7 @@ namespace LanesOfVietnam.View
                     float cal = !shot ? 0f : ev[i - 1].Kind == EventKind.Through || ev[i - 1].Id >= st.Men.Count ? 1f : Calibre(st.Men[ev[i - 1].Id].Weapon);
                     _fresh.Add(new Fresh { Event = i, Shot = shot, Burst = burst, FromX = fx, FromZ = fz, Cal = cal });
                 }
-                else if ((e.Kind == EventKind.Shell || e.Kind == EventKind.GrenadeBlast) && e.X != null) _fresh.Add(new Fresh { Event = i });
+                else if ((e.Kind == EventKind.Shell || e.Kind == EventKind.GrenadeBlast || e.Kind == EventKind.NapalmLit) && e.X != null) _fresh.Add(new Fresh { Event = i });
             }
 
             _live.Clear();
@@ -2293,8 +2413,22 @@ namespace LanesOfVietnam.View
         {
             if (age < 0) return;
             float grow = Mathf.Clamp01(age / 1.5f);
-            float size = e.Kind == EventKind.Shell ? 5.5f : 3.0f;
-            Flat(into, e.X.Value, e.Z.Value, size, size, new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(index, 90), 1f);
+            // (Strike: a bomb's crater, wider and darker; the napalm's burn, black all along its line.)
+            if (e.Kind == EventKind.NapalmLit)
+            {
+                float half = (float)(e.Amount ?? Tune.NapalmHalf);
+                int n = Mathf.CeilToInt(2 * half / 3.5f);
+                for (int k = 0; k < n; k++)
+                {
+                    double x = e.X.Value + ((k + 0.5) / n - 0.5) * 2 * half, z = e.Z.Value + (Hash(index * 31 + k, 91) - 0.5) * 1.6;
+                    float w = 5.5f + 2f * (float)Hash(index * 31 + k, 92);
+                    Flat(into, x, z, w, (float)Tune.NapalmWide + 1f, new Color(0.07f, 0.06f, 0.05f, 0.9f * grow), (float)Hash(index * 31 + k, 93), 1f);
+                }
+                return;
+            }
+            bool bomb = e.Kind == EventKind.Shell && e.Rounds == Inbound.Jet;
+            float size = bomb ? 9.5f : e.Kind == EventKind.Shell ? 5.5f : 3.0f;
+            Flat(into, e.X.Value, e.Z.Value, size, size, bomb ? new Color(0.13f, 0.11f, 0.09f, 0.92f * grow) : new Color(0.22f, 0.19f, 0.16f, 0.85f * grow), (float)Hash(index, 90), 1f);
         }
 
         /// <summary>A flat quad on the ground at a sim position, following its slope at the corners.</summary>

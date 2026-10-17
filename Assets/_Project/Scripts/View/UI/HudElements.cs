@@ -188,7 +188,17 @@ namespace LanesOfVietnam.View.UI
     {
         public readonly Card Card;
         private readonly VisualElement _cd;
+        private readonly Label _cost;
+        private int _costShown;
         private readonly VisualElement _art;
+
+        /// <summary>What it costs in this match (Deck.CostOf: the air strike is dearer with MatchOptions.Strike).</summary>
+        public void ShowCost(int cost)
+        {
+            if (cost == _costShown) return;
+            _costShown = cost;
+            _cost.text = cost.ToString();
+        }
 
         /// <summary>What the card shows now, for UIAudit: affordable, cooling, armed.</summary>
         public bool Poor { get; private set; }
@@ -216,7 +226,8 @@ namespace LanesOfVietnam.View.UI
             var name = new Label(card.Name);
             name.AddToClassList("card-name");
             Add(name);
-            var cost = new Label(card.Cost.ToString());
+            var cost = _cost = new Label(card.Cost.ToString());
+            _costShown = card.Cost;
             cost.AddToClassList("card-cost");
             Add(cost);
             if (!call)

@@ -249,7 +249,11 @@ namespace LanesOfVietnam.Sim
             if (!Level(st, side)) return false;
             var air = Deck.Find(side, "us-airstrike"); var arty = Deck.Find(side, "us-arty");
             double cp = st.Cp[(int)side];
-            if (Deck.Has(st, side, air) && Deck.CooldownLeft(st, side, air) == 0 && cp < air.Cost && Cluster(st, side, Tune.StrikeRadius, Tune.StrikeClear, false, out _, out _) >= Tune.StrikeMen) return true;
+            if (Deck.Has(st, side, air) && Deck.CooldownLeft(st, side, air) == 0 && cp < Deck.CostOf(st, air) && StrikeAt(st, side, out _, out _)) return true;
+            // Strike: the strike is dear, and the points for it take a minute to come: it saves for it while the enemy
+            // shows a crowd it could be worth it on (StrikeProspect of them on a line), not only while one is there.
+            if (st.Strike && Deck.Has(st, side, air) && Deck.CooldownLeft(st, side, air) == 0 && cp < Deck.CostOf(st, air)
+                && Strike.Worth(st, side, _seen, out _, out _, Tune.StrikeProspect) > 0) return true;
             if (Deck.Has(st, side, arty) && Deck.CooldownLeft(st, side, arty) == 0 && cp < arty.Cost && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out _, out _) >= Tune.BarrageMen) return true;
             return false;
         }
@@ -339,13 +343,21 @@ namespace LanesOfVietnam.Sim
             return best;
         }
 
+        /// <summary>
+        /// Is there something worth the air strike, and where: men close together (Cluster), or, with MatchOptions.Strike,
+        /// men along a stick's line worth StrikeCost (Strike.Worth).
+        /// </summary>
+        private static bool StrikeAt(SimState st, Side side, out double x, out int lane)
+            => st.Strike ? Strike.Worth(st, side, _seen, out x, out lane) > 0
+                         : Cluster(st, side, Tune.StrikeRadius, Tune.StrikeClear, false, out x, out lane) >= Tune.StrikeMen;
+
         private static bool Sky(SimState st, Side side, LaneView[] lanes, Rng rng)
         {
             // An air strike: short, tight and murderous. Four or more close together.
             var air = Deck.Find(side, "us-airstrike");
             bool level = Level(st, side);
-            if (level && Affords(st, side, air, air.Cost) && Spare(st, side, air.Cost)
-                && Cluster(st, side, Tune.StrikeRadius, Tune.StrikeClear, false, out double ax, out int al) >= Tune.StrikeMen)
+            int airCost = Deck.CostOf(st, air);
+            if (level && Affords(st, side, air, airCost) && Spare(st, side, airCost) && StrikeAt(st, side, out double ax, out int al))
             { Deck.Buy(st, side, air, al, rng, ax); return false; }
             // Artillery: a wide beaten zone for nine seconds. Five or more who are staying where they are.
             var arty = Deck.Find(side, "us-arty");

@@ -204,7 +204,7 @@ namespace LanesOfVietnam.View
                 var callCard = Deck.Find(side, c[0]);
                 if (callCard != null)
                 {
-                    root.Driver.State.Cp[(int)side] = System.Math.Max(root.Driver.State.Cp[(int)side], callCard.Cost);
+                    root.Driver.State.Cp[(int)side] = System.Math.Max(root.Driver.State.Cp[(int)side], Deck.CostOf(root.Driver.State, callCard));
                     double cx = c.Length > 2 ? double.Parse(c[2], CultureInfo.InvariantCulture) : 0;
                     root.Driver.Match.Issue(Command.Buy(side, callCard.Id, c.Length > 1 ? int.Parse(c[1], CultureInfo.InvariantCulture) : 0, cx));
                     root.CameraRig.Focus((float)cx, instant: true);

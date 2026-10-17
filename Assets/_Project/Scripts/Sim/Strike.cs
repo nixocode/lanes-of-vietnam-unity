@@ -1,0 +1,234 @@
+using System;
+using System.Collections.Generic;
+
+namespace LanesOfVietnam.Sim
+{
+    /// <summary>
+    /// Part 2 rule (MatchOptions.Strike): the air strike, bombs and then napalm (PLAN §12.61).
+    ///
+    /// The owner, 2026-10-17: "lets make the airstrike more expensive and OP, like it should destory everything in its
+    /// path", and, asked what it drops, "bombs then napalm". It costs StrikeCost, not 40, and waits StrikeCooldown.
+    ///
+    ///   the bombs    the jet's stick (Inbound.Stick), each a 500 lb bomb: a man within BombKill of one is killed, in
+    ///                cover or not; out to BombReach he is put flat and may be killed (less in cover); a watchtower
+    ///                within BombTower of one falls, and a bridge it lands on or within BombBridge of; a position
+    ///                within BombWreck of one is wrecked for the match: what is left of it is a bomb crater, cover of
+    ///                the crater's kind
+    ///   the napalm   the jet's second pass, NapalmDelay after its last bomb: fire along the stick's line, NapalmHalf
+    ///                either way along the lane and NapalmWide across it, for NapalmTicks. A man in it burns (NapalmKill
+    ///                a tick); nobody walks into it (a squad holds short of it, a man's place is short of it) and a man
+    ///                caught in it runs out of it the near way
+    ///
+    /// The computer calls it when it is worth StrikeCost (Worth): StrikeMen of the enemy along a stick's line, or
+    /// StrikeMenAt with a bridge or a watchtower of his on it; none of its own within StrikeClear.
+    ///
+    /// It needs Inbound (the game's): without it the strike is as it was. Its draws are the match's stream's, made only
+    /// when it is on; what it changes is hashed only when it is on (a wrecked position's kind and quality are its cover's).
+    /// </summary>
+    public static class Strike
+    {
+        /// <summary>Is this area the air strike's jet, and the rule on?</summary>
+        public static bool Jet(SimState st, Area a) => st.Strike && st.Inbound && a.Kind == AreaKind.Barrage && a.Call == Inbound.Jet;
+
+        /// <summary>One of the jet's bombs, bursting at bx, bz.</summary>
+        public static void Bomb(SimState st, Area a, double bx, double bz, Rng rng)
+        {
+            st.Events.Add(new SimEvent { Kind = EventKind.Shell, Tick = st.Tick, Side = a.Side, Id = a.Id, X = bx, Z = bz, Rounds = Inbound.Jet });
+            // What stands near it comes down: the tower, the bridge.
+            if (st.Destruction) Destruction.Flatten(st, bx, bz, Tune.BombTower);
+            if (st.Water) Water.Flatten(st, bx, bz, Tune.BombBridge);
+            for (int j = 0; j < st.Men.Count; j++)
+            {
+                var m = st.Men[j];
+                if (!m.Alive) continue;
+                double d = JsMath.Hypot(m.X - bx, m.Z - bz);
+                if (d > Tune.BombReach) continue;
+                // (A man up a post is on what the bomb brings down, or above what it reaches.)
+                if (st.Vantage && !Vantage.Reaches(0, m) && d > Tune.BombTower) continue;
+                if (d <= Tune.BombKill) { Combat.Kill(st, m); continue; }
+                double f = 1 - (d - Tune.BombKill) / (Tune.BombReach - Tune.BombKill);
+                // (Flat, however steady he is: twice what would pin the greenest man.)
+                Combat.ApplyPin(st, m, 2.0);
+                double lethal = Tune.BombLethal * f * (m.Cover >= 0 ? Tune.BombCover : 1);
+                if (rng.Next() < lethal) Combat.Kill(st, m);
+            }
+            // The positions it lands among are gone: a crater where each was.
+            for (int i = 0; i < st.Cover.Count; i++)
+            {
+                var c = st.Cover[i];
+                if (c.Wrecked) continue;
+                double nx = Math.Max(c.X - c.Length * 0.5, Math.Min(c.X + c.Length * 0.5, bx));
+                if (JsMath.Hypot(nx - bx, c.Z - bz) > Tune.BombWreck) continue;
+                Wreck(st, c, a.Side);
+            }
+        }
+
+        /// <summary>A position a bomb has landed in: wrecked, a crater where it was.</summary>
+        public static void Wreck(SimState st, Cover c, Side by)
+        {
+            var spec = CoverSpec.For(CoverKind.Crater);
+            c.Wrecked = true;
+            c.Kind = CoverKind.Crater;
+            c.Quality = (spec.qLo + spec.qHi) * 0.5;
+            c.Capacity = Math.Max(2, (int)JsMath.Round(c.Length / spec.metresPerMan));
+            c.Breached = 0;
+            st.Events.Add(new SimEvent { Kind = EventKind.Wrecked, Tick = st.Tick, Side = by, Id = c.Id, X = c.X, Z = c.Z });
+        }
+
+        /// <summary>The jet's pass is over (its area is ending): its second pass lays the napalm along the stick's line.</summary>
+        public static void Lay(SimState st, Area jet)
+        {
+            // Along the line its bombs fell (their middle across the lane), lit NapalmDelay on.
+            double z = 0;
+            for (int k = 0; k < Tune.StickBombs; k++) { Inbound.Stick(st, jet.Side, jet.Id, jet.X, jet.Z, k, out _, out double bz); z += bz; }
+            z /= Tune.StickBombs;
+            Deck.Push(st, jet.Side, new Area { Kind = AreaKind.Napalm, X = jet.X, Z = z, Radius = Tune.NapalmHalf, Ticks = Tune.NapalmDelay + Tune.NapalmTicks, Next = Tune.NapalmDelay, Power = Tune.NapalmKill });
+        }
+
+        /// <summary>Is the napalm alight?</summary>
+        public static bool Lit(Area a) => a.Kind == AreaKind.Napalm && a.Next <= 0;
+
+        /// <summary>Is (x, z) inside this napalm's fire (lit or about to be)?</summary>
+        public static bool Inside(Area a, double x, double z)
+            => a.Kind == AreaKind.Napalm && Math.Abs(x - a.X) <= a.Radius && Math.Abs(z - a.Z) <= Tune.NapalmWide * 0.5;
+
+        /// <summary>The napalm burning (or about to be lit) at (x, z), or null.</summary>
+        public static Area Burning(SimState st, double x, double z)
+        {
+            if (!st.Strike) return null;
+            for (int i = 0; i < st.Areas.Count; i++) if (Inside(st.Areas[i], x, z)) return st.Areas[i];
+            return null;
+        }
+
+        /// <summary>One tick of a napalm area: lit when its jet comes round; then whoever is in it burns.</summary>
+        public static void Tick(SimState st, Area a, Rng rng)
+        {
+            if (a.Next > 0)
+            {
+                a.Next--;
+                if (a.Next == 0) st.Events.Add(new SimEvent { Kind = EventKind.NapalmLit, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z, Amount = a.Radius });
+                return;
+            }
+            for (int j = 0; j < st.Men.Count; j++)
+            {
+                var m = st.Men[j];
+                if (!m.Alive || !Inside(a, m.X, m.Z)) continue;
+                if (st.Vantage && m.High > Tune.NapalmHigh) continue;
+                Combat.ApplyPin(st, m, 1.0);
+                if (rng.Next() >= a.Power) continue;
+                st.Events.Add(new SimEvent { Kind = EventKind.Burned, Tick = st.Tick, Side = a.Side, Id = m.Id, X = m.X, Z = m.Z, Target = a.Id });
+                Combat.Kill(st, m);
+            }
+        }
+
+        /// <summary>
+        /// A squad does not go into the fire: its anchor is held short of any napalm on its lane ahead of it (lit or about
+        /// to be), on its own side of it. (Falling back, short of fire behind it.)
+        /// </summary>
+        public static void Hold(SimState st, Squad sq, IReadOnlyList<Man> live, double dir)
+        {
+            if (!st.Strike) return;
+            double way = sq.Order == Order.Fallback ? -dir : dir;
+            for (int i = 0; i < st.Areas.Count; i++)
+            {
+                var a = st.Areas[i];
+                if (a.Kind != AreaKind.Napalm || Math.Abs(Tune.Lanes[sq.Lane] - a.Z) > Tune.NapalmWide * 0.5 + 1) continue;
+                // Its near edge, as the squad comes to it; the squad's men are this side of it (the middle of them).
+                double near = a.X - way * (a.Radius + Tune.NapalmShort);
+                double mid = 0;
+                for (int k = 0; k < live.Count; k++) mid += live[k].X;
+                mid = live.Count > 0 ? mid / live.Count : sq.AnchorX;
+                if ((mid - a.X) * way > a.Radius) continue;          // already past it
+                // (Not in a river: on its bank, this side of it.)
+                near = Dry(st, sq.Lane, near, mid);
+                if ((sq.AnchorX - near) * way > 0) { sq.AnchorX = near; sq.Halted = true; }
+            }
+        }
+
+        /// <summary>
+        /// Where a man makes for, with fire about: out of it the near way if he is in it (the nearer edge, along the lane),
+        /// short of it if his place is in it or beyond it. Otherwise his place.
+        /// </summary>
+        public static double Short(SimState st, Man m, double tx, double dir)
+        {
+            for (int i = 0; i < st.Areas.Count; i++)
+            {
+                var a = st.Areas[i];
+                if (a.Kind != AreaKind.Napalm || Math.Abs(m.Z - a.Z) > Tune.NapalmWide * 0.5 + 1) continue;
+                double lo = a.X - a.Radius - Tune.NapalmShort, hi = a.X + a.Radius + Tune.NapalmShort;
+                if (m.X > lo && m.X < hi) return m.X - lo < hi - m.X ? lo : hi;
+                if (m.X <= lo && tx > lo) tx = lo;
+                else if (m.X >= hi && tx < hi) tx = hi;
+                else continue;
+                // (Short of it, but not standing in a river: on its bank, his side of it.)
+                if (m.Squad >= 0 && m.Squad < st.Squads.Count) tx = Dry(st, st.Squads[m.Squad].Lane, tx, m.X);
+            }
+            return tx;
+        }
+
+        /// <summary>x on this lane if it is dry; if it is in the river (MatchOptions.Water), its bank on the side of <paramref name="from"/>.</summary>
+        private static double Dry(SimState st, int lane, double x, double from)
+        {
+            if (!st.Water || !Water.Wet(st, lane, x)) return x;
+            for (int i = 0; i < st.Fords.Count; i++)
+            {
+                var f = st.Fords[i];
+                if (f.Lane == lane && x > f.X0 && x < f.X1) return from <= x ? f.X0 - 0.8 : f.X1 + 0.8;
+            }
+            return x;
+        }
+
+        /// <summary>
+        /// The computer's air strike: is there something worth StrikeCost along a stick's line, and where? Men of the
+        /// enemy it has seen (squads <paramref name="seen"/>) within StrikeRadius of one of them along the lane (as the
+        /// stick and the fire run): StrikeMen of them, or StrikeMenAt with a bridge or a watchtower on the line; none of
+        /// its own within StrikeClear. The most over what it needs wins. The count (0 if nothing), where to aim (their
+        /// middle) and on which lane. (With <paramref name="least"/>, that many will do: a prospect worth saving for.)
+        /// </summary>
+        public static int Worth(SimState st, Side side, bool[] seen, out double x, out int lane, int least = 0)
+        {
+            int bestN = 0, bestOver = int.MinValue;
+            x = 0; lane = 0;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var b = st.Men[i];
+                if (!b.Alive || b.Side == side || b.Squad < 0 || !seen[b.Squad]) continue;
+                int n = 0;
+                double sum = 0;
+                bool own = false;
+                for (int j = 0; j < st.Men.Count && !own; j++)
+                {
+                    var o = st.Men[j];
+                    if (!o.Alive || o.Squad < 0) continue;
+                    double dx = Math.Abs(o.X - b.X), dz = Math.Abs(o.Z - b.Z);
+                    if (o.Side == side) { if (dx < Tune.StrikeClear && dz < Tune.NapalmWide + 2) own = true; }
+                    else if (dx < Tune.StrikeRadius && dz < Tune.NapalmWide * 0.5 + 1 && seen[o.Squad]) { n++; sum += o.X; }
+                }
+                if (own || n == 0) continue;
+                int bl = st.Squads[b.Squad].Lane;
+                double at = sum / n;
+                int need = least > 0 ? least : Structure(st, at, Tune.Lanes[bl]) ? Tune.StrikeMenAt : Tune.StrikeMen;
+                if (n < need || n - need <= bestOver) continue;
+                bestOver = n - need; bestN = n; x = at; lane = bl;
+            }
+            return bestN;
+        }
+
+        /// <summary>Does a standing bridge or watchtower lie on a stick's line aimed at x on the lane at z?</summary>
+        private static bool Structure(SimState st, double x, double z)
+        {
+            double half = (Tune.StickBombs - 1) * 0.5 * Tune.StickStep + Tune.BombBridge;
+            for (int i = 0; i < st.Bridges.Count; i++)
+            {
+                var b = st.Bridges[i];
+                if (!b.Fallen && Math.Abs(Tune.Lanes[b.Lane] - z) < 3 && b.X1 > x - half && b.X0 < x + half) return true;
+            }
+            for (int i = 0; i < st.Posts.Count; i++)
+            {
+                var p = st.Posts[i];
+                if (!p.Fallen && Math.Abs(p.Z - z) < Tune.BombTower + 2 && Math.Abs(p.X - x) < half) return true;
+            }
+            return false;
+        }
+    }
+}
