@@ -88,6 +88,37 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(1f - highest, 0.03f, $"{worstHigh} is within 3% of the screen's height of the top bar or the strip");
         }
 
+        /// <summary>
+        /// Each side faces the way it fights on this map (the owner, 2026-10-17: "US spawns looking at right side (make them
+        /// look left as they are fighting towards the left)"): the Americans, raised in the east, face west up their lane;
+        /// the VC face east.
+        /// </summary>
+        [UnityTest, Category("River")]
+        public IEnumerator Each_side_faces_the_way_it_fights()
+        {
+            yield return LoadRiceFields();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            var army = Object.FindAnyObjectByType<ArmyView>();
+            for (int i = 0; i < 10; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            int us = 0, vc = 0, up = 0;
+            foreach (var m in st.Men)
+            {
+                if (!m.Alive) continue;
+                var f = army.FigureOf(m.Id);
+                if (f == null) continue;
+                // (Nobody faces back toward his own end; most face up the lane, the others the enemy across it or the
+                // way they are walking to their places.)
+                float ahead = f.transform.forward.x * (float)Combat.Advance(st, m.Side);
+                Assert.Greater(ahead, -0.1f, $"man {m.Id} ({m.Side}, at x {m.X:F1}) faces back toward his own end");
+                if (ahead > 0.5f) up++;
+                if (m.Side == Side.Us) us++; else vc++;
+            }
+            Assert.Greater(us, 0, "no American raised to look at");
+            Assert.Greater(vc, 0, "no VC to look at");
+            Assert.GreaterOrEqual(up, (us + vc) * 0.7f, $"only {up} of {us + vc} men face up their lane");
+        }
+
         [UnityTest, Category("River")]
         public IEnumerator Its_bridge_carries_the_near_lane_and_comes_down_into_the_river()
         {

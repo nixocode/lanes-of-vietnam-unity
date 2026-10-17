@@ -2155,6 +2155,8 @@ before new maps, and Ia Drang as the first new map. This supersedes §12.25's
 order, which built every Part 2 system on the firebase before any new map:
 each system now arrives with the map that needs it.
 
+(2026-10-17: and after the maps in hand, a new HUD and a campaign of them, won one by one: §12.57.)
+
 It also adds a step §12.25 did not have. The game has one hard-coded map
 (`Sim/Map.cs` is a static class) and no idea of a scenario (the start screen
 offers side, length and difficulty, and `GameRoot.NewMatch` builds the match
@@ -5292,6 +5294,37 @@ The plan's R2, and the owner's "have more of an hieght advantage" read as a rule
   the red), R4 (rice, the trestle bridge and the bamboo tower built in Blender, the owner's installed apps for any
   texture work: Photoshop 2026, Affinity), R5 (splashes, spouts, the bridge's fall heard). New files for the Mac:
   `Sim/Water.cs`, `Sim/Heights.cs`, `Tests/PlayMode/RiverTests.cs` (their `.meta` made by Unity, committed).
+
+### 12.57 Rice Fields: the Americans faced east; frame times measured; and on the plan, a new HUD and a campaign (2026-10-17)
+
+**Facing.** The owner: "in the new map fix a bug where US spawns looking at right side (make them look left as they are
+fighting towards the left)". A man's front when he has nobody to face was "up the lane" written as east for the
+Americans (`ArmyView`, the firebase's way); it is now his side's way on the map (`Combat.Advance(st, side)`), as R1 made
+everything else. New PlayMode test `RiverTests.Each_side_faces_the_way_it_fights`: nobody faces back toward his own end,
+seven in ten or more square up the lane (the rest face the enemy across it, or the way they walk to their places).
+Without the fix it fails: an American faced -0.99 of the way his side fights.
+
+**Frame times** (WebGL of f450df1, 37.59 MB to start, 45.70 in all; headless Chrome at 2592 x 1370, seed 3, back to
+back): the firebase 4.4 to 4.6 ms mean, 6 at the 95th percentile; the firebase with the tower brought down
+(`towerfall=1`) 4.5 to 4.7 and 6 to 8, the heap laid in 20 ms once as it lands (that frame 32 ms); Rice Fields 4.6 to
+4.9 and 5 to 7. (A first run read 9 to 10 ms throughout: the owner was using the Mac; run again, as above.)
+
+**On the plan: a new HUD and a campaign.** The owner: "also add to the plan to make a new hud and campaign, where maps
+are advnaced through progress and wins-like in warfare 1945". After Rice Fields (R3 to R6), and planned with him first
+(plan mode), as Rice Fields was. What it would take, as it stands:
+
+- **A campaign**: the operations in an order, on a map of the war (the Central Highlands, the lowlands, and the maps to
+  come), each opened by winning the one before; the run of it remembered between sessions (in the browser's storage:
+  the demo has no server). Like the Warfare games, between battles the side earns what it fights with (points,
+  medals, cards opened), and the next battle is harder.
+- **A new HUD**: designed for the campaign and for room: the lanes kept clear of it on every map (the rule §12.55 made
+  for Rice Fields, and its test, `RiverTests.Its_lanes_are_clear_of_the_HUD_wherever_the_camera_is`, to be the rule for
+  all), the cards, the morale bars, the strip and the orders redrawn.
+- **His to say**, when it is planned: each side a campaign of its own, or the Americans' only? What a loss does (the
+  battle again, or ground lost on the campaign's map)? Do men carry over (veterans, losses), or only what is unlocked?
+  Which maps in what order (the firebase's four operations, Rice Fields, Ia Drang next)? The HUD: his references, as
+  the concept images were for Rice Fields? And the firebase's framing (looked at again with the new HUD; §12.55 left
+  it as it was).
 
 ### 12.13 Corrections to earlier sections
 

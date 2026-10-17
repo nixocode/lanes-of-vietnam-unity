@@ -479,7 +479,8 @@ namespace LanesOfVietnam.View
                     var m = st.Men[i];
                     if (!m.Alive) continue;
                     double best = FrontRange * FrontRange;
-                    float front = m.Side == Side.Us ? 90f : -90f;
+                    // (Up the lane is the way his side goes on this map: on Rice Fields the Americans face west.)
+                    float front = Combat.Advance(st, m.Side) > 0 ? 90f : -90f;
                     // Senses: the squad his own is dealing with comes first, in sight or not: a squad
                     // that has gone to ground faces what put it there.
                     int threat = st.Senses && m.Squad < st.Squads.Count ? st.Squads[m.Squad].Threat : -1;
