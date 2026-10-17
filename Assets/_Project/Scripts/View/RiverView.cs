@@ -43,7 +43,7 @@ namespace LanesOfVietnam.View
             _planks = Water("Bridge Timber", new Color(0.33f, 0.26f, 0.19f), 0.12f);
         }
 
-        public void Build(Ground g, MapDef map, Material timber, Material lit)
+        public void Build(Ground g, MapDef map, Material timber, Material lit, Material riverWater = null, Material paddyWater = null)
         {
             foreach (Transform c in transform) Destroy(c.gameObject);
             _built.Clear();
@@ -52,6 +52,9 @@ namespace LanesOfVietnam.View
             var p = g.Params;
             if (double.IsNaN(p.RiverX0) && double.IsNaN(p.PaddyX0)) return;
             Materials(lit);
+            // (The theatre's water shader, where it has one: LOV/Water. The lit stand-ins otherwise.)
+            if (riverWater != null) _river = riverWater;
+            if (paddyWater != null) _paddy = paddyWater;
             if (!double.IsNaN(p.RiverX0)) RiverSheet(g, (float)p.RiverWater);
             for (int k = 0; k < g.FloodedSteps; k++) PaddySheet(g, k);
             for (int i = 0; i < g.Decks.Count; i++) Bridge(g, g.Decks[i], _planks != null ? _planks : timber, i);
@@ -296,6 +299,7 @@ namespace LanesOfVietnam.View
             if (st == null || _ground == null) return;
             // (On the match's own clock, as the tower's fall is: a capture or a paused game sees it where the match is.)
             float now = (float)((st.Tick - 1 + d.Alpha) * Tune.Dt);
+            Stain(st, now);
             foreach (var s in _spans)
             {
                 bool fallen = st.Water && s.Index < st.Bridges.Count && st.Bridges[s.Index].Fallen;
@@ -313,6 +317,48 @@ namespace LanesOfVietnam.View
                 if (s.Since < 0f) continue;
                 Pose(s, Mathf.Max(0f, now - s.Since));
             }
+        }
+
+        /// <summary>The water's stains (LOV/Water): up to sixteen, the reddest.</summary>
+        public const int Stains = 16;
+        private readonly Vector4[] _stains = new Vector4[Stains];
+        private readonly List<Vector4> _found = new List<Vector4>();
+        private static readonly int StainsId = Shader.PropertyToID("_LOV_Stains"), StainCountId = Shader.PropertyToID("_LOV_StainCount");
+        /// <summary>How many stains the water has now, and how red the reddest (for the tests and the captures).</summary>
+        public int StainCount { get; private set; }
+        public float Reddest { get; private set; }
+
+        /// <summary>
+        /// The dead in the water redden it (the owner: "tint of water changes to red if many bodies pile up"): a man killed
+        /// where it stands a hand deep or more stains it round him, spreading over twenty seconds, carried down the river by
+        /// its current (not a paddy's), and fading over a few minutes; where bodies lie together their stains add up.
+        /// </summary>
+        private void Stain(SimState st, float now)
+        {
+            _found.Clear();
+            var g = _ground;
+            for (int i = 0; i < st.Men.Count; i++)
+            {
+                var m = st.Men[i];
+                if (m.Alive || m.DiedAt < 0) continue;
+                double water = g.WaterAt(m.X, m.Z);
+                if (double.IsNaN(water) || water - g.HeightAt(m.X, m.Z) < 0.1) continue;
+                float since = Mathf.Max(0f, now - (float)(m.DiedAt * Tune.Dt));
+                float red = 0.6f * Mathf.Exp(-since / 150f) * Mathf.Clamp01(since / 2f + 0.15f);
+                if (red < 0.02f) continue;
+                float radius = Mathf.Lerp(1.2f, 4.2f, Mathf.Clamp01(since / 20f));
+                // (Down the river with its current, to fifteen metres; a paddy's water does not go anywhere.)
+                float drift = g.InRiver(m.X, m.Z) ? Mathf.Min(15f, since * 0.22f) : 0f;
+                var at = Coords.World(m.X, m.Z, 0f) + new Vector3(0f, 0f, -drift);
+                _found.Add(new Vector4(at.x, at.z, radius, red));
+            }
+            _found.Sort((a, b) => b.w.CompareTo(a.w));
+            int n = Mathf.Min(Stains, _found.Count);
+            for (int k = 0; k < Stains; k++) _stains[k] = k < n ? _found[k] : Vector4.zero;
+            Shader.SetGlobalVectorArray(StainsId, _stains);
+            Shader.SetGlobalFloat(StainCountId, n);
+            StainCount = n;
+            Reddest = n > 0 ? _found[0].w : 0f;
         }
 
         /// <summary>Each half about its own bank, as long after it went (or came back) as this.</summary>

@@ -26,6 +26,8 @@ namespace LanesOfVietnam.View
         [Header("The sky")]
         public Material Sky;
         public TextAsset SkyJson;
+        [Header("Water (the lowlands: a river and paddies; none in the highlands)")]
+        public Material RiverWater, PaddyWater;
         [Header("What stands on the ground")]
         public Material Foliage, FoliageDark, Wire, Vehicle, Sandbag, Timber;
         public PlantSet[] Plants = new PlantSet[0], Props = new PlantSet[0];

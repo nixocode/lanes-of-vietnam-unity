@@ -173,20 +173,37 @@ namespace LanesOfVietnam.Tools
 
             // The firebase's theatre, the Central Highlands (PLAN §12.27, M0): what the world is built of where a map names
             // it. (The views keep the same, set above, for the editor's scene; the game's world takes it from here.)
+            // The lowlands' water (Rice Fields, PLAN §12.58): the river muddy, carried by its current; the paddies still, darker,
+            // holding the sky.
+            var river = Mat("River Water", Shader.Find("LOV/Water"), null);
+            river.SetColor("_Shallow", new Color(0.40f, 0.34f, 0.23f)); river.SetColor("_Deep", new Color(0.23f, 0.19f, 0.12f));
+            river.SetFloat("_FadeDepth", 1.1f); river.SetFloat("_Edge", 0.12f); river.SetFloat("_Opacity", 0.96f);
+            river.SetFloat("_Smooth", 0.62f); river.SetFloat("_Murk", 0.6f); river.SetFloat("_Ripple", 0.32f); river.SetFloat("_RippleScale", 2.2f);
+            river.SetVector("_Flow", new Vector4(0f, -0.45f, 0f, 0f));
+            var paddy = Mat("Paddy Water", Shader.Find("LOV/Water"), null);
+            paddy.SetColor("_Shallow", new Color(0.30f, 0.29f, 0.20f)); paddy.SetColor("_Deep", new Color(0.13f, 0.14f, 0.10f));
+            paddy.SetFloat("_FadeDepth", 0.5f); paddy.SetFloat("_Edge", 0.05f); paddy.SetFloat("_Opacity", 0.88f);
+            paddy.SetFloat("_Smooth", 0.9f); paddy.SetFloat("_Murk", 0.2f); paddy.SetFloat("_Ripple", 0.12f); paddy.SetFloat("_RippleScale", 2.4f);
+            paddy.SetVector("_Flow", new Vector4(0.02f, 0.01f, 0f, 0f));
+            Theatre Highlands(string id) => new Theatre
+            {
+                Id = id,
+                Ground = ground.Material,
+                MountainHeights = mount.Heights, MountainLayout = mount.Layout, Mountains = mount.Material,
+                Sky = RenderSettings.skybox, SkyJson = skyLight.SkyJson,
+                Foliage = dress.Foliage, FoliageDark = dress.FoliageDark, Wire = dress.Wire, Vehicle = dress.Vehicle,
+                Sandbag = cover.SandbagMaterial, Timber = cover.TimberMaterial,
+                Plants = dress.Plants, Props = dress.Props, Bags = cover.Bags, Structures = cover.Structures,
+                TreelineZ = dress.TreelineZ, ScrubNearZ = dress.ScrubNearZ, ScrubFarZ = dress.ScrubFarZ,
+                WireZ = dress.WireZ, FirebaseEastX = dress.FirebaseEastX, LaneGate = dress.LaneGate,
+            };
+            // The lowlands (Rice Fields): the highlands' for now, with their water; their own ground, plants and horizon to come (R4).
+            var lowlands = Highlands("lowlands");
+            lowlands.RiverWater = river; lowlands.PaddyWater = paddy;
             root.Theatres = new[]
             {
-                new Theatre
-                {
-                    Id = "highlands",
-                    Ground = ground.Material,
-                    MountainHeights = mount.Heights, MountainLayout = mount.Layout, Mountains = mount.Material,
-                    Sky = RenderSettings.skybox, SkyJson = skyLight.SkyJson,
-                    Foliage = dress.Foliage, FoliageDark = dress.FoliageDark, Wire = dress.Wire, Vehicle = dress.Vehicle,
-                    Sandbag = cover.SandbagMaterial, Timber = cover.TimberMaterial,
-                    Plants = dress.Plants, Props = dress.Props, Bags = cover.Bags, Structures = cover.Structures,
-                    TreelineZ = dress.TreelineZ, ScrubNearZ = dress.ScrubNearZ, ScrubFarZ = dress.ScrubFarZ,
-                    WireZ = dress.WireZ, FirebaseEastX = dress.FirebaseEastX, LaneGate = dress.LaneGate,
-                },
+                Highlands("highlands"),
+                lowlands,
             };
 
             // The fighting, drawn from the simulation's events (step 7).

@@ -119,6 +119,30 @@ namespace LanesOfVietnam.Tests
             Assert.GreaterOrEqual(up, (us + vc) * 0.7f, $"only {up} of {us + vc} men face up their lane");
         }
 
+        /// <summary>
+        /// The dead in the river redden it (the owner: "tint of water changes to red if many bodies pile up"): none in it,
+        /// no stain; men killed in it, a stain each, redder where they lie together; on dry ground, none.
+        /// </summary>
+        [UnityTest, Category("River")]
+        public IEnumerator The_dead_in_the_river_redden_it()
+        {
+            yield return LoadRiceFields();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            root.Paused = true;
+            for (int i = 0; i < 4; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.AreEqual(0, root.River.StainCount, "the river is stained with nobody dead in it");
+            // Three men of the far lane killed in its ford, close together; one killed on dry ground.
+            var far = st.Men.Where(m => m.Alive && st.Squads[m.Squad].Lane == Map.Far && m.High <= 0).Take(4).ToList();
+            Assume.That(far.Count, Is.EqualTo(4), "not four men in the far lane to kill");
+            for (int k = 0; k < 3; k++) { far[k].X = -3 + 0.6 * k; far[k].Z = Tune.Lanes[Map.Far]; Combat.Kill(st, far[k]); far[k].DiedAt = st.Tick; }
+            // (On the base's step, which is dry: a paddy's water would take a stain too.)
+            far[3].X = 38; far[3].Z = Tune.Lanes[Map.Far]; Combat.Kill(st, far[3]); far[3].DiedAt = st.Tick;
+            for (int i = 0; i < 80; i++) { root.AdvanceForCapture(0.05f); yield return null; }
+            Assert.AreEqual(3, root.River.StainCount, "a stain for each man dead in the water, and none for the one on dry ground");
+            Assert.Greater(root.River.Reddest, 0.3f, "the water round them is hardly red");
+        }
+
         [UnityTest, Category("River")]
         public IEnumerator Its_bridge_carries_the_near_lane_and_comes_down_into_the_river()
         {

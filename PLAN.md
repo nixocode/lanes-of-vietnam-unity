@@ -5326,6 +5326,33 @@ are advnaced through progress and wins-like in warfare 1945". After Rice Fields 
   the concept images were for Rice Fields? And the firebase's framing (looked at again with the new HUD; §12.55 left
   it as it was).
 
+### 12.58 Rice Fields R3: the water, and the river reddened by its dead (2026-10-17)
+
+The plan's R3 water: "the river murky brown-green, flowing, depth-faded at the banks, the sky reflected; the paddies
+still and mirror-like; red water: the shader takes the bodies in the water, each reddening the water round it, more
+for more bodies, drifting downstream and fading over minutes" (the owner: "tint of water changes to red if many bodies
+pile up").
+
+- **`Art/Shaders/Water.shader`** (new, `LOV/Water`, transparent, lit by `LOVLit` as the ground is): ripples worked out
+  in the shader (three layers of noise at odd angles, carried by the current, `_Flow`; fading with distance so far
+  water does not shimmer), no texture downloaded; against the camera's depth texture, clear at its edge and its colour
+  as it deepens; its own colour shown through the sky it holds by `_Murk` (seen from this low a lowland river reads
+  brown, not the sky's blue: the first try, all gloss, read as a blue canal); and up to sixteen stains
+  (`_LOV_Stains`, set each frame by `RiverView`).
+- **The stains** (`RiverView.Stain`): a man killed where the water stands a hand deep or more (the river or a paddy)
+  stains it round him, spreading from 1.2 to 4.2 m over twenty seconds, carried down the river 0.22 m a second to
+  fifteen metres (not in a paddy), fading with a time constant of two and a half minutes; where bodies lie together the
+  stains add up; the sixteen reddest are drawn. Blood dulls the water as a film would, so it is seen and not the sky.
+- **The lowlands theatre** (`SceneBuilder`, `Theatre.RiverWater`, `PaddyWater`): Rice Fields' own now, the highlands'
+  art with its water: the river (muddy, `_Murk` 0.6, current 0.45 m/s toward the lens) and the paddies (still, darker,
+  `_Murk` 0.2, mirror-like as in his first picture). Its own ground (mud in the paddies), plants and horizon are R4's.
+- Captured: `captures/rice/i_river.png`, `j_red.png` (the dead piled under the bridge, the red carried downstream),
+  `j_paddies.png`.
+- **Measured**: WebGL 37.69 MB to start, 45.79 in all; Rice Fields 4.5 to 4.6 ms mean, 5 to 6 at the 95th percentile, at
+  2592 x 1370 (the firebase in the same run 4.4 to 4.5 and 5 to 6): the water costs nothing that shows.
+- **Tests**: PlayMode 43 of 44, the capture skipped (new: `RiverTests.The_dead_in_the_river_redden_it`: three dead in the
+  ford give three stains and the water red, one on dry ground none). EditMode unchanged (no rule moved).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

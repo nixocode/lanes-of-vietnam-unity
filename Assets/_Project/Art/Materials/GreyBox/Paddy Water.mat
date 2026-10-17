@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Paddy Water
+  m_Shader: {fileID: 4800000, guid: 9f5da0d29779b42308413c84ad262852, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Edge: 0.05
+    - _FadeDepth: 0.5
+    - _Murk: 0.2
+    - _Opacity: 0.88
+    - _Ripple: 0.12
+    - _RippleScale: 2.4
+    - _Smooth: 0.9
+    m_Colors:
+    - _Blood: {r: 0.33999997, g: 0.049999982, b: 0.03, a: 1}
+    - _Deep: {r: 0.13, g: 0.14, b: 0.1, a: 1}
+    - _Flow: {r: 0.02, g: 0.01, b: 0, a: 0}
+    - _Shallow: {r: 0.3, g: 0.29, b: 0.2, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -241,7 +241,8 @@ namespace LanesOfVietnam.View
                 River = new GameObject("river").AddComponent<RiverView>();
                 River.transform.SetParent(transform, false);
             }
-            River.Build(Ground, map, Dressing != null ? Dressing.Timber : null, Dressing != null ? Dressing.Vehicle : null);
+            River.Build(Ground, map, Dressing != null ? Dressing.Timber : null, Dressing != null ? Dressing.Vehicle : null,
+                        WorldTheatre != null ? WorldTheatre.RiverWater : null, WorldTheatre != null ? WorldTheatre.PaddyWater : null);
             // A map whose ground climbs has the camera ride with it, and look down a little more (MapDef.CameraRides).
             if (CameraRig != null)
             {
