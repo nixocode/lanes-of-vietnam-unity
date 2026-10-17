@@ -57,7 +57,9 @@ namespace LanesOfVietnam.View
             if (paddyWater != null) _paddy = paddyWater;
             if (!double.IsNaN(p.RiverX0)) RiverSheet(g, (float)p.RiverWater);
             for (int k = 0; k < g.FloodedSteps; k++) PaddySheet(g, k);
-            for (int i = 0; i < g.Decks.Count; i++) Bridge(g, g.Decks[i], _planks != null ? _planks : timber, i);
+            // (The theatre's planks where it has them; a plain weathered brown otherwise.)
+            bool textured = timber != null && timber.HasProperty("_BaseMap") && timber.GetTexture("_BaseMap") != null;
+            for (int i = 0; i < g.Decks.Count; i++) Bridge(g, g.Decks[i], textured ? timber : _planks != null ? _planks : timber, i);
             Debug.Log($"[LOV] river: water {(double.IsNaN(p.RiverX0) ? "none" : $"x {p.RiverX0:F0}..{p.RiverX1:F0} at {p.RiverWater:F2} m")}, {g.FloodedSteps} paddies, {g.Decks.Count} bridge{(g.Decks.Count == 1 ? "" : "s")}");
         }
 

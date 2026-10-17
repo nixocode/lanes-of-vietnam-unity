@@ -20,6 +20,14 @@ namespace LanesOfVietnam.View
         public Mesh[] Meshes;
         /// <summary>What the trucks and the jeep wear, and what the tower's and a bunker's timbers do.</summary>
         public Material Vehicles, Timber;
+        /// <summary>
+        /// The lowlands' (tools/blender/lowlands_mesh.py, Rice Fields): what its bamboo tower, its sluice gates and its cart
+        /// wear; the name its tower's members go by in Meshes ("bamboo_": bamboo_tower_legs, ...; "" the timber tower's),
+        /// and the height of that tower's deck (0: the timber tower's, WorldDressing.TowerDeck).
+        /// </summary>
+        public Material Lowlands;
+        public string TowerPrefix;
+        public float TowerDeck;
 
         /// <summary>Metres a run of a bunker's roof logs or of its beam covers, and how deep the logs are as they are built (they are drawn out to the bunker's depth).</summary>
         public const float Run = 2.4f, LogDepth = 1f;
@@ -56,7 +64,8 @@ namespace LanesOfVietnam.View
             go.transform.localScale = scale ?? Vector3.one;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = go.AddComponent<MeshRenderer>();
-            r.sharedMaterial = name.StartsWith("m35") || name.StartsWith("jeep") ? Vehicles : Timber;
+            r.sharedMaterial = name.StartsWith("m35") || name.StartsWith("jeep") ? Vehicles
+                             : Lowlands != null && (name.StartsWith("bamboo_") || name.StartsWith("sluice") || name.StartsWith("ox_cart")) ? Lowlands : Timber;
             built.Add(r);
             return r;
         }

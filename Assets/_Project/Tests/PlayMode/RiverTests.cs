@@ -120,6 +120,29 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
+        /// Its watchtower is the lowlands' bamboo one (tools/blender/lowlands_mesh.py), its deck where the simulation's post
+        /// has its men (6.03 m, not the timber tower's 8.45), and it comes apart as the timber one does (its members by the
+        /// same names); and its dikes have their sluice gates.
+        /// </summary>
+        [UnityTest, Category("River")]
+        public IEnumerator Its_tower_is_bamboo_and_its_deck_is_where_its_men_stand()
+        {
+            yield return LoadRiceFields();
+            var root = GameRoot.Instance;
+            var st = root.Driver.State;
+            var d = root.Dressing;
+            Assert.IsNotNull(d.Tower, "no tower");
+            Assert.IsNotNull(d.Structures.Lowlands, "the lowlands' built things are not in the scene (run tools/blender/lowlands_mesh.py)");
+            Assert.AreEqual((float)st.Posts[0].Height, d.DeckHeight, 0.01f, "the tower's deck is not where the simulation's post has its men");
+            Assert.Less(d.DeckHeight, WorldDressing.TowerDeck, "it is as tall as the timber tower");
+            Assert.IsTrue(d.TowerBreaks, "its legs were not cut at its girts");
+            var roof = d.Tower.GetComponentsInChildren<Renderer>().FirstOrDefault(r => r.name.StartsWith("tower_roof"));
+            Assert.IsNotNull(roof, "no roof by the tower's own name");
+            Assert.AreSame(d.Structures.Lowlands, roof.sharedMaterial, "its roof is not the lowlands' thatch");
+            Assert.AreEqual(5, d.LowlandThings, "not its four sluice gates and its cart");
+        }
+
+        /// <summary>
         /// The dead in the river redden it (the owner: "tint of water changes to red if many bodies pile up"): none in it,
         /// no stain; men killed in it, a stain each, redder where they lie together; on dry ground, none.
         /// </summary>

@@ -5353,6 +5353,44 @@ pile up").
 - **Tests**: PlayMode 43 of 44, the capture skipped (new: `RiverTests.The_dead_in_the_river_redden_it`: three dead in the
   ford give three stains and the water red, one on dry ground none). EditMode unchanged (no rule moved).
 
+### 12.59 Rice Fields R4: the lowlands built (rice, the bamboo tower, sluice gates, a cart, timber for the bridge, mud) (2026-10-17)
+
+The plan's R4, made of what is already on disk (nothing downloaded) and, for the art, in Blender by script (the owner,
+2026-10-16: "if adobe isnt working use my art craft installed apps": Blender, Photoshop 2026 and Affinity are
+installed; Blender was enough).
+
+- **Rice** (`tools/blender/plant_bake.py rice_grass`): hills of young rice, slender, upright, arching at the tips, the
+  bright green of rice a few weeks planted (ambientCG Foliage006's lime, which the field grass leaves out, and some of
+  Foliage001), knee-high; six variants in a 512 atlas. `WorldDressing.Rice` plants it in rows half a metre apart in each
+  flooded step, clear of the dikes and the lanes' middles (1460 hills). On the dikes and the base's step the grass is
+  sparser and short: a dike is a trodden path between flooded fields (`captures/rice/k_rice2.png`, `n_steps.png`).
+- **The bamboo watchtower** (`tools/blender/lowlands_mesh.py`, new, on `firebase_mesh.py`'s kit, bake and weathering):
+  four splayed bamboo legs with their joints and lashings, X-braces in three bays a face with their girts, a floor of
+  split bamboo with the ladder's hatch, corner posts and rails, a hipped thatched roof in courses (Grass003's light and
+  dark coloured straw), a bamboo ladder; in the timber tower's members, so the game cuts it, breaks it and brings it
+  down as it does the timber one (`StructureSet.TowerPrefix` "bamboo_": each member placed takes the timber tower's
+  name). Its deck at 6.03 m (`StructureSet.TowerDeck`, `WorldDressing.DeckHeight`, `BreakHeight`; the fall's other
+  heights scaled by it, `TowerView.Fall`), and the simulation's post with it (`Maps.RiceFields`, Height 6.03): the base
+  stands 5.5 m over the river already, and the platform is clear of the minimap now (§12.55's trade). Nobody mans it in
+  the pins or the balance runs, so neither moved (`scenario hash 1` rice-fields 7635 `279122041u`; 132 / 122 of 192).
+  Captured standing (`l_base.png`) and brought down (`l_fall.png`, `towerfall=60`).
+- **Sluice gates** in the dikes beside the lanes (one where the simulation's far lane has its sluice gate) and **an ox
+  cart** on the west bank behind the far lane, the VC's (`WorldDressing.Lowland`); from the same script.
+- **The lowlands' set** (`SceneBuilder`): the firebase's trucks and bunker timbers with these, on an atlas of their own
+  (`lowlands_albedo/normal/mask.png`, `Lowlands` material), the lowlands theatre's.
+- **The bridge in timber**: Poly Haven `weathered_planks` (CC0, the timber tower's own source, ASSETS.md) at 1024, laid by
+  the metre (`Art/Structures/planks_*.png`, the lowlands theatre's `BridgeTimber`; `ArtImport` repeats them)
+  (`m_bridge.png`).
+- **Mud under the water** (`GroundView.Masks`): a paddy's floor and the river's bed and banks are the ground's wet bare
+  earth, not its grass. The firebase has no water: its ground is the same.
+- **Measured**: WebGL 40.12 MB to start (37.69 before), 48.23 in all; Rice Fields 4.5 ms mean, 6 at the 95th percentile
+  (the firebase 4.3 to 4.5, 5 to 6, same run).
+- **Tests**: PlayMode 45, all pass but the capture's skip (new: `RiverTests.Its_tower_is_bamboo_and_its_deck_is_where_
+  its_men_stand`: the lowlands' tower, its deck at the post's height and lower than the timber one's, its legs cut to
+  break, its roof the lowlands' thatch, four sluice gates and a cart set out).
+- New files: `tools/blender/lowlands_mesh.py`; `Art/Structures/lowlands.fbx`, `.json`, `lowlands_*.png`, `planks_*.png`;
+  `Art/Plants/rice_grass*`.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

@@ -200,6 +200,19 @@ namespace LanesOfVietnam.Tools
             // The lowlands (Rice Fields): the highlands' for now, with their water; their own ground, plants and horizon to come (R4).
             var lowlands = Highlands("lowlands");
             lowlands.RiverWater = river; lowlands.PaddyWater = paddy;
+            // Its bridge in Poly Haven's weathered planks (CC0, the timber tower's own; ASSETS.md), a tile a couple of metres.
+            AssetDatabase.ImportAsset("Assets/_Project/Art/Structures/planks_albedo.png", ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset("Assets/_Project/Art/Structures/planks_normal.png", ImportAssetOptions.ForceUpdate);
+            var planks = Mat("Bridge Timber", Shader.Find("Universal Render Pipeline/Lit"), null);
+            planks.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Structures/planks_albedo.png"));
+            planks.SetTextureScale("_BaseMap", new Vector2(0.55f, 0.55f));
+            planks.SetColor("_BaseColor", new Color(0.82f, 0.74f, 0.62f));
+            planks.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Structures/planks_normal.png"));
+            planks.SetFloat("_BumpScale", 1f);
+            planks.SetFloat("_Smoothness", 0.12f);
+            planks.EnableKeyword("_NORMALMAP");
+            lowlands.BridgeTimber = planks;
+            if (_lowlandSet.Ready) lowlands.Structures = _lowlandSet;
             root.Theatres = new[]
             {
                 Highlands("highlands"),
@@ -505,8 +518,30 @@ namespace LanesOfVietnam.Tools
             }
             var meshes = AssetDatabase.LoadAllAssetsAtPath($"{dir}/firebase.fbx").OfType<Mesh>().OrderBy(x => x.name).ToArray();
             Debug.Log($"[LOV] firebase: {meshes.Length} meshes, {meshes.Sum(x => x.triangles.Length / 3)} triangles ({string.Join(", ", meshes.Select(x => x.name))})");
-            return new StructureSet { Meshes = meshes, Vehicles = Worn("Vehicles", "vehicles"), Timber = Worn("Structure Timber", "timber") };
+            var set = new StructureSet { Meshes = meshes, Vehicles = Worn("Vehicles", "vehicles"), Timber = Worn("Structure Timber", "timber") };
+            _lowlandSet = set;
+            // The lowlands' (tools/blender/lowlands_mesh.py, Rice Fields): the firebase's trucks and bunker timbers, and its own
+            // bamboo tower, sluice gates and cart.
+            if (AssetDatabase.LoadAssetAtPath<TextAsset>($"{dir}/lowlands.json") is TextAsset json)
+            {
+                AssetDatabase.ImportAsset($"{dir}/lowlands.fbx", ImportAssetOptions.ForceUpdate);
+                var own = AssetDatabase.LoadAllAssetsAtPath($"{dir}/lowlands.fbx").OfType<Mesh>().OrderBy(x => x.name).ToArray();
+                var deck = JsonUtility.FromJson<LowlandLayout>(json.text).deck;
+                _lowlandSet = new StructureSet
+                {
+                    Meshes = meshes.Concat(own).ToArray(), Vehicles = set.Vehicles, Timber = set.Timber,
+                    Lowlands = Worn("Lowlands", "lowlands"), TowerPrefix = "bamboo_", TowerDeck = deck,
+                };
+                Debug.Log($"[LOV] lowlands: {own.Length} meshes, {own.Sum(x => x.triangles.Length / 3)} triangles, its tower's deck at {deck} m");
+            }
+            else Debug.LogWarning("[LOV] no lowlands meshes: Rice Fields has the firebase's tower (run tools/blender/lowlands_mesh.py)");
+            return set;
         }
+
+        /// <summary>The lowlands' built things (Structures() makes it beside the firebase's).</summary>
+        private static StructureSet _lowlandSet;
+
+        [System.Serializable] private class LowlandLayout { public float deck; }
 
         /// <summary>
         /// What a call-in brings (Art/Structures/aircraft.fbx, from aircraft_import.py): the air strike's F-100

@@ -102,7 +102,8 @@ namespace LanesOfVietnam.Tools
                 // tiled over each bag as a detail map: its light and dark about
                 // 0.5, read linear, because URP doubles what it reads.
                 bool normal = p.EndsWith("_normal.png");
-                bool weave = p.Contains("_weave");
+                // (And the bridge's planks, laid by the metre: RiverView, the lowlands' Bridge Timber.)
+                bool weave = p.Contains("_weave") || p.Contains("/planks_");
                 ti.textureShape = TextureImporterShape.Texture2D;
                 ti.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
                 ti.sRGBTexture = p.EndsWith("_albedo.png");

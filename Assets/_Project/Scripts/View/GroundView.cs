@@ -192,6 +192,14 @@ namespace LanesOfVietnam.View
             }
             // Wet where the track is lowest: the ruts hold water.
             double wet = track * Math.Max(0, Math.Min(1, (0.1 - g.HeightAt(x, z) + g.HeightAt(x, z + 3)) * 2));
+            // Rice Fields: under the water, a paddy's floor and the river's bed and banks, wet earth: mud, not grass.
+            double water = g.WaterAt(x, z);
+            if (!double.IsNaN(water))
+            {
+                double under = Math.Max(0, Math.Min(1, (water - g.HeightAt(x, z) + 0.06) / 0.16));
+                disturbed = Math.Max(disturbed, under);
+                wet = Math.Max(wet, under);
+            }
             return new Color32((byte)(track * 255), (byte)(disturbed * 255), (byte)(Math.Max(0, wet) * 255), 255);
         }
     }

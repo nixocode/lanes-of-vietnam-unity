@@ -72,24 +72,27 @@ namespace LanesOfVietnam.View
             public readonly int Seed;
 
             /// <summary>The fall of the tower a dressing built, on its ground (and on the vehicles parked there).</summary>
-            public Fall(SimEvent e, WorldDressing w, Ground g) : this(e, w.TowerFoot, g, w.Parked, w.TowerBreaks) { }
+            public Fall(SimEvent e, WorldDressing w, Ground g) : this(e, w.TowerFoot, g, w.Parked, w.TowerBreaks, w.DeckHeight) { }
 
             /// <param name="breaks">Its legs are cut at its first girt (WorldDressing.TowerBreaks): it may buckle there.</param>
+            /// <param name="deck">Its deck's height (the timber tower's 8.45; the lowlands' bamboo one's 6.03): its other heights are
+            /// the timber tower's in that proportion.</param>
             public Fall(SimEvent e, Vector3 foot, Ground g, IReadOnlyList<(Vector3 at, Vector3 along, float length, float width, float height)> parked = null,
-                        bool breaks = false)
+                        bool breaks = false, float deck = WorldDressing.TowerDeck)
             {
+                float scale = deck / WorldDressing.TowerDeck;
                 Seed = e.Rounds;
                 float a = (float)(e.Amount ?? 0) * Mathf.Deg2Rad;
                 Dir = new Vector3(Mathf.Cos(a), 0f, -Mathf.Sin(a));
                 Foot = foot;
                 Buckle = breaks && Buckles(Seed);
-                Break = Buckle ? WorldDressing.TowerBreak : 0f;
+                Break = Buckle ? WorldDressing.TowerBreak * scale : 0f;
                 Base = foot + Vector3.up * Break;
                 // (Its legs lean in as they rise: at the break they are nearer its middle than at its foot.)
-                float half = FootHalf - (FootHalf - HeadHalf) * Break / WorldDressing.TowerDeck;
+                float half = FootHalf - (FootHalf - HeadHalf) * Break / deck;
                 float square = 1f / Mathf.Max(Mathf.Abs(Dir.x), Mathf.Abs(Dir.z));
                 Pivot = Base + Dir * (half * square);
-                _k = 3f * G / (2f * (Column - Break));
+                _k = 3f * G / (2f * (Column * scale - Break));
                 Lean = (2f + 2.5f * H(Seed, 1)) * Mathf.Deg2Rad;
                 Kick = 0.12f + 0.45f * H(Seed, 2);
                 Twist = (H(Seed, 3) - 0.5f) * 50f;
@@ -118,7 +121,7 @@ namespace LanesOfVietnam.View
                 {
                     // Broken, it goes over about the break until the far edge of its top (its roof's eave, or the plate
                     // the rafters sat on) strikes the ground, past level: the ground there, the higher the sooner.
-                    float up = (RoofOff ? CabinTop : RoofTop) - Break, wide = ((RoofOff ? CabinHalf : RoofHalf) - half) * square;
+                    float up = (RoofOff ? CabinTop : RoofTop) * scale - Break, wide = ((RoofOff ? CabinHalf : RoofHalf) - half) * square;
                     float r = Mathf.Sqrt(up * up + wide * wide), phi = Mathf.Atan2(wide, up), rise = 0f;
                     down = Mathf.PI * 0.5f;
                     for (int k = 0; k < 2; k++)

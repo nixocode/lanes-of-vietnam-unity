@@ -321,7 +321,9 @@ namespace LanesOfVietnam.Sim
             },
             Posts = new[]
             {
-                new Post { Id = 0, Name = "WATCHTOWER", Side = Side.Us, X = -Map.TowerX, Z = Map.TowerZ, Height = 8.45, FootX = -Map.TowerX, FootZ = Map.TowerZ + 0.45, Lane = Map.Far },
+                // (Bamboo, its deck 6.03 m up, not the timber tower's 8.45: the base stands 5.5 m over the river already, and its
+                // men stay clear of the minimap. tools/blender/lowlands_mesh.py.)
+                new Post { Id = 0, Name = "WATCHTOWER", Side = Side.Us, X = -Map.TowerX, Z = Map.TowerZ, Height = 6.03, FootX = -Map.TowerX, FootZ = Map.TowerZ + 0.45, Lane = Map.Far },
             },
         };
 

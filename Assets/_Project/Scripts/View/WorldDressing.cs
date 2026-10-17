@@ -127,6 +127,7 @@ namespace LanesOfVietnam.View
                 Forest(g, cover, rng.Fork("forest"));
                 Reeds(g, cover, rng.Fork("reeds"));
                 Rice(g, cover);
+                Lowland(g);
             }
             WireLine(g, rng.Fork("wire"));
             Firebase(g);
@@ -486,6 +487,33 @@ namespace LanesOfVietnam.View
                 }
         }
 
+        /// <summary>
+        /// The lowlands' things (tools/blender/lowlands_mesh.py): sluice gates in the paddies' dikes beside the lanes (one
+        /// where the simulation's far lane has its sluice gate, at the second step's foot), sunk into the dike, spanning
+        /// it; and an ox cart left on the west bank behind the far lane, the VC's side, out of the way of the lens.
+        /// </summary>
+        /// <summary>How many of the lowlands' things (sluice gates, the cart) the dressing set out (merged into its meshes after).</summary>
+        public int LowlandThings { get; private set; }
+
+        private void Lowland(Ground g)
+        {
+            LowlandThings = 0;
+            if (!Structures.Ready || Structures.Lowlands == null || double.IsNaN(g.Params.PaddyX0)) return;
+            foreach (var (step, z) in new[] { (1, Tune.Lanes[1] - 2.6), (2, Tune.Lanes[0] + 3.2), (0, Tune.Lanes[1] - 9.0), (3, Tune.Lanes[0] - 3.4) })
+            {
+                double x = g.Boundary(step, z);
+                float y = (float)g.HeightAt(x, z) - 0.32f;
+                // (The dike runs across the lanes, near enough along z: the gate spans it, turned a quarter.)
+                if (Structures.Place(transform, _built, "sluice_gate", Coords.World(x, z, y), 90f + (float)(_plantRng.Range(-6, 6))) != null) LowlandThings++;
+            }
+            if (!double.IsNaN(g.Params.RiverX0))
+            {
+                double cz = Tune.Lanes[1] - 6.5;
+                double cx = g.RiverAt(cz).x0 - 7.5;
+                if (Structures.Park(transform, _built, g, "ox_cart", cx, cz, 205f, 4.6f, 1.7f) != null) LowlandThings++;
+            }
+        }
+
         /// <summary>Reeds along the river's banks, at the water's edge: tall grass in clumps, off the lanes and the bridge.</summary>
         private void Reeds(Ground g, IReadOnlyList<Cover> cover, Rng rng)
         {
@@ -651,14 +679,18 @@ namespace LanesOfVietnam.View
                 TowerFoot = Coords.World(tx, mz, foot);
                 var members = new List<Renderer>();
                 foreach (string member in StructureSet.TowerMembers)
-                    Structures.Place(_tower, members, member, TowerFoot, 0f);
+                {
+                    // (The set's own tower, the bamboo one on Rice Fields, by the timber tower's names: it comes apart the same way.)
+                    var placed = Structures.Place(_tower, members, (Structures.TowerPrefix ?? "") + member, TowerFoot, 0f);
+                    if (placed != null) placed.name = member;
+                }
                 // In the pieces it comes apart into when it is brought down (TowerView): its bracing in panels, its
                 // legs cut at its girts, a timber a leg a bay; its deck in three, its cabin a side at a time, its roof
                 // a sheet at a time with the rafters under it, its ladder in two.
                 Renderer Member(string name) => members.Find(r => r != null && r.name == name);
-                if (Member("tower_braces") is Renderer braces) Panels(braces);
-                if (Member("tower_legs") is Renderer legs) TowerBreaks = Cut(legs, new[] { TowerBreak, 2f * TowerBreak }, true);
-                if (Member("tower_ladder") is Renderer ladder) Cut(ladder, new[] { TowerDeck * 0.5f }, false);
+                if (Member("tower_braces") is Renderer braces) Panels(braces, DeckHeight);
+                if (Member("tower_legs") is Renderer legs) TowerBreaks = Cut(legs, new[] { BreakHeight, 2f * BreakHeight }, true);
+                if (Member("tower_ladder") is Renderer ladder) Cut(ladder, new[] { DeckHeight * 0.5f }, false);
                 // (Its planks lie in rows across z, its roof's sheets side by side along x: the script's y and x.)
                 if (Member("tower_deck") is Renderer deck) Split(deck, c => Band(c.z, 3));
                 if (Member("tower_roof") is Renderer roof) Split(roof, c => Band(c.x, 3));
@@ -667,7 +699,7 @@ namespace LanesOfVietnam.View
                 {
                     // Bags waist-high round three sides of the deck; the side the ladder comes up is the rail alone.
                     // (A wall to a mesh: each comes off on its own.)
-                    float deckAt = foot + TowerDeck;
+                    float deckAt = foot + DeckHeight;
                     var walls = new[] { (tx - 1.55, mz - 1.5, tx + 1.55, mz - 1.5), (tx - 1.5, mz - 1.3, tx - 1.5, mz + 1.6), (tx + 1.5, mz - 1.3, tx + 1.5, mz + 1.6) };
                     for (int k = 0; k < walls.Length; k++)
                     {
@@ -716,7 +748,7 @@ namespace LanesOfVietnam.View
         /// ground up). A hit takes one panel off, not the whole of the bracing (TowerView). Left whole if its mesh
         /// cannot be read.
         /// </summary>
-        private static void Panels(Renderer braces)
+        private static void Panels(Renderer braces, float deck)
         {
             var mesh = braces.GetComponent<MeshFilter>().sharedMesh;
             if (mesh == null || !mesh.isReadable) return;
@@ -724,7 +756,7 @@ namespace LanesOfVietnam.View
             var n = mesh.normals;
             var uv = mesh.uv;
             var tan = mesh.tangents;
-            float bay = TowerDeck / TowerBays;
+            float bay = deck / TowerBays;
             for (int face = 0; face < 4; face++)
                 for (int b = 0; b < TowerBays; b++)
                 {
@@ -993,6 +1025,9 @@ namespace LanesOfVietnam.View
 
         /// <summary>How high the tower's deck is above its foot, metres: where the simulation's men stand on it (Maps.Firebase, the post's Height).</summary>
         public const float TowerDeck = 8.45f;
+        /// <summary>The deck of the tower this world has (its structure set's: the bamboo tower's on Rice Fields), and where it breaks (its first girt).</summary>
+        public float DeckHeight => Structures.TowerDeck > 0 ? Structures.TowerDeck : TowerDeck;
+        public float BreakHeight => TowerBreak * DeckHeight / TowerDeck;
         /// <summary>The firebase's built things (set by GameRoot from CoverView's); not set: boxes.</summary>
         public StructureSet Structures;
 

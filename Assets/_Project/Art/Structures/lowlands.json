@@ -1,0 +1,56 @@
+{
+ "deck": 6.03,
+ "top": 7.7,
+ "stand": 1.32,
+ "ladder": 1.6600000000000001,
+ "meshes": {
+  "bamboo_tower_legs": {
+   "length": 3.04,
+   "width": 3.04,
+   "height": 6.023,
+   "triangles": 2736
+  },
+  "bamboo_tower_braces": {
+   "length": 2.907,
+   "width": 2.907,
+   "height": 5.914,
+   "triangles": 9568
+  },
+  "bamboo_tower_deck": {
+   "length": 3.979,
+   "width": 3.853,
+   "height": 6.03,
+   "triangles": 3584
+  },
+  "bamboo_tower_cabin": {
+   "length": 3.96,
+   "width": 3.96,
+   "height": 7.622,
+   "triangles": 4720
+  },
+  "bamboo_tower_roof": {
+   "length": 4.8,
+   "width": 4.8,
+   "height": 8.991,
+   "triangles": 3824
+  },
+  "bamboo_tower_ladder": {
+   "length": 0.632,
+   "width": 0.296,
+   "height": 6.95,
+   "triangles": 3228
+  },
+  "sluice_gate": {
+   "length": 1.64,
+   "width": 0.18,
+   "height": 1.56,
+   "triangles": 572
+  },
+  "ox_cart": {
+   "length": 4.605,
+   "width": 1.74,
+   "height": 1.455,
+   "triangles": 6648
+  }
+ }
+}

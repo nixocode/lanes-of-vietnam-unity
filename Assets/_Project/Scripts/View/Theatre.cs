@@ -28,6 +28,8 @@ namespace LanesOfVietnam.View
         public TextAsset SkyJson;
         [Header("Water (the lowlands: a river and paddies; none in the highlands)")]
         public Material RiverWater, PaddyWater;
+        /// <summary>A bridge's timber: weathered planks, laid by the metre (RiverView builds the bridge to fit its river).</summary>
+        public Material BridgeTimber;
         [Header("What stands on the ground")]
         public Material Foliage, FoliageDark, Wire, Vehicle, Sandbag, Timber;
         public PlantSet[] Plants = new PlantSet[0], Props = new PlantSet[0];
