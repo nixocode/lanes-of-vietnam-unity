@@ -428,13 +428,10 @@ namespace LanesOfVietnam.View.UI
                 int cd = Deck.CooldownLeft(st, Root.PlayerSide, v.Card);
                 int cost = Deck.CostOf(st, v.Card), wait = Deck.CooldownOf(st, v.Card);
                 v.ShowCost(cost);
-                // (Strike: the napalm on the forest is the Americans' last resort: shown, and not to be had, until they are losing.)
-                bool last = v.Card.Id == "us-napalm" && !Strike.LastResort(st);
                 // (A card this match has not got is not shown: the napalm, on a map with no forest.)
                 var show = Deck.Has(st, Root.PlayerSide, v.Card) ? DisplayStyle.Flex : DisplayStyle.None;
                 if (v.style.display != show) v.style.display = show;
-                if (v.Card.Id == "us-napalm") v.Note(last ? "LAST RESORT" : cd > 0 ? "USED" : null);
-                v.Set(cpNow < cost || last, wait > 0 ? (float)cd / wait : 0f, Deployer.Armed == v.Card);
+                v.Set(cpNow < cost, wait > 0 ? (float)cd / wait : 0f, Deployer.Armed == v.Card);
             }
 
             PlaceCallTags(st);

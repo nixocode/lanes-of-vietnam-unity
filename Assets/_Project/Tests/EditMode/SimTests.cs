@@ -342,15 +342,13 @@ namespace LanesOfVietnam.Tests
                 {
                     // (GRENADES only with its rule, and played a few paces in front of the side's own men.)
                     bool grenades = card == Deck.Grenades(side);
-                    // (NAPALM on the forest only with MatchOptions.Strike, on a map with a forest, laid on it, and the
-                    // Americans losing.)
+                    // (NAPALM on the forest only with MatchOptions.Strike, on a map with a forest, and laid on it.)
                     bool napalm = card.Id == "us-napalm";
                     var st = Match.Create(new MatchOptions { Seed = 7, Frag = grenades, FragCard = grenades, Strike = napalm, Inbound = napalm,
                                                              Map = napalm ? Maps.RiceFields : null, Cover = napalm ? Maps.RiceFields.Cover() : null });
                     st.Cp[(int)side] = 999;
                     foreach (var m in st.Men) m.Pin = 0.6;
-                    st.Morale[(int)side] = napalm ? Tune.LastResortWill - 0.05 : 0.5;
-                    if (napalm) st.Phase = Phase.Fight;
+                    st.Morale[(int)side] = 0.5;
                     int men = st.Men.Count, areas = st.Areas.Count, thrown = st.Grenades.Count;
                     double morale = st.Morale[(int)side];
                     double pin = st.Men.Where(m => m.Side == side).Sum(m => m.Pin);
@@ -3108,13 +3106,13 @@ namespace LanesOfVietnam.Tests
         /// </summary>
         // (All again 2026-10-17: the game plays with MatchOptions.Strike, the air strike bombs then napalm at 100 points,
         // PLAN §12.61. First Light's seed 3 no longer ends with the line held; seed 1 of The Wire still holds out.)
-        [TestCase("firebase", 1, 5443, 2207081288u, 1273274474u, 3418870374u, "vc morale broke")]
+        // (And again 2026-10-18: the air strike and napalm on the forest at 80 points, napalm to be had any time, §12.63.)
+        [TestCase("firebase", 1, 6448, 2207081288u, 1273274474u, 373562849u, "us morale broke")]
         [TestCase("the-wire", 3, 5089, 2599423814u, 2839148562u, 2162707902u, "us morale broke")]
         [TestCase("the-wire", 1, 6000, 536941371u, 60351264u, 1636961866u, "us held out")]
-        [TestCase("first-light", 7, 4691, 1157080429u, 780317383u, 683158631u, "us took the line")]
-        // (First Light's seed 3 again with napalm on the forest the same day: men run from fire, PLAN §12.62.)
-        [TestCase("first-light", 3, 5837, 1381744726u, 2566677261u, 37002923u, "vc morale broke")]
-        [TestCase("earth-fights", 1, 9781, 1211388018u, 3607008661u, 482486745u, "vc morale broke")]
+        [TestCase("first-light", 7, 8400, 1157080429u, 780317383u, 2435500840u, "vc held the line")]
+        [TestCase("first-light", 3, 6458, 1381744726u, 2566677261u, 3133908622u, "us took the line")]
+        [TestCase("earth-fights", 1, 9185, 1211388018u, 3607008661u, 4104309849u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3533,13 +3531,13 @@ namespace LanesOfVietnam.Tests
 
         /// <summary>
         /// NAPALM on the forest (MatchOptions.Strike; the owner, 2026-10-17: "Add the napalm to the plan which burns the
-        /// forest and changes the map. Add this as a last resort if US is losing"). The Americans' card on a map with a
-        /// forest and on no other; not to be had until they are losing; laid on the forest and nowhere else; the forest
-        /// burns the run of it, the whole of its depth: the positions in it burned out, whoever is in it burning, and the
-        /// ground it burned hides nobody for the rest of the match.
+        /// forest and changes the map", and 2026-10-18 "available to buy at 80 points, same as airstrike"). The Americans'
+        /// card on a map with a forest and on no other; to be had at its price, as the air strike is; laid on the forest and
+        /// nowhere else; the forest burns the run of it, the whole of its depth: the positions in it burned out, whoever is
+        /// in it burning, and the ground it burned hides nobody for the rest of the match.
         /// </summary>
         [Test]
-        public void Napalm_on_the_forest_is_a_last_resort_and_the_forest_stays_burned()
+        public void Napalm_on_the_forest_burns_it_and_the_forest_stays_burned()
         {
             var fb = new LiveMatch(Scenarios.Firebase.Options(2, null, Difficulty.Veteran));
             var card = Deck.Find(Side.Us, "us-napalm");
@@ -3551,11 +3549,12 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(1, st.Forests.Count);
             var f = st.Forests[0];
             while (st.Phase != Phase.Fight && st.Tick < 4000) m.Step();
+            Assert.AreEqual(Tune.StrikeCost, Deck.CostOf(st, card), "it does not cost what the air strike does");
+            st.Cp[(int)Side.Us] = Tune.ForestCost - 1;
+            Assert.AreEqual("not enough CP", Deck.Blocked(st, Side.Us, card));
             st.Cp[(int)Side.Us] = 200;
             st.Morale[(int)Side.Us] = 0.9;
-            Assert.AreEqual("last resort", Deck.Blocked(st, Side.Us, card), "it was to be had while the Americans were winning");
-            st.Morale[(int)Side.Us] = Tune.LastResortWill - 0.05;
-            Assert.IsNull(Deck.Blocked(st, Side.Us, card), "losing, it was not to be had");
+            Assert.IsNull(Deck.Blocked(st, Side.Us, card), "winning, it was not to be had");
             Assert.IsFalse(Deck.Buy(st, Side.Us, card, Map.Near, new Rng(3), 20), "it was laid outside the forest");
             Assert.AreEqual(200, st.Cp[(int)Side.Us], 1e-9, "points were spent on napalm laid nowhere");
 
@@ -3567,7 +3566,7 @@ namespace LanesOfVietnam.Tests
             var c = st.Cover.First(x => x.X > f.X0 + 2 && x.X < f.X1 - 2 && Math.Abs(x.X - aim) < Tune.ForestRun * 0.5);
             Assert.IsTrue(Deck.Buy(st, Side.Us, card, Map.Far, new Rng(3), aim));
             Assert.AreEqual(200 - Tune.ForestCost, st.Cp[(int)Side.Us], 1e-9);
-            Assert.AreEqual(Tune.MaxTicks, Deck.CooldownLeft(st, Side.Us, card), "it could be had twice in a match");
+            Assert.AreEqual(Tune.StrikeCooldown, Deck.CooldownLeft(st, Side.Us, card), "it does not wait as the air strike does");
             for (int t = 0; t < Tune.JetWait + 3; t++)
             {
                 for (int i = 0; i < 3; i++) if (vc[i].Alive) { vc[i].X = aim - 2 + 2 * i; vc[i].Z = Tune.Lanes[Map.Far]; }
@@ -3627,8 +3626,8 @@ namespace LanesOfVietnam.Tests
         }
 
         // `simcs scenario hash 1` (rice-fields), 2026-10-17 (with MatchOptions.Strike and napalm on the forest, PLAN §12.61-62).
-        private const int RiceTicks = 6703;
-        private const uint RiceFinal = 3691508404u;
+        private const int RiceTicks = 6942;
+        private const uint RiceFinal = 2233128180u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
@@ -3802,7 +3801,7 @@ namespace LanesOfVietnam.Tests
         {
             var light = Scenarios.FirstLight;
             Assert.AreEqual(MatchMode.Assault, light.Mode);
-            var o = light.Options(7, null, Difficulty.Veteran);
+            var o = light.Options(3, null, Difficulty.Veteran);
             Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
             var m = new LiveMatch(o);
             var st = m.State;
@@ -3835,8 +3834,8 @@ namespace LanesOfVietnam.Tests
             foreach (var sq in st.Squads)
                 Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
 
-            // Seed 7 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52):
-            // the line is taken. The match ends on the tick it is, and not before.
+            // Seed 3 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52;
+            // 7 until the strike was 80 points, §12.63): the line is taken. The match ends on the tick it is, and not before.
             while (!st.Over && st.Tick < m.Cap)
             {
                 Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
@@ -3848,9 +3847,9 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 14 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
-            // was bombs and napalm, §12.61): it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(14, null, Difficulty.Veteran));
+            // Seed 7 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
+            // was bombs and napalm, §12.61, then 14 until it was 80 points, §12.63): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(7, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

@@ -103,9 +103,9 @@ and say so:
   `1149155459u`. `simcs mirror 24` (a map turned end for end is the same match mirrored), `simcs river`, `simcs ground`.
 - On `strike` (PLAN §12.61: the air strike is bombs then napalm at 100 points, `MatchOptions.Strike`; every line above
   with it off is unmoved, and the firebase without it is still `3782637812u`): `hash 1 ... shootdown strike` 5581
-  `3126363294u`; `scenario hash 1`: the firebase 5443 `3418870374u`; The Wire 6000 `1636961866u`; First Light 4543
-  `2177891791u`; The Earth Fights 9781 `482486745u`; rice-fields 6703 `3691508404u` (with napalm on the forest, the
-  Americans' last resort, §12.62, and men running from fire); and `hash 1 ... shootdown water
+  `3126363294u`; `scenario hash 1`: the firebase 6448 `373562849u`; The Wire 6000 `1636961866u`; First Light 3838
+  `107507981u`; The Earth Fights 9185 `4104309849u`; rice-fields 6942 `2233128180u` (with napalm on the forest, §12.62,
+  men running from fire, and since §12.63 the strike and the napalm 80 points, the napalm any time); and `hash 1 ... shootdown water
   heights map=ricefields` 5402 `1969199554u` (the bridge's strength 1.0; nobody fights hand to hand in the river).
   `simcs strikes N` (what the computer's strikes do).
 

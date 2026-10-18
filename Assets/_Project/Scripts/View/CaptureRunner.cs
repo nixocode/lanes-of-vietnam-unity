@@ -351,7 +351,11 @@ namespace LanesOfVietnam.View
             for (int f = 0; f < cap.Frames; f++)
             {
                 // A movie: the match and the view's clock move on by one frame.
-                if (cap.Movie > 0 && f > 0) root.AdvanceForCapture(1f / cap.Movie);
+                if (cap.Movie > 0 && f > 0)
+                {
+                    if (cap.HoldWill) { var hs = root.Driver.State; hs.Morale[0] = hs.Morale[1] = 1; }
+                    root.AdvanceForCapture(1f / cap.Movie);
+                }
                 yield return null;
                 RenderPipeline.SubmitRenderRequest(cam, request);
                 var prev = RenderTexture.active;
@@ -380,7 +384,7 @@ namespace LanesOfVietnam.View
                 + $"  \"groundTriangles\": {root.GroundView.Triangles}\n"
                 + "}\n";
             File.WriteAllText(Path.ChangeExtension(cap.Out, ".json"), json);
-            Debug.Log($"[LOV] capture {cap.Out} ({cap}) — {stats}");
+            Debug.Log($"[LOV] capture {cap.Out} ({cap}) — {stats}{(root.Driver.State.Over ? $"; the match ended at tick {root.Driver.State.Tick}: {root.Driver.State.Reason}" : "")}");
 
             cam.targetTexture = null;
             cam.enabled = true;

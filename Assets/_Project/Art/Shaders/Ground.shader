@@ -207,6 +207,13 @@ Shader "LOV/Ground"
                 albedo *= lerp(1, 0.55, puddle);
                 smooth = lerp(smooth, 0.62, puddle);
 
+                // Burned (napalm on the forest, LOVLit's LOV_Burn): the forest floor black with ash, a little of the
+                // earth's own light and dark through it.
+                half charred, burning;
+                LOV_Burn(i.positionWS, charred, burning);
+                albedo = lerp(albedo, half3(0.03, 0.027, 0.024) + albedo * 0.15, charred * 0.92);
+                smooth = lerp(smooth, 0.04, charred);
+
                 // Normal map on the heightfield: uv is world xz, so the tangent
                 // frame follows from the geometric normal alone.
                 float3 T = normalize(float3(N.y, -N.x, 0));

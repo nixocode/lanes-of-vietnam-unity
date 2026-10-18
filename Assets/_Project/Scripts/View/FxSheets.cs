@@ -33,12 +33,12 @@ namespace LanesOfVietnam.View
 
     /// <summary>
     /// The sheets in the two atlases CombatView draws from (Art/FX/, made by
-    /// tools/art/fx_atlas.py from Unity Labs' CC0 flipbooks; the numbers here are
-    /// that script's SHEETS: change one, change the other).
+    /// tools/art/fx_atlas.py from Unity Labs' CC0 flipbooks and, for napalm's fire and its smoke, frames baked in
+    /// Blender; the numbers here are that script's SHEETS: change one, change the other).
     /// </summary>
     public static class FxSheets
     {
-        private const int SmokeW = 2048, SmokeH = 2048, GlowW = 2048, GlowH = 1024;
+        private const int SmokeW = 2048, SmokeH = 4096, GlowW = 2048, GlowH = 2048;
 
         // fx_smoke.png: drawn over the scene.
         /// <summary>A burst of smoke with no fire in it, from nothing to its widest and thinning: dirt kicked up, a grenade's dust, a shell's earth.</summary>
@@ -53,6 +53,8 @@ namespace LanesOfVietnam.View
         public static readonly FxSheet Speck = new FxSheet(1024, 1536, 64, 64, 64, 64, 8, 8, false, SmokeW, SmokeH);
         /// <summary>A spent case: side on (0), and a little end on (1).</summary>
         public static readonly FxSheet Brass = new FxSheet(1536, 1536, 64, 64, 64, 64, 2, 2, false, SmokeW, SmokeH);
+        /// <summary>Black smoke rolling up off burning napalm, a column of it, looping (baked in Blender: tools/blender/fire_bake.py).</summary>
+        public static readonly FxSheet Column = new FxSheet(1, 2049, 254, 254, 256, 256, 8, 32, true, SmokeW, SmokeH);
 
         // fx_glow.png: added to the scene as light.
         /// <summary>The fire of <see cref="Blast"/>, without its smoke.</summary>
@@ -63,5 +65,7 @@ namespace LanesOfVietnam.View
         public static readonly FxSheet Tongue = new FxSheet(1024, 512, 128, 64, 128, 64, 8, 8, false, GlowW, GlowH);
         /// <summary>The same down the barrel, or out through a flash hider's slots: a ball with three, four, five or six spikes (by its number, twice over).</summary>
         public static readonly FxSheet Star = new FxSheet(1024, 576, 128, 128, 128, 128, 8, 8, false, GlowW, GlowH);
+        /// <summary>Napalm burning: flames two and three metres high from the fuel at the frame's foot, licking and rolling, looping (baked in Blender).</summary>
+        public static readonly FxSheet Inferno = new FxSheet(1, 1025, 254, 254, 256, 256, 8, 32, true, GlowW, GlowH);
     }
 }

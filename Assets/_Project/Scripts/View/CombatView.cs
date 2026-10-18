@@ -159,10 +159,12 @@ namespace LanesOfVietnam.View
         public int Faint { get; private set; }
         /// <summary>Things drawn going into the water last frame (Rice Fields): rounds, bursts, and what RiverView kept as splashes.</summary>
         public int Splashed { get; private set; }
+        /// <summary>Napalm's flames drawn last frame (the baked fire, FxSheets.Inferno).</summary>
+        public int Fires { get; private set; }
 
         /// <summary>The sheets a puff can be a frame of (fx_smoke.png).</summary>
-        private enum Sheet : byte { Dust, Blast, Wisp, Curl, Speck, Brass }
-        private static readonly FxSheet[] SmokeSheets = { FxSheets.Dust, FxSheets.Blast, FxSheets.Wisp, FxSheets.Curl, FxSheets.Speck, FxSheets.Brass };
+        private enum Sheet : byte { Dust, Blast, Wisp, Curl, Speck, Brass, Column }
+        private static readonly FxSheet[] SmokeSheets = { FxSheets.Dust, FxSheets.Blast, FxSheets.Wisp, FxSheets.Curl, FxSheets.Speck, FxSheets.Brass, FxSheets.Column };
 
         private struct Puff
         {
@@ -2066,7 +2068,7 @@ namespace LanesOfVietnam.View
         private static readonly int BurnsId = Shader.PropertyToID("_LOV_Burns"), BurnStateId = Shader.PropertyToID("_LOV_BurnState"), BurnCountId = Shader.PropertyToID("_LOV_BurnCount");
 
         /// <summary>
-        /// Napalm on the forest (Strike.Firestorm; the Americans' last resort): what has burned, from the simulation's record
+        /// Napalm on the forest (Strike.Firestorm): what has burned, from the simulation's record
         /// of it. The trees in it are burned by their own shader (LOV/Foliage, from the globals set here: burning, then
         /// charred and bare for the rest of the match). Drawn here: the fire through the whole depth of the forest along the
         /// run, rolling in as it catches, at its height for as long as it burns and dying down after; columns of black smoke
@@ -2093,9 +2095,9 @@ namespace LanesOfVietnam.View
                 float age = now - (float)(b.Lit * Tune.Dt);
                 if (age < 0 || age > burns + 30f) continue;
                 int seed = b.Lit * 13 + k;
-                // (A flame every three metres along it and six across: at two by four and a half, two each, a hundred and
-                // seventy flames at a flash's brightness were one white wall, and the trees could not be seen burning.)
-                int nx = Mathf.CeilToInt((float)(b.X1 - b.X0) / 3f), nz = Mathf.CeilToInt((float)(b.Z1 - b.Z0) / 6f);
+                // (A baked flame every two metres along it and five across, overlapping into a burning floor: at two by four
+                // and a half, two balls of fire each at a flash's brightness, it was one white wall.)
+                int nx = Mathf.CeilToInt((float)(b.X1 - b.X0) / 2f), nz = Mathf.CeilToInt((float)(b.Z1 - b.Z0) / 5f);
                 float glow = 0f;
                 Vector3 middle = Coords.World((b.X0 + b.X1) * 0.5, (b.Z0 + b.Z1) * 0.5, 2f);
                 for (int i = 0; i < nx; i++)
@@ -2112,20 +2114,12 @@ namespace LanesOfVietnam.View
                                                    : Mathf.Clamp01(1 - (a - burns) / 4f);
                         if (strength > 0f)
                         {
-                            float flicker = 0.85f + 0.15f * Mathf.Sin(a * (8f + 4f * H(s, 4)) + i + j);
-                            int flames = ((i + j) & 3) == 0 ? 2 : 1;
-                            for (int q = 0; q < flames; q++)
-                            {
-                                float up = (1.0f + 2.2f * q) * strength * flicker;
-                                float size = (3.0f - 0.8f * q) * strength * (0.9f + 0.2f * H(s, 5 + q));
-                                float frame = (a * (18f + 5f * q) + H(s, 7 + q) * 32f) % 32f;
-                                var col = Lit(Color.Lerp(new Color(1f, 0.7f, 0.4f), new Color(1f, 0.42f, 0.16f), 0.5f * q), (1.1f - 0.3f * q) * strength);
-                                AddSprite(FxSheets.Flame, frame, p + new Vector3(0.4f * q * strength, up, 0f), size, col, (H(s, 9 + q) - 0.5f) * 0.6f);
-                            }
+                            Inferno(p, strength * 0.85f, a, s);
                             if (((i + 2 * j) % 8) == 0) AddGlow(p + Vector3.up * 1.5f, 4f * strength, new Color(1f, 0.45f, 0.12f) * (0.6f * strength), 2, H(s, 11));
                             glow += strength;
                         }
-                        // Its smoke: a column out of one place in three, black, rising high, leaning off downwind.
+                        // Its smoke: the baked column out of one place in four, and above it, rising high, what drifts off it.
+                        if ((i + 2 * j) % 4 == 0) Column(p, a, burns + 2f, s);
                         if ((i + 2 * j) % 3 == 0)
                             for (int c = 0; c < 2; c++)
                             {
@@ -2133,7 +2127,7 @@ namespace LanesOfVietnam.View
                                 float life = burns + 25f - 1.5f * c;
                                 if (sa < 0 || sa > life) continue;
                                 float rise = 1.6f * sa + 3f * (1 - Mathf.Exp(-sa));
-                                var off = new Vector3(0.7f * sa + (H(s, 20 + c) - 0.5f) * 2f, Mathf.Min(rise, 28f), (H(s, 22 + c) - 0.5f) * 2f);
+                                var off = new Vector3(0.7f * sa + (H(s, 20 + c) - 0.5f) * 2f, Mathf.Min(rise, 28f) + 4f, (H(s, 22 + c) - 0.5f) * 2f);
                                 float op = Mathf.SmoothStep(0, 1, sa / 0.8f) * Mathf.Pow(1 - sa / life, 1.2f) * 0.8f;
                                 var col = Color.Lerp(new Color(0.2f, 0.19f, 0.18f), new Color(0.05f, 0.045f, 0.04f), Mathf.Exp(-sa * 0.08f));
                                 col.a = op * 0.85f;
@@ -2189,36 +2183,61 @@ namespace LanesOfVietnam.View
                 float strength = a < burns ? Mathf.Clamp01(a / 0.4f) : Mathf.Clamp01(1 - (a - burns) / 3f);
                 if (strength > 0f)
                 {
-                    float flicker = 0.85f + 0.15f * Mathf.Sin(a * (9f + 4f * H(seed + k, 5)) + k);
-                    // A wall of it: balls of fire stacked three high, three to four metres, each burning through its frames
-                    // out of step with the next, smaller and redder as they rise, leaning off downwind.
-                    for (int j = 0; j < 3; j++)
-                    {
-                        float up = (0.8f + 1.15f * j) * strength * flicker;
-                        float size = (2.8f - 0.55f * j) * strength * (0.9f + 0.2f * H(seed + k, 10 + j));
-                        float frame = (a * (20f + 4f * j) + H(seed + k, 7 + j) * 32f) % 32f;
-                        var col = Lit(Color.Lerp(new Color(1f, 0.8f, 0.55f), new Color(1f, 0.45f, 0.18f), 0.4f * j), (2.0f - 0.45f * j) * strength);
-                        AddSprite(FxSheets.Flame, frame, p + new Vector3(0.35f * j * strength, up, 0f), size, col, (H(seed + k, 8 + j) - 0.5f) * 0.6f);
-                    }
-                    if ((k & 1) == 0) AddGlow(p + Vector3.up * 0.8f, 3.2f * strength, new Color(1f, 0.45f, 0.12f) * (1.4f * strength), 2, H(seed + k, 9));
+                    // A wall of it: the baked fire (FxSheets.Inferno: Blender's fluid sim, PLAN §12.63), a flame standing
+                    // every metre and a third along the line, each its own part of the loop, overlapping.
+                    Inferno(p, strength, a, seed + k);
+                    if ((k & 1) == 0) AddGlow(p + Vector3.up * 0.8f, 3.2f * strength, new Color(1f, 0.45f, 0.12f) * (1.1f * strength), 2, H(seed + k, 9));
                     glow += strength;
                 }
-                // Its smoke: black and thick, out of every other part of it, rising, spreading, leaning downwind (+x).
+                // Its smoke: the baked column rolling up out of every third part of it, and higher, what drifts off it.
+                if (k % 3 == 1) Column(p, a, burns + 3f, seed + k);
                 if ((k & 1) == 1)
-                    for (int j = 0; j < 3; j++)
+                    for (int j = 1; j < 3; j++)
                     {
                         float s = a - (0.3f + 0.9f * j);
                         float life = burns + NapalmSmokes - 0.9f * j;
                         if (s < 0 || s > life) continue;
                         float rise = 1.1f * s + 2.5f * (1 - Mathf.Exp(-s * 1.2f));
-                        var off = new Vector3(0.55f * s + (H(seed + k, 20 + j) - 0.5f) * 1.5f, rise, (H(seed + k, 23 + j) - 0.5f) * 1.5f);
-                        float op = Mathf.SmoothStep(0, 1, s / 0.6f) * Mathf.Pow(1 - s / life, 1.3f) * 0.8f;
+                        var off = new Vector3(0.55f * s + (H(seed + k, 20 + j) - 0.5f) * 1.5f, rise + 4f, (H(seed + k, 23 + j) - 0.5f) * 1.5f);
+                        float op = Mathf.SmoothStep(0, 1, s / 0.6f) * Mathf.Pow(1 - s / life, 1.3f) * 0.6f;
                         var col = Color.Lerp(new Color(0.16f, 0.15f, 0.14f), new Color(0.05f, 0.045f, 0.04f), Mathf.Exp(-s * 0.15f));
                         col.a = op;
-                        Hang(p + Vector3.up * 1.5f + off, 3.0f + 0.9f * s, col, H(seed + k, 26 + j), s);
+                        Dust(p + Vector3.up * 1.5f + off, 3.0f + 0.5f * Mathf.Min(s, 16f), col, H(seed + k, 26 + j), 0.35f + 0.6f * Mathf.Clamp01(s / life));
                     }
             }
             if (glow > 0f) _flashes.Add((middle + Vector3.up * 2f, 9f * Mathf.Min(1f, glow / n)));
+        }
+
+        /// <summary>
+        /// One baked flame (FxSheets.Inferno) standing on p, as strong as <paramref name="strength"/> (it grows and dies
+        /// with it), <paramref name="t"/> seconds into its burning, its own part of the loop by its seed. The frame is the
+        /// sim's 3.2 m from the fuel up; the fire is at its foot.
+        /// </summary>
+        private void Inferno(Vector3 p, float strength, float t, int seed)
+        {
+            // (Half as big again as the sim's: napalm stands over a man, three to five metres; at the sim's own size it was
+            // his height.)
+            Fires++;
+            float size = 4.8f * (0.75f + 0.3f * H(seed, 41)) * (0.35f + 0.65f * strength);
+            float frame = (t * 24f + H(seed, 42) * 32f) % 32f;
+            bool flip = H(seed, 43) > 0.5f;
+            // (Its foot on the ground: the fuel's bar was faded out of the frame's last few rows.)
+            var at = p + Vector3.up * (size * 0.47f);
+            AddSprite(FxSheets.Inferno, flip ? 31.999f - frame : frame, at, size, Lit(new Color(1f, 0.92f, 0.82f), 1.3f * strength), (H(seed, 44) - 0.5f) * 0.08f);
+        }
+
+        /// <summary>
+        /// The baked smoke column (FxSheets.Column, black, rolling up off the fire) standing on p, for as long as it burns
+        /// and thinning after; its own part of the loop by its seed. The frame is the sim's six metres from the fuel up.
+        /// </summary>
+        private void Column(Vector3 p, float t, float lasts, int seed)
+        {
+            if (t < 0.3f || t > lasts + 8f) return;
+            float f = Mathf.Clamp01((t - 0.3f) / 1.5f) * Mathf.Clamp01(1 - (t - lasts) / 8f);
+            float tall = 6.5f * (0.85f + 0.3f * H(seed, 51)), wide = tall * (0.85f + 0.2f * H(seed, 52));
+            float frame = (t * 20f + H(seed, 53) * 32f) % 32f;
+            var col = new Color(0.055f, 0.05f, 0.048f, 0.92f * f);
+            AddPuff(Sheet.Column, frame, p + Vector3.up * (tall * 0.48f) + new Vector3(0.3f * f, 0, 0), wide, tall, col, (H(seed, 54) - 0.5f) * 0.06f, H(seed, 55) > 0.5f, 1.2f);
         }
 
         // --- smoke screens -------------------------------------------------------------------
@@ -2561,7 +2580,7 @@ namespace LanesOfVietnam.View
         {
             _gp.Clear(); _gc.Clear(); _guv.Clear(); _guv2.Clear(); _gi.Clear();
             _puffs.Clear(); _flashes.Clear();
-            Tracers = Flashes = Explosions = Traces = Cases = Faint = Splashed = 0;
+            Tracers = Flashes = Explosions = Traces = Cases = Faint = Splashed = Fires = 0;
             _ordnanceShown = 0;
             _jetShown = _hueyShown = false;
         }

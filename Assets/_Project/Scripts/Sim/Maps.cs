@@ -35,8 +35,8 @@ namespace LanesOfVietnam.Sim
     }
 
     /// <summary>
-    /// Where a map's trees stand thick enough to hide a man (MatchOptions.Strike: the Americans' napalm on the forest,
-    /// their last resort): x0 to x1 along the lanes, z0 to z1 across them.
+    /// Where a map's trees stand thick enough to hide a man (MatchOptions.Strike: the Americans' napalm on the forest):
+    /// x0 to x1 along the lanes, z0 to z1 across them.
     /// </summary>
     public sealed class Forest
     {

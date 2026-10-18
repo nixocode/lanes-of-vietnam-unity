@@ -27,7 +27,7 @@ namespace LanesOfVietnam.View
         public Material LaneMaterial;
         public LaneMarks Marks { get; private set; }
 
-        // (Y: NAPALM, on the forest, the Americans' last resort, MatchOptions.Strike.)
+        // (Y: NAPALM, on the forest, MatchOptions.Strike.)
         public static readonly KeyCode[] CallKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y };
         public static readonly KeyCode[] UnitKeys = { KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N };
 

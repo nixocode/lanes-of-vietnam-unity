@@ -23,11 +23,12 @@ namespace LanesOfVietnam.Sim
     /// StrikeMenAt with a bridge or a watchtower of his on it; none of its own within StrikeClear.
     ///
     /// And NAPALM, on the forest (the owner, 2026-10-17: "Add the napalm to the plan which burns the forest and changes
-    /// the map. Add this as a last resort if US is losing"): a card of the Americans' on a map with a forest (MapDef.
-    /// Forests), offered while they are losing (LastResort), once a match. The jet comes in with it and the forest burns
-    /// ForestRun along the lanes and the whole of its depth (AreaKind.Firestorm), for ForestTicks: whoever is in it burns,
-    /// the positions in it are burned out, and the ground it burned hides nobody for the rest of the match (SimState.
-    /// Burnt; Senses.Sight). The computer plays it on ForestMen it has seen in the forest.
+    /// the map"; a last resort at first, then, 2026-10-18, "available to buy at 80 points, same as airstrike"): a card of
+    /// the Americans' on a map with a forest (MapDef.Forests). The jet comes in with it and the forest burns ForestRun
+    /// along the lanes and the whole of its depth (AreaKind.Firestorm), for ForestTicks: whoever is in it burns, the
+    /// positions in it are burned out, and the ground it burned hides nobody for the rest of the match (SimState.Burnt;
+    /// Senses.Sight). The computer plays it on ForestMenAnyway it knows are in the forest, or ForestMen when it is losing
+    /// (LastResort).
     ///
     /// It needs Inbound (the game's): without it the strike is as it was. Its draws are the match's stream's, made only
     /// when it is on; what it changes is hashed only when it is on (a wrecked position's kind and quality are its cover's).
@@ -126,7 +127,7 @@ namespace LanesOfVietnam.Sim
             return null;
         }
 
-        // --- napalm on the forest: the Americans' last resort --------------------------------
+        // --- napalm on the forest ------------------------------------------------------------
 
         /// <summary>The forest (x, z) is in, or null.</summary>
         public static Forest ForestAt(SimState st, double x, double z)
@@ -151,10 +152,10 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// Are the Americans losing, so that napalm on the forest is theirs to call? In the fight (not its opening), their
-        /// will under LastResortWill; or under LastResortHeld with the enemy ahead in every lane by LastResortAhead of the
-        /// field or more. (Ahead in every lane alone, it was theirs at the start of most matches, before anyone had met:
-        /// whoever has no men in a lane yet is behind in it.)
+        /// Are the Americans losing (the computer's judgement, for its napalm on the forest)? In the fight (not its
+        /// opening), their will under LastResortWill; or under LastResortHeld with the enemy ahead in every lane by
+        /// LastResortAhead of the field or more. (Ahead in every lane alone, they were "losing" at the start of most
+        /// matches, before anyone had met: whoever has no men in a lane yet is behind in it.)
         /// </summary>
         public static bool LastResort(SimState st)
         {
@@ -199,12 +200,13 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>
-        /// The computer's napalm on the forest: the enemy it knows of (squads <paramref name="seen"/>) in a forest, ForestMen
-        /// of them or more within the run of where it would lay it (their middle), none of its own there. The count (0 if
-        /// nothing), where, which lane.
+        /// The computer's napalm on the forest: the enemy it knows of (squads <paramref name="seen"/>) in a forest,
+        /// ForestMenAnyway of them or more within the run of where it would lay it (their middle), or ForestMen when it is
+        /// losing; none of its own there. The count (0 if nothing), where, which lane.
         /// </summary>
         public static int ForestCrowd(SimState st, Side side, bool[] seen, out double x, out int lane)
         {
+            int need = LastResort(st) ? Tune.ForestMen : Tune.ForestMenAnyway;
             int best = 0;
             x = 0; lane = 0;
             for (int i = 0; i < st.Men.Count; i++)
@@ -226,7 +228,7 @@ namespace LanesOfVietnam.Sim
                 if (own || n <= best) continue;
                 best = n; x = sum / n; lane = st.Squads[b.Squad].Lane;
             }
-            return best >= Tune.ForestMen ? best : 0;
+            return best >= need ? best : 0;
         }
 
         /// <summary>One tick of a napalm area: lit when its jet comes round; then whoever is in it burns.</summary>

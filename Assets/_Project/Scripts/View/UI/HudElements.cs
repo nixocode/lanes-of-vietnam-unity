@@ -192,23 +192,6 @@ namespace LanesOfVietnam.View.UI
         private int _costShown;
         private readonly VisualElement _art;
 
-        private Label _note;
-        /// <summary>A word on the card under its name, or none: "LAST RESORT" on the napalm until the Americans are losing.</summary>
-        public void Note(string text)
-        {
-            if (string.IsNullOrEmpty(text)) { if (_note != null) _note.style.display = DisplayStyle.None; return; }
-            if (_note == null)
-            {
-                _note = new Label { name = "card-note" };
-                _note.AddToClassList("card-note");
-                _note.style.fontSize = 9; _note.style.unityTextAlign = TextAnchor.MiddleCenter;
-                _note.style.color = new Color(0.95f, 0.55f, 0.25f);
-                Add(_note);
-            }
-            _note.text = text;
-            _note.style.display = DisplayStyle.Flex;
-        }
-
         /// <summary>What it costs in this match (Deck.CostOf: the air strike is dearer with MatchOptions.Strike).</summary>
         public void ShowCost(int cost)
         {

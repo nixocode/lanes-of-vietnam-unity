@@ -5537,6 +5537,44 @@ resort if US is losing" (added to the plan as W1b, built after W1).
   _burned`; the UI audit skips a card the match has not got and checks it is not shown). Every flag line unmoved; `simcs
   mirror 24` a mirror. Pins: First Light's seed 3 and Rice Fields moved (men running from fire): CLAUDE.md.
 
+### 12.63 Napalm at 80 points; the forest after it burns; fire and smoke baked in Blender (2026-10-18)
+
+The owner, 2026-10-18: "make napalm available to buy at 80 points, same as airstrike", and to get to work on the two
+things left unseen in §12.62: the forest after it has burned, and new fire and smoke images.
+
+- **Prices** (`Tune.StrikeCost`, `ForestCost`): the air strike and NAPALM on the forest both 80 points and both waiting
+  90 s after; NAPALM to be had at any time, no longer a last resort (the "LAST RESORT" note on its card is gone, and the
+  lock with it). The computer still judges when it is losing (`Strike.LastResort`): it plays napalm on three of the
+  enemy in the forest then, and on six when it is not (`Tune.ForestMenAnyway`). Measured (`simcs strikes 48`): air
+  strikes a match on the firebase 0.33 (0.15 at 100), First Light 1.75, The Earth Fights 0.85; napalm on the forest in 23
+  of 48 Rice Fields matches. Balance (`simcs scenario 192`, Veteran): the firebase 122 / 140, The Wire 124, First Light
+  128, The Earth Fights 155, Rice Fields 129 / 128: all in the band.
+- **A capture's movie advanced 0.4 s a frame whatever it asked** (`MatchDriver.MaxCatchUp`): a frame a second filmed
+  0.4 s of the match. `GameRoot.AdvanceForCapture` now steps in pieces. **§12.62's "every capture's match ended within
+  twenty seconds" was this, and wrong**: the matches went on; the films were short. (`holdwill=1`, a capture key that
+  keeps both sides' will whole through a movie, was added while finding it; it is not needed for these.)
+- **The forest after it burns** (filmed: `captures/forest/d.*`, 78 s after): the crowns burned away (`LOV/Foliage`: a
+  burned plant loses what is crown above its trunk as well as what is green, so the dark olive canopies, which counted
+  as a third leaf by their colour, go too; the bark and the limbs stay, charred), the trunks standing black, the forest
+  floor black with ash (`LOV/Ground` reads the same burned stretches: the burn moved into `LOVLit.hlsl`, `LOV_Burn`), and
+  the unburned forest behind it green.
+- **Fire and smoke baked in Blender** (`tools/blender/fire_bake.py`, new; nothing downloaded): Blender's fluid solver
+  (Mantaflow) burns a strip of fuel in a box open on its sides and top (closed, the smoke piled against its walls and
+  stood in a straight-sided column), 128 cells high; 48 frames of its steady burning rendered in Cycles from the game's
+  side-on view, twice: the fire's light alone on black, and the smoke alone on clear. `tools/art/fx_atlas.py` loops them
+  (32 frames, the last eight cross-faded into the first), fades the fire's foot (the fuel's surface showed as a bright
+  bar) and the smoke's head, and packs them: **Inferno** (fx_glow.png, now 2048 x 2048) and **Column** (fx_smoke.png, now
+  2048 x 4096: at 3072 it was not a power of two and went into the WebGL build uncompressed, 32 MB; now 1.2 MB). Both
+  napalms are drawn with them (`CombatView.Inferno`, `Column`): a flame three to five metres high every metre and a
+  third along the strike's line and every two metres through the forest, each its own part of the loop, overlapping
+  into a wall; the column rolling up out of every third and fourth of them, the old puffs only for what drifts higher.
+  Captured: `captures/strike/n.*`, `captures/forest/f.*`. A second sim, a slow column of smoke, came out too weak to use
+  and was dropped. Shells' and bombs' bursts are still the Unity Labs sheets: W6.
+- **Measured**: WebGL 40.64 MB to start (40.12 before), 50.56 in all. Frame time: not taken (the owner's tab running).
+- **Tests**: EditMode 131, PlayMode 47 and the capture's skip (the napalm tests count the flames drawn,
+  `CombatView.Fires`; First Light's held line is seed 7 again and its taken line seed 3). Pins in CLAUDE.md.
+- New file: `tools/blender/fire_bake.py` (its frames in `SourceArt/fx/`, ignored, remade by it).
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

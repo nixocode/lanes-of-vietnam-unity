@@ -67,7 +67,7 @@ namespace LanesOfVietnam.Sim
         /// <summary>MatchOptions.Strike: the air strike's napalm, along its stick's line: Radius metres either way along the lane, lit when Next reaches 0.</summary>
         Napalm,
         /// <summary>
-        /// MatchOptions.Strike: the Americans' last resort, napalm on the forest: Radius metres either way along the lanes of
+        /// MatchOptions.Strike: the Americans' napalm on the forest: Radius metres either way along the lanes of
         /// X, across the whole of the forest it is in; it burns for its Ticks once it is in.
         /// </summary>
         Firestorm }

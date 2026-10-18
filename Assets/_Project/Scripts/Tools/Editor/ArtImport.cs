@@ -160,7 +160,8 @@ namespace LanesOfVietnam.Tools
                 ti.alphaSource = smoke ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
                 ti.alphaIsTransparency = false;          // the colour is already times its alpha
                 ti.npotScale = TextureImporterNPOTScale.None;
-                ti.maxTextureSize = 2048;
+                // (4096: the smoke's atlas is 4096 tall since the Blender-baked fire's smoke, PLAN §12.63.)
+                ti.maxTextureSize = 4096;
                 ti.mipmapEnabled = true;
                 ti.wrapMode = TextureWrapMode.Clamp;
                 ti.filterMode = FilterMode.Bilinear;

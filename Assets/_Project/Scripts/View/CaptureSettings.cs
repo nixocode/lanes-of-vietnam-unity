@@ -67,6 +67,11 @@ namespace LanesOfVietnam.View
         public int BridgeFall = -1;
         /// <summary>Hit the bridge this many times with a rocket's burst, at places along its deck, short of bringing it down (bridgehits=2).</summary>
         public int BridgeHits;
+        /// <summary>
+        /// Keep both sides' will whole through a movie (holdwill=1), so the match does not end in it: to film what a
+        /// match leaves behind (the forest after napalm) when the thing that left it would have ended the match.
+        /// </summary>
+        public bool HoldWill;
         /// <summary>The way it goes over (the simulation's degrees, 0 is +x) in place of its event's (towerway=90).</summary>
         public float? TowerWay;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
@@ -261,6 +266,7 @@ namespace LanesOfVietnam.View
                     case "towerseed": c.TowerSeed = int.Parse(v, inv); break;
                     case "bridgefall": c.BridgeFall = int.Parse(v, inv); break;
                     case "bridgehits": c.BridgeHits = int.Parse(v, inv); break;
+                    case "holdwill": c.HoldWill = v == "1" || v == "true"; break;
                     case "towerway": c.TowerWay = float.Parse(v, inv); break;
                     case "glasses":
                     {

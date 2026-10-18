@@ -11,9 +11,9 @@ Sources are Unity Labs' "VFX image sequences and flipbooks" (CC0), unpacked in
 SourceArt/unitylabs/ (gitignored, re-fetchable; the URLs and hashes are in
 ASSETS.md). Outputs, in Assets/_Project/Art/FX/:
 
-    fx_smoke.png   2048 x 2048, colour times alpha with alpha beside it: what is
+    fx_smoke.png   2048 x 4096, colour times alpha with alpha beside it: what is
                    drawn over the scene (LOV/FX Smoke)
-    fx_glow.png    2048 x 1024, colour on black: what is added to it as light
+    fx_glow.png    2048 x 2048, colour on black: what is added to it as light
                    (LOV/FX Glow)
 
 Where each sheet sits in them (SHEETS below, in pixels from the top left) is
@@ -31,12 +31,23 @@ What is in them:
                    a hot barrel.
            speck   made here: clods of earth and drops, eight of them.
            brass   made here: a spent case, side on.
+           column  baked in Blender (tools/blender/fire_bake.py inferno, PLAN §12.63):
+                   the black smoke rolling up off burning napalm, 32 frames that
+                   loop.
     glow   fire    the fire of blast, without its smoke.
            flame   FireBall01, every other frame of 64: a ball of flame, looping.
            tongue  made here from flame's frames: the gas out of a muzzle seen
                    from the side, eight of them.
            star    the same seen down the barrel, or out through the slots of a
                    flash hider: three to six spikes.
+           inferno baked in Blender (the same sim): napalm burning, flames to two
+                   and three metres licking and rolling, 32 frames that loop.
+
+The Blender frames (SourceArt/fx/, gitignored, remade by fire_bake.py) are made
+to loop here: of the sim's 48 frames, the first 40, the last eight cross-faded
+into the first eight, so its last frame runs into its first. The fire's frame is
+faded out at its foot (the fuel's surface showed as a bright bar), the smoke's at
+its head and its foot.
 
 Three things are not a straight copy.
 
@@ -63,8 +74,11 @@ SRC = "SourceArt/unitylabs"
 OUT = "Assets/_Project/Art/FX"
 SEEN = "Logs/fx"
 
-SMOKE = (2048, 2048)
-GLOW = (2048, 1024)
+# (4096 tall since the baked smoke, and not 3072: a texture of a size not a power of two went into the WebGL build
+# uncompressed, 32 MB of it. The bottom quarter is free.)
+SMOKE = (2048, 4096)
+GLOW = (2048, 2048)
+FX = "SourceArt/fx"
 
 # Where each sheet sits: x, y of its top left, a frame's width and height, the
 # pitch from one frame to the next, columns and frames. (FxSheets.cs has the same.)
@@ -76,12 +90,14 @@ SHEETS = {
         "curl": dict(x=1024, y=1024, w=51, h=128, px=51, py=128, cols=20, frames=80),
         "speck": dict(x=1024, y=1536, w=64, h=64, px=64, py=64, cols=8, frames=8),
         "brass": dict(x=1536, y=1536, w=64, h=64, px=64, py=64, cols=2, frames=2),
+        "column": dict(x=1, y=2049, w=254, h=254, px=256, py=256, cols=8, frames=32),
     },
     "glow": {
         "fire": dict(x=2, y=2, w=200, h=200, px=204, py=204, cols=5, frames=25),
         "flame": dict(x=1024, y=0, w=128, h=128, px=128, py=128, cols=8, frames=32),
         "tongue": dict(x=1024, y=512, w=128, h=64, px=128, py=64, cols=8, frames=8),
         "star": dict(x=1024, y=576, w=128, h=128, px=128, py=128, cols=8, frames=8),
+        "inferno": dict(x=1, y=1025, w=254, h=254, px=256, py=256, cols=8, frames=32),
     },
 }
 
@@ -258,6 +274,35 @@ def stars(flame):
     return out
 
 
+def baked(sim, kind):
+    """A Blender sim's frames (fire_bake.py), looped: 32 of them, the last eight of 40 cross-faded into the first eight."""
+    out = []
+    for i in range(40):
+        im = Image.open(os.path.join(FX, sim, f"{kind}_{i:04d}.png")).convert("RGBA")
+        a = np.asarray(im).astype(np.float32) / 255
+        out.append((lin(a[..., :3]), a[..., 3]))
+    loop = []
+    for i in range(32):
+        rgb, a = out[i]
+        if i < 8:
+            t = i / 8.0
+            rgb = out[32 + i][0] * (1 - t) + rgb * t
+            a = out[32 + i][1] * (1 - t) + a * t
+        loop.append((rgb, a))
+    return loop
+
+
+def fade_rows(img, top, bottom):
+    """Faded to nothing over the top and the bottom fractions of its height."""
+    h = img.shape[0]
+    y = np.arange(h, dtype=np.float32)
+    k = np.ones(h, np.float32)
+    if top > 0: k *= np.clip(y / (top * h), 0, 1)
+    if bottom > 0: k *= np.clip((h - 1 - y) / (bottom * h), 0, 1)
+    k = k * k * (3 - 2 * k)
+    return img * (k[:, None, None] if img.ndim == 3 else k[:, None])
+
+
 def sheet_image(atlas_rgba):
     rgb = srgb(atlas_rgba[..., :3])
     if atlas_rgba.shape[-1] == 4:
@@ -291,6 +336,9 @@ def main():
         put(smoke, sm["speck"], i, f)
     for i, f in enumerate(brass()):
         put(smoke, sm["brass"], i, f)
+    for i, (rgb, a) in enumerate(baked("inferno", "smoke")):
+        a = fade_rows(a, 0.1, 0.03)
+        put(smoke, sm["column"], i, premultiplied(shade(rgb, a), a))
 
     glow = np.zeros((GLOW[1], GLOW[0], 3), np.float32)
     for i, f in enumerate(frames(fire_only(brgb, ba), 5, 5)):
@@ -303,6 +351,8 @@ def main():
         put(glow, gl["tongue"], i, f)
     for i, f in enumerate(stars(flame)):
         put(glow, gl["star"], i, f)
+    for i, (rgb, a) in enumerate(baked("inferno", "glow")):
+        put(glow, gl["inferno"], i, fade_rows(rgb, 0.0, 0.07))
 
     sheet_image(smoke).save(os.path.join(args.out, "fx_smoke.png"), optimize=True)
     sheet_image(glow).save(os.path.join(args.out, "fx_glow.png"), optimize=True)

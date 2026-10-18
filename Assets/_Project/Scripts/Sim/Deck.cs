@@ -51,10 +51,10 @@ namespace LanesOfVietnam.Sim
             // of 192 in the firebase (as US, as VC), 155 in The Wire and First Light, 144 in The Earth Fights; at 6 CP
             // the last two were 157 and 159, the top of the band (simcs scenario 192 level=veteran, PLAN §12.47).
             new Card { Id = "us-frag", Group = CardGroup.Call, Name = "GRENADES", Cost = 10, Pips = 0, Cooldown = S * 6 },
-            // Appended (2026-10-17, the owner: "Add the napalm to the plan which burns the forest and changes the map. Add this
-            // as a last resort if US is losing"): in the deck with MatchOptions.Strike on a map with a forest, offered only
-            // while the Americans are losing, once a match (Strike.LastResort).
-            new Card { Id = "us-napalm", Group = CardGroup.Call, Name = "NAPALM", Cost = Tune.ForestCost, Pips = 0, Cooldown = Tune.MaxTicks },
+            // Appended (2026-10-17, the owner: "Add the napalm to the plan which burns the forest and changes the map"): in the
+            // deck with MatchOptions.Strike on a map with a forest. A last resort at first, to be had only while the
+            // Americans were losing, once a match; the next day "make napalm available to buy at 80 points, same as airstrike".
+            new Card { Id = "us-napalm", Group = CardGroup.Call, Name = "NAPALM", Cost = Tune.ForestCost, Pips = 0, Cooldown = Tune.StrikeCooldown },
         });
 
         public static readonly Card[] Vc = Index(new[]
@@ -121,8 +121,6 @@ namespace LanesOfVietnam.Sim
         {
             if (st.Over) return "match over";
             if (!Has(st, side, card)) return "not in this operation";
-            // Strike: the napalm on the forest is a last resort.
-            if (card.Id == "us-napalm" && !Strike.LastResort(st)) return "last resort";
             if (st.Cp[(int)side] < CostOf(st, card)) return "not enough CP";
             if (CooldownLeft(st, side, card) > 0) return "cooling down";
             if (card.Pips > 0 && Match.AliveCount(st, side) >= Tune.ForceCap) return "force cap";

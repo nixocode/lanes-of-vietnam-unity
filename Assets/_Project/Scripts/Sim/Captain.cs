@@ -362,7 +362,7 @@ namespace LanesOfVietnam.Sim
 
         private static bool Sky(SimState st, Side side, LaneView[] lanes, Rng rng)
         {
-            // Strike: napalm on the forest, its last resort: losing, and the enemy in the forest in strength.
+            // Strike: napalm on the forest, on the enemy in the forest in strength (fewer of them will do when it is losing).
             var forest = Deck.Find(side, "us-napalm");
             // (On the men it knows are there, seen or not: in the forest they seldom are.)
             if (st.Strike && Deck.Blocked(st, side, forest) == null && Strike.ForestCrowd(st, side, _known, out double fx, out int fl) > 0)

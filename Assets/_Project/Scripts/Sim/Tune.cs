@@ -687,7 +687,8 @@ namespace LanesOfVietnam.Sim
         // --- the air strike, bombs and napalm (MatchOptions.Strike) ----------------------------
 
         /// <summary>What the air strike costs and how long it waits after, with the rule (40 and 45 s without).</summary>
-        public const int StrikeCost = 100, StrikeCooldown = TickHz * 90;
+        // (100 on 2026-10-17; 80 the next day, the owner: "make napalm available to buy at 80 points, same as airstrike".)
+        public const int StrikeCost = 80, StrikeCooldown = TickHz * 90;
         /// <summary>
         /// A bomb: a man within BombKill metres of it is killed, in cover or not; out to BombReach he is put flat and killed
         /// at BombLethal times how near (BombCover of that in cover); a watchtower within BombTower of it falls, and a bridge
@@ -703,13 +704,15 @@ namespace LanesOfVietnam.Sim
         public const int NapalmDelay = TickHz * 3 / 2, NapalmTicks = TickHz * 10;
         public const double NapalmHalf = 14, NapalmWide = 7, NapalmKill = 0.14, NapalmHigh = 3, NapalmShort = 2;
         /// <summary>
-        /// NAPALM, on the forest (the Americans' last resort): it costs ForestCost and is offered while their will is under
-        /// LastResortWill, or under LastResortHeld with the enemy ahead in every lane by LastResortAhead of the field; it burns ForestRun metres of the forest along the lanes, the
+        /// NAPALM, on the forest: it costs ForestCost and waits as the air strike does (the owner, 2026-10-18: "make napalm
+        /// available to buy at 80 points, same as airstrike"; it had been a last resort, 60 points, once a match). The
+        /// computer counts itself losing (and so plays it on fewer) with its will under LastResortWill, or under
+        /// LastResortHeld with the enemy ahead in every lane by LastResortAhead of the field. It burns ForestRun metres of the forest along the lanes, the
         /// whole of its depth, for ForestTicks, killing ForestKill a tick of the men in it (they run from it: some get out); the
         /// ground it burned hides nobody after: a man on it is seen from BurntSeen times as far. The computer plays it on
-        /// ForestMen of the enemy it knows are in the forest within the run.
+        /// ForestMen of the enemy it knows are in the forest within the run when it is losing, ForestMenAnyway when not.
         /// </summary>
-        public const int ForestCost = 60, ForestTicks = TickHz * 25, ForestMen = 3;
+        public const int ForestCost = 80, ForestTicks = TickHz * 25, ForestMen = 3, ForestMenAnyway = 6;
         public const double LastResortWill = 0.35, LastResortHeld = 0.7, LastResortAhead = 0.3, ForestRun = 30, ForestKill = 0.03, BurntSeen = 1.6;
         /// <summary>Artillery: this many, staying where they are, within this far of one of them; none of its own within this far.</summary>
         public const int BarrageMen = 7;
