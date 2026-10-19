@@ -16,6 +16,8 @@ namespace LanesOfVietnam.Sim
     {
         /// <summary>Near lane, far lane: <see cref="Tune.Lanes"/>.</summary>
         public const int Near = 0, Far = 1;
+        /// <summary>The lane behind the far one, on a map of three (Rice Fields, W2).</summary>
+        public const int Back = 2;
 
         /// <summary>Where the watchtower stands.</summary>
         public const double TowerX = -39.0, TowerZ = -11.6;

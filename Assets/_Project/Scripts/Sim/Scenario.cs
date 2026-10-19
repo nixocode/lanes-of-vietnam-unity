@@ -200,8 +200,8 @@ namespace LanesOfVietnam.Sim
         public static readonly Scenario RiceFields = new Scenario
         {
             Id = "rice-fields", Title = "RICE FIELDS", DateLine = "BONG SON PLAIN · JANUARY 1966",
-            Briefing = "The paddies step down from the base to the river, dike by dike, and the forest begins on the far bank. One timber bridge carries the track over. Upstream there is no bridge: men wade, chest deep, and a man in the water cannot fire back.\n\nWhoever holds the bridge holds the crossing. Break their will before they break yours.",
-            Orders = new[] { "Break the enemy's will to fight", "The bridge carries the near lane: hold it", "The far lane crosses through the water: a man in it is easily shot" },
+            Briefing = "The paddies step down from the base to the river, dike by dike, and the forest begins on the far bank. Two timber bridges carry the near and the back lanes over. Between them there is no bridge: men wade, chest deep, and a man in the water cannot fire back.\n\nWhoever holds the bridges holds the crossing. Break their will before they break yours.",
+            Orders = new[] { "Break the enemy's will to fight", "Bridges carry the near and the back lanes: hold them", "The middle lane crosses through the water: a man in it is easily shot" },
             Map = Maps.RiceFields,
             Us = new Means { Will = 1.25 },
             Vc = new Means { Income = 1.4, Will = 0.75 },

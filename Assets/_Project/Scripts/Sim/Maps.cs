@@ -308,11 +308,17 @@ namespace LanesOfVietnam.Sim
         /// water; east of it the paddies step up, dike by dike, to an American base on the top step. The near lane is the
         /// bridge's: a VC position at the forest's edge and another at the west bank, the bridgehead on the east bank, the
         /// paddies, the base. The far lane fords: a VC trench in the treeline, the reeds on the west bank, the east bank's
-        /// dike, a sluice gate, the base's wall, and the base's watchtower behind it.
+        /// dike, a sluice gate, the base's wall, and the base's watchtower behind it. The back lane (W2, 2026-10-19), 13 m
+        /// behind the far one with a bank between them, has the second bridge: a VC position and fallen trees in the forest,
+        /// a trench short of the bridge, the second bridgehead on the first step, a sluice gate, shell holes, a dike, the
+        /// base's south wall and its back trench.
         /// </summary>
         public static readonly MapDef RiceFields = new MapDef
         {
             Id = "ricefields", Name = "RICE FIELDS", Theatre = "lowlands", UsEast = true, CameraRides = true, CameraDrop = 3.6,
+            // Three lanes (W2, the owner 2026-10-17: "a third lane for this map ... behind, second bridge"): the near lane over
+            // the first bridge, the far lane through the water, and the back lane, 13 m behind it, over a second bridge.
+            Lanes = new[] { 7.0, -6.0, -19.0 },
             Pieces = new[]
             {
                 // --- near lane: over the bridge, and up the steps -------------------
@@ -335,6 +341,17 @@ namespace LanesOfVietnam.Sim
                 new MapPiece(CoverKind.Crater, Map.Far, 24.7, 0.4, 3.0),
                 new MapPiece(CoverKind.Sandbag, Map.Far, 29.4, -0.3, 4.4),     // bags along the fourth step's dike
                 new MapPiece(CoverKind.Sandbag, Map.Far, 35.0, -0.3, 4.0),     // the base's wall
+
+                // --- back lane: over the second bridge, and up the steps (W2) --------
+                new MapPiece(CoverKind.Trench, Map.Back, -37.0, 0.4, 8.0),     // a VC position in the forest
+                new MapPiece(CoverKind.Berm, Map.Back, -28.0, 0.7, 7.0),       // fallen trees at the forest's edge
+                new MapPiece(CoverKind.Trench, Map.Back, -21.0, 0.4, 6.0),     // dug in short of the second bridge's ramp
+                new MapPiece(CoverKind.Sandbag, Map.Back, 10.6, -0.5, 4.0),    // the second bridgehead, on the first step
+                new MapPiece(CoverKind.Sandbag, Map.Back, 16.0, -0.4, 3.0),    // a sluice gate behind the second step's dike
+                new MapPiece(CoverKind.Crater, Map.Back, 24.5, 0.4, 3.0),      // shell holes in the third step
+                new MapPiece(CoverKind.Berm, Map.Back, 29.8, 0.6, 3.0),        // the fourth step's dike
+                new MapPiece(CoverKind.Sandbag, Map.Back, 35.8, 0.6, 4.0),     // the base's south wall
+                new MapPiece(CoverKind.Trench, Map.Back, 41.0, 0.3, 6.0),      // the base's back trench
             },
             // The river between x -7 and 3, cut deep (its water 1.25 m under its banks); the paddies' four steps from 8 to
             // 34, each 1.1 m over the last, their edges winding; the base on the top step, 5.5 m up. Flatter ground than
@@ -347,14 +364,16 @@ namespace LanesOfVietnam.Sim
                 RiverX0 = -7, RiverX1 = 3, RiverWater = -1.25, RiverBed = -2.3,
                 PaddyX0 = 8, PaddyX1 = 34, PaddyStep = 6.5, PaddyRise = 1.1, PaddyWave = 2.2, PaddyFlood = 0.16,
                 DeckRise = 0.9, RampLength = 5,
+                // (The bank behind the far lane, as the first is behind the near one; the paddies wide enough for the back lane.)
+                MoreBermZ = new[] { -9.6 }, PaddyMidZ = -4.5, PaddyHalfZ = 22,
             },
-            OldCraters = 4,
-            Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 } },
+            OldCraters = 4, OldCraterBandsZ = new[] { 13.5, -28.0 },
+            Bridges = new[] { new Bridge { Lane = Map.Near, X0 = -9.4, X1 = 5.4 }, new Bridge { Lane = Map.Back, X0 = -11.2, X1 = 3.6 } },
             // Where its water is half a metre deep or more on each lane (`simcs ground ricefields`, 2026-10-16).
-            Fords = new[] { new Ford { Lane = Map.Near, X0 = -5.75, X1 = 1.75 }, new Ford { Lane = Map.Far, X0 = -7.0, X1 = 0.5 } },
+            Fords = new[] { new Ford { Lane = Map.Near, X0 = -5.75, X1 = 1.75 }, new Ford { Lane = Map.Far, X0 = -7.0, X1 = 0.5 }, new Ford { Lane = Map.Back, X0 = -7.75, X1 = -0.25 } },
             // The VC's forest, west of the river (WorldDressing.Forest plants it from the bank 6.5 m back): both lanes run
             // out of it.
-            Forests = new[] { new Forest { X0 = -45, X1 = -14, Z0 = -15, Z1 = 12 } },
+            Forests = new[] { new Forest { X0 = -45, X1 = -14, Z0 = -26, Z1 = 12 } },
             // The paddies' steps, each 1.1 m, where their feet cross the lanes (GroundShape's PaddyX0, PaddyStep, PaddyWave).
             Steps = new[]
             {
@@ -362,6 +381,8 @@ namespace LanesOfVietnam.Sim
                 new Step { Lane = Map.Near, X = 26.76, Rise = 1.1 }, new Step { Lane = Map.Near, X = 32.91, Rise = 1.1 },
                 new Step { Lane = Map.Far, X = 6.36, Rise = 1.1 }, new Step { Lane = Map.Far, X = 15.63, Rise = 1.1 }, new Step { Lane = Map.Far, X = 22.82, Rise = 1.1 },
                 new Step { Lane = Map.Far, X = 26.6, Rise = 1.1 }, new Step { Lane = Map.Far, X = 32.87, Rise = 1.1 },
+                new Step { Lane = Map.Back, X = 7.30, Rise = 1.1 }, new Step { Lane = Map.Back, X = 13.69, Rise = 1.1 }, new Step { Lane = Map.Back, X = 20.95, Rise = 1.1 },
+                new Step { Lane = Map.Back, X = 29.44, Rise = 1.1 }, new Step { Lane = Map.Back, X = 34.24, Rise = 1.1 },
             },
             Posts = new[]
             {
