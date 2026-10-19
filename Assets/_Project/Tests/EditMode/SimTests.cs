@@ -3107,12 +3107,15 @@ namespace LanesOfVietnam.Tests
         // (All again 2026-10-17: the game plays with MatchOptions.Strike, the air strike bombs then napalm at 100 points,
         // PLAN §12.61. First Light's seed 3 no longer ends with the line held; seed 1 of The Wire still holds out.)
         // (And again 2026-10-18: the air strike and napalm on the forest at 80 points, napalm to be had any time, §12.63.)
-        [TestCase("firebase", 1, 6448, 2207081288u, 1273274474u, 373562849u, "us morale broke")]
-        [TestCase("the-wire", 3, 5089, 2599423814u, 2839148562u, 2162707902u, "us morale broke")]
-        [TestCase("the-wire", 1, 6000, 536941371u, 60351264u, 1636961866u, "us held out")]
-        [TestCase("first-light", 7, 8400, 1157080429u, 780317383u, 2435500840u, "vc held the line")]
-        [TestCase("first-light", 3, 6458, 1381744726u, 2566677261u, 3133908622u, "us took the line")]
-        [TestCase("earth-fights", 1, 9185, 1211388018u, 3607008661u, 4104309849u, "vc morale broke")]
+        // (And again the same day: the game plays with MatchOptions.Soldiering, §12.64, and First Light, The Earth Fights and
+        // Rice Fields at their new wills. The Wire's seed 3 now ends with the Americans wiped out and seed 1 broken: seeds 2
+        // and 6; First Light's seed 3 is broken and 7 taken: seeds 2 and 21.)
+        [TestCase("firebase", 1, 5081, 4130772264u, 2103958035u, 839800063u, "us morale broke")]
+        [TestCase("the-wire", 2, 4843, 3693651802u, 3068560264u, 2039434068u, "us morale broke")]
+        [TestCase("the-wire", 6, 6000, 75036194u, 281531662u, 1247358654u, "us held out")]
+        [TestCase("first-light", 21, 8400, 527806173u, 3571171442u, 1199768572u, "vc held the line")]
+        [TestCase("first-light", 2, 2489, 1288724647u, 1921217890u, 2624003684u, "us took the line")]
+        [TestCase("earth-fights", 1, 8463, 729085266u, 3064492977u, 270294147u, "us morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3150,7 +3153,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3167,6 +3170,7 @@ namespace LanesOfVietnam.Tests
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
             kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true; kept.Strike = true;
+            kept.Soldiering = true;
             // (And the rules that do nothing on it until something happens: a medevac brought down, since the strike, in this one.)
             kept.Shootdown = true; kept.Water = true; kept.Heights = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
@@ -3606,7 +3610,8 @@ namespace LanesOfVietnam.Tests
         public void Without_its_rule_the_air_strike_is_what_it_was()
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
-            o.Strike = false;
+            // (And without the rule that came after it, Soldiering, §12.64.)
+            o.Strike = false; o.Soldiering = false;
             var (h, m) = Played(o);
             Assert.AreEqual(4075, m.State.Tick);
             Assert.AreEqual(3782637812u, h[h.Count - 1]);
@@ -3625,9 +3630,196 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(3126363294u, fh[fh.Count - 1]);
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-10-17 (with MatchOptions.Strike and napalm on the forest, PLAN §12.61-62).
-        private const int RiceTicks = 6942;
-        private const uint RiceFinal = 2233128180u;
+        // --- Soldiering (PLAN §12.64) ------------------------------------------------------
+
+        /// <summary>A match of the game in its fight, and a squad of the side's in a firefight, holding, with an enemy squad its business.</summary>
+        private static (LiveMatch m, Squad sq) Fighting(Scenario sc, Side side)
+        {
+            var m = new LiveMatch(sc.Options(1, null, Difficulty.Veteran));
+            var st = m.State;
+            Assert.IsTrue(st.Soldiering, "the game plays without the rule");
+            while (st.Phase != Phase.Fight) m.Step();
+            var sq = st.Squads.First(q => q.Side == side && Squads.AnyAlive(st, q.Id) && q.Post < 0);
+            var foe = st.Squads.First(q => q.Side != side && Squads.AnyAlive(st, q.Id));
+            sq.Task = SquadTask.Firefight; sq.Order = Order.Hold; sq.Threat = foe.Id; sq.Target = -1; sq.PlayerOrder = null;
+            return (m, sq);
+        }
+
+        /// <summary>
+        /// Soldiering, cover (the owner, 2026-10-17: the soldiers "need a lot of work", all four ways asked, the first that
+        /// they ignore cover): a man of a squad fighting and holding, out in the open with cover a pace or two behind him,
+        /// takes a free place in it; it is his (the next man takes another); he keeps it while his squad holds; he does not
+        /// go on toward the enemy for one, nor far back; and when his squad goes on, he goes with it.
+        /// </summary>
+        [Test]
+        public void A_man_holding_in_the_open_takes_a_place_in_the_cover_by_him_and_keeps_it()
+        {
+            var (m, sq) = Fighting(Scenarios.Firebase, Side.Us);
+            var st = m.State;
+            double dir = Combat.Advance(st, sq.Side), lz = Tune.Lanes[sq.Lane];
+            // Cover of his lane that nobody has a place in or is making for, with room for two.
+            // (Its places no more than two metres apart: the one at its end then within SnapBack of a man two metres in front.)
+            var c = st.Cover.First(x => System.Math.Abs(x.Z - lz) <= 4.5 && x.Capacity >= 2 && !x.Wrecked && x.Length / x.Capacity <= 2.0
+                && !st.Men.Any(o => o.Alive && (o.PlaceCover == x.Id || o.Cover == x.Id)) && !st.Squads.Any(q => q.Target == x.Id));
+            var men = st.Men.Where(x => x.Alive && x.Squad == sq.Id).Take(2).ToList();
+            Assert.AreEqual(2, men.Count);
+            foreach (var man in men)
+            {
+                // Two metres in front of it, in the open.
+                man.X = c.X + dir * (c.Length * 0.5 + 2.0); man.Z = c.Z; man.Cover = -1; man.Place = -1; man.PlaceCover = -1; man.Pin = 0;
+            }
+            double tx = men[0].X + dir * 3, tz = men[0].Z;
+            Assert.IsTrue(Soldiering.Cover(st, men[0], sq, ref tx, ref tz), "he did not go to the cover behind him");
+            Assert.GreaterOrEqual(men[0].Place, 0);
+            Assert.IsTrue(Combat.InCover(tx, tz, st.Cover[men[0].PlaceCover]), "his place is not in cover");
+            Assert.LessOrEqual((tx - men[0].X) * dir, 1.0, "he went on toward the enemy for it");
+            Assert.GreaterOrEqual((tx - men[0].X) * dir, -Tune.SnapBack - 1e-9, "he went too far back for it");
+            double ux = men[1].X + dir * 3, uz = men[1].Z;
+            Assert.IsTrue(Soldiering.Cover(st, men[1], sq, ref ux, ref uz));
+            Assert.IsFalse(men[1].PlaceCover == men[0].PlaceCover && men[1].Place == men[0].Place, "two men were given one place");
+            // In it, his squad holding: he stays, though his place in its line is a pace off.
+            int place = men[0].Place, cover = men[0].PlaceCover;
+            men[0].X = tx; men[0].Z = tz; men[0].Cover = cover;
+            double sx = tx + dir * 1.5, sz = tz;
+            Assert.IsTrue(Soldiering.Cover(st, men[0], sq, ref sx, ref sz));
+            Assert.AreEqual((place, cover), (men[0].Place, men[0].PlaceCover), "he gave up his place the moment he had it");
+            // His squad goes on: so does he.
+            sq.Order = Order.Advance; sq.Task = SquadTask.Close;
+            double gx = tx + dir * 6, gz = tz;
+            Assert.IsFalse(Soldiering.Cover(st, men[0], sq, ref gx, ref gz), "his squad went on and he stayed");
+            Assert.AreEqual(-1, men[0].Place);
+            // Cover only in front of him, toward the enemy: he does not go on to it, holding.
+            sq.Order = Order.Hold; sq.Task = SquadTask.Firefight;
+            var b = men[1];
+            b.Place = -1; b.PlaceCover = -1; b.X = c.X - dir * (c.Length * 0.5 + 2.0); b.Z = c.Z;
+            double bx = b.X, bz = b.Z;
+            if (Soldiering.Cover(st, b, sq, ref bx, ref bz)) Assert.LessOrEqual((bx - b.X) * dir, 1.0, "he went on toward the enemy for cover");
+            // Without the rule, none of it.
+            st.Soldiering = false;
+            men[0].Place = -1; men[0].PlaceCover = -1;
+            Assert.IsFalse(Soldiering.Cover(st, men[0], sq, ref tx, ref tz));
+        }
+
+        /// <summary>
+        /// Soldiering, the river (Rice Fields: of the men who waded in, as many were killed in it as got across). A squad
+        /// come to the water with an enemy it knows of covering the crossing waits on its bank; with him pinned it goes;
+        /// after BankWait it goes anyway, throwing its smoke onto the far bank as it does. Holding, its men on the bank do
+        /// not wade over to their places; and the water is there only while it has no bridge over it.
+        /// </summary>
+        [Test]
+        public void A_squad_waits_on_the_bank_while_the_enemy_covers_the_crossing()
+        {
+            var (m, sq) = Fighting(Scenarios.RiceFields, Side.Us);
+            var st = m.State;
+            Assert.IsTrue(st.Water);
+            double dir = Combat.Advance(st, sq.Side);
+            var f = st.Fords.First(x => Water.Wet(st, x.Lane, (x.X0 + x.X1) * 0.5));
+            sq.Lane = f.Lane;
+            double lz = Tune.Lanes[f.Lane], near = dir > 0 ? f.X0 : f.X1, far = dir > 0 ? f.X1 : f.X0;
+            var live = Squads.Roster(st, sq.Id);
+            for (int i = 0; i < live.Count; i++) { live[i].X = near - dir * (2 + i * 1.5); live[i].Z = lz; }
+            Assert.IsFalse(Water.AnyIn(st, live));
+            Assert.IsTrue(Soldiering.Across(st, f.Lane, near - dir * 2, far + dir * 2), "no water between the banks");
+            // The enemy on the far bank, known, not pinned.
+            var e = st.Men.First(x => x.Alive && x.Side != sq.Side && x.High <= 0);
+            e.X = far + dir * 6; e.Z = lz; e.Pin = 0;
+            // (His squad's other men, known as well, at their own end, out of reach of it: he alone covers it.)
+            foreach (var o in st.Men.Where(x => x.Alive && x.Squad == e.Squad && x != e)) { o.X = dir * Tune.HalfLength; o.Z = lz; }
+            while (sq.KnownAt.Count <= e.Squad) sq.KnownAt.Add(Senses.Never);
+            sq.KnownAt[e.Squad] = st.Tick;
+            sq.Order = Order.Advance; sq.Task = SquadTask.Close; sq.Bank = 0;
+            sq.AnchorX = near; sq.AnchorZ = lz;
+            Soldiering.Bank(st, sq, live, dir);
+            Assert.AreEqual(1, sq.Bank, "it did not stop at the water");
+            Assert.AreEqual(near - dir * Tune.BankBack, sq.AnchorX, 1e-9, "it did not stop short of the water");
+            Assert.IsTrue(sq.Halted);
+            // Holding there, a man's place across the water is not where he goes.
+            sq.Order = Order.Hold;
+            double tx = Soldiering.Shore(st, live[0], sq, far + dir * 3, dir);
+            Assert.Less((tx - near) * dir, 0, "holding, he waded over to his place");
+            sq.Order = Order.Advance;
+            // Pinned, the man covering it covers nothing: it goes.
+            e.Pin = Tune.PinDrop;
+            sq.AnchorX = near;
+            Soldiering.Bank(st, sq, live, dir);
+            Assert.AreEqual(0, sq.Bank);
+            Assert.AreEqual(near, sq.AnchorX, 1e-9, "it stayed with the crossing clear");
+            // Up again, and it has waited its time: it goes, and its smoke goes onto the far bank.
+            e.Pin = 0; sq.Bank = Tune.BankWait; sq.Smoke = 1;
+            int smoke = st.Areas.Count(a => a.Kind == AreaKind.Smoke);
+            Soldiering.Bank(st, sq, live, dir);
+            Assert.AreEqual(near, sq.AnchorX, 1e-9, "it waited for ever");
+            Assert.AreEqual(0, sq.Smoke, "it went in under his eye without its smoke");
+            var cloud = st.Areas.Last(a => a.Kind == AreaKind.Smoke);
+            Assert.AreEqual(smoke + 1, st.Areas.Count(a => a.Kind == AreaKind.Smoke));
+            Assert.Greater((cloud.X - far) * dir, 0, "its smoke is not on the far bank");
+        }
+
+        /// <summary>
+        /// Soldiering, the commander and the bridge (Rice Fields: brought down 53 times in 96 matches, put back 11): a lane
+        /// whose bridge is down, or has the enemy seen on it, wants engineers or sappers, unless the side has some there.
+        /// </summary>
+        [Test]
+        public void A_lane_whose_bridge_is_down_or_held_wants_engineers()
+        {
+            var (m, sq) = Fighting(Scenarios.RiceFields, Side.Us);
+            var st = m.State;
+            var b = st.Bridges[0];
+            // (Nobody of the Americans' who builds, in that lane.)
+            foreach (var q in st.Squads.Where(q => q.Side == Side.Us && q.Lane == b.Lane && (q.Card == "us-engineer" || q.Card == "vc-sapper"))) q.Lane = 1 - b.Lane;
+            foreach (var e in st.Men.Where(x => x.Alive && x.Side == Side.Vc && x.X > b.X0 && x.X < b.X1)) e.X = b.X1 + 30;
+            Assert.IsFalse(b.Fallen);
+            Assert.IsFalse(Soldiering.Bridgework(st, Side.Us, b.Lane), "a bridge standing with nobody on it wants work");
+            b.Fallen = true;
+            Assert.IsTrue(Soldiering.Bridgework(st, Side.Us, b.Lane), "a bridge down does not want putting back");
+            sq.Lane = b.Lane; sq.Card = "us-engineer";
+            Assert.IsFalse(Soldiering.Bridgework(st, Side.Us, b.Lane), "with engineers there, it wants more");
+            sq.Card = "us-rifle";
+            b.Fallen = false;
+            var vc = st.Men.First(x => x.Alive && x.Side == Side.Vc && x.High <= 0);
+            st.Squads[vc.Squad].Lane = b.Lane;
+            vc.X = (b.X0 + b.X1) * 0.5; vc.Seen = true;
+            Assert.IsTrue(Soldiering.Bridgework(st, Side.Us, b.Lane), "the enemy on it, and nobody sent to bring it down");
+        }
+
+        /// <summary>
+        /// Soldiering is a rule: with it off the game's match is the one it was before it, to the bit (the firebase and
+        /// Rice Fields, `simcs scenario hash 1` of 2026-10-18, PLAN §12.63).
+        /// </summary>
+        [Test]
+        public void Without_its_rule_the_soldiers_are_what_they_were()
+        {
+            var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            o.Soldiering = false;
+            var (h, m) = Played(o);
+            Assert.AreEqual(6448, m.State.Tick);
+            Assert.AreEqual(373562849u, h[h.Count - 1]);
+            o = Scenarios.RiceFields.Options(1, null, Difficulty.Veteran);
+            // (And the Americans' will as it was: since the rule, the computer's lose a quarter more, Scenarios.RiceFields.)
+            o.Soldiering = false; o.UsMeans = new Means();
+            (h, m) = Played(o);
+            Assert.AreEqual(6942, m.State.Tick);
+            Assert.AreEqual(2233128180u, h[h.Count - 1]);
+            // And on, the flags' line: `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
+            // firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown strike
+            // soldiering`.
+            var flags = new MatchOptions
+            {
+                Seed = 1, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(),
+                Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true, Gunnery = true, Ammo = true,
+                Tactics = true, Fortune = true, FireControl = true, Ballistics = true, Vantage = true, Commander = true, Cohesion = true,
+                Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Strike = true,
+                Soldiering = true,
+            };
+            var (fh, fm) = Played(flags);
+            Assert.AreEqual(3726, fm.State.Tick);
+            Assert.AreEqual(699726964u, fh[fh.Count - 1]);
+        }
+
+        // `simcs scenario hash 1` (rice-fields), 2026-10-18 (with MatchOptions.Soldiering and the new wills, PLAN §12.64;
+        // 6942, 2233128180u with the strike and napalm on the forest, §12.61-63).
+        private const int RiceTicks = 4095;
+        private const uint RiceFinal = 3543735617u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
@@ -3757,8 +3949,9 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(MatchLength.Standard, o.Length, "a clock is its own length: the start screen's was used");
 
             int held = 0, broke = 0;
-            // (Seeds 1 and 3 since the Americans opened with fewer, PLAN §12.52: seed 2 now ends with them wiped out.)
-            foreach (int seed in new[] { 1, 3 })
+            // (Seeds 1 and 3 since the Americans opened with fewer, PLAN §12.52: seed 2 now ends with them wiped out. Seeds 1
+            // and 6 since Soldiering, §12.64: seed 3 ends with them wiped out.)
+            foreach (int seed in new[] { 1, 6 })
             {
                 var m = new LiveMatch(wire.Options(seed, null, Difficulty.Veteran));
                 var st = m.State;
@@ -3801,7 +3994,7 @@ namespace LanesOfVietnam.Tests
         {
             var light = Scenarios.FirstLight;
             Assert.AreEqual(MatchMode.Assault, light.Mode);
-            var o = light.Options(3, null, Difficulty.Veteran);
+            var o = light.Options(2, null, Difficulty.Veteran);
             Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
             var m = new LiveMatch(o);
             var st = m.State;
@@ -3834,8 +4027,8 @@ namespace LanesOfVietnam.Tests
             foreach (var sq in st.Squads)
                 Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
 
-            // Seed 3 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52;
-            // 7 until the strike was 80 points, §12.63): the line is taken. The match ends on the tick it is, and not before.
+            // Seed 2 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52;
+            // 7 until the strike was 80 points, §12.63; 3 until Soldiering, §12.64): the line is taken. The match ends on the tick it is, and not before.
             while (!st.Over && st.Tick < m.Cap)
             {
                 Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
@@ -3847,9 +4040,10 @@ namespace LanesOfVietnam.Tests
             Assert.Less(st.Tick, st.ClockTicks);
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
-            // Seed 7 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
-            // was bombs and napalm, §12.61, then 14 until it was 80 points, §12.63): it is not, and the clock is the defender's.
-            var (_, late) = Played(light.Options(7, null, Difficulty.Veteran));
+            // Seed 21 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
+            // was bombs and napalm, §12.61, then 14 until it was 80 points, §12.63, then 7 until Soldiering, §12.64): it is not,
+            // and the clock is the defender's.
+            var (_, late) = Played(light.Options(21, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

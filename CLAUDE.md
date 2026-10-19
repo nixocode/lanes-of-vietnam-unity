@@ -108,6 +108,13 @@ and say so:
   men running from fire, and since §12.63 the strike and the napalm 80 points, the napalm any time); and `hash 1 ... shootdown water
   heights map=ricefields` 5402 `1969199554u` (the bridge's strength 1.0; nobody fights hand to hand in the river).
   `simcs strikes N` (what the computer's strikes do).
+- On `ai` (PLAN §12.64: the soldiers take cover and keep it, a closing half gets up under fire, the river crossed as
+  soldiers cross it, the commander's smoke and bridgework, `MatchOptions.Soldiering`; every line above with it off is
+  unmoved, and the firebase and Rice Fields without it, Rice Fields' Americans at their old will, are the `strike` pins):
+  `hash 1 ... shootdown strike soldiering` 3726 `699726964u`; `hash 1 ... shootdown water heights strike soldiering
+  map=ricefields` 5687 `2710823986u`; `scenario hash 1` (with the operations' new wills, Scenario.cs): the firebase 5081
+  `839800063u`; The Wire 4669 `1669970029u`; First Light 5648 `582254779u`; The Earth Fights 8463 `270294147u`;
+  rice-fields 4095 `3543735617u`. `simcs follow` (a man or a squad tick by tick); `simcs scenario ... nosoldiering`.
 
 ## Rules this project keeps
 
@@ -116,7 +123,7 @@ and say so:
   randomness only from its seeded `Rng`. Positions are `double`.
 - **Every Part 2 rule sits behind a `MatchOptions` flag** (Frag, SquadSmoke,
   Drill, Fieldcraft, Arms, Senses, Gunnery, Ammo, Tactics, Fortune, FireControl, Ballistics,
-  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown, Water, Heights, Strike: all on in the game). With a
+  Vantage, Commander, Cohesion, Bearing, Inbound, FragCard, Emplace, Satchel, Destruction, Shootdown, Water, Heights, Strike, Soldiering: all on in the game). With a
   flag off the match is what it was to the bit: check with `simcs hash` that
   only the layers you meant to change have moved.
 - **A scenario is data** (`Sim/Scenario.cs`, on a map from `Sim/Maps.cs`), and

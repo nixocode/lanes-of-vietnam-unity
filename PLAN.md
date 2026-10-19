@@ -4534,6 +4534,14 @@ built, measured, on `main`.
     the session log on 2026-10-13. Short-lived, but it happened.
 43. Asked for later and only written down: reloads that are seen; the
     soldiers' faces; the tower that comes down.
+44. The owner, 2026-10-18 (not a priority): "the mortar team makes a really
+    annoying sound, same for the granade launcher- remove or limit these
+    sounds". Both come from `AudioView`'s `Launch` event: every round of the
+    mortar and of the M79 plays its own report (`mortar`, `m79`), from
+    anywhere on the field, at 1.0 and 0.8. To do: heard only within a
+    distance of the camera and quieter, one report at a time for a crew
+    firing round after round, or taken out; the owner to say which when it
+    is played.
 
 
 
@@ -5574,6 +5582,122 @@ things left unseen in §12.62: the forest after it has burned, and new fire and 
 - **Tests**: EditMode 131, PlayMode 47 and the capture's skip (the napalm tests count the flames drawn,
   `CombatView.Fires`; First Light's held line is seed 7 again and its taken line seed 3). Pins in CLAUDE.md.
 - New file: `tools/blender/fire_bake.py` (its frames in `SourceArt/fx/`, ignored, remade by it).
+
+### 12.64 W3, the soldiers, part one: cover kept, a closing half that gets up, the river crossed as soldiers cross it (2026-10-18)
+
+The owner, 2026-10-17: "AI soldiers us and enemy need a lot of work"; asked what he sees, all four: they ignore cover,
+they move badly, they fight badly, the commander is dumb. 2026-10-18: "keep working on plan objectvives (making the
+soldiers behave more human and get smarter, ...)". This is the first part of W3; what is left of it is at the end.
+
+A new rule, **Soldiering** (`MatchOptions.Soldiering`, `Sim/Soldiering.cs`, new; on in the game; off, the match is
+what it was to the bit: every `hash` line in CLAUDE.md unmoved, and the firebase and Rice Fields with it off are
+`scenario hash 1` of 2026-10-18, tested):
+
+- **Cover, taken and kept.** A man of a squad fighting and holding where it is (a firefight, closing, going in, or
+  holding what it ran back to, by Senses' task), or a man pinned flat whatever his squad is doing, takes a free place
+  in cover of his lane within 6 m of him (`Tune.SnapCover`), no more than 3 m back (`SnapBack`) and not on toward the
+  enemy. It is one of Fieldcraft's places, so nobody else makes for it, and not in cover another squad of his side is
+  making for or holding (taking those left that squad's men standing behind its cover with no room). He keeps it while
+  his squad holds, until his place in its line is 3 m off (`SnapLeave`); when it goes on, he goes with it; pinned flat
+  in the open, he crawls to it. Not at the moment of contact, when each man drops where he is and the squad then picks
+  its cover: going for the cover by him then, he turned about twice.
+- **A closing half gets up under fire.** A squad closing goes by halves (Tactics' bounds). A man whose half it is to
+  go now gets up with rounds landing by him, unless he is pinned (Bearing kept him down while any landed near; of the
+  closes that ended, two in three ended going nowhere).
+- **The river** (Rice Fields; of the men who waded in, as many were killed in it as got across). A squad come to the
+  water with an enemy it knows of covering the crossing (in his weapon's reach of its middle, not pinned flat, no
+  smoke between) waits on its bank 1.5 m short of the water (`BankBack`) and fights from there; it goes over when the
+  crossing is clear, or after 20 s (`BankWait`), throwing its smoke onto the far bank as it goes in. The Americans'
+  commander lays its smoke over a crossing a squad of its own is waiting at. Going to ground, or back, a squad does not
+  choose cover over the water, nor goes in hand to hand across it, and holding, its men on the bank do not wade over to
+  their places: only closing does it cross.
+- **The commander and the bridge.** A lane whose bridge is down with none of the side's engineers or sappers there, or
+  has the enemy seen on it with none there, has the commander raise engineers or sappers for it first (they put it
+  back; they put a charge on it with the enemy crossing, Satchel's own rule). Over 96 Rice Fields matches the bridge
+  was put back 45 times (11 before) and brought down 76 (53): it is fought over.
+
+Looked at and left (the tools said so):
+- **Squads' orders.** A squad changes its order about seven times a minute (`simcs muddle`), which read as dithering.
+  Followed squad by squad (`simcs follow`, new: one man or a whole squad tick by tick), it is a squad fighting from
+  cover for eight seconds at least (`Tune.SteadyFirefight`), closing to the next, and stopping there: cover to cover.
+  The squad's own count (a probe, not kept) of why a close ended: going nowhere 6.7 a minute, its lead man pinned 2.2,
+  halted 1.0: the first of those is mostly a squad arrived at the cover it was closing on.
+- **Spreading the fire.** 45% of shots are at a man a squad-mate fired at in the last two seconds. Made four times
+  less worth a second man's round (it is twice), it did not move (44% to 44%): each man's pick goes by the chance of a
+  hit, and a man on his feet is many times easier than one down in cover. Firing on the man who can be hit is right.
+- **Men not firing.** A fifth of the time a man has a target and fires nothing for four seconds; most of that time he
+  is moving, and nobody fires on the move (Gunnery: the owner's own rule, playtest 7).
+- **Launchers.** "0 shots" in `simcs gunplay` was the table counting their rounds as bursts, and there being few of
+  them in a fight (0.1 to 0.2 men); they fire.
+
+Measured (`tools/simcs` `brain|muddle|gunplay|aware 3 2400 36 scenario=<op>`, 36 seeds, before (main b8107bb) and after):
+
+| | the firebase | | Rice Fields | |
+|---|---|---|---|---|
+| | before | after | before | after |
+| a man with a target and able to fire who fires nothing for 4 s (`brain`) | 18% | 18% | 24% | 20% |
+| two enemy squads within 30 m with no fire between them, squad-s a minute (`brain`) | 36 | 28 | 67 | 51 |
+| shots at a man down in cover, of all (`gunplay`) | 53% | 59% | 22% | 35% |
+| shots at a man flat in the open | 16% | 10% | 32% | 27% |
+| shots at a man moving in the open | 8% | 7% | 27% | 21% |
+| of the men killed, killed moving in the open | 12% | 11% | 47% | 35% |
+| men with an enemy in sight in reach, on their feet and moving (`aware`) | 16% | 17% | 24% | 20% |
+| at rest in the open within 4 m of cover with a place free (`aware`) | 9% | 7% | 14% | 13% |
+| waiting behind cover their squad has filled, man-s a minute | 52 | 27 | 57 | 45 |
+| turned about, a minute of the field (`muddle`) | 6 | 18 | 46 | 48 |
+| hops under a second, a man a minute | 0.9 | 1.6 | 1.0 | 2.1 |
+| a squad's order changes a minute | 6.7 | 7.0 | 6.9 | 8.1 |
+| bunched: one of his squad within 1.5 m of a man in the open (`muddle`, new; before is the rule off) | 26% | 22% | 33% | 32% |
+
+And the river (`simcs river 96`, Rice Fields, 96 matches): men into the water 2531 (before) and 1699 (after); killed in it 1023 and 659 (40% and 39% of
+those who went in: crossing under fire still costs, but a third fewer do it); got across 1107 and 746; standing still in
+it a second or more 29 ticks and 29 (185 before a man whose place was a few centimetres up the bank was sent a pace up
+it: `Soldiering.UpBank`); the bridge brought down 53 times and 68, put back 11 and 39. Of the men killed in the water, most
+were shot from their own lane within 30 m by an enemy their squad knew of (`river`'s new "killed in it by" lines): the
+crossing begins when the man covering it is pinned, and in twelve seconds of wading his pin wears off.
+
+Balance, at Veteran, of 192 (before the rule in brackets, `simcs scenario 192 <op>`):
+the firebase as the Americans 120 (122), as the VC 113 (140); The Wire 117 (124); First Light 126 (128); The Earth
+Fights 128 (155); Rice Fields as the Americans 132 (132), as the VC 121 (126). The rule makes holding ground stronger:
+a man in a position stays in it, so positions change hands less, and the simulated player (`simcs scenario`), who only
+ever attacks, broke the computer's will less by taking ground (Rice Fields, will the computer lost to ground a match:
+0.31 to 0.21, `scenario ... ground`, new). Before the dials, against a Veteran: the firebase 79 as the Americans,
+First Light 98, The Earth Fights 105, Rice Fields 76 and 92. Neither the computer's price (`cost=`, new: 79 to 95 at
+41 a squad) nor the player's income moved it much; his will did. A side's `Will` is what it loses of what it would,
+so lower is tougher: the firebase's player's Americans 0.75 (`UsPlaying`), First Light's Americans 0.4 and VC 0.55,
+The Earth Fights' VC 0.5, Rice Fields' player's Americans 0.6 and computer's Americans 1.25 (`Scenario.cs`, each
+measured there). The firebase as the VC is at the band's bottom; its dial would be the Americans' means, which with
+nobody playing are the firebase's own and the baseline's, so it is left.
+
+New in `tools/simcs`: `follow <seed> <man|squad> <from> <to> [every] [squad]`; `muddle` counts seconds a squad closing
+goes back; `river` says who went in, as their squad was, who was killed in it and by what; `scenario` takes
+`nosoldiering` and `cost=<recruit>,<veteran>,<elite>`.
+
+Tests: EditMode `A_man_holding_in_the_open_takes_a_place_in_the_cover_by_him_and_keeps_it`,
+`A_squad_waits_on_the_bank_while_the_enemy_covers_the_crossing`, `Without_its_rule_the_soldiers_are_what_they_were`;
+pins moved (every operation plays with the rule): `hash 1 ... shootdown strike soldiering` 3726 `699726964u`; `hash 1 ... water heights strike soldiering
+map=ricefields` 5687 `2710823986u`; `scenario hash 1`: the firebase 5081 `839800063u`, The Wire 4669 `1669970029u`, First
+Light 5648 `582254779u`, The Earth Fights 8463 `270294147u`, rice-fields 4095 `3543735617u`; The Wire's pinned seeds are
+now 2 (broken) and 6 (held out), First Light's 2 (taken) and 21 (held); every line of CLAUDE.md's with the rule off
+unmoved (`simcs hash`, `determinism` ok).
+
+For the Mac: nothing new to draw; the men take cover, wait on the bank and throw smoke with what the view has. To look
+at in a playtest: men going into the cover beside them when their squad stops, and staying; a squad on the river bank
+firing across before it goes in; smoke thrown on the far bank as it does.
+
+Left, with the reason the tools gave:
+- **Spacing.** A man in the open at the fight has one of his squad within 1.5 m of him 23% of the time on the firebase
+  (27% without the rule) and 31% on Rice Fields (34%), `simcs muddle`'s new "bunched" line: most of it is the file
+  itself, 1.3 to 1.7 m a man (Cohesion, the owner's playtest 10 on squads keeping together).
+- **Posture changes**, 6.6 to 6.9 a man a minute, unmoved: getting up to go and down again, a bound at a time.
+- **Flanking.** Cover in the simulation keeps a man safe from every side alike (`Combat.HitChance`), so going round it
+  gains nothing yet: cover that faces one way is the owner's to decide.
+- **Fire at where the enemy was.** The quiet lanes left are mostly two squads 20 to 30 m apart each with the other in
+  sight and out of its rifles' reach (`simcs brain`), not men who have lost sight of the enemy.
+- **Turnabouts** went up on the firebase (6 to 17 a minute of the whole field, most of them a man going a pace or two
+  back into cover as his squad stops), the cost of the first part.
+
+New file: `Assets/_Project/Scripts/Sim/Soldiering.cs` (its `.meta` made by Unity).
 
 ### 12.13 Corrections to earlier sections
 

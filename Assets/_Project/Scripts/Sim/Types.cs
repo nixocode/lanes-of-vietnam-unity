@@ -284,6 +284,8 @@ namespace LanesOfVietnam.Sim
         public double Gap = double.PositiveInfinity;
         /// <summary>Ticks left of being sent out of a position by its lever; it ends when the squad reaches its next cover (MatchOptions.Fieldcraft).</summary>
         public int Sent;
+        /// <summary>Ticks it has waited on a river's bank for a crossing the enemy covers (MatchOptions.Soldiering).</summary>
+        public int Bank;
 
         /// <summary>The card whose squad this is (MatchOptions.Arms; null in the baseline): what to call it.</summary>
         public string Card;
@@ -606,6 +608,8 @@ namespace LanesOfVietnam.Sim
         public bool Heights;
         /// <summary>Part 2: the air strike is bombs and then napalm, and wrecks what it falls on (MatchOptions.Strike, with Inbound).</summary>
         public bool Strike;
+        /// <summary>Part 2: men take cover near them, advance in rushes and spread their fire (MatchOptions.Soldiering).</summary>
+        public bool Soldiering;
         /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
         public List<Forest> Forests = new List<Forest>();
         public List<Burn> Burnt = new List<Burn>();

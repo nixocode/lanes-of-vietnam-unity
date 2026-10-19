@@ -31,12 +31,16 @@ namespace LanesOfVietnam.Sim
     ///              team) where he is dug in, then men who go in after him
     ///              (engineers, sappers); a machine gun where its riflemen
     ///              have none. Otherwise riflemen, and one time in four the
-    ///              next on its list, as before
+    ///              next on its list, as before. (Soldiering: engineers or
+    ///              sappers first for a lane whose bridge is down, to put it
+    ///              back, or has the enemy on it, to bring it down.)
     ///   the sky    (the Americans) an air strike on four of the enemy or more
     ///              in sight close together, artillery on five across a wider
     ///              ground, neither where it would fall on its own men; smoke
-    ///              in front of a squad of its own pinned flat in the open; a
-    ///              medevac when its will is failing and its men are down
+    ///              in front of a squad of its own pinned flat in the open (and,
+    ///              Soldiering, over a river crossing a squad of its own waits
+    ///              at under the enemy's guns); a medevac when its will is
+    ///              failing and its men are down
     ///   the ground (the VC) a trap nine metres in front of an enemy squad
     ///              that is coming on, the best it can afford, no two close
     ///              together and one every twenty-five seconds at most; a
@@ -187,6 +191,9 @@ namespace LanesOfVietnam.Sim
             if (st.CommandRng.Next() < Tune.CommandWhim) return listed;
             var v = Look(st, side, lane);
             bool us = side == Side.Us;
+            // Soldiering: the bridge in this lane down with nobody of its own there to put it back, or the enemy on it with
+            // nobody of its own there to bring it down: engineers, or sappers.
+            if (st.Soldiering && Soldiering.Bridgework(st, side, lane)) return us ? "us-engineer" : "vc-sapper";
             // (A support team goes where there are riflemen for it to support: four of them for each.)
             // A marksman for his guns.
             if (v.Supports && v.FoeGuns > 0 && v.OwnSnipers == 0) return us ? "us-sniper" : "vc-marksman";
@@ -388,6 +395,10 @@ namespace LanesOfVietnam.Sim
             }
             // Smoke: in front of a squad of its own that is pinned flat in the open with the enemy in sight.
             var smoke = Deck.Find(side, "us-smoke");
+            // (Soldiering: and over a crossing a squad of its own is waiting at, the enemy covering it.)
+            if (st.Soldiering && Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost) && Soldiering.Crossing(st, side, out double cx, out int cl)
+                && !Smoked(st, cx, Tune.Lanes[cl]))
+            { Deck.Buy(st, side, smoke, cl, rng, cx); return false; }
             if (Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost))
                 for (int si = 0; si < st.Squads.Count; si++)
                 {

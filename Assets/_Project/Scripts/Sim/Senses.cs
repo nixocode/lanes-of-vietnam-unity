@@ -317,6 +317,8 @@ namespace LanesOfVietnam.Sim
         {
             // Cohesion: and with at least half of its own men able to get up and go.
             if (st.Cohesion && !Cohesion.Ready(live)) return false;
+            // Soldiering: not over a river.
+            if (st.Soldiering && Soldiering.Across(st, sq.Lane, sq.AnchorX, sq.AnchorX + Combat.Advance(st, sq.Side) * sq.ThreatGap)) return false;
             // FireControl: beaten down man by man, and no machine gun of his still up.
             if (st.FireControl) return FireControl.GoesIn(st, sq, live, pin);
             if (!sq.Assaults || !sq.ThreatSeen || pin >= Tune.PinDrop) return false;
@@ -547,6 +549,8 @@ namespace LanesOfVietnam.Sim
                 double sx = Fieldcraft.StopX(c, dir);
                 double ahead = (sx - sq.AnchorX) * dir;
                 if (ahead < from || ahead > to) continue;
+                // Soldiering: going to ground, or back, not over the river to it (only closing does a squad cross).
+                if (st.Soldiering && from < 0 && Soldiering.Across(st, sq.Lane, sq.AnchorX, sx) && !Water.AnyIn(st, live)) continue;
                 double d = JsMath.Hypot(sx - sq.AnchorX, c.Z - sq.AnchorZ);
                 if (d >= bestD) continue;
                 int free = Fieldcraft.FreePlaces(st, c, sq.Side, sq.Id);

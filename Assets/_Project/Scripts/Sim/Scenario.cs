@@ -91,7 +91,7 @@ namespace LanesOfVietnam.Sim
                 Seed = seed, Map = Map, Cover = Map.Cover(), Length = len,
                 Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true,
                 Gunnery = true, Ammo = true, Tactics = true, Fortune = true, FireControl = true, Ballistics = true,
-                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, FragCard = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true, Strike = true,
+                Vantage = true, Commander = true, Cohesion = true, Bearing = true, Inbound = true, FragCard = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true, Strike = true, Soldiering = true,
                 CpRate = CpRate, StartCp = StartCp, OpeningStrength = OpeningStrength,
                 MusterCost = CostFor(level), MoraleRate = RateFor(len),
                 Player = player,
@@ -122,14 +122,17 @@ namespace LanesOfVietnam.Sim
         /// <summary>
         /// The match the game had before there were scenarios: either side, any length, both sides alike, but that
         /// a player's Americans open with nobody (PLAN §12.52). (`simcs scenario firebase 192`, 2026-10-15: as the Americans
-        /// 132, 122 and 108 of 192 against a Recruit, a Veteran and the Elite; as the VC 170, 136 and 98.)
+        /// 132, 122 and 108 of 192 against a Recruit, a Veteran and the Elite; as the VC 170, 136 and 98.) Since Soldiering
+        /// (PLAN §12.64: the computer's men keep the positions they hold, and a player who only attacks breaks its will less
+        /// by taking ground) a player's Americans lose three quarters of the will they did: as the Americans against a
+        /// Veteran 79 of 192 without it, 113 at 0.8, 149 at 0.65.
         /// </summary>
         public static readonly Scenario Firebase = new Scenario
         {
             Id = "firebase", Title = "THE FIREBASE", DateLine = "CENTRAL HIGHLANDS · 1965",
             Briefing = "A firebase on a red-dirt track, and the jungle that wants it back. Two lanes: the perimeter, dug in and built up, and the track verge under the treeline, where the only cover is what the fighting left.\n\nNo clock but the men's own will. Break theirs before they break yours.",
             Orders = new[] { "Break the enemy's will to fight", "Hold what you take: ground lost costs will", "Follow your field orders at the top of the screen" },
-            UsPlaying = new Means { Opening = Means.None },
+            UsPlaying = new Means { Opening = Means.None, Will = 0.75 },
         };
 
         /// <summary>
@@ -152,7 +155,9 @@ namespace LanesOfVietnam.Sim
         /// trench in the far lane and the berm in the near, and have both at once. They open dug in; the
         /// Americans open with two squads (three until 2026-10-15, PLAN §12.52) and are paid more. (`simcs scenario
         /// first-light 192`, 2026-10-15: 172, 128 and 117 of 192; against a Veteran 73 by taking the line, 55 by breaking
-        /// him or leaving him no men.)
+        /// him or leaving him no men.) Since Soldiering (PLAN §12.64: the men holding the line stay in it) the Americans'
+        /// will is 0.4 and the VC's 0.55, not 0.5 each: at 0.5 a Veteran held 98 of 192 from them; with theirs at 0.4 and
+        /// below it no longer breaks, and the VC's at 0.55 gives 126.
         /// </summary>
         public static readonly Scenario FirstLight = new Scenario
         {
@@ -160,15 +165,16 @@ namespace LanesOfVietnam.Sim
             Briefing = "The patrols found where the mortars are coming from: a line of fighting positions dug into the treeline, eight hundred metres up the track. Battalion wants it gone before the sun is over the ridge.\n\nThey are dug in and they know you are coming. Take their trench and the berm beside it, and hold both. A line with one end still in their hands is not taken.",
             Orders = new[] { "Take the trench in the far lane and the berm in the near lane: hold BOTH at once", "Or break their will", "When the clock runs out the attack is called off" },
             Mode = MatchMode.Assault, ClockSeconds = 420, Attacker = Side.Us, LineBack = 1, Plays = Side.Us, Length = MatchLength.Standard,
-            Us = new Means { Opening = 8, Income = 1.4, Will = 0.5 },
-            Vc = new Means { Opening = 8, Income = 0.9, Will = 0.5 },
+            Us = new Means { Opening = 8, Income = 1.4, Will = 0.4 },
+            Vc = new Means { Opening = 8, Income = 0.9, Will = 0.55 },
         };
 
         /// <summary>
         /// A standard match, as the VC, against an enemy with more of everything: the Americans are paid 1.15
         /// to the VC's 1 (a fifth more until Bearing, PLAN §12.41: at 1.2 the VC player won 108 of 192 against a
         /// Veteran). The VC open with twice the points, for the ground, and their will lasts longer.
-        /// (`simcs scenario earth-fights 192`, 2026-10-15: 159, 148 and 113 of 192.)
+        /// (`simcs scenario earth-fights 192`, 2026-10-15: 159, 148 and 113 of 192.) Since Soldiering (PLAN §12.64) their
+        /// will is 0.5, not 0.65: at 0.65 the VC player won 105 of 192 against a Veteran, at 0.52 127.
         /// </summary>
         public static readonly Scenario EarthFights = new Scenario
         {
@@ -177,7 +183,7 @@ namespace LanesOfVietnam.Sim
             Orders = new[] { "Break the Americans' will", "Lay traps ahead of their advance [Q] [W] [E]", "Dig a tunnel [R] to come up where they do not expect you" },
             Attacker = Side.Vc, Plays = Side.Vc, Length = MatchLength.Standard,
             Us = new Means { Income = 1.15 },
-            Vc = new Means { Purse = 2, Will = 0.65 },
+            Vc = new Means { Purse = 2, Will = 0.5 },
         };
 
         /// <summary>
@@ -187,7 +193,9 @@ namespace LanesOfVietnam.Sim
         /// cross the one and climb the other, so they are paid more and their will lasts longer; a player's Americans,
         /// who leave their high ground with every squad they raise, open with two squads and their will lasts a little
         /// longer. (`simcs scenario rice-fields 192 level=veteran`, 2026-10-16: as the Americans 132 of 192, mean 251 s; as
-        /// the VC 122, mean 220 s. Without its means: 158 and 80.)
+        /// the VC 122, mean 220 s. Without its means: 158 and 80.) Since Soldiering (PLAN §12.64) a player's Americans lose
+        /// 0.6 of the will they would (0.8 before: 76 of 192 at 0.8, 124 at 0.65), and the computer's lose a quarter more
+        /// (a VC player won 92 against them as they were, 120 at 1.2).
         /// </summary>
         public static readonly Scenario RiceFields = new Scenario
         {
@@ -195,8 +203,9 @@ namespace LanesOfVietnam.Sim
             Briefing = "The paddies step down from the base to the river, dike by dike, and the forest begins on the far bank. One timber bridge carries the track over. Upstream there is no bridge: men wade, chest deep, and a man in the water cannot fire back.\n\nWhoever holds the bridge holds the crossing. Break their will before they break yours.",
             Orders = new[] { "Break the enemy's will to fight", "The bridge carries the near lane: hold it", "The far lane crosses through the water: a man in it is easily shot" },
             Map = Maps.RiceFields,
+            Us = new Means { Will = 1.25 },
             Vc = new Means { Income = 1.4, Will = 0.75 },
-            UsPlaying = new Means { Will = 0.8, Opening = 8 },
+            UsPlaying = new Means { Will = 0.6, Opening = 8 },
         };
 
         public static readonly Scenario[] All = { Firebase, TheWire, FirstLight, EarthFights, RiceFields };

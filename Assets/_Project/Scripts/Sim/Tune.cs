@@ -551,6 +551,18 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>How much less a man is worth firing at for each of the firer's squad already on him; and ticks a man stays on the man he last fired at (3 s).</summary>
         public const double SpreadFire = 1.0;
+        /// <summary>
+        /// Soldiering (MatchOptions.Soldiering): a man of a squad fighting and holding (or one pinned SnapPin or more,
+        /// flat) takes a free place in cover within SnapCover metres of him and no more than SnapBack back, and leaves it
+        /// when his place in the squad's line is SnapLeave metres from it.
+        /// </summary>
+        public const double SnapCover = 6, SnapBack = 3, SnapPin = PinDrop, SnapLeave = 3;
+        /// <summary>
+        /// Soldiering: a squad come to a river the enemy covers waits BankBack metres short of the water, BankWait at most,
+        /// and throws its smoke onto the far bank as it goes in.
+        /// </summary>
+        public const double BankBack = 1.5;
+        public const int BankWait = TickHz * 20;
         public const int MarkTicks = 100;
         /// <summary>How much likelier a man is to stay on his own man than to change; and a machine gun, which traverses, to move on from him.</summary>
         public const double HoldMark = 1.3, Traverse = 0.6;

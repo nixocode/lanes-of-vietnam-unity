@@ -131,7 +131,9 @@ namespace LanesOfVietnam.Sim
             if (m.Dwell < Tune.StayDown) return Idle.JustDown;
             bool forCover = ForCover(m, away, toCover);
             // Rounds are landing by him.
-            if (!forCover && st.FireControl && st.Tick - m.UnderAt <= Tune.RiseClear) return Idle.UnderFire;
+            // (Soldiering: unless it is his half's turn to go, closing, and he is not pinned: the other half's fire is
+            // what covers him, and waiting for the fire to stop, nobody went and the squad stopped closing.)
+            if (!forCover && st.FireControl && st.Tick - m.UnderAt <= Tune.RiseClear && !Soldiering.Rises(st, sq, m)) return Idle.UnderFire;
             if (!forCover && Tactics.Bounds(st, sq) && !(st.Cohesion && sq.Task == SquadTask.Assault))
             {
                 int left = Tune.BoundTicks - (st.Tick + sq.Id * 13) % Tune.BoundTicks;

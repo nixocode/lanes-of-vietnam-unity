@@ -167,6 +167,8 @@ namespace LanesOfVietnam.Sim
         /// cref="Sim.Strike"/>; with Inbound). Off is the strike as it was.
         /// </summary>
         public bool Strike;
+        /// <summary>Part 2: men take cover near them, advance in rushes and spread their fire (<see cref="Sim.Soldiering"/>). Off is the baseline.</summary>
+        public bool Soldiering;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -346,6 +348,7 @@ namespace LanesOfVietnam.Sim
                 Water = opts.Water,
                 Heights = opts.Heights,
                 Strike = opts.Strike && opts.Inbound,
+                Soldiering = opts.Soldiering,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -558,11 +561,16 @@ namespace LanesOfVietnam.Sim
             if (st.Tactics && quarry == null && !swim && !flee && Tactics.Waits(st, sq, m, tx, tz, slot.InCover)) { tx = m.X; tz = m.Z; m.Idle = Idle.OtherHalf; }
             // Water: in the river, his place is out of it: he does not stop in it.
             if (swim && quarry == null) tx = Water.Out(st, sq, tx, dir);
+            // (Soldiering: and a place a few centimetres up the bank is a pace up it: he stood at the water's edge, in it.)
+            if (st.Soldiering && swim && quarry == null) tx = Sim.Soldiering.UpBank(st, sq, tx);
             // Strike: nobody goes into the fire, and a man in it gets out of it.
             if (st.Strike) tx = Sim.Strike.Short(st, m, tx, dir);
+            // Soldiering: in contact he takes the cover by him; and with his squad holding, he does not wade the river to his place.
+            bool covering = st.Soldiering && quarry == null && !swim && !flee && Sim.Soldiering.Cover(st, m, sq, ref tx, ref tz);
+            if (st.Soldiering && quarry == null && !swim && !flee && !covering) tx = Sim.Soldiering.Shore(st, m, sq, tx, dir);
             // Bearing: down, he gets up only for a move he can make now; on his feet with his way barred, he does not stand there.
             bool sapper = st.Arms && sq.Reach <= Tune.Stalks && !m.Seen;
-            if (st.Bearing && quarry == null && !sapper && !swim && !flee)
+            if (st.Bearing && quarry == null && !sapper && !swim && !flee && !covering)
             {
                 var why = Bearing.WhyDown(st, sq, m, tx, tz, slot.InCover);
                 if (why != Idle.No) { tx = m.X; tz = m.Z; m.Idle = why; }
@@ -630,11 +638,12 @@ namespace LanesOfVietnam.Sim
 
             // Pinned men drop, shoot less and stop advancing. He still has to be
             // placed in whatever he is lying behind, so only movement is skipped.
-            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback && !swim && !flee;
+            // (Soldiering: pinned in the open by cover, he crawls to it.)
+            bool pinnedDown = m.Pin >= Tune.PinDrop && sq.Order != Order.Fallback && !swim && !flee && !covering;
             double wasX = m.X, wasZ = m.Z;
             bool stepped = false, waited = false;
             // Gunnery: getting to his feet takes its time, and a man who is down stays where he is.
-            bool held = st.Gunnery && !swim && !flee && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
+            bool held = st.Gunnery && !swim && !flee && !(covering && m.Posture != Posture.Standing) && (m.Posture == Posture.Standing ? m.Dwell < Gunnery.RiseTicks(m.Before) : !stalking);
             if (!pinnedDown && !climbing && !held)
             {
                 double speed = Tune.Speed(m.Posture);

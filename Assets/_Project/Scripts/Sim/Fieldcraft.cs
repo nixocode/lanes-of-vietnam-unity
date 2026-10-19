@@ -300,7 +300,7 @@ namespace LanesOfVietnam.Sim
                 ? Math.Abs(x - c.X) <= c.Length * 0.5 && Math.Abs(z - c.Z) <= 0.9
                 : Combat.InCover(x, z, c);
 
-        private static bool Taken(SimState st, Cover c, Side side, int k, Man but)
+        internal static bool Taken(SimState st, Cover c, Side side, int k, Man but)
         {
             for (int i = 0; i < st.Men.Count; i++)
             {
@@ -457,6 +457,8 @@ namespace LanesOfVietnam.Sim
             March(st, sq, live, tc, dir);
             // Water: in the river it goes on through; at a fallen bridge, sappers and engineers stay and work.
             if (st.Water) Water.Press(st, sq, live, dir);
+            // Soldiering: and it does not go into the water under the enemy's guns, if it can wait.
+            if (st.Soldiering) Soldiering.Bank(st, sq, live, dir);
             // Strike: and it does not go into the napalm.
             if (st.Strike) Sim.Strike.Hold(st, sq, live, dir);
             Squads.Reanchor(st, sq, live);
