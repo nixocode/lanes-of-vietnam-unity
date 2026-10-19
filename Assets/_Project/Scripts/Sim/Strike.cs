@@ -263,7 +263,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Areas.Count; i++)
             {
                 var a = st.Areas[i];
-                double lz = Tune.Lanes[sq.Lane];
+                double lz = st.Lanes[sq.Lane];
                 if (!Band(st, a, out double x0, out double x1, out double z0, out double z1) || lz < z0 - 1 || lz > z1 + 1) continue;
                 double ax = (x0 + x1) * 0.5, half = (x1 - x0) * 0.5;
                 // Its near edge, as the squad comes to it; the squad's men are this side of it (the middle of them).
@@ -340,7 +340,7 @@ namespace LanesOfVietnam.Sim
                 if (own || n == 0) continue;
                 int bl = st.Squads[b.Squad].Lane;
                 double at = sum / n;
-                int need = least > 0 ? least : Structure(st, at, Tune.Lanes[bl]) ? Tune.StrikeMenAt : Tune.StrikeMen;
+                int need = least > 0 ? least : Structure(st, at, st.Lanes[bl]) ? Tune.StrikeMenAt : Tune.StrikeMen;
                 if (n < need || n - need <= bestOver) continue;
                 bestOver = n - need; bestN = n; x = at; lane = bl;
             }
@@ -354,7 +354,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < st.Bridges.Count; i++)
             {
                 var b = st.Bridges[i];
-                if (!b.Fallen && Math.Abs(Tune.Lanes[b.Lane] - z) < 3 && b.X1 > x - half && b.X0 < x + half) return true;
+                if (!b.Fallen && Math.Abs(st.Lanes[b.Lane] - z) < 3 && b.X1 > x - half && b.X0 < x + half) return true;
             }
             for (int i = 0; i < st.Posts.Count; i++)
             {

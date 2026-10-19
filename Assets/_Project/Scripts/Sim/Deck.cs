@@ -140,14 +140,14 @@ namespace LanesOfVietnam.Sim
         {
             if (Blocked(st, side, card) != null) return false;
             // Strike: napalm on the forest is laid on a forest, and nowhere else (nothing is spent on it elsewhere).
-            if (card.Id == "us-napalm" && Strike.ForestAt(st, aimX, Tune.Lanes[lane % Tune.Lanes.Length]) == null) return false;
+            if (card.Id == "us-napalm" && Strike.ForestAt(st, aimX, st.Lanes[lane % st.Lanes.Length]) == null) return false;
             // FragCard: thrown by the squad nearest the place, if anyone there can reach it; if nobody can, nothing is spent.
             if (card == Grenades(side))
             {
-                if (Frag.Throwers(st, side, lane % Tune.Lanes.Length, aimX).Count == 0) return false;
+                if (Frag.Throwers(st, side, lane % st.Lanes.Length, aimX).Count == 0) return false;
                 st.Cp[(int)side] -= CostOf(st, card);
                 st.CardCooldown[(int)side][card.Index] = CooldownOf(st, card);
-                Frag.OnCall(st, side, lane % Tune.Lanes.Length, aimX);
+                Frag.OnCall(st, side, lane % st.Lanes.Length, aimX);
                 return true;
             }
             // Vantage: sent to a post, it has to be a squad the post takes, and the post empty.
@@ -158,7 +158,7 @@ namespace LanesOfVietnam.Sim
             }
             st.Cp[(int)side] -= CostOf(st, card);
             st.CardCooldown[(int)side][card.Index] = CooldownOf(st, card);
-            lane %= Tune.Lanes.Length;
+            lane %= st.Lanes.Length;
 
             if (card.Pips > 0)
             {
@@ -168,7 +168,7 @@ namespace LanesOfVietnam.Sim
                 return true;
             }
 
-            double z = Tune.Lanes[lane];
+            double z = st.Lanes[lane];
             switch (card.Id)
             {
                 // Artillery walks a wide beaten zone for a long time and is not

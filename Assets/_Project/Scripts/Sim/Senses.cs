@@ -303,7 +303,7 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Men[i];
                 if (!e.Alive || e.Side == sq.Side || !Remembers(st, sq, e.Squad)) continue;
-                if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
+                if (Math.Abs(e.Z - st.Lanes[sq.Lane]) > 6.5) continue;
                 double ahead = (e.X - sq.AnchorX) * dir;
                 if (ahead < 0) continue;
                 if (ahead < near) near = ahead;
@@ -545,7 +545,7 @@ namespace LanesOfVietnam.Sim
             for (int ci = 0; ci < st.Cover.Count; ci++)
             {
                 var c = st.Cover[ci];
-                if (Math.Abs(c.Z - Tune.Lanes[sq.Lane]) > 4.5) continue;
+                if (Math.Abs(c.Z - st.Lanes[sq.Lane]) > 4.5) continue;
                 double sx = Fieldcraft.StopX(c, dir);
                 double ahead = (sx - sq.AnchorX) * dir;
                 if (ahead < from || ahead > to) continue;

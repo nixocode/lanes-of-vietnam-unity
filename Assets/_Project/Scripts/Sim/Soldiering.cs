@@ -104,7 +104,7 @@ namespace LanesOfVietnam.Sim
         {
             if (!st.Water || st.Fords.Count == 0) return;
             if (sq.Order == Order.Fallback || Water.AnyIn(st, live)) { sq.Bank = 0; return; }
-            double lz = Tune.Lanes[sq.Lane];
+            double lz = st.Lanes[sq.Lane];
             for (int i = 0; i < st.Fords.Count; i++)
             {
                 var f = st.Fords[i];
@@ -275,7 +275,7 @@ namespace LanesOfVietnam.Sim
         /// <summary>The nearest free place in cover of his lane within SnapCover, taken as his; false if there is none.</summary>
         private static bool Nearest(SimState st, Man m, Squad sq, double dir, double side)
         {
-            double lz = Tune.Lanes[sq.Lane], bestD = Tune.SnapCover;
+            double lz = st.Lanes[sq.Lane], bestD = Tune.SnapCover;
             int bc = -1, bk = -1;
             for (int i = 0; i < st.Cover.Count; i++)
             {

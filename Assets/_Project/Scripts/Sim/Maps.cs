@@ -69,13 +69,15 @@ namespace LanesOfVietnam.Sim
     /// A second map needs it to be a thing that can be handed over: the
     /// simulation takes its cover, its bank and its posts from here, the
     /// ground takes its craters and banks, and the scene is built from the
-    /// same. The lanes' own positions and the half-length are still the
-    /// project's (<see cref="Tune.Lanes"/>, <see cref="Tune.HalfLength"/>):
-    /// a map that needs its own pays for that when it comes.
+    /// same. Its lanes are its own (<see cref="Lanes"/>: the firebase's two,
+    /// <see cref="Tune.Lanes"/>, unless it says otherwise); the half-length is
+    /// still the project's (<see cref="Tune.HalfLength"/>).
     /// </summary>
     public sealed class MapDef
     {
         public string Id, Name;
+        /// <summary>Where each of its lanes runs across it (z), nearest the lens first: the firebase's two unless it has more (W2: Rice Fields' three).</summary>
+        public double[] Lanes = Tune.Lanes;
         /// <summary>The theatre it is fought in (the view's art and rules for a country): the firebase's is the Central Highlands.</summary>
         public string Theatre = "highlands";
         public MapPiece[] Pieces = new MapPiece[0];
@@ -122,7 +124,7 @@ namespace LanesOfVietnam.Sim
                 {
                     Kind = p.Kind,
                     X = p.X,
-                    Z = Tune.Lanes[p.Lane] + p.Dz,
+                    Z = Lanes[p.Lane] + p.Dz,
                     Length = p.Length,
                     Capacity = Math.Max(2, (int)JsMath.Round(p.Length / spec.metresPerMan)),
                     // Mid-range for the kind: a fixed map has no roll to make.
@@ -217,7 +219,7 @@ namespace LanesOfVietnam.Sim
         public List<BridgeDeck> Decks()
         {
             var outv = new List<BridgeDeck>();
-            foreach (var b in Bridges) outv.Add(new BridgeDeck { X0 = b.X0, X1 = b.X1, Z = Tune.Lanes[b.Lane], Width = b.Width });
+            foreach (var b in Bridges) outv.Add(new BridgeDeck { X0 = b.X0, X1 = b.X1, Z = Lanes[b.Lane], Width = b.Width });
             return outv;
         }
 
@@ -228,10 +230,31 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public (double z, double height, double phase) Bank()
         {
+            double o = BankOffset();
+            return (GroundShape.BermZ, GroundShape.BermHeight, BankMirrored ? Math.PI - o : o);
+        }
+
+        /// <summary>The banks between its lanes beyond the first (GroundParams.MoreBermZ), as the simulation needs them: none on the firebase.</summary>
+        public (double Z, double Height, double Phase)[] MoreBanks()
+        {
+            var more = GroundShape.MoreBermZ;
+            var outv = new (double, double, double)[more.Length];
+            double o = BankOffset();
+            for (int i = 0; i < more.Length; i++)
+            {
+                double ph = o + GroundParams.MoreBermShift * (i + 1);
+                outv[i] = (more[i], GroundShape.BermHeight, BankMirrored ? Math.PI - ph : ph);
+            }
+            return outv;
+        }
+
+        /// <summary>The ground's offset for its banks' gaps: the fifth draw of its own stream.</summary>
+        private double BankOffset()
+        {
             var rng = new Rng(GroundShape.Seed);
             double o = 0;
             for (int i = 0; i < 5; i++) o = rng.Range(-800, 800);
-            return (GroundShape.BermZ, GroundShape.BermHeight, BankMirrored ? Math.PI - o : o);
+            return o;
         }
     }
 
@@ -381,7 +404,7 @@ namespace LanesOfVietnam.Sim
             for (int i = 0; i < forests.Length; i++) forests[i] = new Forest { X0 = -m.Forests[i].X1, X1 = -m.Forests[i].X0, Z0 = m.Forests[i].Z0, Z1 = m.Forests[i].Z1 };
             return new MapDef
             {
-                Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape,
+                Id = m.Id + "-mirrored", Name = m.Name, Theatre = m.Theatre, Pieces = pieces, GroundShape = m.GroundShape, Lanes = m.Lanes,
                 CraterSeed = m.CraterSeed, OldCraters = m.OldCraters, OldCraterBandsZ = m.OldCraterBandsZ, Posts = posts, UsEast = !m.UsEast,
                 BankMirrored = !m.BankMirrored, Bridges = bridges, Fords = fords, Steps = steps, Forests = forests,
             };

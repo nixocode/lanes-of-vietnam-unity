@@ -21,6 +21,12 @@ namespace LanesOfVietnam.Sim
         /// <summary>The earth bank along the near side of the track.</summary>
         public double BermZ = 3.4;
         public double BermHeight = 0.85;
+        /// <summary>
+        /// Banks between the lanes beyond the first, on a map of more lanes (Rice Fields' third): where each runs (z). As
+        /// high as the first, their gaps a little along from its (BermGate, shifted by MoreBermShift each).
+        /// </summary>
+        public double[] MoreBermZ = new double[0];
+        public const double MoreBermShift = 2.1;
 
         /// <summary>Wheel ruts: depth and separation. M35 gauge — the reference's ruts are truck-made.</summary>
         public double RutDepth = 0.16;
@@ -262,9 +268,12 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>0..1 where the berm stands, cut through at crossings.</summary>
-        public double BermGate(double x)
+        public double BermGate(double x) => BermGate(x, 0);
+
+        /// <summary>The same, for the k-th bank between the lanes (0: the first, BermZ; then GroundParams.MoreBermZ's).</summary>
+        public double BermGate(double x, int k)
         {
-            double gaps = Math.Sin(x * 0.019 + _o[4]) * 0.5 + 0.5;
+            double gaps = Math.Sin(x * 0.019 + _o[4] + GroundParams.MoreBermShift * k) * 0.5 + 0.5;
             return Math.Max(0, Math.Min(1, (gaps - 0.34) * 3.2));
         }
 
@@ -288,6 +297,13 @@ namespace LanesOfVietnam.Sim
             double bermRaw = z - p.BermZ;
             double bermD = bermRaw < 0 ? bermRaw / 1.7 : bermRaw / 3.4;
             h += Math.Exp(-bermD * bermD) * p.BermHeight * BermGate(x);
+            // (And the banks between further lanes, the same shape.)
+            for (int i = 0; i < p.MoreBermZ.Length; i++)
+            {
+                double r = z - p.MoreBermZ[i];
+                double bd = r < 0 ? r / 1.7 : r / 3.4;
+                h += Math.Exp(-bd * bd) * p.BermHeight * BermGate(x, i + 1);
+            }
 
             // The track: a shallow cut with raised shoulders.
             double dz = z - TrackCentre(x);

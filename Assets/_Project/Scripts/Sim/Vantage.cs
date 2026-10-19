@@ -311,7 +311,7 @@ namespace LanesOfVietnam.Sim
                 sq.Halted = false;
                 sq.Order = sq.PlayerOrder ?? Order.Advance;
                 sq.AnchorX = post.FootX + Combat.Advance(st, sq.Side) * Tune.AnchorLeash;
-                sq.AnchorZ = Tune.Lanes[sq.Lane];
+                sq.AnchorZ = st.Lanes[sq.Lane];
                 if (st.Fieldcraft) Fieldcraft.Raised(st, sq);
             }
         }

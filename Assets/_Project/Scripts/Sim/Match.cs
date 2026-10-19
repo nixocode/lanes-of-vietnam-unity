@@ -274,7 +274,7 @@ namespace LanesOfVietnam.Sim
             var sq = new Squad
             {
                 Id = st.NextSquadId++, Side = side, Order = Order.Advance,
-                AnchorX = x, AnchorZ = Tune.Lanes[lane], Lane = lane,
+                AnchorX = x, AnchorZ = st.Lanes[lane], Lane = lane,
                 Held = 0, Target = -1, Bounding = false, PlayerOrder = null,
             };
             st.Squads.Add(sq);
@@ -288,8 +288,8 @@ namespace LanesOfVietnam.Sim
             {
                 // Draw order as the original's object literal: z, then cooldown.
                 double mx = x - dir * i * Tune.SlotGap;
-                double mz = Tune.Lanes[lane] + rng.Range(-1.2, 1.2);
-                if (st.Fieldcraft) { mx = Fieldcraft.SpawnX(x, dir, i, n); mz = Fieldcraft.SpawnZ(sq, i); }
+                double mz = st.Lanes[lane] + rng.Range(-1.2, 1.2);
+                if (st.Fieldcraft) { mx = Fieldcraft.SpawnX(x, dir, i, n); mz = Fieldcraft.SpawnZ(st, sq, i); }
                 int cd = rng.Int(0, Tune.Cooldown);
                 st.Men.Add(new Man
                 {
@@ -378,6 +378,9 @@ namespace LanesOfVietnam.Sim
             if (opts.Shootdown && opts.Inbound) st.ShootRng = rng.Fork("shootdown");
             var map = opts.Map ?? Maps.Firebase;
             (st.BankZ, st.BankHeight, st.BankPhase) = map.Bank();
+            // Its lanes, and the banks between them beyond the first (a map of three lanes has two).
+            st.Lanes = map.Lanes;
+            st.MoreBanks = map.MoreBanks();
             if (opts.Vantage) st.Posts = map.PostList();
             if (opts.Water) Water.Lay(st, map);
             if (opts.Heights) foreach (var s in map.Steps) st.Steps.Add(s);
@@ -406,7 +409,7 @@ namespace LanesOfVietnam.Sim
                 while (placed < strength)
                 {
                     double x = st.Front[(int)side] + Combat.Advance(st, side) * rng.Range(-6, 6);
-                    var sq = SpawnSquad(st, side, lane % Tune.Lanes.Length, x, rng);
+                    var sq = SpawnSquad(st, side, lane % st.Lanes.Length, x, rng);
                     placed += Squads.Roster(st, sq.Id).Count;
                     lane++;
                     // Senses: the side that opens holding opens in its positions.
@@ -422,18 +425,20 @@ namespace LanesOfVietnam.Sim
         /// A side's position in each lane, counted from its own end of the map: its last (back = 0), the one
         /// before it (1), and so on. Cover ids, a lane each; a lane with none that far back is left out.
         /// </summary>
-        public static int[] LastLine(SimState st, Side side, int back = 0) => LastLine(st.Cover, side, back, st.UsSign);
+        public static int[] LastLine(SimState st, Side side, int back = 0) => LastLine(st.Cover, side, back, st.UsSign, st.Lanes);
 
         /// <param name="usSign">Which way the Americans advance on the map (SimState.UsSign): +1 from the west.</param>
-        public static int[] LastLine(IReadOnlyList<Cover> cover, Side side, int back = 0, double usSign = 1)
+        /// <param name="lanes">The map's lanes (MapDef.Lanes): the firebase's if none are given.</param>
+        public static int[] LastLine(IReadOnlyList<Cover> cover, Side side, int back = 0, double usSign = 1, double[] lanes = null)
         {
+            lanes ??= Tune.Lanes;
             var line = new List<int>();
             double dir = (side == Side.Us ? 1 : -1) * usSign;
             var inLane = new List<Cover>();
-            for (int lane = 0; lane < Tune.Lanes.Length; lane++)
+            for (int lane = 0; lane < lanes.Length; lane++)
             {
                 inLane.Clear();
-                foreach (var c in cover) if (Math.Abs(c.Z - Tune.Lanes[lane]) <= 4.5) inLane.Add(c);
+                foreach (var c in cover) if (Math.Abs(c.Z - lanes[lane]) <= 4.5) inLane.Add(c);
                 // From the side's own end: the Americans' is the west, the least x.
                 inLane.Sort((a, b) => (a.X * dir).CompareTo(b.X * dir));
                 if (back < inLane.Count) line.Add(inLane[back].Id);
@@ -1000,7 +1005,7 @@ namespace LanesOfVietnam.Sim
                     if (st.Commander && Captain.Saving(st, side)) continue;
                     st.Cp[(int)side] -= st.MusterCost;
                     // Commander: to the lane that is shortest of men, and the squad that lane wants.
-                    int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, Tune.Lanes.Length);
+                    int lane = st.Commander ? Captain.Lane(st, side) : rng.Int(0, st.Lanes.Length);
                     double x = Combat.Advance(st, side) == 1 ? -Tune.HalfLength * 0.92 : Tune.HalfLength * 0.92;
                     var raised = SpawnSquad(st, side, lane, x, rng, card: st.Commander && st.Arms ? Captain.Raise(st, side, lane) : null);
                     // Vantage: against men up on a post, the squad brings a marksman of its own.
@@ -1316,12 +1321,12 @@ namespace LanesOfVietnam.Sim
         /// Who holds each lane, and by how much: whose front is further up it.
         /// §7's objective diamonds are coloured by this.
         /// </summary>
-        public static (Side? side, double margin)[] LaneControl(SimState st) => LaneControl(st, new (Side?, double)[Tune.Lanes.Length]);
+        public static (Side? side, double margin)[] LaneControl(SimState st) => LaneControl(st, new (Side?, double)[st.Lanes.Length]);
 
         /// <summary>The same, into an array the caller keeps: the HUD asks every frame.</summary>
         public static (Side? side, double margin)[] LaneControl(SimState st, (Side? side, double margin)[] result)
         {
-            for (int lane = 0; lane < Tune.Lanes.Length; lane++)
+            for (int lane = 0; lane < st.Lanes.Length; lane++)
             {
                 double fu = double.NegativeInfinity, fv = double.NegativeInfinity;
                 for (int i = 0; i < st.Men.Count; i++)

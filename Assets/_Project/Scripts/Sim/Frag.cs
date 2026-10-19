@@ -82,7 +82,7 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static System.Collections.Generic.List<Man> Throwers(SimState st, Side side, int lane, double x)
         {
-            double z = Tune.Lanes[lane];
+            double z = st.Lanes[lane];
             // (As far as a man throws, 20 m: not the 12 a man throws of himself under Arms, who throws at the man
             // nearest him. This is thrown where it is put.)
             double far = Tune.FragRange;
@@ -114,7 +114,7 @@ namespace LanesOfVietnam.Sim
         /// <summary>FragCard: GRENADES played at a place: the squad nearest it throws, each man once, at the place.</summary>
         public static void OnCall(SimState st, Side side, int lane, double x)
         {
-            double z = Tune.Lanes[lane];
+            double z = st.Lanes[lane];
             foreach (var a in Throwers(st, side, lane, x)) Throw(st, a, x, z, -1, st.FragRng);
         }
 

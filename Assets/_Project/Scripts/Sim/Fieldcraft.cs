@@ -112,7 +112,7 @@ namespace LanesOfVietnam.Sim
         internal static double SideOf(int number) => (number % 2 == 0 ? -1 : 1) * Tune.FileStagger;
 
         /// <summary>Where the <paramref name="number"/>th man of a new squad stands across the lane: in its file.</summary>
-        public static double SpawnZ(Squad sq, int number) => Tune.Lanes[sq.Lane] + FileZ(sq) + SideOf(number);
+        public static double SpawnZ(SimState st, Squad sq, int number) => st.Lanes[sq.Lane] + FileZ(sq) + SideOf(number);
 
         /// <summary>
         /// Where he stands along it: closed up behind the lead man, and all of
@@ -473,7 +473,7 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Men[i];
                 if (!e.Alive || e.Side == sq.Side || !(st.Senses ? Senses.Remembers(st, sq, e.Squad) : e.Seen)) continue;
-                if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
+                if (Math.Abs(e.Z - st.Lanes[sq.Lane]) > 6.5) continue;
                 double ahead = (e.X - sq.AnchorX) * dir;
                 if (ahead >= 0 && ahead < near) near = ahead;
             }
@@ -496,7 +496,7 @@ namespace LanesOfVietnam.Sim
             {
                 var c = st.Cover[i];
                 if (!IsPosition(c) || LeverOf(c, sq.Side) != Lever.Hold) continue;
-                if (Math.Abs(c.Z - Tune.Lanes[sq.Lane]) > 4.5) continue;
+                if (Math.Abs(c.Z - st.Lanes[sq.Lane]) > 4.5) continue;
                 double ahead = (StopX(c, dir) - sq.AnchorX) * dir;
                 if (ahead < -0.6 || ahead >= bestAhead) continue;
                 if (sq.Target != c.Id && FreePlaces(st, c, sq.Side) == 0) continue;
@@ -564,7 +564,7 @@ namespace LanesOfVietnam.Sim
                 {
                     var e = st.Men[i];
                     if (!e.Alive || e.Side == sq.Side || !(st.Senses ? Senses.Remembers(st, sq, e.Squad) : e.Seen)) continue;
-                    if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5)
+                    if (Math.Abs(e.Z - st.Lanes[sq.Lane]) > 6.5)
                     {
                         // Senses: the squad it is fighting is in the other lane. It comes up level with it,
                         // as near along the lane as its weapons want across it, and does not walk on past.
@@ -695,7 +695,7 @@ namespace LanesOfVietnam.Sim
                 if (d2 >= best2) continue;
                 double half = Tune.ChargeRange * 0.5;
                 if (goingIn && d2 > Tune.ChargeRange * Tune.ChargeRange
-                    && (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5 || !Senses.Remembers(st, sq, e.Squad))) continue;
+                    && (Math.Abs(e.Z - st.Lanes[sq.Lane]) > 6.5 || !Senses.Remembers(st, sq, e.Squad))) continue;
                 if (!goingIn && d2 > half * half && (!e.Seen || Combat.SmokeBlocks(st, m.X, m.Z, e.X, e.Z))) continue;
                 best = e; best2 = d2;
             }

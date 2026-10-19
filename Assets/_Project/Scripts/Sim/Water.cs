@@ -158,7 +158,7 @@ namespace LanesOfVietnam.Sim
                 if (b.Builder != by.Id)
                 {
                     b.Builder = by.Id;
-                    st.Events.Add(new SimEvent { Kind = EventKind.BridgeWork, Tick = st.Tick, Side = by.Side, Id = b.Id, Target = by.Id, X = (b.X0 + b.X1) * 0.5, Z = Tune.Lanes[b.Lane] });
+                    st.Events.Add(new SimEvent { Kind = EventKind.BridgeWork, Tick = st.Tick, Side = by.Side, Id = b.Id, Target = by.Id, X = (b.X0 + b.X1) * 0.5, Z = st.Lanes[b.Lane] });
                 }
                 // Under fire, the work stops: it goes on only while the squad's men are, on the whole, not pinned.
                 double pin = 0;
@@ -176,7 +176,7 @@ namespace LanesOfVietnam.Sim
                 b.Work = 0;
                 b.Builder = -1;
                 b.Strength = Tune.BridgeStrength * Tune.BridgeRebuilt;
-                st.Events.Add(new SimEvent { Kind = EventKind.BridgeRebuilt, Tick = st.Tick, Side = by.Side, Id = b.Id, Target = by.Id, X = (b.X0 + b.X1) * 0.5, Z = Tune.Lanes[b.Lane], Amount = b.Strength });
+                st.Events.Add(new SimEvent { Kind = EventKind.BridgeRebuilt, Tick = st.Tick, Side = by.Side, Id = b.Id, Target = by.Id, X = (b.X0 + b.X1) * 0.5, Z = st.Lanes[b.Lane], Amount = b.Strength });
             }
         }
 
@@ -189,7 +189,7 @@ namespace LanesOfVietnam.Sim
                 var b = st.Bridges[i];
                 if (b.Fallen) continue;
                 // From the nearest point of its deck.
-                double nx = Math.Max(b.X0, Math.Min(b.X1, x)), d = JsMath.Hypot(x - nx, z - Tune.Lanes[b.Lane]);
+                double nx = Math.Max(b.X0, Math.Min(b.X1, x)), d = JsMath.Hypot(x - nx, z - st.Lanes[b.Lane]);
                 if (d >= Tune.BridgeHitRadius) continue;
                 b.Strength -= power * (1 - d / Tune.BridgeHitRadius);
                 st.Events.Add(new SimEvent { Kind = EventKind.BridgeHit, Tick = st.Tick, Id = b.Id, X = x, Z = z, Amount = Math.Max(0, b.Strength) });
@@ -206,7 +206,7 @@ namespace LanesOfVietnam.Sim
                 var b = st.Bridges[i];
                 if (b.Fallen) continue;
                 double nx = Math.Max(b.X0, Math.Min(b.X1, x));
-                if (JsMath.Hypot(x - nx, z - Tune.Lanes[b.Lane]) > reach) continue;
+                if (JsMath.Hypot(x - nx, z - st.Lanes[b.Lane]) > reach) continue;
                 b.Strength = 0;
                 st.Events.Add(new SimEvent { Kind = EventKind.BridgeHit, Tick = st.Tick, Id = b.Id, X = x, Z = z, Amount = 0 });
                 Fall(st, b);
@@ -222,7 +222,7 @@ namespace LanesOfVietnam.Sim
             b.Work = 0;
             b.Builder = -1;
             int seed = (int)(rng.Next() * 1000000);
-            st.Events.Add(new SimEvent { Kind = EventKind.BridgeFell, Tick = st.Tick, Id = b.Id, X = (b.X0 + b.X1) * 0.5, Z = Tune.Lanes[b.Lane], Rounds = seed });
+            st.Events.Add(new SimEvent { Kind = EventKind.BridgeFell, Tick = st.Tick, Id = b.Id, X = (b.X0 + b.X1) * 0.5, Z = st.Lanes[b.Lane], Rounds = seed });
             for (int i = 0; i < st.Men.Count; i++)
             {
                 var m = st.Men[i];
@@ -244,7 +244,7 @@ namespace LanesOfVietnam.Sim
             {
                 var b = st.Bridges[i];
                 if (b.Fallen || b.Lane != lane) continue;
-                double z = Tune.Lanes[lane];
+                double z = st.Lanes[lane];
                 if (JsMath.Hypot(Math.Max(b.X0, Math.Min(b.X1, a.X)) - a.X, z - a.Z) > Tune.SatchelReach) continue;
                 Man at = null;
                 bool ours = false;

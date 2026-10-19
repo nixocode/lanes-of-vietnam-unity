@@ -55,6 +55,8 @@ namespace LanesOfVietnam.Sim
         /// track itself is not a lane; it is where crossing happens.
         /// </summary>
         public static readonly double[] Lanes = { 7.0, -6.0 };
+        /// <summary>The most lanes a map may have (MapDef.Lanes): the lane index's stride.</summary>
+        public const int MaxLanes = 4;
 
         // --- squads ----------------------------------------------------------
 

@@ -262,7 +262,7 @@ namespace LanesOfVietnam.Sim
         public double AnchorX;
         public double AnchorZ;
 
-        /// <summary>Which lane this squad works. Index into <see cref="Tune.Lanes"/>.</summary>
+        /// <summary>Which lane this squad works. Index into <see cref="SimState.Lanes"/>.</summary>
         public int Lane;
 
         /// <summary>Ticks since the squad last changed cover.</summary>
@@ -584,6 +584,10 @@ namespace LanesOfVietnam.Sim
         public bool Vantage;
         /// <summary>The bank between the lanes on the map this match is played on: where it runs, how high, where its gaps fall (<see cref="MapDef.Bank"/>).</summary>
         public double BankZ, BankHeight, BankPhase;
+        /// <summary>The banks between its lanes beyond the first (<see cref="MapDef.MoreBanks"/>): a map of three lanes has two banks.</summary>
+        public (double Z, double Height, double Phase)[] MoreBanks = new (double, double, double)[0];
+        /// <summary>Where each of its lanes runs across the map (z): the map's own (<see cref="MapDef.Lanes"/>; the firebase's two, Tune.Lanes).</summary>
+        public double[] Lanes = Tune.Lanes;
         /// <summary>Which way the Americans advance along x: +1, from the west (the firebase); -1, from the east (MapDef.UsEast).</summary>
         public double UsSign = 1;
         /// <summary>Part 2 rule: a squad keeps together and makes up its mind (<see cref="Sim.Cohesion"/>). Off is the baseline.</summary>

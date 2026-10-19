@@ -56,7 +56,7 @@ namespace LanesOfVietnam.Sim
             var rng = st.ShootRng;
             double dir = Combat.Advance(st, a.Side);
             double cx = a.X - dir * (4 + 14 * rng.Next()), cz = a.Z + (rng.Next() - 0.5) * 16;
-            cz = Math.Max(Tune.Lanes[1] - 8, Math.Min(Tune.Lanes[0] + 8, cz));
+            cz = Math.Max(Combat.LaneMin(st) - 8, Math.Min(Combat.LaneMax(st) + 8, cz));
             int seed = (int)(rng.Next() * 1000000);
             st.Events.Add(new SimEvent { Kind = EventKind.ShotDown, Tick = st.Tick, Side = a.Side, Id = by.Id, Target = a.Id, X = cx, Z = cz, Amount = Tune.CrashTicks, Rounds = seed });
             // It does not come in: where it comes down is a burst waiting to happen.

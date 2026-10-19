@@ -741,7 +741,8 @@ namespace LanesOfVietnam.SimCs
                                         if (!man.Alive || man.Side != side || man.Grenades <= 0 || man.High > 0) continue;
                                         var at = Frag.PickTarget(m.State, man);
                                         if (at == null) continue;
-                                        int l = Math.Abs(at.Z - Tune.Lanes[0]) < Math.Abs(at.Z - Tune.Lanes[1]) ? 0 : 1;
+                                        int l = 0;
+                                        for (int k = 1; k < m.State.Lanes.Length; k++) if (Math.Abs(at.Z - m.State.Lanes[k]) < Math.Abs(at.Z - m.State.Lanes[l])) l = k;
                                         m.Issue(Command.Buy(side, frag.Id, l, at.X));
                                         break;
                                     }
@@ -857,9 +858,9 @@ namespace LanesOfVietnam.SimCs
         {
             var map = Maps.ById(a.Length > 1 ? a[1] : "ricefields") ?? Maps.RiceFields;
             var g = map.Ground();
-            for (int lane = 0; lane < Tune.Lanes.Length; lane++)
+            for (int lane = 0; lane < map.Lanes.Length; lane++)
             {
-                double z = Tune.Lanes[lane];
+                double z = map.Lanes[lane];
                 double swim0 = double.NaN, swim1 = double.NaN;
                 Console.WriteLine($"  lane {lane} (z {z}):");
                 for (double x = -Tune.HalfLength; x <= Tune.HalfLength; x += 0.25)
@@ -1024,7 +1025,7 @@ namespace LanesOfVietnam.SimCs
                         }
                         if (st.Over && fires.Count > 0 && st.Winner == Side.Us) forestWon++;
                         foreach (var sq in st.Squads)
-                            if (sq.Halted && st.Areas.Any(ar => ar.Kind == AreaKind.Napalm && Math.Abs(Tune.Lanes[sq.Lane] - ar.Z) < Tune.NapalmWide && Math.Abs(sq.AnchorX - ar.X) <= ar.Radius + Tune.NapalmShort + 0.01 && Math.Abs(sq.AnchorX - ar.X) >= ar.Radius)) held += Tune.Dt;
+                            if (sq.Halted && st.Areas.Any(ar => ar.Kind == AreaKind.Napalm && Math.Abs(st.Lanes[sq.Lane] - ar.Z) < Tune.NapalmWide && Math.Abs(sq.AnchorX - ar.X) <= ar.Radius + Tune.NapalmShort + 0.01 && Math.Abs(sq.AnchorX - ar.X) >= ar.Radius)) held += Tune.Dt;
                     }
                 }
                 double n = seeds;
@@ -1298,7 +1299,7 @@ namespace LanesOfVietnam.SimCs
                             }
                             if (st.Phase == Phase.Fight && p.Cover < 0 && p.Pin < Tune.PinDrop && still.GetValueOrDefault(seed * 100000 + p.Id) >= 20)
                             {
-                                bool room = st.Cover.Any(c => Math.Abs(c.Z - Tune.Lanes[st.Squads[ai].Lane]) <= 4.5
+                                bool room = st.Cover.Any(c => Math.Abs(c.Z - st.Lanes[st.Squads[ai].Lane]) <= 4.5
                                     && Math.Max(0, Math.Abs(p.X - c.X) - c.Length * 0.5) <= 12
                                     && st.Men.Count(o => o.Alive && o.Cover == c.Id) < c.Capacity);
                                 var q = st.Squads[ai];
@@ -2101,7 +2102,7 @@ namespace LanesOfVietnam.SimCs
                                 Cover by = null;
                                 foreach (var c in st.Cover)
                                 {
-                                    if (Math.Abs(c.Z - Tune.Lanes[sq.Lane]) > 4.5) continue;
+                                    if (Math.Abs(c.Z - st.Lanes[sq.Lane]) > 4.5) continue;
                                     if (Math.Max(0, Math.Abs(p.X - c.X) - c.Length * 0.5) > 4) continue;
                                     if (st.Men.Count(o => o.Alive && o.Cover == c.Id) >= c.Capacity) continue;
                                     if (st.Men.Any(o => o.Alive && o.Side != p.Side && o.Cover == c.Id)) continue;
@@ -2383,7 +2384,7 @@ namespace LanesOfVietnam.SimCs
                         {
                             going[si] = (st.Tick, live.Count, sq.Threat, Alive(sq.Threat));
                             FireControl.Front(st, sq, out int en, out int dn, out bool gu);
-                            double gap = st.Men.Where(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5).Select(e => live.Min(p => Combat.Dist(p, e))).DefaultIfEmpty(99).Min();
+                            double gap = st.Men.Where(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - st.Lanes[sq.Lane]) <= 6.5).Select(e => live.Min(p => Combat.Dist(p, e))).DefaultIfEmpty(99).Min();
                             began[si] = $"{(en == 0 ? "nobody in front" : live.Count >= 3 * en ? "three to one or more" : live.Count >= 2 * en ? "two to one" : live.Count >= en ? "even to two to one" : "outnumbered"),-22} {(en == 0 ? "" : dn * 3 >= en * 2 ? "two in three down" : dn * 3 >= en ? "a third down" : "few down"),-18} {(gu ? "a gun up" : ""),-9} {(gap < 8 ? "under 8 m" : gap < 14 ? "8 to 14 m" : "over 14 m")}";
                         }
                         else if (!goingIn && going.TryGetValue(si, out var g))
@@ -2401,7 +2402,7 @@ namespace LanesOfVietnam.SimCs
                                             : st.Tick - g.tick < Tune.AssaultMax ? "told to hold where it was"
                                             : Alive(g.threat) * 2 > live.Count * 4 ? "it was outnumbered two to one"
                                             : st.Men.Any(e => e.Alive && e.Side != sq.Side && (e.Weapon == Weapon.M60 || e.Weapon == Weapon.Rpd) && e.Pin < Tune.PinDrop && Math.Abs(e.X - sq.AnchorX) <= Tune.AssaultReach && st.Squads[e.Squad].Lane == sq.Lane) ? "a machine gun was up in front of it"
-                                            : !st.Men.Any(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - Tune.Lanes[sq.Lane]) <= 6.5 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) >= 0 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) <= Tune.AssaultReach && Senses.Remembers(st, sq, e.Squad)) ? "nobody left in front of it"
+                                            : !st.Men.Any(e => e.Alive && e.Side != sq.Side && Math.Abs(e.Z - st.Lanes[sq.Lane]) <= 6.5 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) >= 0 && (e.X - sq.AnchorX) * Combat.Advance(st, sq.Side) <= Tune.AssaultReach && Senses.Remembers(st, sq, e.Squad)) ? "nobody left in front of it"
                                             : "stopped short of him, its own heads going down")
                                        : $"back to a {sq.Task.ToString().ToLower()}";
                             assaultEnd[end] = assaultEnd.GetValueOrDefault(end) + 1;

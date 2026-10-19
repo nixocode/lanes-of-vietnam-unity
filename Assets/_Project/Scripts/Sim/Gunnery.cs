@@ -98,8 +98,15 @@ namespace LanesOfVietnam.Sim
         /// </summary>
         public static bool Sightline(Man a, Man b) => Sightline(BankZ, BankHeight, BankPhase, a, b);
 
-        /// <summary>The same, over the bank of the map the match is played on (PLAN §12.27, S1: the map as data).</summary>
-        public static bool Sightline(SimState st, Man a, Man b) => Sightline(st.BankZ, st.BankHeight, st.BankPhase, a, b);
+        /// <summary>The same, over the bank of the map the match is played on (PLAN §12.27, S1: the map as data), and
+        /// over each of its other banks, on a map of more lanes: the line has to clear every one it crosses.</summary>
+        public static bool Sightline(SimState st, Man a, Man b)
+        {
+            if (!Sightline(st.BankZ, st.BankHeight, st.BankPhase, a, b)) return false;
+            for (int i = 0; i < st.MoreBanks.Length; i++)
+                if (!Sightline(st.MoreBanks[i].Z, st.MoreBanks[i].Height, st.MoreBanks[i].Phase, a, b)) return false;
+            return true;
+        }
 
         /// <summary>The bank's height at x on the match's own map.</summary>
         public static double Bank(SimState st, double x) => Bank(st.BankHeight, st.BankPhase, x);

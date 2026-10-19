@@ -193,7 +193,7 @@ namespace LanesOfVietnam.Sim
             {
                 var e = st.Men[i];
                 if (!e.Alive || e.Side == sq.Side || !Senses.Remembers(st, sq, e.Squad)) continue;
-                if (Math.Abs(e.Z - Tune.Lanes[sq.Lane]) > 6.5) continue;
+                if (Math.Abs(e.Z - st.Lanes[sq.Lane]) > 6.5) continue;
                 double ahead = (e.X - sq.AnchorX) * dir;
                 if (ahead < 0 || ahead > Tune.AssaultReach) continue;
                 enemies++;

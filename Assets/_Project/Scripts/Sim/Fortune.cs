@@ -65,7 +65,7 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>The lane the match opens in: the near one without the rule.</summary>
-        public static int OpeningLane(SimState st) => st.Fortune ? st.LuckRng.Int(0, Tune.Lanes.Length) : 0;
+        public static int OpeningLane(SimState st) => st.Fortune ? st.LuckRng.Int(0, st.Lanes.Length) : 0;
 
         /// <summary>Which of its list a side raises as its <paramref name="n"/>th squad: in order without the rule; with it, the first as listed and the rest drawn.</summary>
         public static int Raised(SimState st, int n, int length)

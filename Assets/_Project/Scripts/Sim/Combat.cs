@@ -391,12 +391,16 @@ namespace LanesOfVietnam.Sim
                 for (int i = 0; i < n; i++) Firing[i] = new List<int>(4);
             }
 
-            internal static int Key(Side side, int lane) => (int)side * Tune.Lanes.Length + lane;
+            internal static int Key(Side side, int lane) => (int)side * Tune.MaxLanes + lane;
         }
+
+        /// <summary>The lanes' extremes in z: the furthest from the lens, the nearest.</summary>
+        public static double LaneMin(SimState st) { double v = double.PositiveInfinity; foreach (var z in st.Lanes) v = Math.Min(v, z); return v; }
+        public static double LaneMax(SimState st) { double v = double.NegativeInfinity; foreach (var z in st.Lanes) v = Math.Max(v, z); return v; }
 
         public static LaneIndex BuildLaneIndex(SimState st)
         {
-            var ix = new LaneIndex(Tune.Lanes.Length);
+            var ix = new LaneIndex(Tune.MaxLanes);
             // Squad ids are list indices; see SimState.NextSquadId.
             for (int i = 0; i < st.Men.Count; i++)
             {
@@ -472,7 +476,7 @@ namespace LanesOfVietnam.Sim
             for (int ci = 0; ci < st.Cover.Count; ci++)
             {
                 var c = st.Cover[ci];
-                if (Math.Abs(c.Z - Tune.Lanes[lane]) > 4.5) continue;
+                if (Math.Abs(c.Z - st.Lanes[lane]) > 4.5) continue;
                 // Fieldcraft: a position its side's lever has on Go is passed through, not stopped in.
                 if (sentBy.HasValue && Fieldcraft.IsPosition(c) && Fieldcraft.LeverOf(c, sentBy.Value) == Lever.Go) continue;
                 double ahead = (c.X - fromX) * dir;

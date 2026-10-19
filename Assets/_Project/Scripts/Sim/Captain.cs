@@ -164,7 +164,7 @@ namespace LanesOfVietnam.Sim
             Know(st, side);
             int best = -1, ties = 0;
             LaneView bv = default;
-            for (int l = 0; l < Tune.Lanes.Length; l++)
+            for (int l = 0; l < st.Lanes.Length; l++)
             {
                 var v = See(st, side, l);
                 bool better = best < 0 || v.Short > bv.Short || (v.Short == bv.Short && v.Own < bv.Own);
@@ -219,7 +219,7 @@ namespace LanesOfVietnam.Sim
         {
             if ((st.Tick + (int)side * Tune.CommandEvery / 2) % Tune.CommandEvery != 0) return false;
             Know(st, side);
-            var lanes = new LaneView[Tune.Lanes.Length];
+            var lanes = new LaneView[st.Lanes.Length];
             for (int l = 0; l < lanes.Length; l++) lanes[l] = See(st, side, l);
             if (st.Fieldcraft && plan.UseCover) Levers(st, side, plan, lanes);
             if (st.Phase != Phase.Fight) return false;
@@ -289,7 +289,7 @@ namespace LanesOfVietnam.Sim
                 var c = st.Cover[ci];
                 if (!Fieldcraft.IsPosition(c)) continue;
                 int lane = -1;
-                for (int l = 0; l < Tune.Lanes.Length; l++) if (Math.Abs(c.Z - Tune.Lanes[l]) <= 4.5) { lane = l; break; }
+                for (int l = 0; l < st.Lanes.Length; l++) if (Math.Abs(c.Z - st.Lanes[l]) <= 4.5) { lane = l; break; }
                 if (lane < 0) continue;
                 var was = Fieldcraft.LeverOf(c, side);
                 Squad held = null;
@@ -397,7 +397,7 @@ namespace LanesOfVietnam.Sim
             var smoke = Deck.Find(side, "us-smoke");
             // (Soldiering: and over a crossing a squad of its own is waiting at, the enemy covering it.)
             if (st.Soldiering && Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost) && Soldiering.Crossing(st, side, out double cx, out int cl)
-                && !Smoked(st, cx, Tune.Lanes[cl]))
+                && !Smoked(st, cx, st.Lanes[cl]))
             { Deck.Buy(st, side, smoke, cl, rng, cx); return false; }
             if (Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost))
                 for (int si = 0; si < st.Squads.Count; si++)
@@ -416,7 +416,7 @@ namespace LanesOfVietnam.Sim
                     }
                     if (men < 2 || pin / men < Tune.PinStop || open * 2 < men) continue;
                     double at = lead * dir + dir * sq.ThreatGap * 0.5;
-                    if (Smoked(st, at, Tune.Lanes[sq.Lane])) continue;
+                    if (Smoked(st, at, st.Lanes[sq.Lane])) continue;
                     Deck.Buy(st, side, smoke, sq.Lane, rng, at);
                     return false;
                 }
@@ -472,7 +472,7 @@ namespace LanesOfVietnam.Sim
                     men++; lead = Math.Max(lead, m.X * theirs);
                 }
                 if (men == 0) continue;
-                double at = lead * theirs + theirs * Tune.TrapAhead, z = Tune.Lanes[foe.Lane];
+                double at = lead * theirs + theirs * Tune.TrapAhead, z = st.Lanes[foe.Lane];
                 if (Math.Abs(at) > Tune.HalfLength - 4) continue;
                 bool near = false;
                 for (int i = 0; i < st.Areas.Count && !near; i++)
