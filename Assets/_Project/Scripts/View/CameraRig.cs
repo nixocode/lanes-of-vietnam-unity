@@ -227,7 +227,7 @@ namespace LanesOfVietnam.View
             ZoomBy(amount);
             if (px < 0 || py < 0) return;
             float aspect = Camera != null ? Camera.aspect : 16f / 9f;
-            float Width(float d) => 2f * (Coords.Camera.SimZ - d * DollyRange - (float)Tune.Lanes[0])
+            float Width(float d) => 2f * (Coords.Camera.SimZ - d * DollyRange - (float)Coords.Lanes[0])
                                     * Mathf.Tan(Mathf.Lerp(Coords.Camera.Fov, ZoomFov, d) * 0.5f * Mathf.Deg2Rad) * aspect;
             _targetX = Mathf.Clamp(_targetX + (px - 0.5f) * (Width(before) - Width(_targetDolly)), -PanLimit, PanLimit);
             _targetAimUp += (py - 0.5f) * (Mathf.Lerp(Coords.Camera.Fov, ZoomFov, before) - Mathf.Lerp(Coords.Camera.Fov, ZoomFov, _targetDolly));
@@ -250,7 +250,7 @@ namespace LanesOfVietnam.View
         /// <summary>Metres a screen pixel spans at the near lane's distance, through the lens as it is now.</summary>
         public float MetresPerPixel()
         {
-            float dist = Coords.Camera.SimZ - Dolly * DollyRange - (float)Tune.Lanes[0];
+            float dist = Coords.Camera.SimZ - Dolly * DollyRange - (float)Coords.Lanes[0];
             float fov = Camera != null ? Camera.fieldOfView : Coords.Camera.Fov;
             return 2f * dist * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) / Mathf.Max(1, Screen.height);
         }
@@ -261,9 +261,9 @@ namespace LanesOfVietnam.View
         public void AimGlasses(Vector2 viewport)
             => _glassesAim = new Vector2(Mathf.Clamp(viewport.x - 0.5f, -0.5f, 0.5f), Mathf.Clamp(viewport.y - 0.5f, -0.5f, 0.5f));
 
-        /// <summary>A man's chest between the two lanes: what the zoom keeps in frame.</summary>
+        /// <summary>A man's chest between the near and the far lanes: what the zoom keeps in frame (a third lane behind them is higher in it).</summary>
         private const float AnchorY = 1.0f;
-        private static float AnchorSimZ => (float)(Tune.Lanes[0] + Tune.Lanes[1]) * 0.5f;
+        private static float AnchorSimZ => (float)(Coords.Lanes[0] + Coords.Lanes[1]) * 0.5f;
 
         /// <summary>Degrees below the horizontal, from a camera at this depth, to the lanes' anchor.</summary>
         private static float AnchorDrop(float camSimZ)

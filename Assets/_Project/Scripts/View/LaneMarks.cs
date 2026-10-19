@@ -78,9 +78,9 @@ namespace LanesOfVietnam.View
             foreach (Transform c in transform) Destroy(c.gameObject);
             _ground = g;
             _mpb = new MaterialPropertyBlock();
-            _ribbons = new MeshRenderer[Tune.Lanes.Length];
-            _lit = new float[Tune.Lanes.Length];
-            for (int lane = 0; lane < Tune.Lanes.Length; lane++) _ribbons[lane] = Make($"lane {lane} ribbon", Ribbon(g, Tune.Lanes[lane]));
+            _ribbons = new MeshRenderer[Coords.Lanes.Length];
+            _lit = new float[Coords.Lanes.Length];
+            for (int lane = 0; lane < Coords.Lanes.Length; lane++) _ribbons[lane] = Make($"lane {lane} ribbon", Ribbon(g, Coords.Lanes[lane]));
 
             _discMesh = new Mesh { name = "call-in disc" };
             _discMesh.MarkDynamic();
@@ -193,7 +193,7 @@ namespace LanesOfVietnam.View
                 _disc.enabled = _beam.enabled = _caret.enabled = false;
                 return;
             }
-            double laneZ = Tune.Lanes[lane];
+            double laneZ = Coords.Lanes[lane];
             if (radius > 0)
             {
                 PlaceDisc(g, x, laneZ, radius);

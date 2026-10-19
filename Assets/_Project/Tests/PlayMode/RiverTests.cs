@@ -66,20 +66,24 @@ namespace LanesOfVietnam.Tests
             var g = root.Ground;
             float lowest = 1f, highest = 0f;
             string worstLow = "", worstHigh = "";
+            // (Three lanes since W2: the near lane's feet over the cards, the back lane's heads under the top bar.)
+            var lanes = root.Driver.State.Lanes;
+            Assert.AreEqual(3, lanes.Length, "Rice Fields has its third lane");
+            double nearZ = lanes[0], backZ = lanes[lanes.Length - 1];
             for (float x = -44; x <= 44; x += 4)
             {
                 root.CameraRig.Focus(x, instant: true);
                 yield return null;
                 for (double dx = -14; dx <= 14; dx += 2)
                 {
-                    // The near lane's men's feet, and the far lane's men's heads (a man is 1.5 m at the game's size).
-                    var feet = cam.WorldToViewportPoint(Coords.World(x + dx, Tune.Lanes[0], (float)g.SurfaceAt(x + dx, Tune.Lanes[0])));
-                    var head = cam.WorldToViewportPoint(Coords.World(x + dx, Tune.Lanes[1], (float)g.SurfaceAt(x + dx, Tune.Lanes[1]) + 1.5f));
+                    // The near lane's men's feet, and the back lane's men's heads (a man is 1.5 m at the game's size).
+                    var feet = cam.WorldToViewportPoint(Coords.World(x + dx, nearZ, (float)g.SurfaceAt(x + dx, nearZ)));
+                    var head = cam.WorldToViewportPoint(Coords.World(x + dx, backZ, (float)g.SurfaceAt(x + dx, backZ) + 1.5f));
                     if (feet.z > 0 && feet.x > 0.03f && feet.x < 0.97f && feet.y - floor < lowest) { lowest = feet.y - floor; worstLow = $"the near lane at x {x + dx:F0} (camera at {x:F0})"; }
                     if (head.z > 0 && head.x > 0.03f && head.x < 0.97f)
                     {
                         float roof = head.x >= stripL && head.x <= stripR ? Mathf.Min(ceiling, stripFloor) : ceiling;
-                        if (roof - head.y < 1f - highest) { highest = 1f - (roof - head.y); worstHigh = $"the far lane at x {x + dx:F0} (camera at {x:F0})"; }
+                        if (roof - head.y < 1f - highest) { highest = 1f - (roof - head.y); worstHigh = $"the back lane at x {x + dx:F0} (camera at {x:F0})"; }
                     }
                 }
             }
@@ -139,7 +143,7 @@ namespace LanesOfVietnam.Tests
             var roof = d.Tower.GetComponentsInChildren<Renderer>().FirstOrDefault(r => r.name.StartsWith("tower_roof"));
             Assert.IsNotNull(roof, "no roof by the tower's own name");
             Assert.AreSame(d.Structures.Lowlands, roof.sharedMaterial, "its roof is not the lowlands' thatch");
-            Assert.AreEqual(5, d.LowlandThings, "not its four sluice gates and its cart");
+            Assert.AreEqual(6, d.LowlandThings, "not its five sluice gates (one beside the back lane, W2) and its cart");
         }
 
         /// <summary>
@@ -176,7 +180,7 @@ namespace LanesOfVietnam.Tests
             var g = root.Ground;
             root.Paused = true;
             yield return null;
-            Assert.IsTrue(st.Water && st.Bridges.Count == 1, "the match has no bridge");
+            Assert.IsTrue(st.Water && st.Bridges.Count == 2, "the match has not its two bridges");
             var d = g.Decks[0];
             double mid = (d.X0 + d.X1) * 0.5;
             Assert.Greater(g.FootAt(mid, d.Z) - g.Params.RiverWater, 2.0, "the deck does not stand clear over the water");

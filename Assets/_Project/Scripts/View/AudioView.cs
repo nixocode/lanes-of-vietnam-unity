@@ -674,7 +674,7 @@ namespace LanesOfVietnam.View
                 if (!working || now < _knockAt[i]) continue;
                 _knockAt[i] = now + Range(0.5f, 1.3f);
                 double end = Combat.Advance(st, b.Builder >= 0 && b.Builder < st.Squads.Count ? st.Squads[b.Builder].Side : Side.Us) > 0 ? b.X0 : b.X1;
-                Play(Pick("timber_knock"), end, Tune.Lanes[b.Lane] + Range(-1, 1), 0.45f, Range(1.2f, 1.45f), false);
+                Play(Pick("timber_knock"), end, Coords.Lanes[b.Lane] + Range(-1, 1), 0.45f, Range(1.2f, 1.45f), false);
             }
         }
 

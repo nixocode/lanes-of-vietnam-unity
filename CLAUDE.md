@@ -115,6 +115,11 @@ and say so:
   map=ricefields` 5687 `2710823986u`; `scenario hash 1` (with the operations' new wills, Scenario.cs): the firebase 5081
   `839800063u`; The Wire 4669 `1669970029u`; First Light 5648 `582254779u`; The Earth Fights 8463 `270294147u`;
   rice-fields 4095 `3543735617u`. `simcs follow` (a man or a squad tick by tick); `simcs scenario ... nosoldiering`.
+- On `lanes` (W2: a map's lanes are its own, `MapDef.Lanes` → `SimState.Lanes`, and the banks between them; Rice Fields'
+  third lane, behind the far one, over a second bridge; every line above with the firebase or its four operations is
+  unmoved): `scenario hash 1` rice-fields 5035 `3595252491u` (without Soldiering, `scenario rice-fields hash 1
+  nosoldiering`, 2566 `11572162u`); `hash 1 ... shootdown water heights map=ricefields` 4146 `4094085984u`; with `strike
+  soldiering` as well 2724 `4191710836u`. `simcs mirror 12 rice-fields`: a mirror throughout 12/12.
 
 ## Rules this project keeps
 

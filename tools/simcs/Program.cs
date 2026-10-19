@@ -674,7 +674,10 @@ namespace LanesOfVietnam.SimCs
                 foreach (var listed in Scenarios.All)
                 {
                     if (only != null && listed.Id != only) continue;
-                    var m = new LiveMatch(listed.Options(seed, null, Difficulty.Veteran));
+                    var ho = listed.Options(seed, null, Difficulty.Veteran);
+                    // (`nosoldiering`: as the game played before MatchOptions.Soldiering.)
+                    if (a.Contains("nosoldiering")) ho.Soldiering = false;
+                    var m = new LiveMatch(ho);
                     var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
                     while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
                     Console.WriteLine($"  {listed.Id} seed {seed}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[h.Count - 1]}u");

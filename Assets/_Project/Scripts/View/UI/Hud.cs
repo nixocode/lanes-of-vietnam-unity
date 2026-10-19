@@ -72,7 +72,7 @@ namespace LanesOfVietnam.View.UI
         private int _stripTick = -1, _cpShown = int.MinValue;
         /// <summary>Ticks between drawings of the tactical strip's pips: four a second.</summary>
         public const int StripEvery = 5;
-        private readonly (Side? side, double margin)[] _control = new (Side?, double)[Tune.Lanes.Length];
+        private readonly (Side? side, double margin)[] _control = new (Side?, double)[Tune.MaxLanes];
         private float _speedShown = -1f;
         private (Card armed, bool target, int lane, Card hovered) _hintFor;
         private (Card armed, int lane) _aimFor;
@@ -159,7 +159,8 @@ namespace LanesOfVietnam.View.UI
 
             var centre = new VisualElement(); centre.AddToClassList("centre");
             var diamonds = new VisualElement(); diamonds.AddToClassList("diamonds");
-            for (int lane = 0; lane < Tune.Lanes.Length; lane++)
+            // (As many as a map may have lanes; those past the match's own are hidden, RefreshLanes.)
+            for (int lane = 0; lane < Tune.MaxLanes; lane++)
             {
                 var d = new VisualElement { name = $"diamond-{lane}" };
                 d.AddToClassList("diamond");
@@ -206,11 +207,11 @@ namespace LanesOfVietnam.View.UI
             // The lane selector's tags: one a lane, at the left of the picture at its lane's height,
             // shown while a card is in hand. The lit one is where the card goes; a click on the other
             // (or the up and down keys) takes it.
-            LaneTags = new Button[Tune.Lanes.Length];
+            LaneTags = new Button[Tune.MaxLanes];
             for (int lane = 0; lane < LaneTags.Length; lane++)
             {
                 int which = lane;
-                var tag = new Button(() => Deployer.Choose(which)) { name = $"lane-tag-{lane}", text = lane == 0 ? "NEAR LANE  ↓" : "FAR LANE  ↑" };
+                var tag = new Button(() => Deployer.Choose(which)) { name = $"lane-tag-{lane}", text = LaneName(lane, 2) };
                 tag.AddToClassList("lane-tag");
                 tag.style.display = DisplayStyle.None;
                 // Moved by a transform (as the plates and the squad tags are): no layout when the camera moves.
@@ -382,6 +383,10 @@ namespace LanesOfVietnam.View.UI
             for (int i = 0; i < Diamonds.Count && i < control.Length; i++)
             {
                 var d = Diamonds[i];
+                // (Only as many as the match has lanes.)
+                var shown = i < st.Lanes.Length ? DisplayStyle.Flex : DisplayStyle.None;
+                if (d.style.display != shown) d.style.display = shown;
+                if (i >= st.Lanes.Length) { d.EnableInClassList("us", false); d.EnableInClassList("vc", false); continue; }
                 d.EnableInClassList("us", control[i].side == Side.Us);
                 d.EnableInClassList("vc", control[i].side == Side.Vc);
                 // In twentieths: a diamond a hair brighter is not worth drawing again.
@@ -407,7 +412,7 @@ namespace LanesOfVietnam.View.UI
             Strip.State = st;
             Strip.CameraX = Root.CameraRig.X;
             var cam = Root.CameraRig.Camera;
-            float dist = Coords.Camera.SimZ - (float)Tune.Lanes[0];
+            float dist = Coords.Camera.SimZ - (float)Coords.Lanes[0];
             Strip.CameraHalfWidth = dist * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * cam.aspect;
             // The strip's pips are drawn again a few times a second, not every frame: a man crosses
             // one of its pixels in about a second, and every time the panel's geometry changes the
@@ -468,23 +473,30 @@ namespace LanesOfVietnam.View.UI
         /// left of the picture at the height its lane's ground is drawn at; the pointer's says what
         /// is in hand and where it would go.
         /// </summary>
+        /// <summary>A lane's tag, by how many lanes there are: the near and the far of two; the near, the middle and the back of three.</summary>
+        public static string LaneName(int lane, int lanes)
+            => lane == 0 ? "NEAR LANE  ↓" : lane == lanes - 1 ? (lanes > 2 ? "BACK LANE  ↑" : "FAR LANE  ↑") : lanes == 3 ? "MIDDLE LANE" : $"LANE {lane + 1}";
+
         private void LaneSelector()
         {
             bool armed = Deployer.Armed != null && Deployer.HasTarget && _root?.panel != null && Root.CameraRig != null;
             float highest = float.MaxValue;
+            int lanes = Coords.Lanes.Length;
             for (int lane = 0; lane < LaneTags.Length; lane++)
             {
                 var tag = LaneTags[lane];
-                tag.style.display = armed ? DisplayStyle.Flex : DisplayStyle.None;
-                if (!armed) continue;
+                tag.style.display = armed && lane < lanes ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!armed || lane >= lanes) continue;
+                string name = LaneName(lane, lanes);
+                if (tag.text != name) tag.text = name;
                 var cam = Root.CameraRig.Camera;
                 // The lane's ground near the picture's left edge: its height on the screen. By the
                 // viewport, not the screen (PositionPlates): the picture is not always the screen's size.
-                var probe = cam.ViewportToWorldPoint(new Vector3(0.08f, 0.5f, Coords.Camera.SimZ - (float)Tune.Lanes[lane]));
-                double x = probe.x, z = Tune.Lanes[lane];
+                var probe = cam.ViewportToWorldPoint(new Vector3(0.08f, 0.5f, Coords.Camera.SimZ - (float)Coords.Lanes[lane]));
+                double x = probe.x, z = Coords.Lanes[lane];
                 var vp = cam.WorldToViewportPoint(Coords.World(x, z, (float)Root.Ground.HeightAt(x, z)));
                 float panelH = _root.resolvedStyle.height;
-                float top = Mathf.Round(Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f + LaneTagHeight + 6f, panelH - 190f - (lane == 0 ? 0f : LaneTagHeight + 6f)));
+                float top = Mathf.Round(Mathf.Clamp((1f - vp.y) * panelH - LaneTagHeight * 0.5f, 70f + LaneTagHeight + 6f, panelH - 190f - lane * (LaneTagHeight + 6f)));
                 tag.style.translate = new Translate(0, top);
                 tag.EnableInClassList("lit", Deployer.TargetLane == lane && Deployer.TargetPost < 0);
                 highest = Mathf.Min(highest, top);
@@ -505,7 +517,7 @@ namespace LanesOfVietnam.View.UI
             // GRENADES: who would throw, if anyone can reach where it is pointed (MatchOptions.FragCard).
             var st = Root.Driver.State;
             int throwers = Deployer.Armed == Deck.Grenades(Root.PlayerSide) && Deployer.HasTarget
-                ? Frag.Throwers(st, Root.PlayerSide, Deployer.TargetLane % Tune.Lanes.Length, Deployer.TargetX).Count : -1;
+                ? Frag.Throwers(st, Root.PlayerSide, Deployer.TargetLane % st.Lanes.Length, Deployer.TargetX).Count : -1;
             var aim = (Deployer.Armed, Deployer.TargetLane * 10 + Deployer.TargetPost + 1000 * (throwers + 1));
             if (!aim.Equals(_aimFor))
             {

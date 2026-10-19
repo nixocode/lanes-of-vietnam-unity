@@ -5699,6 +5699,44 @@ Left, with the reason the tools gave:
 
 New file: `Assets/_Project/Scripts/Sim/Soldiering.cs` (its `.meta` made by Unity).
 
+### 12.65 W2: Rice Fields' third lane, behind the far one, over a second bridge (2026-10-19)
+
+The owner, 2026-10-17: "Plan to add a third lane for this map that surely fits nice withing the HUD"; asked where, "Behind,
+second bridge". Approved as W2, and on 2026-10-19 put before the soldiers' rebuilt mind ("after the third lane").
+
+- **A map's lanes are its own** (`MapDef.Lanes`, copied into `SimState.Lanes`; the firebase's two, `Tune.Lanes`, unless a
+  map says otherwise). Everything in the simulation reads its lanes from the match (about sixty places); the lane index
+  takes `Tune.MaxLanes` (4) as its stride; `Fieldcraft.SpawnZ` takes the state and `Match.LastLine` the lanes. **The
+  banks between them** too: `GroundParams.MoreBermZ` raises a bank between each further pair of lanes, the same shape as
+  the first (its gaps shifted along), `MapDef.MoreBanks` gives them to the match (`SimState.MoreBanks`), and a man sees
+  a man in another lane only if the line between them clears every bank it crosses (`Gunnery.Sightline`). No match moved
+  (every line in CLAUDE.md, every operation's `scenario hash 1`, `determinism` ok, `simcs mirror 12` 12/12).
+- **Rice Fields' back lane** (`Map.Back`), at z -19, 13 m behind the far lane: a bank behind the far lane as the first is
+  behind the near one (z -9.6); the paddies widened back to hold it (`PaddyMidZ` -4.5, `PaddyHalfZ` 22); the forest
+  carried back to cover its VC end; the old shell holes moved off it. Its cover: a VC position and fallen trees in the
+  forest, a trench short of the second bridge, the second bridgehead on the first step, a sluice gate, shell holes, the
+  fourth step's dike, the base's south wall and its back trench. **A second timber bridge** (x -11.2 to 3.6), its ford
+  (x -7.75 to -0.25, `simcs ground`, with the deck: the river runs straight under every deck) and its steps (7.30, 13.69,
+  20.95, 29.44, 34.24: `Ground.Boundary` at z -19). The briefing and orders say three lanes and two bridges.
+- **The view**: `Coords.Lanes` (the map's lanes) everywhere the view used the firebase's; the dressing keeps its plants
+  off every lane (`Coords.LaneDistance`) and sets a fifth sluice gate beside the back lane; the HUD has a diamond and a
+  lane tag for each lane the match has (NEAR, MIDDLE, BACK; four built, the rest hidden), the deploy picker and the up
+  and down keys go through all three, and the strip draws three lanes. The camera rides and frames as it did, on the
+  near and the far lanes: the back lane is higher in the picture, as it lies.
+- **Measured**: the lanes clear of the HUD at every pan (`RiverTests.Its_lanes_are_clear_of_the_HUD...`, now the back
+  lane's heads): the near lane's feet 5.7% of the screen over the cards (as before), the back lane's heads 22.5% under
+  the top bar. With two bridges a third as many men wade (`simcs river 48`: 503 into the water, 1295 with two lanes),
+  and nobody playing, the Americans won 23 of 48 and the VC 25. Balance (`simcs scenario 192 rice-fields`): as the
+  Americans against a Veteran 136 of 192, as the VC 129, in the band with the wills of §12.64 unchanged (Recruit 173 and
+  140, Elite 106 and 85). Captured: `captures/lanes/a_river.png` (both bridges, the VC crossing the back one),
+  `b_paddies.png`.
+- **Pins**: `scenario hash 1` rice-fields 5035 `3595252491u`; without Soldiering (`scenario rice-fields hash 1
+  nosoldiering`, new) 2566 `11572162u`; `hash 1 ... water heights map=ricefields` 4146 `4094085984u`. Tests: the river's
+  fords and bridges counted (3 and 2), five sluice gates, the heights test puts its two men in the near lane.
+- **Left for W7**: the frame time with a third of the paddies' rice more (the rice is planted across their new width),
+  and the WebGL size.
+- New in `tools/simcs`: `scenario ... hash ... nosoldiering`.
+
 ### 12.13 Corrections to earlier sections
 
 Fold each of these in when its section is next touched.

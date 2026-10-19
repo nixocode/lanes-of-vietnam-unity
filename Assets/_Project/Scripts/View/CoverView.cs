@@ -177,8 +177,8 @@ namespace LanesOfVietnam.View
         /// <summary>The middle of the lane a piece of cover is in.</summary>
         private static double LaneOf(Cover c)
         {
-            double best = Tune.Lanes[0];
-            foreach (double z in Tune.Lanes) if (System.Math.Abs(z - c.Z) < System.Math.Abs(best - c.Z)) best = z;
+            double best = Coords.Lanes[0];
+            foreach (double z in Coords.Lanes) if (System.Math.Abs(z - c.Z) < System.Math.Abs(best - c.Z)) best = z;
             return best;
         }
 

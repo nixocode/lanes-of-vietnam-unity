@@ -396,7 +396,7 @@ namespace LanesOfVietnam.View
         {
             if (!st.Water || !st.Destruction || i < 0 || i >= st.Bridges.Count) return false;
             var b = st.Bridges[i];
-            double x = (b.X0 + b.X1) * 0.5, z = Tune.Lanes[b.Lane];
+            double x = (b.X0 + b.X1) * 0.5, z = Coords.Lanes[b.Lane];
             for (int n = 0; n < 8 && !b.Fallen; n++)
             {
                 st.Events.Add(new SimEvent { Kind = EventKind.Shell, Tick = st.Tick, Side = Side.Vc, Id = -1, X = x, Z = z });

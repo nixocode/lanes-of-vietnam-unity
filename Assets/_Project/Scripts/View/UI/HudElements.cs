@@ -122,12 +122,15 @@ namespace LanesOfVietnam.View.UI
             var r = contentRect;
             if (State == null || r.width < 10) return;
             _verts.Clear(); _tris.Clear();
-            // Lanes top to bottom as they lie in the picture: far lane higher.
-            float farY = r.yMin + r.height * 0.30f, nearY = r.yMin + r.height * 0.58f;
+            // Lanes top to bottom as they lie in the picture: the far lane higher, a third behind it higher still.
+            int lanes = State.Lanes.Length;
+            float nearY = r.yMin + r.height * 0.58f, pitch = r.height * (lanes <= 2 ? 0.28f : 0.38f / (lanes - 1));
             float traceY = r.yMin + r.height * 0.86f;
-
-            Quad(r.xMin + 2, farY - 0.5f, r.xMax - 2, farY + 0.5f, Line);
-            Quad(r.xMin + 2, nearY - 0.5f, r.xMax - 2, nearY + 0.5f, Line);
+            for (int lane = 0; lane < lanes; lane++)
+            {
+                float ly = nearY - lane * pitch;
+                Quad(r.xMin + 2, ly - 0.5f, r.xMax - 2, ly + 0.5f, Line);
+            }
 
             // Each side's front, as a bar from its own end to its furthest man.
             double usFront = State.Front[(int)Side.Us], vcFront = State.Front[(int)Side.Vc];
@@ -143,7 +146,7 @@ namespace LanesOfVietnam.View.UI
                 // enemy is not on it.
                 if (m.Side != Viewer && !m.Seen) continue;
                 var sq = State.Squads[m.Squad];
-                float y = sq.Lane == 0 ? nearY : farY;
+                float y = nearY - sq.Lane * pitch;
                 float x = X(m.X, r);
                 if (m.Side == Side.Us) Quad(x - 2.6f, y - 2.6f, x + 2.6f, y + 2.6f, Us);
                 else Triangle(x, y, 3.2f, Vc);

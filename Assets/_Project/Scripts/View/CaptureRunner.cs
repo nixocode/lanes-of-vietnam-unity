@@ -207,7 +207,7 @@ namespace LanesOfVietnam.View
                 var b = sim.Bridges[0];
                 for (int k = 0; k < cap.BridgeHits && !b.Fallen; k++)
                 {
-                    double x = b.X0 + (b.X1 - b.X0) * (k % 2 == 0 ? 0.35 : 0.68), z = Tune.Lanes[b.Lane] + (k % 2 == 0 ? 1.2 : -1.0);
+                    double x = b.X0 + (b.X1 - b.X0) * (k % 2 == 0 ? 0.35 : 0.68), z = Coords.Lanes[b.Lane] + (k % 2 == 0 ? 1.2 : -1.0);
                     double power = b.Strength > Tune.TowerRocket * 0.9 ? Tune.TowerRocket * 0.8 : b.Strength * 0.6;
                     Destruction.Burst(sim, x, z, 0, power);
                 }

@@ -106,7 +106,7 @@ namespace LanesOfVietnam.View
                                 if (!man.Alive || man.Side != side || man.Grenades <= 0 || man.High > 0) continue;
                                 var target = Frag.PickTarget(Driver.State, man);
                                 if (target == null) continue;
-                                callX = target.X; callLane = Math.Abs(target.Z - Tune.Lanes[0]) < Math.Abs(target.Z - Tune.Lanes[1]) ? 0 : 1;
+                                callX = target.X; callLane = Deployer.LaneNearest(target.Z);
                                 break;
                             }
                             if (double.IsNaN(callX)) { Driver.FastForward(1); at++; }
@@ -118,7 +118,7 @@ namespace LanesOfVietnam.View
                         Debug.Log($"[LOV] capture: grenades {blocked ?? "thrown"}");
                     }
                     // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)
-                    if (blocked == null) Driver.Match.Issue(callLane >= Tune.Lanes.Length ? Command.BuyTo(side, call.card, callLane - Tune.Lanes.Length) : Command.Buy(side, call.card, callLane, callX));
+                    if (blocked == null) Driver.Match.Issue(callLane >= Coords.Lanes.Length ? Command.BuyTo(side, call.card, callLane - Coords.Lanes.Length) : Command.Buy(side, call.card, callLane, callX));
                     // downed=1: the medevac brought down three seconds out, whatever the dice (Shootdown.Force).
                     if (blocked == null && cap.Downed && call.card == "us-medevac")
                     {
@@ -258,15 +258,17 @@ namespace LanesOfVietnam.View
         }
 
         /// <summary>
-        /// The lanes' ground height about a pan position: the surface (a deck, the ground, the water) under both lanes,
-        /// over twenty metres either side, for the camera to ride at.
+        /// The lanes' ground height about a pan position: the surface (a deck, the ground, the water) under the near and
+        /// the far lanes, over twenty metres either side, for the camera to ride at. (A third lane behind them is framed
+        /// higher in the picture, as it lies: the camera is not moved back for it.)
         /// </summary>
         public static float LanesHeightAt(Ground g, float x)
         {
             double sum = 0;
             int n = 0;
+            var lanes = Coords.Lanes;
             for (double dx = -10; dx <= 10; dx += 2.5, n += 2)
-                sum += g.SurfaceAt(x + dx, Tune.Lanes[0]) + g.SurfaceAt(x + dx, Tune.Lanes[1]);
+                sum += g.SurfaceAt(x + dx, lanes[0]) + g.SurfaceAt(x + dx, lanes[1]);
             return (float)(sum / n);
         }
 

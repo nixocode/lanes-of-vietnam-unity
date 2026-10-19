@@ -162,8 +162,8 @@ namespace LanesOfVietnam.View
         public static int LaneNearest(double z)
         {
             int best = 0;
-            for (int i = 1; i < Tune.Lanes.Length; i++)
-                if (Math.Abs(z - Tune.Lanes[i]) < Math.Abs(z - Tune.Lanes[best])) best = i;
+            for (int i = 1; i < Coords.Lanes.Length; i++)
+                if (Math.Abs(z - Coords.Lanes[i]) < Math.Abs(z - Coords.Lanes[best])) best = i;
             return best;
         }
 
@@ -176,7 +176,7 @@ namespace LanesOfVietnam.View
         public void Choose(int lane)
         {
             if (Armed == null) return;
-            _chosen = Mathf.Clamp(lane, 0, Tune.Lanes.Length - 1);
+            _chosen = Mathf.Clamp(lane, 0, Coords.Lanes.Length - 1);
             _chosenAt = _lastAim;
             TargetLane = _chosen;
             TargetPost = -1;
@@ -189,7 +189,7 @@ namespace LanesOfVietnam.View
         public bool ChoosePost(int post)
         {
             if (Armed == null || PostFor(Armed) != post) return false;
-            _chosen = Tune.Lanes.Length + post;
+            _chosen = Coords.Lanes.Length + post;
             _chosenAt = _lastAim;
             ToPost(post);
             return true;
@@ -221,10 +221,10 @@ namespace LanesOfVietnam.View
             // Lane 0 is the near one; the far lanes follow it; and past the last of them, the post, if the card in
             // hand can go up it.
             int post = PostFor(Armed);
-            int now = _chosen >= 0 ? _chosen : TargetPost >= 0 ? Tune.Lanes.Length : TargetLane;
-            _chosen = Mathf.Clamp(now + step, 0, Tune.Lanes.Length - (post >= 0 ? 0 : 1));
+            int now = _chosen >= 0 ? _chosen : TargetPost >= 0 ? Coords.Lanes.Length : TargetLane;
+            _chosen = Mathf.Clamp(now + step, 0, Coords.Lanes.Length - (post >= 0 ? 0 : 1));
             _chosenAt = _lastAim;
-            if (_chosen >= Tune.Lanes.Length) ToPost(post);
+            if (_chosen >= Coords.Lanes.Length) ToPost(post);
             else { TargetLane = _chosen; TargetPost = -1; }
         }
 
@@ -259,7 +259,7 @@ namespace LanesOfVietnam.View
                 if (feet.z < nearest) { nearest = feet.z; over = st.Squads[m.Squad].Lane; }
             }
             if (over >= 0) return over;
-            return onGround ? groundLane : Tune.Lanes.Length - 1;
+            return onGround ? groundLane : Coords.Lanes.Length - 1;
         }
 
         public bool Aim(Vector2 screen)
@@ -272,7 +272,7 @@ namespace LanesOfVietnam.View
             if (_chosen >= 0)
             {
                 if ((screen - _chosenAt).sqrMagnitude > ChoiceHolds * ChoiceHolds) _chosen = -1;
-                else if (_chosen >= Tune.Lanes.Length) up = post >= 0;
+                else if (_chosen >= Coords.Lanes.Length) up = post >= 0;
                 else { lane = _chosen; up = false; }
             }
             if (up) { ToPost(post); return true; }
@@ -284,7 +284,7 @@ namespace LanesOfVietnam.View
             if (!onGround || groundLane != lane)
             {
                 var ray = Root.CameraRig.Camera.ScreenPointToRay(screen);
-                float planeZ = Coords.WorldZ(Tune.Lanes[lane]);
+                float planeZ = Coords.WorldZ(Coords.Lanes[lane]);
                 if (Mathf.Abs(ray.direction.z) > 1e-5f)
                 {
                     float t = (planeZ - ray.origin.z) / ray.direction.z;
@@ -303,7 +303,7 @@ namespace LanesOfVietnam.View
             TargetLane = lane; TargetX = x; HasTarget = card != null;
             // (A lane past the last is a post, as a capture's call-in is.)
             TargetPost = -1;
-            if (card != null && lane >= Tune.Lanes.Length && PostFor(card) == lane - Tune.Lanes.Length) ToPost(lane - Tune.Lanes.Length);
+            if (card != null && lane >= Coords.Lanes.Length && PostFor(card) == lane - Coords.Lanes.Length) ToPost(lane - Coords.Lanes.Length);
         }
 
         /// <summary>Place the armed card at a screen point. Returns whether a purchase was sent.</summary>

@@ -138,6 +138,8 @@ namespace LanesOfVietnam.View
 
         private Rng _plantRng;
         private MapDef _map;
+        /// <summary>The lanes of the map being dressed (its own; the firebase's two without one).</summary>
+        private double[] Lanes => _map != null ? _map.Lanes : Tune.Lanes;
         private Ground _ground;
         private bool _east, _lowlands, _planting;
 
@@ -411,14 +413,14 @@ namespace LanesOfVietnam.View
                 {
                     double px = x + rng.Range(0, cell), pz = z + rng.Range(0, cell);
                     var m = GroundView.Masks(g, px, pz);
-                    int bandI = pz > 11 ? 0 : System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1])) < 3.5 ? 1 : pz > -10.5 ? 2 : 3;
+                    int bandI = pz > 11 ? 0 : Coords.LaneDistance(pz, Lanes) < 3.5 ? 1 : pz > -10.5 ? 2 : 3;
                     if (m.r > 90) { why[bandI, 1]++; continue; }             // the track
                     if (m.g > 100) { why[bandI, 2]++; continue; }            // fresh earth
                     if (NearCover(cover, px, pz, 0.6)) continue;
                     double patch = 0.5 + 0.5 * System.Math.Sin(px * 0.13 + System.Math.Sin(pz * 0.29) * 2.1)
                                              * System.Math.Cos(pz * 0.17 - px * 0.05);
                     bool firebase = F(px) < BaseEdge && pz > 0;
-                    double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
+                    double lane = Coords.LaneDistance(pz, Lanes);
                     double density;
                     float lo, hi;
                     // Dense everywhere men are not standing on bare earth: the
@@ -473,10 +475,10 @@ namespace LanesOfVietnam.View
                     // Its ragged edge toward the river; and nothing tall between the lens and the near lane.
                     var (r0, r1) = double.IsNaN(p.RiverX0) ? (-12.0, 12.0) : g.RiverAt(pz);
                     double edge = (sign < 0 ? -(r0 - 6.5) : r1 + 6.5) + System.Math.Sin(pz * 0.21) * 2.2 + rng.Range(-2, 2);
-                    if (d < edge || pz > Tune.Lanes[0] - 3.4) continue;
-                    double lane = System.Math.Min(System.Math.Abs(pz - Tune.Lanes[0]), System.Math.Abs(pz - Tune.Lanes[1]));
+                    if (d < edge || pz > Lanes[0] - 3.4) continue;
+                    double lane = Coords.LaneDistance(pz, Lanes);
                     if (lane < 3.4 || NearCover(cover, x, pz, 1.2)) continue;
-                    bool between = pz > Tune.Lanes[1] && pz < Tune.Lanes[0];
+                    bool between = pz > Lanes[Lanes.Length - 1] && pz < Lanes[0];
                     if (rng.Next() > (between ? 0.45 : 0.92)) continue;
                     double roll = rng.Next();
                     if (roll < 0.12) { Plant(g, x, pz, (float)rng.Range(8, 12.5), "bamboo"); continue; }
@@ -499,7 +501,10 @@ namespace LanesOfVietnam.View
         {
             LowlandThings = 0;
             if (!Structures.Ready || Structures.Lowlands == null || double.IsNaN(g.Params.PaddyX0)) return;
-            foreach (var (step, z) in new[] { (1, Tune.Lanes[1] - 2.6), (2, Tune.Lanes[0] + 3.2), (0, Tune.Lanes[1] - 9.0), (3, Tune.Lanes[0] - 3.4) })
+            var gates = new List<(int, double)> { (1, Lanes[1] - 2.6), (2, Lanes[0] + 3.2), (0, Lanes[1] - 9.0), (3, Lanes[0] - 3.4) };
+            // (Beside a third lane too, if there is one, behind it.)
+            if (Lanes.Length > 2) gates.Add((2, Lanes[2] - 2.6));
+            foreach (var (step, z) in gates)
             {
                 double x = g.Boundary(step, z);
                 float y = (float)g.HeightAt(x, z) - 0.32f;
@@ -508,7 +513,7 @@ namespace LanesOfVietnam.View
             }
             if (!double.IsNaN(g.Params.RiverX0))
             {
-                double cz = Tune.Lanes[1] - 6.5;
+                double cz = Lanes[1] - 6.5;
                 double cx = g.RiverAt(cz).x0 - 7.5;
                 if (Structures.Park(transform, _built, g, "ox_cart", cx, cz, 205f, 4.6f, 1.7f) != null) LowlandThings++;
             }
@@ -523,7 +528,7 @@ namespace LanesOfVietnam.View
             for (int side = 0; side < 2; side++)
                 for (double z = -60; z < 24; z += rng.Range(0.7, 1.5))
                 {
-                    double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
+                    double lane = Coords.LaneDistance(z, Lanes);
                     if (lane < 2.6) continue;
                     // Out to where the water is a hand deep, and up the bank a little.
                     var (r0, r1) = g.RiverAt(z);
@@ -557,7 +562,7 @@ namespace LanesOfVietnam.View
                     if (k < 0 || k >= steps) continue;
                     // Clear of the step's own dike and of the next one's face.
                     if (x < g.Boundary(k, z) + 0.8 || x > g.Boundary(k + 1, z) - 0.8) continue;
-                    double lane = System.Math.Min(System.Math.Abs(z - Tune.Lanes[0]), System.Math.Abs(z - Tune.Lanes[1]));
+                    double lane = Coords.LaneDistance(z, Lanes);
                     if (lane < 1.3 || NearCover(cover, x, z, 0.3)) continue;
                     double px = x + _plantRng.Range(-0.08, 0.08), pz = z + _plantRng.Range(-0.08, 0.08);
                     // Only in the water: not up on the bank between the lanes or the path.
@@ -658,7 +663,7 @@ namespace LanesOfVietnam.View
             // (With a gate in it where the far lane runs out through the wire: the wall used to stand
             // across the lane, and every squad raised there walked through it.)
             for (double z = -14.6; z < 2.6; z += 2.6)
-                if (System.Math.Abs(z - Tune.Lanes[1]) > LaneGate) Wall(g, F(BaseEdge - 3.5), z, 0.9, 1.1, 2.6);
+                if (Coords.LaneDistance(z, Lanes) > LaneGate) Wall(g, F(BaseEdge - 3.5), z, 0.9, 1.1, 2.6);
 
             // The watchtower: real elevation for whoever holds it. Its top sits
             // about 7 degrees above the horizon, as the reference's does.

@@ -23,6 +23,18 @@ namespace LanesOfVietnam.View
 
         public static float WorldZ(double simZ) => (float)-simZ;
 
+        /// <summary>The lanes of the map the world is built from (MapDef.Lanes; the firebase's two, Tune.Lanes, before there is one).</summary>
+        public static double[] Lanes => GameRoot.Instance != null && GameRoot.Instance.WorldMap != null ? GameRoot.Instance.WorldMap.Lanes : LanesOfVietnam.Sim.Tune.Lanes;
+
+        /// <summary>The lane nearest a z, and how far it is.</summary>
+        public static double LaneDistance(double z, double[] lanes = null)
+        {
+            lanes ??= Lanes;
+            double d = double.PositiveInfinity;
+            foreach (var l in lanes) d = System.Math.Min(d, System.Math.Abs(z - l));
+            return d;
+        }
+
         public static double SimZ(float worldZ) => -worldZ;
 
         /// <summary>

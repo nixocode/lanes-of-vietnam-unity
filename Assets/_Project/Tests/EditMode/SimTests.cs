@@ -3283,7 +3283,7 @@ namespace LanesOfVietnam.Tests
             var m = new LiveMatch(Scenarios.RiceFields.Options(3, null, Difficulty.Veteran));
             var st = m.State;
             Assert.IsTrue(st.Water && st.Heights, "the game plays Rice Fields with its rules");
-            Assert.AreEqual(2, st.Fords.Count); Assert.AreEqual(1, st.Bridges.Count);
+            Assert.AreEqual(3, st.Fords.Count); Assert.AreEqual(2, st.Bridges.Count);
             Assert.IsTrue(Water.Carried(st, Map.Near, -2), "the bridge does not carry the near lane over the river");
             Assert.IsFalse(Water.Wet(st, Map.Near, -2), "a man on the bridge is in the water");
             Assert.IsTrue(Water.Wet(st, Map.Far, -2), "the far lane has no bridge: it fords");
@@ -3413,8 +3413,10 @@ namespace LanesOfVietnam.Tests
             var m = new LiveMatch(Scenarios.RiceFields.Options(2, null, Difficulty.Veteran));
             var st = m.State;
             for (int t = 0; t < 300; t++) m.Step();
-            var a = st.Men.First(x => x.Alive && st.Squads[x.Squad].Lane == Map.Near && x.High <= 0);
-            var b = st.Men.First(x => x.Alive && x.Side != a.Side && st.Squads[x.Squad].Lane == Map.Near && x.High <= 0);
+            // (Two men of either side, their squads put in the near lane: with three lanes, W2, nobody need be there yet.)
+            var a = st.Men.First(x => x.Alive && x.High <= 0);
+            var b = st.Men.First(x => x.Alive && x.Side != a.Side && x.High <= 0);
+            st.Squads[a.Squad].Lane = st.Squads[b.Squad].Lane = Map.Near;
             a.X = 12; b.X = 30; a.Z = b.Z = Tune.Lanes[Map.Near];
             Assert.AreEqual(1.1, Heights.Level(st, a), 1e-9); Assert.AreEqual(4.4, Heights.Level(st, b), 1e-9);
             double up = Combat.HitChance(st, a, b), down = Combat.HitChance(st, b, a);
@@ -3447,9 +3449,10 @@ namespace LanesOfVietnam.Tests
                 Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Water = true, Heights = true,
             };
             var (fh, fm) = Played(flags);
-            // (Again 2026-10-17: the bridge's strength 1.0, and nobody goes for a man with his hands in the river, PLAN §12.61.)
-            Assert.AreEqual(5402, fm.State.Tick);
-            Assert.AreEqual(1969199554u, fh[fh.Count - 1]);
+            // (Again 2026-10-17: the bridge's strength 1.0, and nobody goes for a man with his hands in the river, PLAN §12.61.
+            // Again 2026-10-19: its third lane and second bridge, W2.)
+            Assert.AreEqual(4146, fm.State.Tick);
+            Assert.AreEqual(4094085984u, fh[fh.Count - 1]);
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             Assert.IsTrue(o.Water && o.Heights);
             var (with, _) = Played(o);
@@ -3783,8 +3786,9 @@ namespace LanesOfVietnam.Tests
         }
 
         /// <summary>
-        /// Soldiering is a rule: with it off the game's match is the one it was before it, to the bit (the firebase and
-        /// Rice Fields, `simcs scenario hash 1` of 2026-10-18, PLAN §12.63).
+        /// Soldiering is a rule: with it off the game's match is the one it was before it, to the bit (the firebase,
+        /// `simcs scenario hash 1` of 2026-10-18, PLAN §12.63); and Rice Fields, whose map has changed since (its third lane,
+        /// W2), without it as `simcs scenario rice-fields hash 1 nosoldiering` has it.
         /// </summary>
         [Test]
         public void Without_its_rule_the_soldiers_are_what_they_were()
@@ -3795,11 +3799,10 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(6448, m.State.Tick);
             Assert.AreEqual(373562849u, h[h.Count - 1]);
             o = Scenarios.RiceFields.Options(1, null, Difficulty.Veteran);
-            // (And the Americans' will as it was: since the rule, the computer's lose a quarter more, Scenarios.RiceFields.)
-            o.Soldiering = false; o.UsMeans = new Means();
+            o.Soldiering = false;
             (h, m) = Played(o);
-            Assert.AreEqual(6942, m.State.Tick);
-            Assert.AreEqual(2233128180u, h[h.Count - 1]);
+            Assert.AreEqual(2566, m.State.Tick);
+            Assert.AreEqual(11572162u, h[h.Count - 1]);
             // And on, the flags' line: `simcs hash 1 frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune
             // firecontrol ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown strike
             // soldiering`.
@@ -3816,10 +3819,10 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(699726964u, fh[fh.Count - 1]);
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-10-18 (with MatchOptions.Soldiering and the new wills, PLAN §12.64;
-        // 6942, 2233128180u with the strike and napalm on the forest, §12.61-63).
-        private const int RiceTicks = 4095;
-        private const uint RiceFinal = 3543735617u;
+        // `simcs scenario hash 1` (rice-fields), 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and
+        // MatchOptions.Soldiering, PLAN §12.64; 6942, 2233128180u with the strike and napalm on the forest, §12.61-63).
+        private const int RiceTicks = 5035;
+        private const uint RiceFinal = 3595252491u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
