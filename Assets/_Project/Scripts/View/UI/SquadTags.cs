@@ -29,6 +29,8 @@ namespace LanesOfVietnam.View.UI
         /// <summary>Each squad's living men, by id as the simulation has them, gathered once a frame.</summary>
         private readonly List<List<Man>> _rosters = new List<List<Man>>();
         private readonly Dictionary<int, int> _contactAt = new Dictionary<int, int>();
+        // When each squad was last taken in the flank (MatchOptions.Flank, §12.76): its tag says so, either side's.
+        private readonly Dictionary<int, int> _flankedAt = new Dictionary<int, int>();
         private readonly Dictionary<int, int> _raisedAt = new Dictionary<int, int>();
         private int _eventsRead;
 
@@ -106,11 +108,12 @@ namespace LanesOfVietnam.View.UI
             float w = _layer.resolvedStyle.width, h = _layer.resolvedStyle.height;
             if (float.IsNaN(w) || w <= 0) return;
             var me = _root.PlayerSide;
-            if (_eventsRead > st.Events.Count) { _eventsRead = 0; _contactAt.Clear(); _raisedAt.Clear(); foreach (var t in _tags.Values) t.RemoveFromHierarchy(); _tags.Clear(); _said.Clear(); }
+            if (_eventsRead > st.Events.Count) { _eventsRead = 0; _contactAt.Clear(); _flankedAt.Clear(); _raisedAt.Clear(); foreach (var t in _tags.Values) t.RemoveFromHierarchy(); _tags.Clear(); _said.Clear(); }
             for (; _eventsRead < st.Events.Count; _eventsRead++)
             {
                 var e = st.Events[_eventsRead];
                 if (e.Kind == EventKind.Contact) _contactAt[e.Id] = e.Tick;
+                else if (e.Kind == EventKind.Flanked) _flankedAt[e.Id] = e.Tick;
                 else if (e.Kind == EventKind.SquadSpawned && e.Tick > 1) _raisedAt[e.Id] = e.Tick;
             }
             var mouse = Input.mousePosition;
@@ -154,7 +157,8 @@ namespace LanesOfVietnam.View.UI
                 }
                 bool contact = mine && _contactAt.TryGetValue(id, out int ct) && st.Tick - ct <= ContactTicks;
                 bool arrived = mine && _raisedAt.TryGetValue(id, out int rt) && st.Tick - rt <= ArrivedTicks;
-                bool show = any && sx > -40 && sx < w + 40 && (on || contact || arrived || ShowAll || (mine && id == selected));
+                bool flanked = _flankedAt.TryGetValue(id, out int ft) && st.Tick - ft <= ContactTicks;
+                bool show = any && sx > -40 && sx < w + 40 && (on || contact || flanked || arrived || ShowAll || (mine && id == selected));
                 if (!show) { if (tag != null) tag.style.display = DisplayStyle.None; continue; }
                 if (tag == null)
                 {
@@ -170,16 +174,16 @@ namespace LanesOfVietnam.View.UI
                 }
                 int raised = 0;
                 for (int i = 0; i < st.Men.Count; i++) if (st.Men[i].Squad == id) raised++;
-                string doing = !mine ? "" : contact ? "CONTACT" : Doing(st, sq, live);
+                string doing = flanked ? "FLANKED" : !mine ? "" : contact ? "CONTACT" : Doing(st, sq, live);
                 if (!_said.TryGetValue(id, out var said) || said.live != live.Count || said.raised != raised || said.doing != doing)
                 {
                     string name = CardText.SquadName(sq);
-                    tag.text = mine ? $"{name} {live.Count}/{raised} · {doing}" : $"{name} · {live.Count}";
+                    tag.text = mine ? $"{name} {live.Count}/{raised} · {doing}" : flanked ? $"{name} · {live.Count} · {doing}" : $"{name} · {live.Count}";
                     _said[id] = (live.Count, raised, doing);
                 }
-                tag.EnableInClassList("contact", contact);
+                tag.EnableInClassList("contact", contact || flanked);
                 tag.style.display = DisplayStyle.Flex;
-                tag.style.opacity = on || id == selected || contact ? 1f : 0.8f;
+                tag.style.opacity = on || id == selected || contact || flanked ? 1f : 0.8f;
                 float tw = tag.resolvedStyle.width;
                 if (float.IsNaN(tw) || tw <= 0) tw = 180;
                 tag.style.translate = new Translate(Mathf.Round(Mathf.Clamp(sx - tw * 0.5f, 40, w - tw - 12)), Mathf.Round(Mathf.Max(70, top - 30)));

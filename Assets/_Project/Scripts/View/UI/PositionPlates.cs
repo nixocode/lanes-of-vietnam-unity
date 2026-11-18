@@ -35,6 +35,7 @@ namespace LanesOfVietnam.View.UI
             usageHints = UsageHints.DynamicTransform;
             Flag = new VisualElement { pickingMode = PickingMode.Ignore }; Flag.AddToClassList("plate-flag");
             Count = new Label("0/0") { pickingMode = PickingMode.Ignore }; Count.AddToClassList("plate-count");
+            Facing = new Label("") { pickingMode = PickingMode.Ignore }; Facing.AddToClassList("plate-facing");
             // Left click flips it between Hold and Go; right click gives it back to the plan.
             LeverButton = new Button(() => pull(Cover, Shown == Lever.Hold ? Lever.Go : Lever.Hold)) { name = $"lever-{c.Id}", text = "AUTO" };
             LeverButton.AddToClassList("plate-lever");
@@ -45,11 +46,24 @@ namespace LanesOfVietnam.View.UI
                 e.StopPropagation();
             });
             var body = new VisualElement { pickingMode = PickingMode.Ignore }; body.AddToClassList("plate-body");
-            body.Add(Count); body.Add(LeverButton);
+            var head = new VisualElement { pickingMode = PickingMode.Ignore }; head.AddToClassList("plate-head");
+            head.Add(Facing); head.Add(Count);
+            body.Add(head); body.Add(LeverButton);
             Add(Flag); Add(body);
         }
 
         private int _mine = -1, _capacity = -1;
+
+        /// <summary>The way the position faces, an arrow beside its count (MatchOptions.Flank, §12.76): red while the enemy is behind it.</summary>
+        public Label Facing { get; private set; }
+        private string _facing = "";
+        private bool _turned;
+
+        public void SetFacing(string arrow, bool turned)
+        {
+            if (arrow != _facing) { _facing = arrow; Facing.text = arrow; }
+            if (turned != _turned) { _turned = turned; Facing.EnableInClassList("turned", turned); }
+        }
 
         public void Set(Side? owner, int mine, int capacity, Lever lever, bool enemyHeld)
         {
@@ -173,6 +187,18 @@ namespace LanesOfVietnam.View.UI
                 }
                 var owner = c.Owner ?? (mine > 0 ? me : theirs > 0 ? Combat.Other(me) : (Side?)null);
                 p.Set(owner, mine, c.Capacity, Fieldcraft.LeverOf(c, me), owner.HasValue && owner != me);
+                // Flank: a position held faces its holder's enemy, and is turned while the enemy is behind its lane.
+                if (st.Flank && owner.HasValue)
+                {
+                    double ahead = Combat.Advance(st, owner.Value);
+                    float gx = (float)_root.Ground.HeightAt(c.X, c.Z);
+                    var a = cam.WorldToViewportPoint(Coords.World(c.X, c.Z, gx));
+                    var b = cam.WorldToViewportPoint(Coords.World(c.X + ahead * 5, c.Z, gx));
+                    int lane = 0;
+                    for (int k = 1; k < st.Lanes.Length; k++) if (System.Math.Abs(c.Z - st.Lanes[k]) < System.Math.Abs(c.Z - st.Lanes[lane])) lane = k;
+                    p.SetFacing(b.x >= a.x ? "▶" : "◀", st.Outflanked[(int)owner.Value * Tune.MaxLanes + lane] != Senses.Never);
+                }
+                else p.SetFacing("", false);
 
                 var world = Coords.World(c.X, c.Z, (float)_root.Ground.HeightAt(c.X, c.Z) + Height);
                 var vp = cam.WorldToViewportPoint(world);

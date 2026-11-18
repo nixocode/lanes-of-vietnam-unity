@@ -1490,10 +1490,23 @@ namespace LanesOfVietnam.View
                 if (t >= shotAt) Rocket(e, shot, lands, t - shotAt);
                 falling = t >= hitAt;
             }
+            // Airframe: hit, but not brought down. It shudders, turns for home trailing smoke, and is gone.
+            bool limping = false;
+            float limpAt = 0f;
+            if (!downed && _limped.TryGetValue(e.Id, out var limp))
+            {
+                float shotAt = (float)((limp.Tick - e.Tick) * Tune.Dt);
+                limpAt = shotAt + RocketFlight;
+                if (t >= shotAt + (float)((limp.Amount ?? 0) * Tune.Dt) + LimpLinger) return;
+                if (t >= shotAt) Rocket(e, limp, lands, t - shotAt);
+                limping = t >= limpAt;
+                shot = limp;
+            }
             Vector3 at;
             Quaternion turn;
             float h = 0f, s = 0f;
             if (falling) Downing(e, shot, lands, t, out at, out turn);
+            else if (limping) Limping(e, shot, lands, t, limpAt, out at, out turn);
             else
             {
                 float yaw = 0f, nose;
@@ -1526,7 +1539,8 @@ namespace LanesOfVietnam.View
             }
             // Its crew in their places (and the medic out, and the wounded aboard, once it is down), idling as it flies at
             // the match's pace (still when it is paused).
-            if (!falling) Crew(t, lands, t >= lands && t < lands + DustoffDown);
+            if (limping) Crew(Mathf.Min(t, lands - 0.01f), lands, false);
+            else if (!falling) Crew(t, lands, t >= lands && t < lands + DustoffDown);
             float dt = _aboardAt < 0 || t < _aboardAt ? 0f : t - _aboardAt;
             _aboardAt = t;
             for (int k = 0; k < _aboard.Count; k++)
@@ -1540,6 +1554,11 @@ namespace LanesOfVietnam.View
             if (falling)
             {
                 Burning(e, shot, lands, t, hitAt, crashAt);
+                return;
+            }
+            if (limping)
+            {
+                Smoking(e, shot, lands, t, limpAt);
                 return;
             }
             // What its rotor blows out from under it, near the ground.
@@ -1574,6 +1593,8 @@ namespace LanesOfVietnam.View
         public const float RocketFlight = 0.45f;
         /// <summary>The shot that brought each medevac down, by its call; and the wrecks, read from the log as they happen.</summary>
         private readonly Dictionary<int, SimEvent> _downed = new Dictionary<int, SimEvent>();
+        /// <summary>Airframe (§12.76): the medevacs hit that limp home, by their call, and the LimpHome that says so.</summary>
+        private readonly Dictionary<int, SimEvent> _limped = new Dictionary<int, SimEvent>();
         private sealed class Wreck { public float At; public Vector3 Where; public Quaternion Turn; public int Seed; public Transform Body, Rotor; }
         private readonly List<Wreck> _wrecks = new List<Wreck>();
         private SimState _shotsOf;
@@ -1614,6 +1635,60 @@ namespace LanesOfVietnam.View
             var facing = Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
             float pitch = 18f * Mathf.Min(1f, tau * 1.5f), roll = 22f * Mathf.Sin(tau * 6f + H(seed, 2) * 6f) * Mathf.Min(1f, tau * 2f);
             turn = Quaternion.AngleAxis(spin, Vector3.up) * facing * Quaternion.AngleAxis(pitch, Vector3.right) * Quaternion.AngleAxis(roll, Vector3.forward) * NoseAhead;
+        }
+
+        /// <summary>Seconds a limping helicopter is drawn after its LimpHome's ticks are out: far enough off by then to be gone.</summary>
+        public const float LimpLinger = 3f;
+
+        /// <summary>
+        /// Hit and limping home (Airframe, §12.76): from where the rocket struck it, it lurches and drops, swings round
+        /// to its own end, climbs away nose down and shaking, and is gone. t is seconds after the call.
+        /// </summary>
+        private void Limping(SimEvent call, SimEvent shot, float lands, float t, float hitAt, out Vector3 at, out Quaternion turn)
+        {
+            float dir = Dir(call.Side);
+            var p0 = HueyWhere(call, lands, hitAt, _root.Ground);
+            float tau = Mathf.Max(0f, t - hitAt);
+            int seed = shot.Target ?? 0;
+            float sense = H(seed, 5) < 0.5f ? -1f : 1f;
+            // A lurch and a drop as it is struck, then round for home.
+            float yaw = 180f * Mathf.SmoothStep(0f, 1f, (tau - 0.4f) / 2.2f) * sense;
+            float drop = -3f * Mathf.Min(1f, tau * 2f) + 2.2f * Mathf.Max(0f, tau - 1.2f);
+            float going = Mathf.Max(0f, tau - 1.6f);
+            float back = 3.5f * going * going + 8f * going;
+            float shake = Mathf.Sin(tau * 23f) * 4f * Mathf.Exp(-tau * 0.4f);
+            at = p0 + new Vector3(-dir * back, drop, sense * 2.5f * Mathf.Sin(Mathf.PI * Mathf.Min(1f, tau / 2.6f)));
+            var facing = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.LookRotation(new Vector3(dir, 0, 0), Vector3.up);
+            float pitch = -10f * Mathf.SmoothStep(0f, 1f, going / 1.5f) + 6f * Mathf.Exp(-tau * 3f);
+            turn = facing * Quaternion.AngleAxis(pitch, Vector3.right) * Quaternion.AngleAxis(shake, Vector3.forward) * NoseAhead;
+        }
+
+        /// <summary>Limping home: the rocket's burst on it, a flicker of fire at its engine, and grey-black smoke left behind it.</summary>
+        private void Smoking(SimEvent call, SimEvent shot, float lands, float t, float hitAt)
+        {
+            int seed = shot.Target ?? 0;
+            float tau = t - hitAt;
+            var engine = _huey.TransformPoint(new Vector3(0.6f, 2.5f, 0f));
+            if (tau < 0.6f)
+            {
+                float k = 1 - tau / 0.6f;
+                if (tau < 0.12f) AddGlow(engine, 3f + 16f * tau, Flash * (10f * (1 - tau / 0.12f)), 2, H(seed, 150));
+                AddPuff(Sheet.Blast, (tau / 0.6f) * 24f, engine, 2.5f + 3f * tau, 2.5f + 3f * tau, new Color(1f, 1f, 1f, Mathf.Clamp01(k / 0.5f)), (H(seed, 151) - 0.5f) * 0.5f, false, 1.2f);
+                if (tau < 0.25f) _flashes.Add((engine, 40f * Mathf.Exp(-tau * 14f)));
+            }
+            // A flicker of fire at the engine for its first seconds, then only the smoke.
+            if (tau < 2.5f && Mathf.Sin(tau * 17f + H(seed, 152) * 6f) > -0.2f)
+                AddSprite(FxSheets.Flame, H(seed, 153) * 32f + tau * 24f, engine + Vector3.up * 0.2f, 0.7f, Lit(new Color(1f, 0.7f, 0.4f), 1.4f * (1 - tau / 2.5f)), H(seed, 154) * 6.2832f);
+            for (int k = 1; k <= 20; k++)
+            {
+                float back = tau - 0.1f * k;
+                if (back < 0) break;
+                Limping(call, shot, lands, hitAt + back, hitAt, out var was, out var wasTurn);
+                var from = was + wasTurn * (Vector3.Scale(new Vector3(0.6f, 2.5f, 0f), Vector3.one * HueySize));
+                float since = tau - back, f = 1 - since / 2f;
+                if (f <= 0) continue;
+                Hang(from + Vector3.up * (0.5f * since), 0.8f + 1.7f * Mathf.Sqrt(since), new Color(0.09f, 0.085f, 0.08f, 0.8f * f), H(seed, 160 + k), since);
+            }
         }
 
         /// <summary>The rocket fired at it: out of the man who fired it, its flame and its smoke to where it strikes, and its smoke hanging after.</summary>
@@ -1694,6 +1769,7 @@ namespace LanesOfVietnam.View
             {
                 _shotsOf = st; _shotCursor = 0;
                 _downed.Clear();
+                _limped.Clear();
                 foreach (var w in _wrecks) { if (w.Body != null) Destroy(w.Body.gameObject); if (w.Rotor != null) Destroy(w.Rotor.gameObject); }
                 _wrecks.Clear();
             }
@@ -1701,6 +1777,7 @@ namespace LanesOfVietnam.View
             for (; _shotCursor < st.Events.Count; _shotCursor++)
             {
                 var shot = st.Events[_shotCursor];
+                if (shot.Kind == EventKind.LimpHome && shot.Target != null) { _limped[shot.Target.Value] = shot; continue; }
                 if (shot.Kind != EventKind.ShotDown || shot.Target == null || shot.X == null) continue;
                 // Its call: the last call-in of a medevac by that number before it.
                 int c = _shotCursor - 1;

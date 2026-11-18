@@ -203,6 +203,21 @@ namespace LanesOfVietnam.View.UI
             _cost.text = cost.ToString();
         }
 
+        private Label _vet;
+
+        /// <summary>A VET mark on a card whose squad a campaign has waiting as veterans (Sim.Campaign).</summary>
+        public void ShowVeteran(bool on)
+        {
+            if (on == (_vet != null && _vet.style.display == DisplayStyle.Flex)) return;
+            if (_vet == null)
+            {
+                _vet = new Label("VET") { pickingMode = PickingMode.Ignore };
+                _vet.AddToClassList("card-vet");
+                Add(_vet);
+            }
+            _vet.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
         /// <summary>What the card shows now, for UIAudit: affordable, cooling, armed.</summary>
         public bool Poor { get; private set; }
         public float Cooling { get; private set; }

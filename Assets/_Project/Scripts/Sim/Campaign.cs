@@ -5,6 +5,7 @@ using System.Linq;
 namespace LanesOfVietnam.Sim
 {
     /// <summary>A squad that came through a battle: the card it was raised with, and each of its living men's veterancy.</summary>
+    [Serializable]
     public sealed class Veteran
     {
         public string Card;

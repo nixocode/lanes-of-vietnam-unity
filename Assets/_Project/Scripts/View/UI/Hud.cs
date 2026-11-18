@@ -66,6 +66,11 @@ namespace LanesOfVietnam.View.UI
 
         private VisualElement _root;
         private int _eventsRead;
+        // The radio's line (RadioLine) and the ticks between which it is over the orders.
+        private string _radio;
+        private int _radioFrom, _radioUntil = -1;
+        /// <summary>Ticks the radio's line stays over the orders.</summary>
+        public const int RadioTicks = Tune.TickHz * 5;
         // What the HUD last showed, so a label is written (and the strip drawn) when it changes and not
         // every frame: in a browser every string made is the collector's to clear, and every text set
         // or element moved is the panel's to lay out and draw again.
@@ -116,6 +121,7 @@ namespace LanesOfVietnam.View.UI
             Cards.Clear();
             Buttons.Clear();
             _eventsRead = 0;
+            _radioUntil = -1;
             _stripTick = -1; _cpShown = int.MinValue;
             _speedShown = -1f;
             _hintFor = default; _aimFor = default;
@@ -394,7 +400,11 @@ namespace LanesOfVietnam.View.UI
             }
 
             Orders.Update(st);
-            OrdersLine.text = Orders.Line;
+            // The radio over the orders, for a few seconds, when something of the Warfare 1944 rules has happened (§12.76).
+            bool radio = st.Tick < _radioUntil && st.Tick >= _radioFrom;
+            string line = radio ? _radio : Orders.Line;
+            if (OrdersLine.text != line) OrdersLine.text = line;
+            OrdersLine.EnableInClassList("radio", radio);
             RefreshClock(st);
 
             Positions.Update();
@@ -433,6 +443,8 @@ namespace LanesOfVietnam.View.UI
                 int cd = Deck.CooldownLeft(st, Root.PlayerSide, v.Card);
                 int cost = Deck.CostOf(st, v.Card), wait = Deck.CooldownOf(st, v.Card);
                 v.ShowCost(cost);
+                // (A campaign's veteran squad waiting to be raised with this card, §12.76.)
+                v.ShowVeteran(st.Veterans != null && st.Veterans[(int)Root.PlayerSide].Exists(x => x.Card == v.Card.Id));
                 // (A card this match has not got is not shown: the napalm, on a map with no forest.)
                 var show = Deck.Has(st, Root.PlayerSide, v.Card) ? DisplayStyle.Flex : DisplayStyle.None;
                 if (v.style.display != show) v.style.display = show;
@@ -569,6 +581,27 @@ namespace LanesOfVietnam.View.UI
         /// <summary>A card's line in the hint: its name and what it buys (UIAudit reads it).</summary>
         public string Describe(Card card) => $"{card.Name} — {CardText.Line(card, Root.PlayerSide)}";
 
+        /// <summary>
+        /// What the radio says of an event of the Warfare 1944 rules (PLAN §12.76), from the player's side: a flank, a lane
+        /// turned, a leader or a radio man lost, a medevac hit and limping home, veterans joining. Null for anything else.
+        /// </summary>
+        public static string RadioLine(SimEvent e, Side me)
+        {
+            bool mine = e.Side == me;
+            switch (e.Kind)
+            {
+                case EventKind.Flanked: return mine ? "RADIO — TAKEN IN THE FLANK. HEADS DOWN" : "RADIO — WE HAVE THEM IN THE FLANK";
+                case EventKind.Outflanked when e.Rounds == 1:
+                    return mine ? $"RADIO — LANE {e.Id + 1} IS TURNED. THEY ARE BEHIND US" : $"RADIO — WE ARE BEHIND THEM IN LANE {e.Id + 1}";
+                case EventKind.LeaderDown:
+                    return mine ? (me == Side.Us ? "RADIO — SQUAD LEADER DOWN" : "RADIO — THE CADRE IS DOWN") : "RADIO — THEIR LEADER IS DOWN";
+                case EventKind.NetDown: return mine ? "RADIO — RTO DOWN. CALLS DELAYED" : "RADIO — THEIR RADIO MAN IS DOWN";
+                case EventKind.LimpHome: return mine ? "RADIO — DUSTOFF HIT. SHE'S LIMPING HOME" : "RADIO — THE HELICOPTER IS HIT. IT TURNS BACK";
+                case EventKind.VeteransJoin when mine: return "RADIO — VETERANS. THEY HAVE DONE THIS BEFORE";
+            }
+            return null;
+        }
+
         /// <summary>Lessons from what has just happened to the player's side.</summary>
         private void TeachFromEvents(SimState st)
         {
@@ -588,6 +621,8 @@ namespace LanesOfVietnam.View.UI
                     case EventKind.Posted when e.Side == me: Tutor.Teach("posted"); break;
                     case EventKind.FirstContact: Tutor.Teach("concealed"); Tutor.Teach("glasses"); break;
                 }
+                string said = RadioLine(e, me);
+                if (said != null) { _radio = said; _radioFrom = e.Tick; _radioUntil = e.Tick + RadioTicks; }
             }
             // A squad of his closing with the enemy, by bounds (Tactics): no event says so, its task does.
             if (st.Tactics)

@@ -59,12 +59,12 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>The rocket of man <paramref name="by"/> hits the helicopter of medevac a: it goes down, a little short of where it was coming and to one side.</summary>
-        private static void Hit(SimState st, Area a, Man by)
+        private static void Hit(SimState st, Area a, Man by, bool? limp = null)
         {
             var rng = st.ShootRng;
             // Airframe: half the hits do not bring it down. It turns for home trailing smoke with its crew alive, does
             // not come in, and the next can be called the sooner.
-            if (st.Airframe && rng.Next() < Tune.LimpChance)
+            if (st.Airframe && (limp ?? rng.Next() < Tune.LimpChance))
             {
                 st.Events.Add(new SimEvent { Kind = EventKind.LimpHome, Tick = st.Tick, Side = a.Side, Id = by.Id, Target = a.Id, X = a.X, Z = a.Z, Amount = Tune.LimpTicks });
                 a.Call = Inbound.Limp;
@@ -90,7 +90,9 @@ namespace LanesOfVietnam.Sim
         /// none, whoever of the enemy is nearest) and hits, without dice. Never part of a match the game plays. True if
         /// there was one to bring down.
         /// </summary>
-        public static bool Force(SimState st, Area a)
+        /// <remarks>With Airframe, <paramref name="limp"/> says how it ends: null rolls for it as a match does, true it
+        /// limps home, false it falls.</remarks>
+        public static bool Force(SimState st, Area a, bool? limp = null)
         {
             if (st.ShootRng == null || a.Kind != AreaKind.Relief || a.Call != Inbound.Dustoff || a.Wait <= 0) return false;
             Man best = null;
@@ -102,7 +104,7 @@ namespace LanesOfVietnam.Sim
                 if (d < bestD) { bestD = d; best = m; }
             }
             if (best == null) return false;
-            Hit(st, a, best);
+            Hit(st, a, best, limp);
             return true;
         }
 

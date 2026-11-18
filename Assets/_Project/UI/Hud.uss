@@ -387,3 +387,32 @@
 .plate-lever:hover { border-color: rgb(205, 179, 122); }
 .plate-lever.hold { background-color: rgb(78, 56, 40); border-color: rgb(205, 179, 122); color: rgb(240, 214, 150); }
 .plate-lever.go { background-color: rgb(96, 110, 58); border-color: rgb(190, 205, 130); color: rgb(244, 248, 220); }
+
+/* ---- the campaign (PLAN §12.76) ------------------------------------------ */
+
+.campaign-button { width: 620px; height: 44px; margin-bottom: 4px; }
+.camp-list { margin: 4px 0 12px 0; }
+.camp-row { flex-direction: row; height: 28px; }
+.camp-name, .camp-side, .camp-state {
+    -unity-font-definition: url("Fonts/CourierPrime-Bold.ttf");
+    font-size: 19px; color: rgb(170, 160, 136); margin: 0; padding: 0;
+}
+.camp-name { width: 330px; }
+.camp-side { width: 60px; }
+.camp-name.won, .camp-side.won, .camp-state.won { color: rgb(154, 167, 113); }
+.camp-name.next, .camp-side.next, .camp-state.next { color: rgb(255, 238, 190); }
+.choice.camp-req { margin-top: 18px; }
+.requisition { left: 120px; right: 120px; top: 50px; padding: 22px 30px; }
+.choice.perk { width: 300px; min-width: 300px; height: 74px; font-size: 14px; padding: 3px 8px; }
+.choice.perk.on { background-color: rgb(78, 86, 56); }
+.card-vet {
+    position: absolute; right: 3px; top: 2px;
+    font-size: 12px; letter-spacing: 1px; padding: 0 3px;
+    color: rgb(30, 26, 18); background-color: rgb(222, 188, 106);
+    display: none;
+}
+.orders.radio { color: rgb(255, 214, 140); }
+.plate-head { flex-direction: row; justify-content: center; }
+.plate-facing { height: 16px; margin-top: 1px; font-size: 13px; color: rgb(222, 188, 106); margin-right: 3px; }
+.plate-facing.turned { color: rgb(255, 120, 80); }
+.requisition .deploy { align-self: flex-start; }

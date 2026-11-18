@@ -216,7 +216,7 @@ namespace LanesOfVietnam.View
                         root.Driver.FastForward(1);
                         var relief = root.Driver.State.Areas.Find(a => a.Kind == AreaKind.Relief && a.Call == Inbound.Dustoff);
                         if (relief != null && relief.Wait > Tune.ShootdownAt + 1) root.Driver.FastForward(relief.Wait - Tune.ShootdownAt - 1);
-                        bool down = relief != null && Shootdown.Force(root.Driver.State, relief);
+                        bool down = relief != null && Shootdown.Force(root.Driver.State, relief, limp: false);
                         if (down) root.Driver.FastForward(Tune.CrashTicks);
                         Debug.Log($"[LOV] perf: the medevac {(down ? "brought down" : "not brought down")}");
                     }

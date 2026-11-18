@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 
 namespace LanesOfVietnam.View.UI
 {
-    public enum FlowState { Start, Opening, Playing, Paused, Over }
+    public enum FlowState { Start, Opening, Playing, Paused, Over, Campaign, Requisition }
 
     /// <summary>
     /// Match flow (PLAN §12.5): the start screen over the live scene, the
@@ -20,7 +20,7 @@ namespace LanesOfVietnam.View.UI
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     [DefaultExecutionOrder(-50)]
-    public sealed class Screens : MonoBehaviour
+    public sealed partial class Screens : MonoBehaviour
     {
         public GameRoot Root;
         public Hud Hud;
@@ -63,6 +63,7 @@ namespace LanesOfVietnam.View.UI
         private Scenario _lastScenario;
         private Side _lastSide;
         private int _lastSeed;
+        private MatchOptions _lastGiven;
 
         /// <summary>The opening: seconds, and where the camera travels (sim x).</summary>
         public const float OpeningSeconds = 7f;
@@ -77,6 +78,7 @@ namespace LanesOfVietnam.View.UI
             BuildStart(root);
             BuildSettings(root);
             BuildEnd(root);
+            BuildCampaign(root);
             Subtitle = new Label("") { name = "subtitle", pickingMode = PickingMode.Ignore };
             Subtitle.AddToClassList("subtitle");
             root.Add(Subtitle);
@@ -143,6 +145,9 @@ namespace LanesOfVietnam.View.UI
                 var b = Btn(ops, $"op-{sc.Id}", $"{sc.Title}\n{Kind(sc)}", () => ChooseScenario(it), "choice");
                 b.AddToClassList("op");
             }
+
+            // Or the campaign (§12.76): the five in their order, one after another.
+            Btn(StartPanel, "campaign", "CAMPAIGN · THE FIVE IN THEIR ORDER", OpenCampaign, "choice").AddToClassList("campaign-button");
 
             Text(StartPanel, "YOUR SIDE", "field");
             var sides = new VisualElement(); sides.AddToClassList("choice-row"); StartPanel.Add(sides);
@@ -259,7 +264,7 @@ namespace LanesOfVietnam.View.UI
             Report = Text(EndPanel, "", "report");
             var row = new VisualElement(); row.AddToClassList("choice-row"); EndPanel.Add(row);
             Btn(row, "replay", "WATCH THE REPLAY", WatchReplay, "choice");
-            Btn(row, "again", "PLAY AGAIN", ToMenu, "deploy");
+            Btn(row, "again", "PLAY AGAIN", Again, "deploy");
             root.Add(EndPanel);
         }
 
@@ -275,6 +280,15 @@ namespace LanesOfVietnam.View.UI
                 case "settings": Enter(FlowState.Playing); Enter(FlowState.Paused); break;
                 case "end":
                     if (Root.Driver.State.Over) ShowEnding(Root.Driver.State);
+                    break;
+                // A campaign one battle in, for its screens (never saved): the firebase won, two perks, two squads waiting.
+                case "campaign":
+                case "requisition":
+                    Campaign = new CampaignState { Battle = 1, Won = new[] { 1, 0 }, Merit = new[] { 3, 2 } };
+                    Campaign.UsPerks.AddRange(new[] { "us-sights", "us-marksmanship" });
+                    Campaign.UsVeterans.Add(new Veteran { Card = "us-rifle", Men = new[] { 0.48, 0.41, 0.39, 0.30 } });
+                    Campaign.UsVeterans.Add(new Veteran { Card = "us-mg", Men = new[] { 0.62, 0.55 } });
+                    Enter(screen == "campaign" ? FlowState.Campaign : FlowState.Requisition);
                     break;
             }
         }
@@ -324,11 +338,18 @@ namespace LanesOfVietnam.View.UI
             Enter(FlowState.Start);
         }
 
-        /// <summary>Play the match just finished again, from its own command log.</summary>
+        /// <summary>From the ending: a campaign's battle goes back to the campaign, any other match to the start screen.</summary>
+        public void Again()
+        {
+            if (_campaignEnding && Campaign != null) Enter(FlowState.Campaign);
+            else ToMenu();
+        }
+
+        /// <summary>Play the match just finished again, from its own command log (a campaign's, as the match it was).</summary>
         public void WatchReplay()
         {
             if (_lastLog == null) return;
-            Root.NewMatch(_lastSide, _lastLength, _lastSeed, _lastLog, _lastLevel, _lastScenario);
+            Root.NewMatch(_lastSide, _lastLength, _lastSeed, _lastLog, _lastLevel, _lastScenario, given: _lastGiven);
             Enter(FlowState.Playing);
         }
 
@@ -380,6 +401,8 @@ namespace LanesOfVietnam.View.UI
             BriefPanel.style.display = s == FlowState.Start ? DisplayStyle.Flex : DisplayStyle.None;
             SettingsPanel.style.display = s == FlowState.Paused ? DisplayStyle.Flex : DisplayStyle.None;
             EndPanel.style.display = s == FlowState.Over ? DisplayStyle.Flex : DisplayStyle.None;
+            CampaignPanel.style.display = s == FlowState.Campaign ? DisplayStyle.Flex : DisplayStyle.None;
+            RequisitionPanel.style.display = s == FlowState.Requisition ? DisplayStyle.Flex : DisplayStyle.None;
             bool play = s == FlowState.Playing || s == FlowState.Opening;
             Root.Paused = !play;
             bool replay = Root.Driver != null && Root.Driver.IsReplay;
@@ -388,12 +411,13 @@ namespace LanesOfVietnam.View.UI
             Commander.enabled = play && !replay;
             Deployer.enabled = play && !replay;
             if (!play) Deployer.Disarm();
-            Hud.SetVisible(s != FlowState.Start && !Root.Settings.HideHud);
+            Hud.SetVisible(s != FlowState.Start && s != FlowState.Campaign && s != FlowState.Requisition && !Root.Settings.HideHud);
             ReplayBanner.style.display = replay && play ? DisplayStyle.Flex : DisplayStyle.None;
             _openingT = 0;
             _overT = 0;
             if (s == FlowState.Opening) Root.CameraRig.Focus(OpeningFrom, instant: true);
             SyncChoices();
+            SyncCampaign();
         }
 
         private void SyncChoices()
@@ -453,6 +477,7 @@ namespace LanesOfVietnam.View.UI
         private bool _fullShown;
         private int _autoShown = -1;
         private Scenario _briefFor;
+        private string _campaignLine;
 
         private void Update()
         {
@@ -465,6 +490,12 @@ namespace LanesOfVietnam.View.UI
             if (AutoQuality.Level != _autoShown) { _autoShown = AutoQuality.Level; SyncChoices(); }
             switch (State)
             {
+                case FlowState.Campaign:
+                case FlowState.Requisition:
+                    _panT += dt;
+                    Root.CameraRig.Focus(Mathf.Sin(_panT * 0.035f) * 34f);
+                    break;
+
                 case FlowState.Start:
                     // The live scene behind the menu, slowly panning down the line.
                     _panT += dt;
@@ -544,6 +575,7 @@ namespace LanesOfVietnam.View.UI
                 _lastLevel = Root.Level;
                 _lastScenario = Root.Scenario;
                 _lastSeed = Root.Seed;
+                _lastGiven = Root.Campaign != null ? Root.Options : null;
             }
             Outcome = OutcomeOf(st);
             EndTitle.text = Outcome;
@@ -552,6 +584,15 @@ namespace LanesOfVietnam.View.UI
             EndReason.text = st.Reason.ToUpperInvariant();
             EndVerdict.text = st.Winner == null ? "A DRAW" : st.Winner == Root.PlayerSide ? "VICTORY" : "DEFEAT";
             Report.text = AfterAction(st);
+            // A campaign's battle: paid and kept, once (§12.76), and the way on from it.
+            _campaignEnding = Root.Campaign != null && Root.Campaign == Campaign && !Root.Driver.IsReplay;
+            if (_campaignEnding && !ReferenceEquals(_campaignAfterFor, st))
+            {
+                _campaignAfterFor = st;
+                _campaignLine = CampaignAfter(st);
+            }
+            if (_campaignEnding) Report.text += "\n\n" + _campaignLine;
+            Buttons["again"].text = !_campaignEnding ? "PLAY AGAIN" : Campaign.Over ? "THE CAMPAIGN" : st.Winner == Root.PlayerSide ? "NEXT OPERATION" : "FIGHT AGAIN";
             Enter(FlowState.Over);
         }
 

@@ -76,7 +76,7 @@ namespace LanesOfVietnam.View
         public float? TowerWay;
         /// <summary>Run the match on until a squad throws its smoke grenade, then raise the field glasses on it (squadthrow=1), plus this many ticks.</summary>
         public int SquadThrow = -1;
-        /// <summary>Show a screen for the capture: start, settings or end (the match must be over for end).</summary>
+        /// <summary>Show a screen for the capture: start, settings, end (the match must be over for end), or a campaign's: campaign, requisition.</summary>
         public string Screen;
         /// <summary>Post exposure in stops, replacing the profile's for this capture; null keeps it. For tuning by measurement.</summary>
         public float? Ev;
@@ -163,6 +163,8 @@ namespace LanesOfVietnam.View
         public bool? Shootdown;
         /// <summary>A medevac called in the capture is brought down three seconds out, whatever the dice (downed=1; Shootdown.Force).</summary>
         public bool Downed;
+        /// <summary>limp=1: the medevac hit three seconds out and limping home (MatchOptions.Airframe, §12.76), whatever the dice.</summary>
+        public bool Limp;
         /// <summary>TAA base blend factor, variance clamp scale, and optionally jitter scale and quality (0-4); null keeps the camera's.</summary>
         public float[] Taa;
 
@@ -236,6 +238,7 @@ namespace LanesOfVietnam.View
                     case "destruction": c.Destruction = v == "1" || v == "true"; break;
                     case "shootdown": c.Shootdown = v == "1" || v == "true"; break;
                     case "downed": c.Downed = v == "1" || v == "true"; break;
+                    case "limp": c.Limp = v == "1" || v == "true"; break;
                     case "vcplan": c.VcPlan = v; break;
                     case "call":
                         // call=card:lane:x:tick, repeatable
@@ -275,8 +278,8 @@ namespace LanesOfVietnam.View
                         break;
                     }
                     case "screen":
-                        if (v != "start" && v != "settings" && v != "end")
-                            throw new ArgumentException($"capture: screen must be start, settings or end, not \"{v}\"");
+                        if (v != "start" && v != "settings" && v != "end" && v != "campaign" && v != "requisition")
+                            throw new ArgumentException($"capture: screen must be start, settings, end, campaign or requisition, not \"{v}\"");
                         c.Screen = v;
                         break;
                     case "aa":

@@ -939,5 +939,86 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(FlowState.Start, screens.State);
             Assert.IsFalse(HudOf.Visible, "the HUD shows over the start screen");
         }
+
+        /// <summary>
+        /// The campaign's screens (PLAN §12.76): open it, begin a new one, buy a perk by its button's action, fight the
+        /// first battle with the campaign's deck and doctrine, and at its end be paid, kept and sent on. The editor's own
+        /// saved campaign is put back afterwards.
+        /// </summary>
+        [UnityTest, Category("UIAudit")]
+        public IEnumerator The_campaign_is_opened_bought_for_fought_and_kept()
+        {
+            string kept = PlayerPrefs.HasKey(CampaignStore.Key) ? PlayerPrefs.GetString(CampaignStore.Key) : null;
+            try
+            {
+#if UNITY_EDITOR
+                yield return EditorSceneManager.LoadSceneAsyncInPlayMode(Scene, new LoadSceneParameters(LoadSceneMode.Single));
+#else
+                yield return SceneManager.LoadSceneAsync("Main");
+#endif
+                yield return null;
+                var screens = Object.FindAnyObjectByType<Screens>();
+                screens.OpenCampaign();
+                Assert.AreEqual(FlowState.Campaign, screens.State);
+                screens.NewCampaign();
+                var c = screens.Campaign;
+                Assert.AreEqual(0, c.Battle);
+                Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.Flex, screens.CampaignPanel.style.display.value, "the campaign screen is not shown");
+                Assert.IsFalse(screens.Hud.Visible, "the HUD over the campaign screen");
+
+                screens.OpenRequisition();
+                Assert.AreEqual(FlowState.Requisition, screens.State);
+                Assert.IsFalse(screens.Buttons["perk-us-fire-mission"].enabledSelf, "a second tier open with nothing in its branch");
+                Assert.IsFalse(screens.Buttons["perk-vc-night"].parent.style.display == UnityEngine.UIElements.DisplayStyle.Flex, "the VC's tree shown for an American battle");
+                screens.BuyPerk("us-sights");
+                CollectionAssert.Contains(c.UsPerks, "us-sights");
+                Assert.IsTrue(screens.Buttons["perk-us-sights"].ClassListContains("on"), "bought, and not shown bought");
+                Assert.IsTrue(screens.Buttons["perk-us-fire-mission"].enabledSelf == false, "a second tier with too little merit");
+
+                screens.OpenCampaign();
+                screens.FightCampaign();
+                Assert.AreEqual(FlowState.Opening, screens.State);
+                screens.Skip();
+                var st = Root.Driver.State;
+                Assert.AreSame(c, Root.Campaign);
+                Assert.AreEqual("firebase", Root.Scenario.Id);
+                Assert.IsFalse(Deck.Has(st, Side.Us, Deck.Find(Side.Us, "us-arty")), "the guns before FIRE MISSION");
+                CollectionAssert.Contains(Root.Options.UsPerks, "us-sights");
+                CollectionAssert.AreEqual(new[] { "vc-fieldcraft" }, Root.Options.VcPerks, "the enemy's doctrine did not keep pace");
+                yield return null;
+
+                // Won: paid, kept, and on to the next.
+                st.Winner = Side.Us; st.Reason = "vc morale broke";
+                screens.ShowEnding(st);
+                Assert.AreEqual(1, c.Battle);
+                Assert.AreEqual(Campaign.OpeningMerit - 1 + Campaign.WinMerit, c.Merit[0]);
+                Assert.AreEqual("NEXT OPERATION", screens.Buttons["again"].text);
+                StringAssert.Contains("MERIT +3", screens.Report.text);
+                Assert.AreEqual(1, CampaignStore.Load().Battle, "not kept");
+                screens.ShowEnding(st);
+                Assert.AreEqual(1, c.Battle, "the same ending paid twice");
+                screens.Again();
+                Assert.AreEqual(FlowState.Campaign, screens.State);
+                StringAssert.Contains("THE WIRE", screens.Buttons["camp-fight"].text);
+            }
+            finally
+            {
+                if (kept != null) PlayerPrefs.SetString(CampaignStore.Key, kept); else PlayerPrefs.DeleteKey(CampaignStore.Key);
+            }
+        }
+
+        /// <summary>The radio's line for the Warfare 1944 rules' events (PLAN §12.76), from each side.</summary>
+        [Test, Category("UIAudit")]
+        public void The_radio_says_what_the_new_rules_did()
+        {
+            var e = new SimEvent { Kind = EventKind.LeaderDown, Side = Side.Us };
+            Assert.AreEqual("RADIO — SQUAD LEADER DOWN", Hud.RadioLine(e, Side.Us));
+            Assert.AreEqual("RADIO — THEIR LEADER IS DOWN", Hud.RadioLine(e, Side.Vc));
+            Assert.AreEqual("RADIO — RTO DOWN. CALLS DELAYED", Hud.RadioLine(new SimEvent { Kind = EventKind.NetDown, Side = Side.Us }, Side.Us));
+            StringAssert.Contains("LANE 2", Hud.RadioLine(new SimEvent { Kind = EventKind.Outflanked, Side = Side.Vc, Id = 1, Rounds = 1 }, Side.Us));
+            Assert.IsNull(Hud.RadioLine(new SimEvent { Kind = EventKind.Outflanked, Side = Side.Vc, Id = 1, Rounds = 0 }, Side.Us), "a lane no longer turned said again");
+            Assert.IsNull(Hud.RadioLine(new SimEvent { Kind = EventKind.Kill, Side = Side.Us }, Side.Us));
+        }
+
     }
 }

@@ -119,13 +119,14 @@ namespace LanesOfVietnam.View
                     }
                     // (A lane past the last is a post: call=us-sniper:2:0:5 sends a sniper team up the watchtower.)
                     if (blocked == null) Driver.Match.Issue(callLane >= Coords.Lanes.Length ? Command.BuyTo(side, call.card, callLane - Coords.Lanes.Length) : Command.Buy(side, call.card, callLane, callX));
-                    // downed=1: the medevac brought down three seconds out, whatever the dice (Shootdown.Force).
-                    if (blocked == null && cap.Downed && call.card == "us-medevac")
+                    // downed=1: the medevac brought down three seconds out, whatever the dice (Shootdown.Force); limp=1: hit
+                    // there and limping home (Airframe).
+                    if (blocked == null && (cap.Downed || cap.Limp) && call.card == "us-medevac")
                     {
                         Driver.FastForward(1); at++;
                         var relief = Driver.State.Areas.FirstOrDefault(a => a.Kind == AreaKind.Relief && a.Call == Inbound.Dustoff);
                         if (relief != null && relief.Wait > Tune.ShootdownAt + 1) { int k = relief.Wait - Tune.ShootdownAt - 1; Driver.FastForward(k); at += k; }
-                        Debug.Log($"[LOV] capture: the medevac {(relief != null && Shootdown.Force(Driver.State, relief) ? "brought down" : "not brought down")} at tick {Driver.State.Tick}");
+                        Debug.Log($"[LOV] capture: the medevac {(relief != null && Shootdown.Force(Driver.State, relief, cap.Limp) ? (cap.Limp ? "hit, limping home" : "brought down") : "not brought down")} at tick {Driver.State.Tick}");
                     }
                 }
                 if (cap.Tick > at) Driver.FastForward(cap.Tick - at);
@@ -296,11 +297,19 @@ namespace LanesOfVietnam.View
             WorldMap = null;
         }
 
+        /// <summary>The campaign this match is a battle of, or null (Screens gives its end to Campaign.After).</summary>
+        public CampaignState Campaign { get; private set; }
+
         public void NewMatch(Side player, MatchLength length, int? seed = null,
                              System.Collections.Generic.IReadOnlyList<LiveMatch.Applied> replay = null,
-                             Difficulty level = Difficulty.Veteran, Scenario scenario = null)
+                             Difficulty level = Difficulty.Veteran, Scenario scenario = null,
+                             MatchOptions given = null, CampaignState campaign = null)
         {
             var cap = CaptureSettings.Active;
+            // A campaign's battle (Sim.Campaign, PLAN §12.76): its operation, its side, its level, and the match the campaign
+            // makes of it (the player's deck, both doctrines, his veterans). A replay of one is given the match it was.
+            Campaign = campaign;
+            if (campaign != null) { scenario = Sim.Campaign.Next(campaign); player = Sim.Campaign.Playing(campaign); level = campaign.Level; }
             Scenario = scenario ?? Scenarios.Firebase;
             // An operation on another map is fought in another world.
             if (WorldMap != Scenario.Map) BuildWorld(Scenario.Map);
@@ -319,7 +328,7 @@ namespace LanesOfVietnam.View
             // (The computer does not man the watchtower itself: measured, a Vietnamese player's game goes from 17
             // wins in 24 to 5. It does raise a marksman against a tower the player has manned.)
             bool nobody = cap != null || PerfProbe.Param("perf") != null;
-            Options = Scenario.Options(Seed, nobody ? (Side?)null : player, level, length);
+            Options = given ?? (campaign != null ? Sim.Campaign.Options(campaign, Seed) : Scenario.Options(Seed, nobody ? (Side?)null : player, level, length));
             // The simulation's default stays the parity baseline; a capture can turn any rule off (frag=0), and
             // give a side a plan by name.
             if (cap != null)

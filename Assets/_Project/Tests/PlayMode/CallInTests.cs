@@ -253,7 +253,8 @@ namespace LanesOfVietnam.Tests
             yield return Ticks(2);
             var area = st.Areas.Last(a => a.Kind == AreaKind.Relief);
             yield return Ticks(area.Wait - Tune.ShootdownAt - 1);
-            Assert.IsTrue(Shootdown.Force(st, area), "nobody to bring it down");
+            // (It falls: one that limps home is the next test's, MatchOptions.Airframe, §12.76.)
+            Assert.IsTrue(Shootdown.Force(st, area, limp: false), "nobody to bring it down");
             var shot = st.Events.Last(e => e.Kind == EventKind.ShotDown);
 
             // Hit, and going down: spinning.
@@ -273,6 +274,46 @@ namespace LanesOfVietnam.Tests
             var at = Coords.World(shot.X.Value, shot.Z.Value, 0f);
             Assert.Less(new Vector2(wreck.position.x - at.x, wreck.position.z - at.z).magnitude, 1f, "it lies away from where it struck");
             Assert.Greater(Vector3.Angle(wreck.up, Vector3.up), 50f, "it is not on its side");
+        }
+
+        /// <summary>
+        /// Hit and limping home (MatchOptions.Airframe; PLAN §12.76): it is drawn hit, turns about and goes back the way
+        /// it came, up and smoking, sets down nowhere, leaves no wreck, and is gone.
+        /// </summary>
+        [UnityTest, Category("CallIns")]
+        public IEnumerator A_helicopter_hit_limps_home_and_is_gone()
+        {
+            yield return UIAuditInterfaceTests.LoadAndDeploy();
+            var combat = Object.FindAnyObjectByType<CombatView>();
+            Root.Paused = true;
+            var st = Root.Driver.State;
+            Assert.IsTrue(st.Airframe, "the game plays with the rule");
+            st.Cp[(int)Side.Us] = 1000;
+            Root.Driver.Match.Issue(Command.Buy(Side.Us, "us-medevac", 0, -30));
+            yield return Ticks(2);
+            var area = st.Areas.Last(a => a.Kind == AreaKind.Relief);
+            yield return Ticks(area.Wait - Tune.ShootdownAt - 1);
+            Assert.IsTrue(Shootdown.Force(st, area, limp: true), "nobody to hit it");
+            var limp = st.Events.Last(e => e.Kind == EventKind.LimpHome);
+            float lx = Coords.World(area.X, area.Z, 0f).x;
+            float dir = Coords.World(area.X + Combat.Advance(st, Side.Us), area.Z, 0f).x - lx;
+
+            // Hit: drawn, and shaken.
+            yield return Ticks((int)((CombatView.RocketFlight + 0.5f) * Tune.TickHz));
+            Assert.IsTrue(combat.HueySeen, "hit, it is not drawn");
+            float hitX = combat.HueyAt.position.x;
+
+            // Going home: back the way it came, and further back as it goes.
+            yield return Ticks(3 * Tune.TickHz);
+            Assert.IsTrue(combat.HueySeen, "it is not drawn going home");
+            Assert.Less((combat.HueyAt.position.x - hitX) * Mathf.Sign(dir), -5f, "it is not going back the way it came");
+            Assert.IsFalse(combat.WoundedAboard, "it set down and took the wounded aboard");
+
+            // Gone, and no wreck.
+            yield return Ticks((int)limp.Amount.Value + (int)(CombatView.LimpLinger * Tune.TickHz) + Tune.TickHz);
+            Assert.IsFalse(combat.HueySeen, "it is gone and still drawn");
+            Assert.AreEqual(0, combat.Wrecks, "it limped home and left a wreck");
+            Assert.IsFalse(st.Areas.Any(a => a.Id == area.Id), "the call is still on its way");
         }
     }
 }

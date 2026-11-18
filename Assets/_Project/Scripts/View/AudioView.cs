@@ -510,6 +510,21 @@ namespace LanesOfVietnam.View
                                 foreach (var r in rotors) Out.Stop(r, down, 0.4f);
                         break;
                     }
+                    case EventKind.LimpHome:
+                    {
+                        // Airframe (§12.76): the rocket's report and its burst on the helicopter, and its rotor fading as it
+                        // goes home, out of hearing as it is out of sight.
+                        if (e.X == null) break;
+                        float pace = Mathf.Max(0.25f, _root.Speed);
+                        if (e.Id >= 0 && e.Id < st.Men.Count) Play(Pick("rpg"), st.Men[e.Id].X, st.Men[e.Id].Z, 1f, Range(0.95f, 1.05f), false);
+                        string burst = Pick("grenade");
+                        if (burst != null) Out.Play(burst, (float)e.X.Value, (float)e.Z.Value, 0.8f, 1.15f, 0f, false, CombatView.RocketFlight / pace);
+                        float gone = ((float)((e.Amount ?? 0) * Tune.Dt) + CombatView.LimpLinger) / pace;
+                        foreach (var set in new[] { "rotor", "rotor_idle", "rotor_away" })
+                            if (_sets.TryGetValue(set, out var rotors))
+                                foreach (var r in rotors) Out.Stop(r, gone * 0.4f, gone * 0.6f);
+                        break;
+                    }
                     // Water: the bridge hit (its timber split), going (its timbers breaking; its halves are heard striking
                     // the water from the splashes' record), and put back (planks thrown down across it).
                     case EventKind.BridgeHit:
