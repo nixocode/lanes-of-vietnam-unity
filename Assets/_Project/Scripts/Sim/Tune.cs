@@ -793,6 +793,15 @@ namespace LanesOfVietnam.Sim
         public const int OutflankRearm = TickHz * 20;
         /// <summary>Ticks between looks at whether a lane is turned (half a second).</summary>
         public const int OutflankEvery = TickHz / 2;
+
+        // --- Shock (MatchOptions.Shock): the men a squad cannot spare ----------------------------------
+        /// <summary>A squad leader's death costs his side this many times a man's morale; a VC cadre's, the second.</summary>
+        public const double LeaderMorale = 1.5, CadreMorale = 1.5;
+        /// <summary>Pin on each man of a squad whose leader is killed: heads down until somebody takes charge.</summary>
+        public const double LeaderPin = 0.2;
+        /// <summary>With the radio man killed, his side's call-ins take this many times as long, for this many ticks (twenty seconds).</summary>
+        public const double NetDownWait = 1.6;
+        public const int NetDownTicks = TickHz * 20;
     }
 
     /// <summary>

@@ -179,6 +179,8 @@ namespace LanesOfVietnam.Sim
         public bool Still;
         /// <summary>Killed by a round from his flank, in cover (MatchOptions.Flank): his side's morale takes more for him.</summary>
         public bool Flanked;
+        /// <summary>His squad's leader (an American squad's, a VC cell's cadre): its lead man as raised (MatchOptions.Shock).</summary>
+        public bool Leader;
 
         /// <summary>Ticks he has been still, and the posture he last changed from (MatchOptions.Gunnery).</summary>
         public int Rest;
@@ -493,6 +495,9 @@ namespace LanesOfVietnam.Sim
         // Outflanked (MatchOptions.Flank): Side's men in lane Id have an enemy in the next lane behind them (Rounds 1), and
         // lost Amount of morale for it (0 if the lane was turned too lately before); Rounds 0: it is no longer turned.
         Outflanked,
+        // Shock (MatchOptions.Shock): LeaderDown: squad Id of Side has lost its leader, man Target, at X, Z; NetDown: man
+        // Target of squad Id, Side's radio man, is dead, and its calls are slow for Amount ticks.
+        LeaderDown, NetDown,
     }
 
     public struct SimEvent
@@ -626,6 +631,10 @@ namespace LanesOfVietnam.Sim
         public bool Soldiering;
         /// <summary>Part 2: cover faces the enemy, and a round from the flank finds its man (MatchOptions.Flank).</summary>
         public bool Flank;
+        /// <summary>Part 2: a squad leader's death and a radio man's tell (MatchOptions.Shock).</summary>
+        public bool Shock;
+        /// <summary>MatchOptions.Shock: the tick until which each side's calls are slow, its radio man dead.</summary>
+        public readonly int[] NetDown = { 0, 0 };
         /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
         public List<Forest> Forests = new List<Forest>();
         public List<Burn> Burnt = new List<Burn>();

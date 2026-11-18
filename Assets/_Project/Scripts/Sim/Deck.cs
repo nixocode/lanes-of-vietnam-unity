@@ -228,7 +228,8 @@ namespace LanesOfVietnam.Sim
             // Inbound: a card's call is on its way, not here. (A squad's own smoke grenade has no Call: it is thrown.)
             if (st.Inbound && a.Call != 0)
             {
-                a.Wait = Inbound.Ticks(a.Call);
+                // Shock: slower with the side's radio man dead.
+                a.Wait = Sim.Shock.Wait(st, side, Inbound.Ticks(a.Call));
                 st.Areas.Add(a);
                 st.Events.Add(new SimEvent { Kind = EventKind.CallIn, Tick = st.Tick, Side = side, Id = a.Id, X = a.X, Z = a.Z, Amount = a.Wait, Rounds = a.Call });
                 return;

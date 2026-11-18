@@ -135,9 +135,7 @@ namespace LanesOfVietnam.View
         /// The man of a US squad who carries its radio: the second raised, if he carries a rifle (the first is its
         /// point man). One a squad; the computer's and the player's alike.
         /// </summary>
-        public static bool RadioMan(SimState st, Man m)
-            => m.Side == Side.Us && m.Weapon == Weapon.M16 && m.Id >= 1 && st.Men[m.Id - 1].Squad == m.Squad
-               && (m.Id == 1 || st.Men[m.Id - 2].Squad != m.Squad);
+        public static bool RadioMan(SimState st, Man m) => Shock.RadioMan(st, m);
 
         /// <summary>Who is on the radio now, for the tests: a man's id, or -1.</summary>
         public int Talking { get; private set; } = -1;

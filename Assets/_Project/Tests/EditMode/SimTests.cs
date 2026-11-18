@@ -2853,7 +2853,7 @@ namespace LanesOfVietnam.Tests
         public void Sappers_and_engineers_throw_satchels_into_held_positions_and_breach_them()
         {
             int thrown = 0, breached = 0;
-            for (int seed = 1; seed <= 8; seed++)
+            for (int seed = 1; seed <= 16; seed++)
             {
                 var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
                 Assert.IsTrue(o.Satchel, "the game plays with satchel charges");
@@ -2892,7 +2892,7 @@ namespace LanesOfVietnam.Tests
                 }
                 foreach (var c in st.Cover) Assert.LessOrEqual(c.Breached, Tune.SatchelBreachTicks);
             }
-            Assert.Greater(thrown, 0, "no satchel was thrown in eight matches");
+            Assert.Greater(thrown, 0, "no satchel was thrown in sixteen matches");
             Assert.Greater(breached, 0, "no satchel ever breached a position");
         }
 
@@ -2908,7 +2908,7 @@ namespace LanesOfVietnam.Tests
             int fired = 0, early = 0, packed = 0;
             // (Twelve matches: with MatchOptions.Strike the computer saves for its air strike and raises a mortar team a
             // sixth of a match on the firebase; six had none.)
-            for (int seed = 1; seed <= 12; seed++)
+            for (int seed = 1; seed <= 24; seed++)
             {
                 var o = Scenarios.Firebase.Options(seed, null, Difficulty.Veteran);
                 Assert.IsTrue(o.Emplace, "the game plays with the mortar emplaced");
@@ -2936,7 +2936,7 @@ namespace LanesOfVietnam.Tests
                     }
                 }
             }
-            Assert.Greater(fired, 0, "no mortar fired in twelve matches");
+            Assert.Greater(fired, 0, "no mortar fired in twenty-four matches");
             Assert.AreEqual(0, early, "a mortar fired before it was set up");
             Assert.Greater(packed, 0, "no mortar was ever packed up to move");
         }
@@ -3112,12 +3112,14 @@ namespace LanesOfVietnam.Tests
         // and 6; First Light's seed 3 is broken and 7 taken: seeds 2 and 21.)
         // (And again 2026-11-18: the game plays with MatchOptions.Flank, cover that faces the enemy and lanes that can be
         // turned, PLAN §12.76. The Earth Fights' seed 1 now ends with the VC broken.)
-        [TestCase("firebase", 1, 4900, 91417168u, 3811705835u, 168345781u, "us morale broke")]
-        [TestCase("the-wire", 2, 4842, 1313985930u, 3679825124u, 1994829385u, "us morale broke")]
-        [TestCase("the-wire", 6, 6000, 1106983714u, 550273854u, 1191498072u, "us held out")]
-        [TestCase("first-light", 21, 8400, 465870413u, 2541755474u, 4219433749u, "vc held the line")]
-        [TestCase("first-light", 2, 2489, 2310578503u, 427046082u, 1761093956u, "us took the line")]
-        [TestCase("earth-fights", 1, 6848, 2809132458u, 1302136121u, 3472625546u, "vc morale broke")]
+        // (And with MatchOptions.Shock the same day: The Wire's seed 6 is now broken: seed 4; First Light's seed 2 is
+        // broken and 21 broken: seeds 4 and 53.)
+        [TestCase("firebase", 1, 4508, 3537912864u, 4036378807u, 656819593u, "us morale broke")]
+        [TestCase("the-wire", 2, 4709, 329421114u, 2685981612u, 2755890547u, "us morale broke")]
+        [TestCase("the-wire", 4, 6000, 4172020765u, 3897360923u, 2481622125u, "us held out")]
+        [TestCase("first-light", 53, 8400, 3659250152u, 3337391431u, 3587413962u, "vc held the line")]
+        [TestCase("first-light", 4, 3016, 1597363215u, 1059291330u, 1680570718u, "us took the line")]
+        [TestCase("earth-fights", 1, 6401, 4273562106u, 1633710249u, 3457324001u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3155,7 +3157,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering && o.Flank, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering && o.Flank && o.Shock, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3172,7 +3174,7 @@ namespace LanesOfVietnam.Tests
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
             kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true; kept.Strike = true;
-            kept.Soldiering = true; kept.Flank = true;
+            kept.Soldiering = true; kept.Flank = true; kept.Shock = true;
             // (And the rules that do nothing on it until something happens: a medevac brought down, since the strike, in this one.)
             kept.Shootdown = true; kept.Water = true; kept.Heights = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
@@ -3616,7 +3618,7 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             // (And without the rule that came after it, Soldiering, §12.64.)
-            o.Strike = false; o.Soldiering = false; o.Flank = false;
+            o.Strike = false; o.Soldiering = false; o.Flank = false; o.Shock = false;
             var (h, m) = Played(o);
             Assert.AreEqual(4075, m.State.Tick);
             Assert.AreEqual(3782637812u, h[h.Count - 1]);
@@ -3797,12 +3799,12 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             // (And without the rule that came after it, Flank, §12.76.)
-            o.Soldiering = false; o.Flank = false;
+            o.Soldiering = false; o.Flank = false; o.Shock = false;
             var (h, m) = Played(o);
             Assert.AreEqual(6448, m.State.Tick);
             Assert.AreEqual(373562849u, h[h.Count - 1]);
             o = Scenarios.RiceFields.Options(1, null, Difficulty.Veteran);
-            o.Soldiering = false; o.Flank = false;
+            o.Soldiering = false; o.Flank = false; o.Shock = false;
             (h, m) = Played(o);
             Assert.AreEqual(2566, m.State.Tick);
             Assert.AreEqual(11572162u, h[h.Count - 1]);
@@ -3945,11 +3947,86 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(reason, m.State.Reason);
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-11-18, with MatchOptions.Flank (PLAN §12.76; 5035, 3595252491u without it);
+        // --- Shock (PLAN §12.76): the men a squad cannot spare ------------------------------------------------
+
+        /// <summary>
+        /// Shock (MatchOptions.Shock; Warfare 1944's officer, in the war's terms). Every squad of two or more is led by its
+        /// lead man; his death costs half as much morale again as a man's and puts his squad's heads down (LeaderDown).
+        /// The Americans' radio man is the view's (the second raised, with a rifle): his death slows his side's call-ins
+        /// for NetDownTicks (NetDown). Without the rule nobody leads and a call takes what it took.
+        /// </summary>
+        [Test]
+        public void A_squad_leaders_death_tells_and_the_radio_mans_slows_the_calls()
+        {
+            var st = Match.Create(new MatchOptions { Seed = 3, Cover = Map.Cover(), Arms = true, Inbound = true, Shock = true });
+            foreach (var sq in st.Squads)
+            {
+                var men = st.Men.Where(x => x.Squad == sq.Id).ToList();
+                Assert.AreEqual(men.Count > 1 ? 1 : 0, men.Count(x => x.Leader), $"squad {sq.Id} of {men.Count} has not one leader");
+                if (men.Count > 1) Assert.IsTrue(men[0].Leader, "its leader is not its lead man");
+            }
+            var leader = st.Men.First(x => x.Leader && x.Side == Side.Us);
+            var plain = st.Men.First(x => !x.Leader && x.Side == Side.Us && !Shock.RadioMan(st, x));
+            Assert.AreEqual(Tune.LeaderMorale, Shock.Weight(leader)); Assert.AreEqual(1, Shock.Weight(plain));
+            var mate = st.Men.First(x => x.Squad == leader.Squad && x.Id != leader.Id);
+            mate.Pin = 0;
+            leader.Alive = false;
+            Shock.Fell(st, leader);
+            Assert.Greater(mate.Pin, 0, "his squad's heads did not go down");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.LeaderDown && e.Id == leader.Squad && e.Target == leader.Id));
+
+            // The radio: a call before and after he is killed.
+            var radio = st.Men.First(x => Shock.RadioMan(st, x));
+            int Called()
+            {
+                st.Cp[(int)Side.Us] = 1000;
+                st.CardCooldown[(int)Side.Us][Deck.Find(Side.Us, "us-arty").Index] = 0;
+                Assert.IsTrue(Deck.Buy(st, Side.Us, Deck.Find(Side.Us, "us-arty"), 0, null, 0));
+                return st.Areas.Last().Wait;
+            }
+            int clear = Called();
+            radio.Alive = false;
+            Shock.Fell(st, radio);
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.NetDown && e.Target == radio.Id));
+            Assert.AreEqual((int)(clear * Tune.NetDownWait), Called(), "with the radio man dead the guns came as fast");
+            st.Tick += Tune.NetDownTicks;
+            Assert.AreEqual(clear, Called(), "the net was down for good");
+
+            var off = Match.Create(new MatchOptions { Seed = 3, Cover = Map.Cover(), Arms = true, Inbound = true });
+            Assert.IsFalse(off.Men.Any(x => x.Leader), "without the rule somebody leads");
+        }
+
+        /// <summary>
+        /// Shock is pinned: `simcs hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
+        /// ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown strike soldiering
+        /// flank shock` (2026-11-18). Without the word the line is Flank's, unmoved (above).
+        /// </summary>
+        [TestCase(1, 5061, 2301292302u, 307974954u, 3035439900u, "us morale broke")]
+        [TestCase(7, 4411, 839548568u, 1726163464u, 1805613440u, "us morale broke")]
+        public void With_shock_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(),
+                Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true, Gunnery = true, Ammo = true,
+                Tactics = true, Fortune = true, FireControl = true, Ballistics = true, Vantage = true, Commander = true, Cohesion = true,
+                Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Strike = true,
+                Soldiering = true, Flank = true, Shock = true,
+            };
+            var (a, m) = Played(o);
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        // `simcs scenario hash 1` (rice-fields), 2026-11-18, with MatchOptions.Flank and Shock (PLAN §12.76; with Flank alone 5035,
+        // 3905983211u; 5035, 3595252491u without either);
         // before that 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and
         // MatchOptions.Soldiering, PLAN §12.64; 6942, 2233128180u with the strike and napalm on the forest, §12.61-63).
-        private const int RiceTicks = 5035;
-        private const uint RiceFinal = 3905983211u;
+        private const int RiceTicks = 6359;
+        private const uint RiceFinal = 3971342429u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down
@@ -3982,9 +4059,10 @@ namespace LanesOfVietnam.Tests
 
             // By the dice: in The Wire, now and then.
             int down = 0;
-            for (int seed = 1; seed <= 6; seed++)
+            // (Twelve sieges since Flank and Shock, §12.76, in which fights go differently: six had none.)
+            for (int seed = 1; seed <= 12; seed++)
                 down += Played(Scenarios.TheWire.Options(seed, null, Difficulty.Veteran)).m.State.Events.Count(e => e.Kind == EventKind.ShotDown);
-            Assert.Greater(down, 0, "the rocket men of six sieges brought down no medevac");
+            Assert.Greater(down, 0, "the rocket men of twelve sieges brought down no medevac");
 
             // Its own stream: a match in which none is brought down is the match without the rule.
             var on = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
@@ -4031,6 +4109,8 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(3, null, Difficulty.Veteran);
             o.Us = o.Vc = Plan.NoReinforce;         // nobody spends, so the points can be counted
+            // (A man is a man here: without the rules by which a squad leader's death, or one from the flank, costs more, §12.76.)
+            o.Flank = false; o.Shock = false;
             o.UsMeans = new Means { Purse = 0.5 };
             o.VcMeans = new Means { Purse = 2, Income = 1.5, Opening = 12, Will = 0.5 };
             var m = new LiveMatch(o);
@@ -4124,7 +4204,7 @@ namespace LanesOfVietnam.Tests
         {
             var light = Scenarios.FirstLight;
             Assert.AreEqual(MatchMode.Assault, light.Mode);
-            var o = light.Options(2, null, Difficulty.Veteran);
+            var o = light.Options(7, null, Difficulty.Veteran);
             Assert.AreSame(Plan.Ceiling, o.Us); Assert.AreSame(Plan.Defend, o.Vc);
             var m = new LiveMatch(o);
             var st = m.State;
@@ -4157,8 +4237,8 @@ namespace LanesOfVietnam.Tests
             foreach (var sq in st.Squads)
                 Assert.AreEqual(sq.Side == Side.Us ? Order.Advance : Order.Hold, sq.Order, $"a {sq.Side} squad in the opening");
 
-            // Seed 2 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52;
-            // 7 until the strike was 80 points, §12.63; 3 until Soldiering, §12.64): the line is taken. The match ends on the tick it is, and not before.
+            // Seed 7 (5 until call-ins took their time to land, PLAN §12.45; 3 until the Americans opened with fewer, §12.52;
+            // 7 until the strike was 80 points, §12.63; 3 until Soldiering, §12.64; 2 until Flank and Shock, §12.76): the line is taken. The match ends on the tick it is, and not before.
             while (!st.Over && st.Tick < m.Cap)
             {
                 Assert.IsFalse(Match.Taken(st), $"tick {st.Tick}: the line was the Americans' and the match went on");
@@ -4171,9 +4251,9 @@ namespace LanesOfVietnam.Tests
             Assert.Greater(st.Morale[(int)Side.Vc], 0, "they had broken anyway");
 
             // Seed 21 (2, as above, then 4 until the jet's bombs fell in one pass, then 8 until §12.52, then 3 until the strike
-            // was bombs and napalm, §12.61, then 14 until it was 80 points, §12.63, then 7 until Soldiering, §12.64): it is not,
-            // and the clock is the defender's.
-            var (_, late) = Played(light.Options(21, null, Difficulty.Veteran));
+            // was bombs and napalm, §12.61, then 14 until it was 80 points, §12.63, then 7 until Soldiering, §12.64, then 21 until
+            // Flank and Shock, §12.76): it is not, and the clock is the defender's.
+            var (_, late) = Played(light.Options(53, null, Difficulty.Veteran));
             Assert.AreEqual("vc held the line", late.State.Reason);
             Assert.AreEqual(Side.Vc, late.State.Winner);
             Assert.AreEqual(late.State.ClockTicks, late.State.Tick);

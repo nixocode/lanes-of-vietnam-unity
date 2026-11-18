@@ -70,6 +70,7 @@ namespace LanesOfVietnam.SimCs
                     "mirror" => MirrorCheck(args),
                     "ground" => GroundProfile(args),
                     "river" => RiverTable(args),
+                    "happens" => EventsTable(args),
                     "strikes" => StrikeTable(args),
                     "squadsmoke" => SquadSmokeCount(args),
                     "towerfalls" => TowerFalls(args),
@@ -700,7 +701,7 @@ namespace LanesOfVietnam.SimCs
                         if (levelArg != null && levelArg != level.ToString().ToLowerInvariant()) continue;
                         int wins = 0, fell = 0, crushed = 0; double secs = 0, groundOwn = 0, groundTheirs = 0;
                         // `flanks`: men killed, and of them killed from the flank in cover (MatchOptions.Flank), each side.
-                        var killed = new int[2]; var flanked = new int[2]; var turned = new int[2]; var turnedCost = new double[2];
+                        var killed = new int[2]; var flanked = new int[2]; var turned = new int[2]; var turnedCost = new double[2]; var leaders = new int[2]; var nets = new int[2]; int satchels = 0, downs = 0, mortars = 0;
                         var each = new List<double>();
                         var endings = new SortedDictionary<string, int>();
                         for (int seed = 1; seed <= seeds; seed++)
@@ -761,6 +762,11 @@ namespace LanesOfVietnam.SimCs
                                 {
                                     if (e.Kind == EventKind.Kill) { killed[(int)e.Side]++; if (m.State.Men[e.Id].Flanked) flanked[(int)e.Side]++; }
                                     if (e.Kind == EventKind.Outflanked && e.Rounds == 1) { turned[(int)e.Side]++; turnedCost[(int)e.Side] += e.Amount ?? 0; }
+                                    if (e.Kind == EventKind.LeaderDown) leaders[(int)e.Side]++;
+                                    if (e.Kind == EventKind.NetDown) nets[(int)e.Side]++;
+                                    if (e.Kind == EventKind.SatchelThrown) satchels++;
+                                    if (e.Kind == EventKind.ShotDown) downs++;
+                                    if (e.Kind == EventKind.Launch && m.State.Men[e.Id].Weapon == Weapon.Mortar) mortars++;
                                 }
                             groundOwn += m.State.MoraleLostToGround[(int)side]; groundTheirs += m.State.MoraleLostToGround[(int)Combat.Other(side)];
                             var ev = m.State.Events;
@@ -777,7 +783,7 @@ namespace LanesOfVietnam.SimCs
                         }
                         Console.WriteLine($"    as {Match.Name(side)}, {level,-7} wins {wins,2}/{seeds}  mean {secs / seeds,4:F0} s ({each.Min():F0} to {each.Max():F0})  {string.Join(", ", endings.Select(e => $"{e.Key} {e.Value}"))}"
                                           + (fell > 0 ? $"; the tower brought down in {fell}, {crushed} men killed by its fall" : "")
-                                          + (a.Contains("flanks") ? $"; killed, a match: US {killed[0] / (double)seeds:F1} ({flanked[0] / (double)seeds:F1} from the flank), VC {killed[1] / (double)seeds:F1} ({flanked[1] / (double)seeds:F1}); lanes turned, a match: US {turned[0] / (double)seeds:F1} (will {turnedCost[0] / seeds:F2}), VC {turned[1] / (double)seeds:F1} (will {turnedCost[1] / seeds:F2})" : "")
+                                          + (a.Contains("flanks") ? $"; killed, a match: US {killed[0] / (double)seeds:F1} ({flanked[0] / (double)seeds:F1} from the flank), VC {killed[1] / (double)seeds:F1} ({flanked[1] / (double)seeds:F1}); lanes turned, a match: US {turned[0] / (double)seeds:F1} (will {turnedCost[0] / seeds:F2}), VC {turned[1] / (double)seeds:F1} (will {turnedCost[1] / seeds:F2}); leaders lost US {leaders[0] / (double)seeds:F1}, VC {leaders[1] / (double)seeds:F1}; radio men lost US {nets[0] / (double)seeds:F1}; satchels {satchels}, mortar rounds {mortars}, medevacs down {downs}" : "")
                                           + (a.Contains("ground") ? $"; will lost to ground taken, a match: his {groundOwn / seeds:F2}, the computer's {groundTheirs / seeds:F2}" : ""));
                     }
                 }
@@ -1052,14 +1058,56 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>
+        /// `happens [seeds] [scenario] [rule words]`: each operation as the game plays it against a Veteran with nobody
+        /// playing (as the tests play it), and how many of each event a match has, on average: what a rule changes in
+        /// what happens, not only in who wins.
+        /// </summary>
+        private static int EventsTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int seeds = nums.Length > 0 ? nums[0] : 12;
+            string only = a.Skip(1).FirstOrDefault(x => Scenarios.ById(x) != null);
+            foreach (var sc in Scenarios.All)
+            {
+                if (only != null && sc.Id != only) continue;
+                var counts = new SortedDictionary<EventKind, int>();
+                var launched = new SortedDictionary<Weapon, int>();
+                var raised = new SortedDictionary<string, int>();
+                var wins = new int[3];
+                double secs = 0;
+                for (int seed = 1; seed <= seeds; seed++)
+                {
+                    var o = sc.Options(seed, null, Difficulty.Veteran);
+                    Rules(o, a);
+                    var lm = new LiveMatch(o);
+                    while (!lm.State.Over && lm.State.Tick < lm.Cap) lm.Step();
+                    var r = Match.Summarise(lm.State);
+                    foreach (var kv in r.EventCounts) counts[kv.Key] = counts.GetValueOrDefault(kv.Key) + kv.Value;
+                    foreach (var q in lm.State.Squads) raised[q.Card ?? "?"] = raised.GetValueOrDefault(q.Card ?? "?") + 1;
+                    foreach (var e in lm.State.Events) if (e.Kind == EventKind.Launch) launched[lm.State.Men[e.Id].Weapon] = launched.GetValueOrDefault(lm.State.Men[e.Id].Weapon) + 1;
+                    wins[r.Winner == Side.Us ? 0 : r.Winner == Side.Vc ? 1 : 2]++;
+                    secs += r.Seconds;
+                }
+                Console.WriteLine($"  {sc.Id}: US won {wins[0]}, VC {wins[1]}, neither {wins[2]}; {secs / seeds:F0} s a match");
+                Console.WriteLine("    " + string.Join(", ", counts.Where(kv => kv.Key != EventKind.Fire && kv.Key != EventKind.MoraleLost)
+                    .Select(kv => $"{kv.Key} {kv.Value / (double)seeds:F1}")));
+                Console.WriteLine("    raised: " + string.Join(", ", raised.Select(kv => $"{kv.Key} {kv.Value / (double)seeds:F1}")));
+                Console.WriteLine("    launched: " + string.Join(", ", launched.Select(kv => $"{kv.Key} {kv.Value / (double)seeds:F1}")));
+            }
+            return 0;
+        }
+
         /// <summary>The rules after Soldiering, by word (and `no<word>` to take one away): `flank`.</summary>
-        private static readonly string[] RuleWords = { "flank", "noflank" };
+        private static readonly string[] RuleWords = { "flank", "noflank", "shock", "noshock" };
 
         /// <summary>The rules after Soldiering, as the words on the command line ask: on with the word, off with `no` before it.</summary>
         private static void Rules(MatchOptions o, string[] a)
         {
             if (a.Contains("flank")) o.Flank = true;
             if (a.Contains("noflank")) o.Flank = false;
+            if (a.Contains("shock")) o.Shock = true;
+            if (a.Contains("noshock")) o.Shock = false;
         }
 
         private static MatchOptions Game(int seed, string[] a)

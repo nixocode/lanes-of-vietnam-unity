@@ -171,6 +171,8 @@ namespace LanesOfVietnam.Sim
         public bool Soldiering;
         /// <summary>Part 2: cover faces the enemy's end of the lane; from the flank it is worth less, and a man killed from there costs more (<see cref="Sim.Flank"/>). Off is the baseline.</summary>
         public bool Flank;
+        /// <summary>Part 2: a squad leader's death costs more, and the radio man's slows his side's call-ins (<see cref="Sim.Shock"/>). Off is the baseline.</summary>
+        public bool Shock;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -309,6 +311,8 @@ namespace LanesOfVietnam.Sim
                 });
                 if (st.Ammo) Ammo.Issue(st, st.Men[st.Men.Count - 1]);
                 if (st.Fortune) Fortune.Issue(st, st.Men[st.Men.Count - 1]);
+                // Shock: its lead man leads it (a squad of one has nobody to lead).
+                if (st.Shock && i == 0 && n > 1) st.Men[st.Men.Count - 1].Leader = true;
             }
             // Tactics: the anchor a leash ahead of the lead man. (At the lead man, the file closed up at half its
             // marching distance, every man behind him waited for his place to come past: the last of five stood
@@ -352,6 +356,7 @@ namespace LanesOfVietnam.Sim
                 Strike = opts.Strike && opts.Inbound,
                 Soldiering = opts.Soldiering,
                 Flank = opts.Flank,
+                Shock = opts.Shock,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -981,6 +986,8 @@ namespace LanesOfVietnam.Sim
                 double hit = Tune.MoralePerCasualty * st.MoraleScale * st.Will[(int)e.Side];
                 // Flank: a man killed from the flank costs more.
                 if (st.Flank && st.Men[e.Id].Flanked) hit *= Tune.FlankMorale;
+                // Shock: and a squad leader more; his squad's heads go down, and with the radio man the net.
+                if (st.Shock) { hit *= Sim.Shock.Weight(st.Men[e.Id]); Sim.Shock.Fell(st, st.Men[e.Id]); }
                 st.Morale[(int)e.Side] = Math.Max(0, st.Morale[(int)e.Side] - hit);
                 st.MoraleLostToCasualties[(int)e.Side] += hit;
                 st.Events.Add(new SimEvent
