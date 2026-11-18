@@ -20,6 +20,11 @@ namespace LanesOfVietnam.Sim
     /// Its draws come from a stream of its own (a fork: no other stream moves), and only when a rocket is in reach.
     /// A ShotDown event (at the end of the enum) says who fired, at which call, where it will come down, when, and
     /// a seed for how it is drawn going down. Off, the match is what it was to the bit.
+    ///
+    /// And Warfare 1944's tank whose engine is hit, not killed, on the one machine this game has (MatchOptions.Airframe,
+    /// 2026-11-18): half the hits do not bring it down. It turns for home trailing smoke, its crew alive: it does not
+    /// come in and steadies nobody, but the medevac card's wait is halved, the next one the sooner. A LimpHome event
+    /// says so (who fired, at which call, where it turned, Amount the ticks it is in sight going).
     /// </summary>
     public static class Shootdown
     {
@@ -54,6 +59,17 @@ namespace LanesOfVietnam.Sim
         private static void Hit(SimState st, Area a, Man by)
         {
             var rng = st.ShootRng;
+            // Airframe: half the hits do not bring it down. It turns for home trailing smoke with its crew alive, does
+            // not come in, and the next can be called the sooner.
+            if (st.Airframe && rng.Next() < Tune.LimpChance)
+            {
+                st.Events.Add(new SimEvent { Kind = EventKind.LimpHome, Tick = st.Tick, Side = a.Side, Id = by.Id, Target = a.Id, X = a.X, Z = a.Z, Amount = Tune.LimpTicks });
+                a.Call = Inbound.Limp;
+                a.Wait = Tune.LimpTicks;
+                var card = Deck.Find(a.Side, "us-medevac");
+                if (card != null) st.CardCooldown[(int)a.Side][card.Index] /= 2;
+                return;
+            }
             double dir = Combat.Advance(st, a.Side);
             double cx = a.X - dir * (4 + 14 * rng.Next()), cz = a.Z + (rng.Next() - 0.5) * 16;
             cz = Math.Max(Combat.LaneMin(st) - 8, Math.Min(Combat.LaneMax(st) + 8, cz));

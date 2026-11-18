@@ -3157,7 +3157,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering && o.Flank && o.Shock, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering && o.Flank && o.Shock && o.Airframe, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3174,7 +3174,7 @@ namespace LanesOfVietnam.Tests
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
             kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true; kept.Strike = true;
-            kept.Soldiering = true; kept.Flank = true; kept.Shock = true;
+            kept.Soldiering = true; kept.Flank = true; kept.Shock = true; kept.Airframe = true;
             // (And the rules that do nothing on it until something happens: a medevac brought down, since the strike, in this one.)
             kept.Shootdown = true; kept.Water = true; kept.Heights = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
@@ -3618,7 +3618,7 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             // (And without the rule that came after it, Soldiering, §12.64.)
-            o.Strike = false; o.Soldiering = false; o.Flank = false; o.Shock = false;
+            o.Strike = false; o.Soldiering = false; o.Flank = false; o.Shock = false; o.Airframe = false;
             var (h, m) = Played(o);
             Assert.AreEqual(4075, m.State.Tick);
             Assert.AreEqual(3782637812u, h[h.Count - 1]);
@@ -3799,12 +3799,12 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             // (And without the rule that came after it, Flank, §12.76.)
-            o.Soldiering = false; o.Flank = false; o.Shock = false;
+            o.Soldiering = false; o.Flank = false; o.Shock = false; o.Airframe = false;
             var (h, m) = Played(o);
             Assert.AreEqual(6448, m.State.Tick);
             Assert.AreEqual(373562849u, h[h.Count - 1]);
             o = Scenarios.RiceFields.Options(1, null, Difficulty.Veteran);
-            o.Soldiering = false; o.Flank = false; o.Shock = false;
+            o.Soldiering = false; o.Flank = false; o.Shock = false; o.Airframe = false;
             (h, m) = Played(o);
             Assert.AreEqual(2566, m.State.Tick);
             Assert.AreEqual(11572162u, h[h.Count - 1]);
@@ -4021,6 +4021,48 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(reason, m.State.Reason);
         }
 
+        /// <summary>
+        /// Airframe (MatchOptions.Airframe; Warfare 1944's tank whose engine is knocked out, on the one machine this game has,
+        /// PLAN §12.76). Half the rockets that hit a medevac do not bring it down: it turns for home (LimpHome), lands
+        /// nothing, steadies nobody, does not crash, is gone when LimpTicks are out, and halves the medevac card's wait. The
+        /// rest fall as they did. It draws only when a rocket hits, from Shootdown's own stream.
+        /// </summary>
+        [Test]
+        public void A_medevac_hit_may_limp_home_and_lands_nothing()
+        {
+            bool limped = false, fell = false;
+            for (int seed = 1; seed <= 30 && !(limped && fell); seed++)
+            {
+                var m = new LiveMatch(Scenarios.Firebase.Options(seed, null, Difficulty.Veteran));
+                var st = m.State;
+                Assert.IsTrue(st.Airframe, "the game plays with the rule");
+                for (int t = 0; t < 400 && !st.Over; t++) m.Step();
+                if (st.Over) continue;
+                st.Cp[(int)Side.Us] = 100;
+                var card = Deck.Find(Side.Us, "us-medevac");
+                st.CardCooldown[(int)Side.Us][card.Index] = 0;
+                if (!Deck.Buy(st, Side.Us, card, 0, null, 0)) continue;
+                var a = st.Areas.Last(x => x.Kind == AreaKind.Relief);
+                while (a.Wait > Tune.ShootdownAt + 1) m.Step();
+                int cooldown = st.CardCooldown[(int)Side.Us][card.Index];
+                if (!Shootdown.Force(st, a)) continue;
+                if (st.Events.Last().Kind == EventKind.ShotDown) { fell = true; continue; }
+                var limp = st.Events.Last();
+                Assert.AreEqual(EventKind.LimpHome, limp.Kind);
+                Assert.AreEqual(a.Id, limp.Target);
+                Assert.AreEqual(Inbound.Limp, a.Call);
+                Assert.AreEqual(cooldown / 2, st.CardCooldown[(int)Side.Us][card.Index], "the medevac's wait was not halved");
+                limped = true;
+                double was = st.Morale[(int)Side.Us];
+                for (int t = 0; t < Tune.LimpTicks + 1 && !st.Over; t++) { m.Step(); st.Cp[(int)Side.Us] = 0; }
+                Assert.IsFalse(st.Areas.Any(x => x.Id == a.Id), "it never went");
+                Assert.IsFalse(st.Events.Any(e => e.Kind == EventKind.ShotDown && e.Target == a.Id), "it limped and fell");
+                Assert.Less(st.Morale[(int)Side.Us], was + 0.05, "limping home, it steadied the line anyway");
+            }
+            Assert.IsTrue(limped, "no medevac limped home in thirty");
+            Assert.IsTrue(fell, "every medevac hit limped home: none fell");
+        }
+
         // `simcs scenario hash 1` (rice-fields), 2026-11-18, with MatchOptions.Flank and Shock (PLAN §12.76; with Flank alone 5035,
         // 3905983211u; 5035, 3595252491u without either);
         // before that 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and
@@ -4041,6 +4083,8 @@ namespace LanesOfVietnam.Tests
             var m = new LiveMatch(Scenarios.Firebase.Options(4, null, Difficulty.Veteran));
             var st = m.State;
             Assert.IsTrue(st.Shootdown, "the game plays with the rule");
+            // (This one falls: a hit that limps home is the next test's, MatchOptions.Airframe, §12.76.)
+            st.Airframe = false;
             for (int t = 0; t < 400; t++) m.Step();
             st.Cp[(int)Side.Us] = 100;
             Assert.IsTrue(Deck.Buy(st, Side.Us, Deck.Find(Side.Us, "us-medevac"), 0, null, 0), "the medevac was not called");

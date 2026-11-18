@@ -1099,7 +1099,7 @@ namespace LanesOfVietnam.SimCs
         }
 
         /// <summary>The rules after Soldiering, by word (and `no<word>` to take one away): `flank`.</summary>
-        private static readonly string[] RuleWords = { "flank", "noflank", "shock", "noshock" };
+        private static readonly string[] RuleWords = { "flank", "noflank", "shock", "noshock", "airframe", "noairframe" };
 
         /// <summary>The rules after Soldiering, as the words on the command line ask: on with the word, off with `no` before it.</summary>
         private static void Rules(MatchOptions o, string[] a)
@@ -1108,6 +1108,8 @@ namespace LanesOfVietnam.SimCs
             if (a.Contains("noflank")) o.Flank = false;
             if (a.Contains("shock")) o.Shock = true;
             if (a.Contains("noshock")) o.Shock = false;
+            if (a.Contains("airframe")) o.Airframe = true;
+            if (a.Contains("noairframe")) o.Airframe = false;
         }
 
         private static MatchOptions Game(int seed, string[] a)

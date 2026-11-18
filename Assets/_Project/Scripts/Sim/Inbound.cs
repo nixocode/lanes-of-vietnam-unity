@@ -37,6 +37,8 @@ namespace LanesOfVietnam.Sim
         public const int Crash = 5;
         /// <summary>MatchOptions.Strike: the jet with napalm for the forest.</summary>
         public const int Napalm = 6;
+        /// <summary>A medevac hit and limping home (MatchOptions.Airframe): it lands nowhere, steadies nobody, and is gone when its wait is out.</summary>
+        public const int Limp = 7;
 
         public static int Ticks(int call)
         {
@@ -73,6 +75,13 @@ namespace LanesOfVietnam.Sim
             // Shootdown: low and slow as it comes in, the medevac is in reach of the enemy's rockets.
             if (st.Shootdown && a.Kind == AreaKind.Relief && a.Call == Dustoff && a.Wait == Tune.ShootdownAt) Shootdown.Try(st, a);
             if (a.Wait > 0) return;
+            // Airframe: hit and limping home, it is gone: nothing lands, nobody is steadied.
+            if (a.Call == Limp)
+            {
+                st.Events.Add(new SimEvent { Kind = EventKind.AreaEnd, Tick = st.Tick, Side = a.Side, Id = a.Id, X = a.X, Z = a.Z });
+                st.Areas.RemoveAt(i);
+                return;
+            }
             if (a.Call == Crash)
             {
                 Shootdown.Crash(st, a);

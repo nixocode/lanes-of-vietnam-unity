@@ -173,6 +173,8 @@ namespace LanesOfVietnam.Sim
         public bool Flank;
         /// <summary>Part 2: a squad leader's death costs more, and the radio man's slows his side's call-ins (<see cref="Sim.Shock"/>). Off is the baseline.</summary>
         public bool Shock;
+        /// <summary>Part 2: half the rockets that hit a medevac do not bring it down: it limps home (<see cref="Sim.Shootdown"/>; with Shootdown). Off is the baseline.</summary>
+        public bool Airframe;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -357,6 +359,7 @@ namespace LanesOfVietnam.Sim
                 Soldiering = opts.Soldiering,
                 Flank = opts.Flank,
                 Shock = opts.Shock,
+                Airframe = opts.Airframe && opts.Shootdown && opts.Inbound,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,

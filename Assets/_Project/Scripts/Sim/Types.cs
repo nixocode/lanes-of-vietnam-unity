@@ -498,6 +498,9 @@ namespace LanesOfVietnam.Sim
         // Shock (MatchOptions.Shock): LeaderDown: squad Id of Side has lost its leader, man Target, at X, Z; NetDown: man
         // Target of squad Id, Side's radio man, is dead, and its calls are slow for Amount ticks.
         LeaderDown, NetDown,
+        // Airframe (MatchOptions.Airframe, with Shootdown): man Id's rocket hit the medevac of call Target but did not bring
+        // it down: it turns for home at X, Z, trailing smoke, and is out of sight in Amount ticks. Nothing lands.
+        LimpHome,
     }
 
     public struct SimEvent
@@ -633,6 +636,8 @@ namespace LanesOfVietnam.Sim
         public bool Flank;
         /// <summary>Part 2: a squad leader's death and a radio man's tell (MatchOptions.Shock).</summary>
         public bool Shock;
+        /// <summary>Part 2: a medevac hit may limp home rather than fall (MatchOptions.Airframe, with Shootdown).</summary>
+        public bool Airframe;
         /// <summary>MatchOptions.Shock: the tick until which each side's calls are slow, its radio man dead.</summary>
         public readonly int[] NetDown = { 0, 0 };
         /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
