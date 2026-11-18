@@ -89,6 +89,10 @@ namespace LanesOfVietnam.Sim
                 foreach (var q in st.Squads) h = MixI(h, q.FlankedAt);
                 foreach (var t in st.Outflanked) h = MixI(h, t);
             }
+            if (st.Veterans != null)
+                foreach (var w in st.Veterans) h = MixI(h, w.Count);
+            if (st.Doctrine != null)
+                foreach (var row in st.Doctrine) foreach (var x in row) h = MixD(h, x);
             if (st.Shock)
             {
                 foreach (var m in st.Men) h = MixB(h, m.Leader);

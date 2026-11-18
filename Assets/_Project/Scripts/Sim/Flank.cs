@@ -76,7 +76,7 @@ namespace LanesOfVietnam.Sim
                         if (st.Tick - st.OutflankShockAt[k] >= Tune.OutflankRearm)
                         {
                             st.OutflankShockAt[k] = st.Tick;
-                            hit = Tune.OutflankMorale * st.MoraleScale * st.Will[s];
+                            hit = Tune.OutflankMorale * st.MoraleScale * st.Will[s] * Doctrine.M(st, side, Effect.FlankMorale);
                             st.Morale[s] = Math.Max(0, st.Morale[s] - hit);
                             st.MoraleLostToGround[s] += hit;
                         }

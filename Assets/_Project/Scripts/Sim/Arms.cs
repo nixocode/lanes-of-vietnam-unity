@@ -185,6 +185,8 @@ namespace LanesOfVietnam.Sim
 
             double d = Math.Sqrt(best);
             double sd = 0.5 + arm.Scatter * d;
+            // Doctrine: sights for the mortar.
+            if (a.Weapon == Weapon.Mortar && st.Doctrine != null) sd *= Doctrine.M(st, a.Side, Effect.MortarScatter);
             double sx = (rng.Next() + rng.Next() - 1) * sd * 2.45 * st.UsSign;     // (along x as seen from his own end)
             double sz = (rng.Next() + rng.Next() - 1) * sd * 2.45;
             var g = new Grenade

@@ -171,6 +171,7 @@ namespace LanesOfVietnam.Sim
                 {
                     double t = 1 - d / g.Radius;
                     double p = g.Kill * t * Math.Sqrt(t);                 // sqrt is exact everywhere; pow is not
+                    if (st.Doctrine != null) p *= Doctrine.Blast(st, g);
                     if (m.Cover >= 0) p *= g.CoverFactor;
                     else if (m.Posture == Posture.Prone) p *= Tune.FragProneFactor;
                     if (rng.Next() < p) { Combat.Kill(st, m); continue; }

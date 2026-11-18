@@ -619,6 +619,9 @@ namespace LanesOfVietnam.Sim
         /// <summary>Airframe: the share of hits on a medevac that do not bring it down (it limps home), and the ticks it is seen going.</summary>
         public const double LimpChance = 0.5;
         public const int LimpTicks = TickHz * 5;
+
+        /// <summary>Doctrine's Hug the Belt: within this of the enemy, his own guns' shells and bombs are less to be feared (metres).</summary>
+        public const double HugBelt = 10;
         /// <summary>Ticks before the guns' rounds that their one ranging round lands.</summary>
         public const int RangingAhead = TickHz;
         /// <summary>

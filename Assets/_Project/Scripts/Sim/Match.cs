@@ -175,6 +175,10 @@ namespace LanesOfVietnam.Sim
         public bool Shock;
         /// <summary>Part 2: half the rockets that hit a medevac do not bring it down: it limps home (<see cref="Sim.Shootdown"/>; with Shootdown). Off is the baseline.</summary>
         public bool Airframe;
+        /// <summary>Each side's doctrine: the ids of its perks (<see cref="Sim.Doctrine"/>), bought in a campaign. None is the match as it was.</summary>
+        public string[] UsPerks, VcPerks;
+        /// <summary>Each side's veterans waiting (<see cref="Sim.Campaign"/>): the first squad raised with a veteran's card is that squad. None is the match as it was.</summary>
+        public List<Veteran> UsVeterans, VcVeterans;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -316,6 +320,8 @@ namespace LanesOfVietnam.Sim
                 // Shock: its lead man leads it (a squad of one has nobody to lead).
                 if (st.Shock && i == 0 && n > 1) st.Men[st.Men.Count - 1].Leader = true;
             }
+            // Campaign: a veteran squad of this card waiting is this one.
+            if (st.Veterans != null && sq.Card != null) Campaign.Muster(st, side, sq.Card, st.Men.Count - n, n);
             // Tactics: the anchor a leash ahead of the lead man. (At the lead man, the file closed up at half its
             // marching distance, every man behind him waited for his place to come past: the last of five stood
             // five and a half seconds at the map's edge.)
@@ -359,6 +365,9 @@ namespace LanesOfVietnam.Sim
                 Soldiering = opts.Soldiering,
                 Flank = opts.Flank,
                 Shock = opts.Shock,
+                Doctrine = Sim.Doctrine.Table(opts.UsPerks, opts.VcPerks),
+                Veterans = (opts.UsVeterans?.Count ?? 0) + (opts.VcVeterans?.Count ?? 0) == 0 ? null
+                    : new[] { new List<Veteran>(opts.UsVeterans ?? new List<Veteran>()), new List<Veteran>(opts.VcVeterans ?? new List<Veteran>()) },
                 Airframe = opts.Airframe && opts.Shootdown && opts.Inbound,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
@@ -664,6 +673,8 @@ namespace LanesOfVietnam.Sim
             {
                 double speed = Tune.Speed(m.Posture);
                 if (st.Gunnery && m.Posture == Posture.Standing) speed = Gunnery.Pace(sq);
+                // Doctrine: a side that hustles.
+                speed *= Doctrine.Pace(st, m.Side, sq);
                 double dx = tx - m.X, dz = tz - m.Z;
                 double d = JsMath.Hypot(dx, dz);
                 // Cohesion: a man left behind runs to his place.
@@ -988,7 +999,9 @@ namespace LanesOfVietnam.Sim
                 if (e.Kind != EventKind.Kill) continue;
                 double hit = Tune.MoralePerCasualty * st.MoraleScale * st.Will[(int)e.Side];
                 // Flank: a man killed from the flank costs more.
-                if (st.Flank && st.Men[e.Id].Flanked) hit *= Tune.FlankMorale;
+                if (st.Flank && st.Men[e.Id].Flanked) hit *= Tune.FlankMorale * Doctrine.M(st, e.Side, Effect.FlankMorale);
+                // Doctrine: a side taught to take its losses.
+                hit *= Doctrine.M(st, e.Side, Effect.MoraleLoss);
                 // Shock: and a squad leader more; his squad's heads go down, and with the radio man the net.
                 if (st.Shock) { hit *= Sim.Shock.Weight(st.Men[e.Id]); Sim.Shock.Fell(st, st.Men[e.Id]); }
                 st.Morale[(int)e.Side] = Math.Max(0, st.Morale[(int)e.Side] - hit);
@@ -1238,6 +1251,8 @@ namespace LanesOfVietnam.Sim
                 bool inCover = m.Cover >= 0;
                 Combat.ApplyPin(st, m, Tune.ShellPin * f * (inCover ? 0.55 : 1));
                 double lethal = a.Power * f * f * (inCover ? 0.22 : 1);
+                // Doctrine: men taught to hug the enemy's belt, too close for his guns.
+                if (st.Doctrine != null) lethal *= Doctrine.Belt(st, m);
                 if (rng.Next() < lethal) Combat.Kill(st, m);
             }
         }

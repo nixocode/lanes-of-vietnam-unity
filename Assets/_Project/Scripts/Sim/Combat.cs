@@ -83,6 +83,8 @@ namespace LanesOfVietnam.Sim
             if (st.Tactics && d > arm.Range) p *= st.Vantage && Vantage.Duel(a, b) ? Tune.PostDuelHit : Tune.LongHit;
             // Fortune: and some men shoot better than others.
             if (st.Fortune) p *= a.Aim;
+            // Doctrine: what his side has trained him to (1 with no perks).
+            p *= Doctrine.Aim(st, a);
 
             // A suppressed man shoots worse. Veterancy steadies the aim but
             // never raises the ceiling — steadier, not stronger.
@@ -106,11 +108,13 @@ namespace LanesOfVietnam.Sim
             if (c != null && !(st.Fieldcraft && d < Tune.ChargeRange * 0.5))
             {
                 double worth = CoverValue(st, c);
+                // Doctrine: a side taught to dig makes more of its holes.
+                if (st.Doctrine != null) worth = Math.Min(0.95, worth * Doctrine.M(st, b.Side, Effect.CoverWorth));
                 // Flank: a position faces the enemy; from the flank it is worth less, and the round finds him more often.
                 if (st.Flank)
                 {
                     worth *= Flank.Facing(st, a, b, c);
-                    if (Flank.From(st, a, b)) p *= 1 + Tune.FlankHit;
+                    if (Flank.From(st, a, b)) p *= 1 + Tune.FlankHit * Doctrine.M(st, a.Side, Effect.FlankHit);
                     // And in a lane the enemy has got behind, it is worth less whichever way the round comes.
                     if (Flank.Exposed(st, b)) worth *= Tune.OutflankCover;
                 }

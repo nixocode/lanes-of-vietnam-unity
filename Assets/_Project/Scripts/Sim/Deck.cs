@@ -90,10 +90,13 @@ namespace LanesOfVietnam.Sim
         }
 
         /// <summary>What a card costs in this match: the air strike costs StrikeCost with MatchOptions.Strike.</summary>
-        public static int CostOf(SimState st, Card card) => st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCost : card.Cost;
+        public static int CostOf(SimState st, Card card) => Doctrine.Cost(st, card, st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCost : card.Cost);
+
+        /// <summary>A card's printed cost by its side's doctrine: what the commander reckons with (card.Cost without one).</summary>
+        public static int PriceOf(SimState st, Card card) => Doctrine.Cost(st, card, card.Cost);
 
         /// <summary>The ticks a card waits after it is bought, in this match (the air strike StrikeCooldown with MatchOptions.Strike).</summary>
-        public static int CooldownOf(SimState st, Card card) => st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCooldown : card.Cooldown;
+        public static int CooldownOf(SimState st, Card card) => Doctrine.Cooldown(st, card, st.Strike && card.Id == "us-airstrike" ? Tune.StrikeCooldown : card.Cooldown);
 
         /// <summary>Ticks left before a card can be bought again; 0 is ready.</summary>
         public static int CooldownLeft(SimState st, Side side, Card card) => st.CardCooldown[(int)side][card.Index];
@@ -175,7 +178,7 @@ namespace LanesOfVietnam.Sim
                 // very lethal per round; the air strike is short, tight and
                 // murderous.
                 case "us-arty":
-                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 17, Ticks = S * 9, Next = 1, Power = 0.30, Call = Inbound.Guns });
+                    Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 17, Ticks = S * 9, Next = 1, Power = 0.30 * Doctrine.M(st, side, Effect.ArtyPower), Call = Inbound.Guns });
                     return true;
                 case "us-airstrike":
                     Push(st, side, new Area { Kind = AreaKind.Barrage, X = aimX, Z = z, Radius = 11, Ticks = st.Inbound ? Tune.StickBombs * Tune.StickGap : S * 4, Next = 1, Power = 0.62, Call = Inbound.Jet });
@@ -202,10 +205,10 @@ namespace LanesOfVietnam.Sim
                     return true;
                 // Traps are laid in front of the enemy, not on top of him.
                 case "vc-punji":
-                    Push(st, side, new Area { Kind = AreaKind.Trap, X = aimX, Z = z, Radius = 3.2, Ticks = S * 90, Next = 0, Power = 0.55 });
+                    Push(st, side, new Area { Kind = AreaKind.Trap, X = aimX, Z = z, Radius = 3.2, Ticks = S * 90, Next = 0, Power = 0.55 * Doctrine.M(st, side, Effect.TrapPower) });
                     return true;
                 case "vc-tripwire":
-                    Push(st, side, new Area { Kind = AreaKind.Trap, X = aimX, Z = z, Radius = 5.0, Ticks = S * 90, Next = 0, Power = 0.75 });
+                    Push(st, side, new Area { Kind = AreaKind.Trap, X = aimX, Z = z, Radius = 5.0, Ticks = S * 90, Next = 0, Power = 0.75 * Doctrine.M(st, side, Effect.TrapPower) });
                     return true;
                 case "vc-spider":
                     Push(st, side, new Area { Kind = AreaKind.Trap, X = aimX, Z = z, Radius = 2.4, Ticks = S * 120, Next = 0, Power = 0.85 });

@@ -270,7 +270,7 @@ namespace LanesOfVietnam.Sim
             // shows a crowd it could be worth it on (StrikeProspect of them on a line), not only while one is there.
             if (st.Strike && Deck.Has(st, side, air) && Deck.CooldownLeft(st, side, air) == 0 && cp < Deck.CostOf(st, air)
                 && Strike.Worth(st, side, _seen, out _, out _, Tune.StrikeProspect) > 0) return true;
-            if (Deck.Has(st, side, arty) && Deck.CooldownLeft(st, side, arty) == 0 && cp < arty.Cost && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out _, out _) >= Tune.BarrageMen) return true;
+            if (Deck.Has(st, side, arty) && Deck.CooldownLeft(st, side, arty) == 0 && cp < Deck.PriceOf(st, arty) && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out _, out _) >= Tune.BarrageMen) return true;
             return false;
         }
 
@@ -382,12 +382,12 @@ namespace LanesOfVietnam.Sim
             { Deck.Buy(st, side, air, al, rng, ax); return false; }
             // Artillery: a wide beaten zone for nine seconds. Five or more who are staying where they are.
             var arty = Deck.Find(side, "us-arty");
-            if (level && Affords(st, side, arty, arty.Cost) && Spare(st, side, arty.Cost)
+            if (level && Affords(st, side, arty, Deck.PriceOf(st, arty)) && Spare(st, side, Deck.PriceOf(st, arty))
                 && Cluster(st, side, Tune.BarrageRadius, Tune.BarrageClear, true, out double bx, out int bl) >= Tune.BarrageMen)
             { Deck.Buy(st, side, arty, bl, rng, bx); return false; }
             // A medevac: its will failing, its men down.
             var medevac = Deck.Find(side, "us-medevac");
-            if (Affords(st, side, medevac, medevac.Cost) && st.Morale[(int)side] < Tune.MedevacBelow)
+            if (Affords(st, side, medevac, Deck.PriceOf(st, medevac)) && st.Morale[(int)side] < Tune.MedevacBelow)
             {
                 int down = 0;
                 for (int i = 0; i < st.Men.Count; i++) if (st.Men[i].Alive && st.Men[i].Side == side && st.Men[i].Pin >= Tune.PinDrop) down++;
@@ -396,10 +396,10 @@ namespace LanesOfVietnam.Sim
             // Smoke: in front of a squad of its own that is pinned flat in the open with the enemy in sight.
             var smoke = Deck.Find(side, "us-smoke");
             // (Soldiering: and over a crossing a squad of its own is waiting at, the enemy covering it.)
-            if (st.Soldiering && Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost) && Soldiering.Crossing(st, side, out double cx, out int cl)
+            if (st.Soldiering && Affords(st, side, smoke, Deck.PriceOf(st, smoke)) && Spare(st, side, Deck.PriceOf(st, smoke)) && Soldiering.Crossing(st, side, out double cx, out int cl)
                 && !Smoked(st, cx, st.Lanes[cl]))
             { Deck.Buy(st, side, smoke, cl, rng, cx); return false; }
-            if (Affords(st, side, smoke, smoke.Cost) && Spare(st, side, smoke.Cost))
+            if (Affords(st, side, smoke, Deck.PriceOf(st, smoke)) && Spare(st, side, Deck.PriceOf(st, smoke)))
                 for (int si = 0; si < st.Squads.Count; si++)
                 {
                     var sq = st.Squads[si];
@@ -440,7 +440,7 @@ namespace LanesOfVietnam.Sim
             double dir = Combat.Advance(st, side), theirs = -dir;
             // A tunnel: a squad up behind a position of its own that is being gone in on, where it is short of men.
             var tunnel = Deck.Find(side, "vc-tunnel");
-            if (Affords(st, side, tunnel, Math.Max(tunnel.Cost, st.MusterCost)) && Match.AliveCount(st, side) < Tune.ForceCap)
+            if (Affords(st, side, tunnel, Math.Max(Deck.PriceOf(st, tunnel), st.MusterCost)) && Match.AliveCount(st, side) < Tune.ForceCap)
                 for (int si = 0; si < st.Squads.Count; si++)
                 {
                     var foe = st.Squads[si];
@@ -450,7 +450,7 @@ namespace LanesOfVietnam.Sim
                     if (mine.Side != side || mine.Target < 0 || lanes[mine.Lane].Short < Tune.TunnelWhenShort || !Squads.AnyAlive(st, mine.Id)) continue;
                     double at = Math.Max(-Tune.HalfLength + 2, Math.Min(Tune.HalfLength - 2, mine.AnchorX - dir * Tune.TunnelBehind));
                     // It costs the computer what its squads cost it, not a card's fifteen points.
-                    double extra = Math.Max(0, st.MusterCost - tunnel.Cost);
+                    double extra = Math.Max(0, st.MusterCost - Deck.PriceOf(st, tunnel));
                     if (!Deck.Buy(st, side, tunnel, mine.Lane, rng, at)) continue;
                     st.Cp[(int)side] -= extra;
                     return true;
@@ -481,7 +481,7 @@ namespace LanesOfVietnam.Sim
                 foreach (string id in men >= 4 ? new[] { "vc-tripwire", "vc-punji", "vc-spider" } : new[] { "vc-punji", "vc-spider", "vc-tripwire" })
                 {
                     var card = Deck.Find(side, id);
-                    if (!Affords(st, side, card, card.Cost) || !Spare(st, side, card.Cost)) continue;
+                    if (!Affords(st, side, card, Deck.PriceOf(st, card)) || !Spare(st, side, Deck.PriceOf(st, card))) continue;
                     if (Deck.Buy(st, side, card, foe.Lane, rng, at)) st.TrapAt[(int)side] = st.Tick;
                     return false;
                 }

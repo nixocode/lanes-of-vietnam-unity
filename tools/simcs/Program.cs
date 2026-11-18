@@ -71,6 +71,8 @@ namespace LanesOfVietnam.SimCs
                     "ground" => GroundProfile(args),
                     "river" => RiverTable(args),
                     "happens" => EventsTable(args),
+                    "doctrine" => DoctrineTable(args),
+                    "campaign" => CampaignTable(args),
                     "strikes" => StrikeTable(args),
                     "squadsmoke" => SquadSmokeCount(args),
                     "towerfalls" => TowerFalls(args),
@@ -1110,6 +1112,122 @@ namespace LanesOfVietnam.SimCs
             if (a.Contains("noshock")) o.Shock = false;
             if (a.Contains("airframe")) o.Airframe = true;
             if (a.Contains("noairframe")) o.Airframe = false;
+            // `usperks=<id>,<id>` and `vcperks=...`: each side's doctrine (Sim.Doctrine), as a campaign gives it.
+            string up = a.Where(x => x.StartsWith("usperks=")).Select(x => x.Substring(8)).FirstOrDefault();
+            string vp = a.Where(x => x.StartsWith("vcperks=")).Select(x => x.Substring(8)).FirstOrDefault();
+            if (up != null) o.UsPerks = up.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (vp != null) o.VcPerks = vp.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        /// <summary>
+        /// `campaign [runs] [level=veteran] [tries=3] [nobuy]`: the campaign (Sim.Campaign) played start to end by the stand-in
+        /// player, who buys the cheapest perks he can before each battle (`nobuy`: none) and lines up squads as `scenario`
+        /// does, against the computer's growing doctrine. Each battle: won at the first try, the tries it took, his perks,
+        /// the veterans he took into it and how steady they were. A battle lost `tries` times ends that run.
+        /// </summary>
+        private static int CampaignTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).Select(int.Parse).ToArray();
+            int runs = nums.Length > 0 ? nums[0] : 48;
+            int tries = a.Where(x => x.StartsWith("tries=")).Select(x => int.Parse(x.Substring(6))).FirstOrDefault();
+            if (tries == 0) tries = 3;
+            string levelArg = a.Where(x => x.StartsWith("level=")).Select(x => x.Substring(6)).FirstOrDefault() ?? "veteran";
+            var level = Enum.GetValues(typeof(Difficulty)).Cast<Difficulty>().First(d => d.ToString().ToLowerInvariant() == levelArg);
+            int n = Campaign.Run.Length;
+            var first = new int[n]; var reached = new int[n]; var took = new int[n]; var perks = new double[n]; var vets = new double[n]; var vetMean = new double[n]; var joined = new double[n]; var theirs = new double[n];
+            int finished = 0;
+            for (int run = 1; run <= runs; run++)
+            {
+                var c = new CampaignState { Level = level };
+                while (!c.Over)
+                {
+                    int b = c.Battle;
+                    var side = Campaign.Playing(c);
+                    if (c.Tries == 0)
+                    {
+                        reached[b]++;
+                        if (!a.Contains("nobuy"))
+                            foreach (var perk in Doctrine.For(side).OrderBy(p => p.Tier)) Campaign.Buy(c, side, perk);
+                        perks[b] += c.Perks(side).Count;
+                        theirs[b] += Campaign.Against(c, side).Length;
+                        vets[b] += c.Veterans(side).Count;
+                        vetMean[b] += c.Veterans(side).Count == 0 ? 0 : c.Veterans(side).Average(v => v.Mean);
+                    }
+                    var o = Campaign.Options(c, run * 1000 + b * 10 + c.Tries);
+                    Rules(o, a);
+                    var m = new LiveMatch(o);
+                    StandIn(m, side, a);
+                    took[b]++;
+                    joined[b] += m.State.Events.Count(e => e.Kind == EventKind.VeteransJoin);
+                    bool firstTry = c.Tries == 0;
+                    bool won = Campaign.After(c, m.State);
+                    if (won && firstTry) first[b]++;
+                    if (!won && c.Tries >= tries) break;
+                }
+                if (c.Over) finished++;
+            }
+            Console.WriteLine($"  the campaign, {runs} runs at {levelArg}, up to {tries} tries a battle: {finished} finished");
+            for (int b = 0; b < n; b++)
+            {
+                var (id, side) = Campaign.Run[b];
+                int r = Math.Max(1, reached[b]);
+                Console.WriteLine($"    {b + 1}. {id,-13} as {Match.Name(side)}: reached {reached[b],2}, won at the first try {first[b],2}/{reached[b]}, matches {took[b] / (double)r:F2} a run; perks {perks[b] / r:F1}, computer's {theirs[b] / r:F1}; veterans waiting {vets[b] / r:F1} (veterancy {vetMean[b] / r:F2}), raised {joined[b] / Math.Max(1, took[b]):F1} a match");
+            }
+            return 0;
+        }
+
+        /// <summary>The stand-in player as `scenario` plays him: his first line squad every second it can be bought, and GRENADES at an enemy in cover one of his men could reach.</summary>
+        private static void StandIn(LiveMatch m, Side side, string[] a)
+        {
+            var card = Deck.For(side).First(c => c.Group == CardGroup.Line && Deck.Has(m.State, side, c));
+            var frag = Deck.Grenades(side);
+            while (!m.State.Over && m.State.Tick < m.Cap)
+            {
+                if (m.State.Tick % 20 == 0 && Deck.Blocked(m.State, side, card) == null)
+                    m.Issue(Command.Buy(side, card.Id, m.State.Squads.Count % 2, 0));
+                else if (!a.Contains("nofrag") && m.State.Tick % 10 == 5 && Deck.Blocked(m.State, side, frag) == null)
+                    foreach (var man in m.State.Men)
+                    {
+                        if (!man.Alive || man.Side != side || man.Grenades <= 0 || man.High > 0) continue;
+                        var at = Frag.PickTarget(m.State, man);
+                        if (at == null) continue;
+                        int l = 0;
+                        for (int k = 1; k < m.State.Lanes.Length; k++) if (Math.Abs(at.Z - m.State.Lanes[k]) < Math.Abs(at.Z - m.State.Lanes[l])) l = k;
+                        m.Issue(Command.Buy(side, frag.Id, l, at.X));
+                        break;
+                    }
+                m.Step();
+            }
+        }
+
+        /// <summary>
+        /// `doctrine [seeds] [scenario] [side=us|vc] [level=veteran] [against]`: the operation played by the stand-in player
+        /// with none of his side's perks, then with each alone (Sim.Doctrine): what each is worth in wins, so that no one
+        /// perk is the only one worth buying. `against`: the perk given to the computer instead.
+        /// </summary>
+        private static int DoctrineTable(string[] a)
+        {
+            var nums = a.Skip(1).Where(x => int.TryParse(x, out _)).ToArray();
+            string only = a.Skip(1).FirstOrDefault(x => Scenarios.ById(x) != null) ?? "firebase";
+            string sideArg = a.Where(x => x.StartsWith("side=")).Select(x => x.Substring(5)).FirstOrDefault();
+            string level = a.Where(x => x.StartsWith("level=")).Select(x => x.Substring(6)).FirstOrDefault() ?? "veteran";
+            var sc = Scenarios.ById(only);
+            foreach (var side in new[] { Side.Us, Side.Vc })
+            {
+                if (sideArg != null ? sideArg != Match.Name(side) : !sc.Offers(side)) continue;
+                var owner = a.Contains("against") ? Combat.Other(side) : side;
+                var basis = new List<string> { "scenario" }; basis.AddRange(nums); basis.Add(only); basis.Add("side=" + Match.Name(side)); basis.Add("level=" + level);
+                Console.WriteLine($"  {only} as {Match.Name(side)}: none");
+                ScenarioTable(basis.ToArray());
+                foreach (var perk in Doctrine.For(owner))
+                {
+                    if (perk.Effect == Effect.None) continue;
+                    Console.WriteLine($"  {perk.Id} ({(owner == side ? "his" : "the computer's")}): {perk.Text}");
+                    var with = new List<string>(basis) { (owner == Side.Us ? "usperks=" : "vcperks=") + perk.Id };
+                    ScenarioTable(with.ToArray());
+                }
+            }
+            return 0;
         }
 
         private static MatchOptions Game(int seed, string[] a)

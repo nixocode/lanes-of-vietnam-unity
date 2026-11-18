@@ -49,7 +49,10 @@ namespace LanesOfVietnam.Sim
                 fired++;
                 // (Once he has fired he is reloading: he is not asked again.)
                 best.Cooldown = Tune.ShootdownReload + 1;
-                if (rng.Next() >= Tune.ShootdownChance) continue;
+                double chance = Tune.ShootdownChance;
+                // Doctrine: the rocket men's B40s, the medevac's door gunners.
+                if (st.Doctrine != null) chance *= Doctrine.M(st, best.Side, Effect.RocketDown) * Doctrine.M(st, a.Side, Effect.DoorGunners);
+                if (rng.Next() >= chance) continue;
                 Hit(st, a, best);
                 return;
             }

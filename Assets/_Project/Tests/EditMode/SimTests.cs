@@ -4063,6 +4063,134 @@ namespace LanesOfVietnam.Tests
             Assert.IsTrue(fell, "every medevac hit limped home: none fell");
         }
 
+        /// <summary>
+        /// Doctrine (PLAN §12.76; Warfare 1944's two trees, each side's own). No perks is the match as it was, to the bit;
+        /// each perk changes its own number and the other side's are its own; a perk of the wrong side is refused.
+        /// </summary>
+        [Test]
+        public void A_doctrine_changes_its_own_numbers_and_none_is_the_match_as_it_was()
+        {
+            Assert.IsNull(Doctrine.Table(null, new string[0]), "no perks, no table");
+            var bare = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            var empty = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            empty.UsPerks = new string[0]; empty.VcPerks = null;
+            var (h0, _) = Played(bare);
+            var (h1, _) = Played(empty);
+            Assert.AreEqual(h0[h0.Count - 1], h1[h1.Count - 1], "an empty doctrine moved the match");
+
+            var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            o.UsPerks = new[] { "us-logistics", "us-airmobile", "us-marksmanship", "us-door-gunners" };
+            o.VcPerks = new[] { "vc-militia", "vc-b40", "vc-night" };
+            var st = new LiveMatch(o).State;
+            var rifle = Deck.Find(Side.Us, "us-rifle");
+            Assert.AreEqual((int)Math.Round(rifle.Cost * 0.8), Deck.CostOf(st, rifle), "LOGISTICS: every card a fifth cheaper");
+            Assert.AreEqual((int)(rifle.Cooldown * 0.85), Deck.CooldownOf(st, rifle), "AIRMOBILE: every card ready sooner");
+            var cell = Deck.Find(Side.Vc, "vc-cell");
+            Assert.AreEqual((int)Math.Round(cell.Cost * 0.5), Deck.CostOf(st, cell), "MILITIA LEVY: a cell at half");
+            Assert.AreEqual(Deck.Find(Side.Vc, "vc-squad").Cost, Deck.CostOf(st, Deck.Find(Side.Vc, "vc-squad")), "a perk of the VC's reached another card");
+            Assert.AreEqual(1.30 * 0.60, Doctrine.M(st, Side.Vc, Effect.RocketDown) * Doctrine.M(st, Side.Us, Effect.DoorGunners), 1e-12, "B40s against door gunners");
+            Assert.AreEqual(0.85, Doctrine.M(st, Side.Vc, Effect.Concealment), 1e-12);
+            Assert.AreEqual(1, Doctrine.M(st, Side.Us, Effect.Concealment), "a VC perk reached the Americans");
+            var m16 = st.Men.First(x => x.Side == Side.Us && x.Weapon == Weapon.M16);
+            Assert.AreEqual(1.08, Doctrine.Aim(st, m16), 1e-12, "MARKSMANSHIP");
+            var anyVc = st.Men.First(x => x.Side == Side.Vc);
+            Assert.AreEqual(st.Squads[anyVc.Squad].Card == "vc-squad" ? 1 : 1, Doctrine.Aim(st, anyVc), "an American perk reached the VC");
+            Assert.Throws<ArgumentException>(() => Doctrine.Table(new[] { "vc-night" }, null), "the Americans bought a VC perk");
+            Assert.Throws<ArgumentException>(() => Doctrine.Table(new[] { "us-nonsense" }, null));
+        }
+
+        /// <summary>
+        /// Doctrine is pinned: `simcs scenario firebase hash 1 usperks=us-marksmanship,us-hustle,us-sights
+        /// vcperks=vc-fieldcraft,vc-cadre,vc-hug-belt,vc-night` (2026-11-18).
+        /// </summary>
+        [Test]
+        public void With_a_doctrine_a_match_is_pinned()
+        {
+            var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
+            o.UsPerks = new[] { "us-marksmanship", "us-hustle", "us-sights" };
+            o.VcPerks = new[] { "vc-fieldcraft", "vc-cadre", "vc-hug-belt", "vc-night" };
+            var (a, m) = Played(o);
+            Assert.AreEqual(4242, m.State.Tick);
+            Assert.AreEqual(3297937965u, a[100], "tick 100");
+            Assert.AreEqual(2077751383u, a[1000], "tick 1000");
+            Assert.AreEqual(5071733u, a[a.Count - 1], "final tick");
+            Assert.AreEqual("us morale broke", m.State.Reason);
+        }
+
+        /// <summary>
+        /// The campaign (PLAN §12.57, §12.76): perks bought by tier with merit, cards opened by battles won and by perks,
+        /// never more than the operation's deck; a battle won pays, carries the veterans and goes on; one lost pays less
+        /// and is fought again with what it began with; the computer's doctrine grows as the player's does.
+        /// </summary>
+        [Test]
+        public void A_campaign_buys_by_tier_opens_cards_and_carries_its_veterans()
+        {
+            var c = new CampaignState();
+            Assert.AreEqual(Side.Us, Campaign.Playing(c));
+            Assert.AreEqual("firebase", Campaign.Next(c).Id);
+            var mission = Doctrine.Find("us-fire-mission");
+            Assert.AreEqual("needs 1 in EQUIPMENT", Campaign.Blocked(c, Side.Us, mission));
+            Assert.IsNotNull(Campaign.Blocked(c, Side.Us, Doctrine.Find("vc-night")), "the Americans bought a VC perk");
+            Assert.IsTrue(Campaign.Buy(c, Side.Us, Doctrine.Find("us-sights")));
+            Assert.AreEqual(Campaign.OpeningMerit - 1, c.Merit[0]);
+            Assert.AreEqual("not enough merit", Campaign.Blocked(c, Side.Us, mission));
+            CollectionAssert.AreEqual(new[] { "vc-fieldcraft" }, Campaign.Against(c, Side.Us), "the computer's doctrine keeps pace");
+
+            var o = Campaign.Options(c, 5);
+            Assert.IsFalse(o.UsDeck.Contains("us-arty"), "the guns before FIRE MISSION");
+            Assert.IsFalse(o.UsDeck.Contains("us-sniper"), "a sniper before a battle was won");
+            Assert.IsTrue(o.UsDeck.Contains("us-rifle"));
+            CollectionAssert.AreEqual(new[] { "us-sights" }, o.UsPerks);
+            CollectionAssert.AreEqual(new[] { "vc-fieldcraft" }, o.VcPerks);
+
+            // Lost: a merit, the same battle again, nothing carried.
+            var lost = new LiveMatch(o);
+            lost.State.Winner = Side.Vc;
+            Assert.IsFalse(Campaign.After(c, lost.State));
+            Assert.AreEqual(0, c.Battle); Assert.AreEqual(1, c.Tries); Assert.AreEqual(Campaign.OpeningMerit - 1 + Campaign.LossMerit, c.Merit[0]);
+            Assert.AreEqual(0, c.UsVeterans.Count);
+
+            // Won: three merit, on to The Wire, the squads still standing carried, the steadiest first.
+            var won = new LiveMatch(Campaign.Options(c, 6));
+            for (int t = 0; t < 600; t++) won.Step();
+            won.State.Winner = Side.Us;
+            int standing = won.State.Squads.Count(q => q.Side == Side.Us && q.Card != null && won.State.Men.Any(x => x.Squad == q.Id && x.Alive));
+            Assert.IsTrue(Campaign.After(c, won.State));
+            Assert.AreEqual(1, c.Battle); Assert.AreEqual(0, c.Tries); Assert.AreEqual(1, c.Won[0]);
+            Assert.AreEqual(Math.Min(Campaign.VeteranCap, standing), c.UsVeterans.Count);
+            for (int i = 1; i < c.UsVeterans.Count; i++) Assert.LessOrEqual(c.UsVeterans[i].Mean, c.UsVeterans[i - 1].Mean, "not the steadiest first");
+            Assert.IsTrue(Campaign.Buy(c, Side.Us, mission), "FIRE MISSION with one in EQUIPMENT and the merit");
+            o = Campaign.Options(c, 7);
+            Assert.IsTrue(o.UsDeck.Contains("us-sniper"), "a battle won opens the sniper");
+            Assert.AreEqual(Scenarios.TheWire.UsDeck == null || Scenarios.TheWire.UsDeck.Contains("us-arty"), o.UsDeck.Contains("us-arty"), "FIRE MISSION opens the guns where the operation has them");
+            Assert.AreEqual(c.UsVeterans.Count, o.UsVeterans.Count);
+        }
+
+        /// <summary>A veteran squad waiting is the first squad raised with its card: its men as steady as they were, any it lost made up green.</summary>
+        [Test]
+        public void A_veteran_squad_is_raised_as_steady_as_it_was()
+        {
+            var o = Scenarios.Firebase.Options(2, Side.Us, Difficulty.Veteran);
+            o.UsVeterans = new List<Veteran> { new Veteran { Card = "us-rifle", Men = new[] { 0.7, 0.6 } } };
+            var m = new LiveMatch(o);
+            var st = m.State;
+            var rng = new Rng(11);
+            st.Cp[(int)Side.Us] = 100;
+            var card = Deck.Find(Side.Us, "us-rifle");
+            st.CardCooldown[(int)Side.Us][card.Index] = 0;
+            int before = st.Squads.Count;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, card, 0, rng, 0));
+            var sq = st.Squads.Skip(before).First(q => q.Side == Side.Us && q.Card == "us-rifle");
+            var men = st.Men.Where(x => x.Squad == sq.Id).ToList();
+            Assert.AreEqual(0.7, men[0].Veterancy); Assert.AreEqual(0.6, men[1].Veterancy);
+            Assert.IsTrue(men.Skip(2).All(x => x.Veterancy == 0), "the men made up were not green");
+            Assert.AreEqual(0, st.Veterans[(int)Side.Us].Count, "the veteran is still waiting");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.VeteransJoin && e.Id == sq.Id));
+            st.CardCooldown[(int)Side.Us][card.Index] = 0;
+            Assert.IsTrue(Deck.Buy(st, Side.Us, card, 0, rng, 0));
+            Assert.IsTrue(st.Men.Where(x => x.Squad == st.Squads.Last(q => q.Side == Side.Us).Id).All(x => x.Veterancy == 0), "the second squad came as veterans too");
+        }
+
         // `simcs scenario hash 1` (rice-fields), 2026-11-18, with MatchOptions.Flank and Shock (PLAN §12.76; with Flank alone 5035,
         // 3905983211u; 5035, 3595252491u without either);
         // before that 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and

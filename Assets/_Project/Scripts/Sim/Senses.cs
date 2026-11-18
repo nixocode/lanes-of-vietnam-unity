@@ -74,6 +74,8 @@ namespace LanesOfVietnam.Sim
             if (st.Vantage) r = Vantage.Sight(observer, target, r);
             // Strike: the burned forest hides nobody.
             if (st.Strike && st.Burnt.Count > 0 && Strike.InBurnt(st, target.X, target.Z)) r *= Tune.BurntSeen;
+            // Doctrine: men who move by night are seen less far.
+            if (st.Doctrine != null) r *= Doctrine.M(st, target.Side, Effect.Concealment);
             return r * st.Sight;
         }
 

@@ -48,7 +48,7 @@ public static class Runner
                     }
                     catch (TargetInvocationException e)
                     {
-                        fail++; Console.WriteLine($"FAIL {name}: {e.InnerException?.GetType().Name}: {e.InnerException?.Message.Trim().Replace("\n", " | ")}");
+                        fail++; Console.WriteLine($"FAIL {name}: {e.InnerException?.GetType().Name}: {e.InnerException?.Message.Trim().Replace("\n", " | ")}"); if (Environment.GetEnvironmentVariable("EDITRUN_STACK") != null) Console.WriteLine(e.InnerException?.StackTrace);
                     }
                     catch (Exception e)
                     {

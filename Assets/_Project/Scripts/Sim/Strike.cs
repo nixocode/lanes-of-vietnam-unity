@@ -58,6 +58,7 @@ namespace LanesOfVietnam.Sim
                 // (Flat, however steady he is: twice what would pin the greenest man.)
                 Combat.ApplyPin(st, m, 2.0);
                 double lethal = Tune.BombLethal * f * (m.Cover >= 0 ? Tune.BombCover : 1);
+                if (st.Doctrine != null) lethal *= Doctrine.Belt(st, m);
                 if (rng.Next() < lethal) Combat.Kill(st, m);
             }
             // The positions it lands among are gone: a crater where each was.

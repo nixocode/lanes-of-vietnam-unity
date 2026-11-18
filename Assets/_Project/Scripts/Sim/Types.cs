@@ -501,6 +501,8 @@ namespace LanesOfVietnam.Sim
         // Airframe (MatchOptions.Airframe, with Shootdown): man Id's rocket hit the medevac of call Target but did not bring
         // it down: it turns for home at X, Z, trailing smoke, and is out of sight in Amount ticks. Nothing lands.
         LimpHome,
+        // Campaign: squad Id of Side is raised from veterans of an earlier battle, their mean veterancy Amount.
+        VeteransJoin,
     }
 
     public struct SimEvent
@@ -638,6 +640,10 @@ namespace LanesOfVietnam.Sim
         public bool Shock;
         /// <summary>Part 2: a medevac hit may limp home rather than fall (MatchOptions.Airframe, with Shootdown).</summary>
         public bool Airframe;
+        /// <summary>Each side's multiplier for each Doctrine Effect ([side][effect]); null when neither side has a perk.</summary>
+        public double[][] Doctrine;
+        /// <summary>Each side's veterans still waiting to be raised (Sim.Campaign), [side]; null when neither side had any.</summary>
+        public List<Veteran>[] Veterans;
         /// <summary>MatchOptions.Shock: the tick until which each side's calls are slow, its radio man dead.</summary>
         public readonly int[] NetDown = { 0, 0 };
         /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
