@@ -39,6 +39,9 @@ namespace LanesOfVietnam.View.UI
         public Card HoveredCard { get; private set; }
         /// <summary>The lane selector's tags, a lane each, and the tag that follows the pointer.</summary>
         public Button[] LaneTags { get; private set; }
+        /// <summary>Each lane tag's arrow (the key that takes it), and the pause button's sign: drawn, not characters (Glyph).</summary>
+        private Glyph.Mark[] _laneArrows;
+        public Glyph PauseGlyph { get; private set; }
         public Label AimTag { get; private set; }
         /// <summary>
         /// What the player has called for and is waiting on (MatchOptions.Inbound), each over the place it
@@ -158,7 +161,8 @@ namespace LanesOfVietnam.View.UI
             ui.Add(top);
 
             var us = new VisualElement(); us.AddToClassList("faction");
-            var usLabel = new Label("★ US / ARVN"); usLabel.AddToClassList("faction-label");
+            var usLabel = new Label("US / ARVN"); usLabel.AddToClassList("faction-label"); usLabel.AddToClassList("starred");
+            _ = new Glyph.Mark(usLabel, Glyph.Shape.Star, r => new Rect(r.x, r.center.y - 11f, 22f, 22f));
             UsMorale = new MoraleBar(Side.Us);
             us.Add(usLabel); us.Add(UsMorale);
             top.Add(us);
@@ -187,17 +191,20 @@ namespace LanesOfVietnam.View.UI
             top.Add(centre);
 
             var vc = new VisualElement(); vc.AddToClassList("faction"); vc.AddToClassList("right");
-            var vcLabel = new Label("VC / NVA ★"); vcLabel.AddToClassList("faction-label"); vcLabel.AddToClassList("right");
+            var vcLabel = new Label("VC / NVA"); vcLabel.AddToClassList("faction-label"); vcLabel.AddToClassList("right"); vcLabel.AddToClassList("starred");
+            _ = new Glyph.Mark(vcLabel, Glyph.Shape.Star, r => new Rect(r.xMax - 22f, r.center.y - 11f, 22f, 22f));
             VcMorale = new MoraleBar(Side.Vc);
             vc.Add(vcLabel); vc.Add(VcMorale);
             var buttons = new VisualElement(); buttons.AddToClassList("buttons");
-            AddButton(buttons, "pause", "❚❚", TogglePause);
+            AddButton(buttons, "pause", "", TogglePause);
+            PauseGlyph = new Glyph(Glyph.Shape.Pause, "button-glyph"); Buttons["pause"].Add(PauseGlyph);
             AddButton(buttons, "speed", "1×", CycleSpeed);
             AddButton(buttons, "snd", "SND", () => Sound = !Sound);
             AddButton(buttons, "mus", "MUS", () => Music = !Music);
             // The picture to the whole screen, and back (the owner, 2026-10-11; Alt and Enter do it too).
             AddButton(buttons, "full", "FULL", FullScreen.Toggle);
-            AddButton(buttons, "settings", "⚙", () => SettingsRequested?.Invoke());
+            AddButton(buttons, "settings", "", () => SettingsRequested?.Invoke());
+            Buttons["settings"].Add(new Glyph(Glyph.Shape.Gear, "button-glyph"));
             vc.Add(buttons);
             top.Add(vc);
 
@@ -214,11 +221,14 @@ namespace LanesOfVietnam.View.UI
             // shown while a card is in hand. The lit one is where the card goes; a click on the other
             // (or the up and down keys) takes it.
             LaneTags = new Button[Tune.MaxLanes];
+            _laneArrows = new Glyph.Mark[Tune.MaxLanes];
             for (int lane = 0; lane < LaneTags.Length; lane++)
             {
                 int which = lane;
                 var tag = new Button(() => Deployer.Choose(which)) { name = $"lane-tag-{lane}", text = LaneName(lane, 2) };
                 tag.AddToClassList("lane-tag");
+                _laneArrows[lane] = new Glyph.Mark(tag, LaneArrow(lane, 2), TagArrowAt);
+                tag.EnableInClassList("arrowed", _laneArrows[lane].Kind != Glyph.Shape.None);
                 tag.style.display = DisplayStyle.None;
                 // Moved by a transform (as the plates and the squad tags are): no layout when the camera moves.
                 tag.style.left = LaneTagLeft; tag.style.top = 0;
@@ -228,8 +238,9 @@ namespace LanesOfVietnam.View.UI
             }
             // And one for the post (the firebase's watchtower), above the far lane's: shown when the card in hand
             // is a squad that can go up it and nobody is on it.
-            PostTag = new Button(() => Deployer.ChoosePost(0)) { name = "post-tag-0", text = "WATCHTOWER  ↑" };
-            PostTag.AddToClassList("lane-tag");
+            PostTag = new Button(() => Deployer.ChoosePost(0)) { name = "post-tag-0", text = "WATCHTOWER" };
+            PostTag.AddToClassList("lane-tag"); PostTag.AddToClassList("arrowed");
+            _ = new Glyph.Mark(PostTag, Glyph.Shape.Up, TagArrowAt);
             PostTag.style.display = DisplayStyle.None;
             PostTag.style.left = LaneTagLeft; PostTag.style.top = 0;
             PostTag.usageHints = UsageHints.DynamicTransform;
@@ -453,7 +464,7 @@ namespace LanesOfVietnam.View.UI
 
             PlaceCallTags(st);
 
-            Buttons["pause"].text = Root.Paused ? "▶" : "❚❚";
+            PauseGlyph.Kind = Root.Paused ? Glyph.Shape.Play : Glyph.Shape.Pause;
             Buttons["pause"].EnableInClassList("on", Root.Paused);
             if (Root.Speed != _speedShown) { _speedShown = Root.Speed; Buttons["speed"].text = $"{Root.Speed:0}×"; }
             Buttons["speed"].EnableInClassList("on", Root.Speed > 1f);
@@ -468,9 +479,9 @@ namespace LanesOfVietnam.View.UI
                 _hintFor = hint;
                 ArmedHint.text = Deployer.Armed == null ? (HoveredCard != null ? Describe(HoveredCard) : "")
                     : Deployer.HasTarget && Deployer.TargetPost >= 0
-                        ? $"{Deployer.Armed.Name} — {PostName(Deployer.TargetPost)} · CLICK TO SEND THEM UP · ↓ A LANE · RIGHT CLICK TO CANCEL"
+                        ? $"{Deployer.Armed.Name} — {PostName(Deployer.TargetPost)} · CLICK TO SEND THEM UP · DOWN KEY: A LANE · RIGHT CLICK TO CANCEL"
                     : Deployer.HasTarget
-                        ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · ↑ ↓ THE OTHER LANE{(Deployer.PostFor(Deployer.Armed) >= 0 ? " OR THE " + PostName(Deployer.PostFor(Deployer.Armed)) : "")} · RIGHT CLICK TO CANCEL"
+                        ? $"{Deployer.Armed.Name} — {(Deployer.TargetLane == 0 ? "NEAR" : "FAR")} LANE · CLICK TO PLACE · UP AND DOWN KEYS: THE OTHER LANE{(Deployer.PostFor(Deployer.Armed) >= 0 ? " OR THE " + PostName(Deployer.PostFor(Deployer.Armed)) : "")} · RIGHT CLICK TO CANCEL"
                         : $"{Deployer.Armed.Name} — POINT AT THE GROUND";
             }
             LaneSelector();
@@ -487,7 +498,14 @@ namespace LanesOfVietnam.View.UI
         /// </summary>
         /// <summary>A lane's tag, by how many lanes there are: the near and the far of two; the near, the middle and the back of three.</summary>
         public static string LaneName(int lane, int lanes)
-            => lane == 0 ? "NEAR LANE  ↓" : lane == lanes - 1 ? (lanes > 2 ? "BACK LANE  ↑" : "FAR LANE  ↑") : lanes == 3 ? "MIDDLE LANE" : $"LANE {lane + 1}";
+            => lane == 0 ? "NEAR LANE" : lane == lanes - 1 ? (lanes > 2 ? "BACK LANE" : "FAR LANE") : lanes == 3 ? "MIDDLE LANE" : $"LANE {lane + 1}";
+
+        /// <summary>Where a tag's arrow is painted: in the room its right padding leaves (.lane-tag.arrowed).</summary>
+        private static Rect TagArrowAt(Rect r) => new Rect(r.xMax - 22f, r.center.y - 5.5f, 11f, 11f);
+
+        /// <summary>The arrow on a lane's tag: the key that takes it from the lane in hand, down to the near lane, up to the last.</summary>
+        public static Glyph.Shape LaneArrow(int lane, int lanes)
+            => lane == 0 ? Glyph.Shape.Down : lane == lanes - 1 ? Glyph.Shape.Up : Glyph.Shape.None;
 
         private void LaneSelector()
         {
@@ -501,6 +519,9 @@ namespace LanesOfVietnam.View.UI
                 if (!armed || lane >= lanes) continue;
                 string name = LaneName(lane, lanes);
                 if (tag.text != name) tag.text = name;
+                var arrow = LaneArrow(lane, lanes);
+                _laneArrows[lane].Kind = arrow;
+                tag.EnableInClassList("arrowed", arrow != Glyph.Shape.None);
                 var cam = Root.CameraRig.Camera;
                 // The lane's ground near the picture's left edge: its height on the screen. By the
                 // viewport, not the screen (PositionPlates): the picture is not always the screen's size.
@@ -518,7 +539,7 @@ namespace LanesOfVietnam.View.UI
             PostTag.style.display = post ? DisplayStyle.Flex : DisplayStyle.None;
             if (post)
             {
-                if (PostTag.text != PostName(0) + "  ↑") PostTag.text = PostName(0) + "  ↑";
+                if (PostTag.text != PostName(0)) PostTag.text = PostName(0);
                 PostTag.style.translate = new Translate(0, highest - LaneTagHeight - 6f);
                 PostTag.EnableInClassList("lit", Deployer.TargetPost == 0);
             }

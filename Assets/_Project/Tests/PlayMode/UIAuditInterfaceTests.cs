@@ -270,11 +270,11 @@ namespace LanesOfVietnam.Tests
             Assert.IsFalse(Root.Paused);
             hud.TogglePause(); yield return null;
             Assert.IsTrue(Root.Paused, "pause did not pause");
-            Assert.AreEqual("▶", b["pause"].text);
+            Assert.AreEqual(LanesOfVietnam.View.UI.Glyph.Shape.Play, hud.PauseGlyph.Kind);
             Assert.IsTrue(b["pause"].ClassListContains("on"));
             hud.TogglePause(); yield return null;
             Assert.IsFalse(Root.Paused);
-            Assert.AreEqual("❚❚", b["pause"].text);
+            Assert.AreEqual(LanesOfVietnam.View.UI.Glyph.Shape.Pause, hud.PauseGlyph.Kind);
 
             hud.CycleSpeed(); yield return null;
             Assert.AreEqual(2f, Root.Speed); Assert.AreEqual("2×", b["speed"].text);

@@ -413,6 +413,13 @@
 }
 .orders.radio { color: rgb(255, 214, 140); }
 .plate-head { flex-direction: row; justify-content: center; }
-.plate-facing { height: 16px; margin-top: 1px; font-size: 13px; color: rgb(222, 188, 106); margin-right: 3px; }
+.plate-facing { width: 11px; height: 11px; margin-top: 4px; color: rgb(222, 188, 106); margin-right: 4px; }
 .plate-facing.turned { color: rgb(255, 120, 80); }
 .requisition .deploy { align-self: flex-start; }
+
+/* Signs drawn as shapes (Glyph): the fonts have no star, pause, gear or arrow, and a WebGL build has no fonts to fall back on. */
+.faction-label.starred { padding-left: 34px; height: 40px; } /* the height the fallback font's star gave it, which the bars below were placed by */
+.faction-label.starred.right { padding-left: 0; padding-right: 34px; }
+.hud-button { justify-content: center; align-items: center; }
+.button-glyph { width: 18px; height: 18px; }
+.lane-tag.arrowed { padding-right: 30px; }

@@ -440,7 +440,7 @@ namespace LanesOfVietnam.View.UI
                 BriefTitle.text = ChosenScenario.Title;
                 BriefMeta.text = ChosenScenario.DateLine;
                 BriefText.text = ChosenScenario.Briefing;
-                BriefOrders.text = string.Join("\n", ChosenScenario.Orders.Select(o => "◆ " + o));
+                BriefOrders.text = string.Join("\n", ChosenScenario.Orders.Select(o => "• " + o));
             }
             On("side-us", ChosenSide == Side.Us);
             On("side-vc", ChosenSide == Side.Vc);
