@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The EditMode suite (Assets/_Project/Tests/EditMode/SimTests.cs) outside Unity, PLAN §12.73a: it tests only the
+    simulation, so it compiles against Sim/ under .NET 8. On the Mac it uses the editor's own NUnit; with no editor
+    installed (a cloud session) it falls back to NUnit from NuGet, a path that has not been run.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>editrun</AssemblyName>
+    <NoWarn>CS0618;CS1591;CS8632;CS0162;CS0219;CS0168;CS0414;NU1701</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <UnityNUnit>/Applications/Unity/Hub/Editor/6000.6.3f1/Unity.app/Contents/Resources/PackageManager/BuiltInPackages/com.unity.ext.nunit/net472/unity-custom/nunit.framework.dll</UnityNUnit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Scripts/Sim/**/*.cs" />
+    <Compile Include="../../Assets/_Project/Tests/EditMode/SimTests.cs" />
+    <Compile Include="Runner.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(UnityNUnit)')">
+    <Reference Include="nunit.framework"><HintPath>$(UnityNUnit)</HintPath></Reference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(UnityNUnit)')">
+    <PackageReference Include="NUnit" Version="3.14.0" />
+  </ItemGroup>
+</Project>

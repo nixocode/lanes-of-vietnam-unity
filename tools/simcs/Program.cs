@@ -221,12 +221,13 @@ namespace LanesOfVietnam.SimCs
         /// <summary>A match's tick count, reason and hashes at ticks 100, 1000 and the end, for pinning in SimTests.</summary>
         private static int HashRun(string[] a)
         {
+            var given = a;
             bool frag = a.Contains("frag"), smoke = a.Contains("smoke"), drill = a.Contains("drill"), craft = a.Contains("fieldcraft"), onMap = a.Contains("map"), arms = a.Contains("arms"), senses = a.Contains("senses"), gunnery = a.Contains("gunnery"), ammo = a.Contains("ammo"), tactics = a.Contains("tactics"), fortune = a.Contains("fortune"), firecontrol = a.Contains("firecontrol"), commander = a.Contains("commander"), ballistics = a.Contains("ballistics"), vantage = a.Contains("vantage"), aiposts = a.Contains("aiposts"), cohesion = a.Contains("cohesion"), bearing = a.Contains("bearing"); bool inbound = a.Contains("inbound"), fragcard = a.Contains("fragcard"), emplace = a.Contains("emplace"), satchel = a.Contains("satchel"), destruction = a.Contains("destruction"), shootdown = a.Contains("shootdown"), water = a.Contains("water"), heights = a.Contains("heights"), strike = a.Contains("strike"), soldiering = a.Contains("soldiering");
             // `map=<id>`: on that map, its cover, its posts and its river (`map=ricefields`); `map` alone is the firebase's cover.
             var named = a.Where(x => x.StartsWith("map=")).Select(x => Maps.ById(x.Substring(4))).FirstOrDefault();
-            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction" && x != "shootdown" && x != "water" && x != "heights" && x != "strike" && x != "soldiering" && !x.StartsWith("map=")).ToArray();
+            a = a.Where(x => x != "frag" && x != "smoke" && x != "drill" && x != "fieldcraft" && x != "map" && x != "arms" && x != "senses" && x != "gunnery" && x != "ammo" && x != "tactics" && x != "fortune" && x != "firecontrol" && x != "commander" && x != "ballistics" && x != "vantage" && x != "aiposts" && x != "cohesion" && x != "bearing" && x != "fragcard" && x != "emplace" && x != "satchel" && x != "destruction" && x != "shootdown" && x != "water" && x != "heights" && x != "strike" && x != "soldiering" && !RuleWords.Contains(x) && !x.StartsWith("map=")).ToArray();
             int seed = a.Length > 1 ? int.Parse(a[1]) : 1;
-            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Map = named, Cover = named != null ? named.Cover() : onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Shootdown = shootdown, Bearing = bearing, Water = water, Heights = heights, Strike = strike, Soldiering = soldiering });
+            var m = new LiveMatch(new MatchOptions { Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Map = named, Cover = named != null ? named.Cover() : onMap ? Map.Cover() : null, Frag = frag, SquadSmoke = smoke, Drill = drill, Fieldcraft = craft, Arms = arms, Senses = senses, Gunnery = gunnery, Ammo = ammo, Tactics = tactics, Fortune = fortune, FireControl = firecontrol, Commander = commander, Ballistics = ballistics, Vantage = vantage, ComputerPosts = aiposts, Cohesion = cohesion, Inbound = inbound, FragCard = fragcard, Emplace = emplace, Satchel = satchel, Destruction = destruction, Shootdown = shootdown, Bearing = bearing, Water = water, Heights = heights, Strike = strike, Soldiering = soldiering }.With(o => Rules(o, given)));
             var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
             while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
             Console.WriteLine($"  seed {seed}{(frag ? " frag" : "")}{(smoke ? " smoke" : "")}: {m.State.Tick} ticks, \"{m.State.Reason}\", at100 {h[100]}u, at1000 {h[Math.Min(1000, h.Count - 1)]}u, final {h[^1]}u");
@@ -677,6 +678,7 @@ namespace LanesOfVietnam.SimCs
                     var ho = listed.Options(seed, null, Difficulty.Veteran);
                     // (`nosoldiering`: as the game played before MatchOptions.Soldiering.)
                     if (a.Contains("nosoldiering")) ho.Soldiering = false;
+                    Rules(ho, a);
                     var m = new LiveMatch(ho);
                     var h = new List<uint> { LanesOfVietnam.Sim.Parity.Hash(m.State, 0) };
                     while (!m.State.Over && m.State.Tick < m.Cap) { m.Step(); h.Add(LanesOfVietnam.Sim.Parity.Hash(m.State, 0)); }
@@ -697,6 +699,8 @@ namespace LanesOfVietnam.SimCs
                     {
                         if (levelArg != null && levelArg != level.ToString().ToLowerInvariant()) continue;
                         int wins = 0, fell = 0, crushed = 0; double secs = 0, groundOwn = 0, groundTheirs = 0;
+                        // `flanks`: men killed, and of them killed from the flank in cover (MatchOptions.Flank), each side.
+                        var killed = new int[2]; var flanked = new int[2]; var turned = new int[2]; var turnedCost = new double[2];
                         var each = new List<double>();
                         var endings = new SortedDictionary<string, int>();
                         for (int seed = 1; seed <= seeds; seed++)
@@ -709,6 +713,7 @@ namespace LanesOfVietnam.SimCs
                             if (a.Contains("nodestruction")) opts.Destruction = false;
                             if (a.Contains("noshootdown")) opts.Shootdown = false;
                             if (a.Contains("nosoldiering")) opts.Soldiering = false;
+                            Rules(opts, a);
                             // `cost=<recruit>,<veteran>,<elite>`: what a squad costs the computer at each level, in place of Scenario.CostFor.
                             if (Pair(a, "cost") is double[] cost && cost.Length >= 3) opts.MusterCost = cost[level == Difficulty.Recruit ? 0 : level == Difficulty.Veteran ? 1 : 2];
                             // `mirror`: the scenario's map turned end for end, the Americans in the east (Maps.Mirrored).
@@ -752,6 +757,11 @@ namespace LanesOfVietnam.SimCs
                                 m.Step();
                             }
                             if (m.State.Winner == side) wins++;
+                            foreach (var e in m.State.Events)
+                                {
+                                    if (e.Kind == EventKind.Kill) { killed[(int)e.Side]++; if (m.State.Men[e.Id].Flanked) flanked[(int)e.Side]++; }
+                                    if (e.Kind == EventKind.Outflanked && e.Rounds == 1) { turned[(int)e.Side]++; turnedCost[(int)e.Side] += e.Amount ?? 0; }
+                                }
                             groundOwn += m.State.MoraleLostToGround[(int)side]; groundTheirs += m.State.MoraleLostToGround[(int)Combat.Other(side)];
                             var ev = m.State.Events;
                             int went = ev.FindIndex(e => e.Kind == EventKind.Collapsed);
@@ -767,6 +777,7 @@ namespace LanesOfVietnam.SimCs
                         }
                         Console.WriteLine($"    as {Match.Name(side)}, {level,-7} wins {wins,2}/{seeds}  mean {secs / seeds,4:F0} s ({each.Min():F0} to {each.Max():F0})  {string.Join(", ", endings.Select(e => $"{e.Key} {e.Value}"))}"
                                           + (fell > 0 ? $"; the tower brought down in {fell}, {crushed} men killed by its fall" : "")
+                                          + (a.Contains("flanks") ? $"; killed, a match: US {killed[0] / (double)seeds:F1} ({flanked[0] / (double)seeds:F1} from the flank), VC {killed[1] / (double)seeds:F1} ({flanked[1] / (double)seeds:F1}); lanes turned, a match: US {turned[0] / (double)seeds:F1} (will {turnedCost[0] / seeds:F2}), VC {turned[1] / (double)seeds:F1} (will {turnedCost[1] / seeds:F2})" : "")
                                           + (a.Contains("ground") ? $"; will lost to ground taken, a match: his {groundOwn / seeds:F2}, the computer's {groundTheirs / seeds:F2}" : ""));
                     }
                 }
@@ -1041,6 +1052,16 @@ namespace LanesOfVietnam.SimCs
             return 0;
         }
 
+        /// <summary>The rules after Soldiering, by word (and `no<word>` to take one away): `flank`.</summary>
+        private static readonly string[] RuleWords = { "flank", "noflank" };
+
+        /// <summary>The rules after Soldiering, as the words on the command line ask: on with the word, off with `no` before it.</summary>
+        private static void Rules(MatchOptions o, string[] a)
+        {
+            if (a.Contains("flank")) o.Flank = true;
+            if (a.Contains("noflank")) o.Flank = false;
+        }
+
         private static MatchOptions Game(int seed, string[] a)
         {
             // `scenario=<id>`: the scenario as the game plays it against a Veteran with nobody playing, in place of the flags.
@@ -1052,6 +1073,7 @@ namespace LanesOfVietnam.SimCs
                 foreach (var x in a) if (x.StartsWith("rate=")) so.MoraleRate = double.Parse(x.Substring(5), System.Globalization.CultureInfo.InvariantCulture);
                 // (`nosoldiering`: as the game played before MatchOptions.Soldiering.)
                 if (a.Contains("nosoldiering")) so.Soldiering = false;
+                Rules(so, a);
                 return so;
             }
             var o = new MatchOptions
@@ -1068,6 +1090,7 @@ namespace LanesOfVietnam.SimCs
             o.Heights = a.Contains("heights");
             o.Strike = a.Contains("strike");
             o.Soldiering = a.Contains("soldiering");
+            Rules(o, a);
             // GameRoot's economy: one squad a side to open, points at the game's rate.
             if (a.Contains("skirmish")) o.Length = MatchLength.Skirmish;
             if (a.Contains("siege") || a.Contains("long")) o.Length = MatchLength.Long;      // (`siege` is what the long match was called until scenarios)
@@ -2768,5 +2791,11 @@ namespace LanesOfVietnam.SimCs
             }
             return 0;
         }
+    }
+
+    internal static class OptionsExt
+    {
+        /// <summary>The options, once something has been done to them: for building a match in one expression.</summary>
+        public static MatchOptions With(this MatchOptions o, Action<MatchOptions> f) { f(o); return o; }
     }
 }

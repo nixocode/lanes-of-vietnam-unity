@@ -105,7 +105,16 @@ namespace LanesOfVietnam.Sim
             // Fieldcraft: a parapet is no cover from a man standing on it.
             if (c != null && !(st.Fieldcraft && d < Tune.ChargeRange * 0.5))
             {
-                p *= 1 - CoverValue(st, c) * (1 - arm.Pierce);
+                double worth = CoverValue(st, c);
+                // Flank: a position faces the enemy; from the flank it is worth less, and the round finds him more often.
+                if (st.Flank)
+                {
+                    worth *= Flank.Facing(st, a, b, c);
+                    if (Flank.From(st, a, b)) p *= 1 + Tune.FlankHit;
+                    // And in a lane the enemy has got behind, it is worth less whichever way the round comes.
+                    if (Flank.Exposed(st, b)) worth *= Tune.OutflankCover;
+                }
+                p *= 1 - worth * (1 - arm.Pierce);
                 if (c.RangedIn >= 1) p *= Tune.RangedInBonus;
             }
             // Vantage: a man up on a post has its bags round him (one on its ladder has nothing).
@@ -266,6 +275,8 @@ namespace LanesOfVietnam.Sim
 
             if (hit)
             {
+                // Flank: in cover, and hit from his flank (asked before he falls out of it).
+                bool flanked = st.Flank && CoverOf(st, target) != null && Flank.From(st, a, target);
                 Kill(st, target);
                 if (st.Fieldcraft) Fieldcraft.Through(st, a, target, rng);
                 // Ballistics: the rounds of the burst that did not hit him were walked up to him.
@@ -274,6 +285,7 @@ namespace LanesOfVietnam.Sim
                     double ux = target.X - a.X, uz = target.Z - a.Z, ud = Math.Sqrt(ux * ux + uz * uz);
                     if (ud > 1e-6) Ballistics.Strays(st, a, target, rounds - 1, rounds, target.X - ux / ud * Tune.StitchStep, target.Z - uz / ud * Tune.StitchStep);
                 }
+                if (flanked) Flank.Killed(st, a, target);
                 return true;
             }
             // Ballistics: it missed him, and comes down somewhere: whoever is there may be hit.

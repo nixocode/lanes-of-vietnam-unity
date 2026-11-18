@@ -169,6 +169,8 @@ namespace LanesOfVietnam.Sim
         public bool Strike;
         /// <summary>Part 2: men take cover near them, advance in rushes and spread their fire (<see cref="Sim.Soldiering"/>). Off is the baseline.</summary>
         public bool Soldiering;
+        /// <summary>Part 2: cover faces the enemy's end of the lane; from the flank it is worth less, and a man killed from there costs more (<see cref="Sim.Flank"/>). Off is the baseline.</summary>
+        public bool Flank;
         /// <summary>
         /// With Vantage: the computer's side mans its own posts too (its machine gun or its sniper). Off in the
         /// game: measured, it takes a Vietnamese player who buys line squads from 17 wins in 24 to 5 (PLAN §12.35).
@@ -349,6 +351,7 @@ namespace LanesOfVietnam.Sim
                 Heights = opts.Heights,
                 Strike = opts.Strike && opts.Inbound,
                 Soldiering = opts.Soldiering,
+                Flank = opts.Flank,
                 ComputerPosts = opts.Vantage && opts.ComputerPosts,
                 CpRate = opts.CpRate, MusterCost = opts.MusterCost, Player = opts.Player,
                 Mode = opts.Mode, Attacker = opts.Attacker,
@@ -966,6 +969,8 @@ namespace LanesOfVietnam.Sim
             }
 
             StepAreas(st, rng);
+            // Flank: which lanes are turned.
+            if (st.Flank) Flank.Step(st);
 
             // Casualties this tick drain morale — from this tick's events only.
             // Scanning the whole history every tick put a long match at 2.7 s.
@@ -974,6 +979,8 @@ namespace LanesOfVietnam.Sim
                 var e = st.Events[i];
                 if (e.Kind != EventKind.Kill) continue;
                 double hit = Tune.MoralePerCasualty * st.MoraleScale * st.Will[(int)e.Side];
+                // Flank: a man killed from the flank costs more.
+                if (st.Flank && st.Men[e.Id].Flanked) hit *= Tune.FlankMorale;
                 st.Morale[(int)e.Side] = Math.Max(0, st.Morale[(int)e.Side] - hit);
                 st.MoraleLostToCasualties[(int)e.Side] += hit;
                 st.Events.Add(new SimEvent

@@ -3110,12 +3110,14 @@ namespace LanesOfVietnam.Tests
         // (And again the same day: the game plays with MatchOptions.Soldiering, §12.64, and First Light, The Earth Fights and
         // Rice Fields at their new wills. The Wire's seed 3 now ends with the Americans wiped out and seed 1 broken: seeds 2
         // and 6; First Light's seed 3 is broken and 7 taken: seeds 2 and 21.)
-        [TestCase("firebase", 1, 5081, 4130772264u, 2103958035u, 839800063u, "us morale broke")]
-        [TestCase("the-wire", 2, 4843, 3693651802u, 3068560264u, 2039434068u, "us morale broke")]
-        [TestCase("the-wire", 6, 6000, 75036194u, 281531662u, 1247358654u, "us held out")]
-        [TestCase("first-light", 21, 8400, 527806173u, 3571171442u, 1199768572u, "vc held the line")]
-        [TestCase("first-light", 2, 2489, 1288724647u, 1921217890u, 2624003684u, "us took the line")]
-        [TestCase("earth-fights", 1, 8463, 729085266u, 3064492977u, 270294147u, "us morale broke")]
+        // (And again 2026-11-18: the game plays with MatchOptions.Flank, cover that faces the enemy and lanes that can be
+        // turned, PLAN §12.76. The Earth Fights' seed 1 now ends with the VC broken.)
+        [TestCase("firebase", 1, 4900, 91417168u, 3811705835u, 168345781u, "us morale broke")]
+        [TestCase("the-wire", 2, 4842, 1313985930u, 3679825124u, 1994829385u, "us morale broke")]
+        [TestCase("the-wire", 6, 6000, 1106983714u, 550273854u, 1191498072u, "us held out")]
+        [TestCase("first-light", 21, 8400, 465870413u, 2541755474u, 4219433749u, "vc held the line")]
+        [TestCase("first-light", 2, 2489, 2310578503u, 427046082u, 1761093956u, "us took the line")]
+        [TestCase("earth-fights", 1, 6848, 2809132458u, 1302136121u, 3472625546u, "vc morale broke")]
         public void A_scenario_is_pinned_and_still_a_pure_function_of_its_seed(
             string id, int seed, int ticks, uint at100, uint at1000, uint final, string reason)
         {
@@ -3153,7 +3155,7 @@ namespace LanesOfVietnam.Tests
 
             var o = Scenarios.Firebase.Options(5, Side.Vc, Difficulty.Elite, MatchLength.Long);
             Assert.IsTrue(o.Frag && o.SquadSmoke && o.Drill && o.Fieldcraft && o.Arms && o.Senses && o.Gunnery && o.Ammo
-                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering, "a rule the game plays with is off");
+                          && o.Tactics && o.Fortune && o.FireControl && o.Ballistics && o.Vantage && o.Commander && o.Cohesion && o.Bearing && o.Inbound && o.FragCard && o.Emplace && o.Satchel && o.Destruction && o.Strike && o.Soldiering && o.Flank, "a rule the game plays with is off");
             Assert.IsFalse(o.ComputerPosts);
             Assert.AreEqual(Scenario.CpRate, o.CpRate); Assert.AreEqual(Scenario.StartCp, o.StartCp); Assert.AreEqual(Scenario.OpeningStrength, o.OpeningStrength);
             Assert.AreEqual(Scenario.CostFor(Difficulty.Elite), o.MusterCost);
@@ -3170,7 +3172,7 @@ namespace LanesOfVietnam.Tests
             // Tick for tick the match those rules gave with the game's economy.
             var kept = Borne(5, tempo: true);
             kept.Inbound = true; kept.FragCard = true; kept.Emplace = true; kept.Satchel = true; kept.Destruction = true; kept.Strike = true;
-            kept.Soldiering = true;
+            kept.Soldiering = true; kept.Flank = true;
             // (And the rules that do nothing on it until something happens: a medevac brought down, since the strike, in this one.)
             kept.Shootdown = true; kept.Water = true; kept.Heights = true;
             kept.MusterCost = Scenario.CostFor(Difficulty.Veteran); kept.MoraleRate = Scenario.RateFor(MatchLength.Standard);
@@ -3614,7 +3616,7 @@ namespace LanesOfVietnam.Tests
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
             // (And without the rule that came after it, Soldiering, §12.64.)
-            o.Strike = false; o.Soldiering = false;
+            o.Strike = false; o.Soldiering = false; o.Flank = false;
             var (h, m) = Played(o);
             Assert.AreEqual(4075, m.State.Tick);
             Assert.AreEqual(3782637812u, h[h.Count - 1]);
@@ -3794,12 +3796,13 @@ namespace LanesOfVietnam.Tests
         public void Without_its_rule_the_soldiers_are_what_they_were()
         {
             var o = Scenarios.Firebase.Options(1, null, Difficulty.Veteran);
-            o.Soldiering = false;
+            // (And without the rule that came after it, Flank, §12.76.)
+            o.Soldiering = false; o.Flank = false;
             var (h, m) = Played(o);
             Assert.AreEqual(6448, m.State.Tick);
             Assert.AreEqual(373562849u, h[h.Count - 1]);
             o = Scenarios.RiceFields.Options(1, null, Difficulty.Veteran);
-            o.Soldiering = false;
+            o.Soldiering = false; o.Flank = false;
             (h, m) = Played(o);
             Assert.AreEqual(2566, m.State.Tick);
             Assert.AreEqual(11572162u, h[h.Count - 1]);
@@ -3819,10 +3822,134 @@ namespace LanesOfVietnam.Tests
             Assert.AreEqual(699726964u, fh[fh.Count - 1]);
         }
 
-        // `simcs scenario hash 1` (rice-fields), 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and
+        // --- Flank (PLAN §12.76): cover faces the enemy, and a lane can be turned -------------------------------
+
+        /// <summary>
+        /// Flank (MatchOptions.Flank; Warfare 1944's flank attack, the owner 2026-11-18: "implement everything, keeping the
+        /// synergy with our era/game"). A man in cover faces his enemy's end of the lane: a round from behind him has only
+        /// what his kind of position gives all round against it, and finds him more often; sandbags keep little of
+        /// themselves from behind, a crater (a bowl) most of itself. Without the rule the way a round comes is nothing.
+        /// </summary>
+        [Test]
+        public void A_round_from_behind_finds_a_man_in_cover_and_a_crater_keeps_most_of_itself()
+        {
+            foreach (bool rule in new[] { true, false })
+            {
+                var st = Match.Create(new MatchOptions { Seed = 3, Cover = Map.Cover(), Flank = rule });
+                var us = st.Men.First(x => x.Side == Side.Us);
+                var vc = st.Men.First(x => x.Side == Side.Vc);
+                var c = st.Cover[0];
+                us.X = c.X; us.Z = c.Z; us.Cover = c.Id; us.Pin = 0; vc.Pin = 0;
+                double dir = Combat.Advance(st, Side.Us);
+                double Chance(CoverKind kind, double side)
+                {
+                    c.Kind = kind;
+                    vc.X = us.X + dir * side * 10; vc.Z = us.Z;
+                    return Combat.HitChance(st, vc, us);
+                }
+                double bagsFront = Chance(CoverKind.Sandbag, 1), bagsBack = Chance(CoverKind.Sandbag, -1);
+                double bowlFront = Chance(CoverKind.Crater, 1), bowlBack = Chance(CoverKind.Crater, -1);
+                us.Cover = -1;
+                double open = Chance(CoverKind.Sandbag, -1);
+                us.Cover = c.Id;
+                if (!rule)
+                {
+                    Assert.AreEqual(bagsFront, bagsBack, 1e-12, "without the rule a round from behind is a round from the front");
+                    continue;
+                }
+                Assert.Greater(bagsBack, bagsFront * 1.4, "behind sandbags a round from behind finds him hardly more often");
+                Assert.Greater(bagsBack, open * 0.6, "from behind, sandbags still keep most of him");
+                Assert.Less(bowlBack / bowlFront, bagsBack / bagsFront, "a crater keeps no more of itself from behind than sandbags do");
+                Assert.IsTrue(Flank.From(st, vc, us), "from straight behind is not from the flank");
+                vc.X = us.X + dir * 10;
+                Assert.IsFalse(Flank.From(st, vc, us), "from straight in front is from the flank");
+            }
+        }
+
+        /// <summary>
+        /// A lane is turned when an enemy in the next lane is behind its lead man: the side loses heart for it once (and
+        /// not again for the same lane until OutflankRearm), an Outflanked event says so, and the men in it whom the enemy
+        /// is behind have their positions worth a quarter less. A man killed from his flank is marked (his side's morale
+        /// takes half as much again for him) and his squad gets its head down.
+        /// </summary>
+        [Test]
+        public void A_lane_with_an_enemy_behind_it_is_turned_and_costs_heart()
+        {
+            var st = Match.Create(new MatchOptions { Seed = 3, Cover = Map.Cover(), Flank = true });
+            double dir = Combat.Advance(st, Side.Us);
+            foreach (var m in st.Men) m.Alive = false;
+            var us = st.Men.First(x => x.Side == Side.Us);
+            var vc = st.Men.First(x => x.Side == Side.Vc);
+            us.Alive = true; vc.Alive = true;
+            st.Squads[us.Squad].Lane = 0; st.Squads[vc.Squad].Lane = 1;
+            us.X = 10 * dir; vc.X = 0;
+            double was = st.Morale[(int)Side.Us];
+            Flank.Step(st);
+            var turned = st.Events.LastOrDefault(e => e.Kind == EventKind.Outflanked && e.Side == Side.Us);
+            Assert.AreEqual(EventKind.Outflanked, turned.Kind, "an enemy behind him in the next lane, and the lane not turned");
+            Assert.AreEqual(Side.Us, turned.Side); Assert.AreEqual(0, turned.Id); Assert.AreEqual(1, turned.Rounds);
+            Assert.Less(st.Morale[(int)Side.Us], was, "turned, and no heart lost");
+            Assert.IsTrue(Flank.Exposed(st, us));
+            // (They have gone past each other: the VC's lane is turned as well.)
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Outflanked && e.Side == Side.Vc && e.Id == 1 && e.Rounds == 1), "past each other, and only one lane turned");
+
+            // Back level with him: no longer turned; turned again at once costs nothing (OutflankRearm).
+            vc.X = 12 * dir;
+            st.Tick += Tune.OutflankEvery; Flank.Step(st);
+            Assert.IsFalse(Flank.Exposed(st, us));
+            Assert.AreEqual(0, st.Events.Last(e => e.Kind == EventKind.Outflanked && e.Side == Side.Us).Rounds);
+            vc.X = 0; double before = st.Morale[(int)Side.Us];
+            st.Tick += Tune.OutflankEvery; Flank.Step(st);
+            Assert.AreEqual(before, st.Morale[(int)Side.Us], "the same lane turned twice in a breath cost heart twice");
+
+            // In cover, his position is worth less while the lane is turned.
+            var c = st.Cover[0];
+            us.Cover = c.Id; us.Z = c.Z; vc.Z = c.Z + 0.01; vc.X = us.X + dir * 10;
+            double turnedChance = Combat.HitChance(st, vc, us);
+            st.FlankLine[(int)Side.Us * Tune.MaxLanes] = double.PositiveInfinity;
+            Assert.Greater(turnedChance, Combat.HitChance(st, vc, us), "in a turned lane his position was worth as much as ever");
+
+            // Killed from his flank: marked, and his squad's heads go down.
+            var mate = st.Men.First(x => x.Squad == us.Squad && x.Id != us.Id);
+            mate.Alive = true; mate.Pin = 0;
+            Flank.Killed(st, vc, us);
+            Assert.IsTrue(us.Flanked);
+            Assert.Greater(mate.Pin, 0, "his squad did not get its head down");
+            Assert.IsTrue(st.Events.Any(e => e.Kind == EventKind.Flanked && e.Id == us.Squad));
+        }
+
+        /// <summary>
+        /// Flank is pinned: `simcs hash N frag smoke drill fieldcraft arms senses gunnery ammo tactics fortune firecontrol
+        /// ballistics vantage commander cohesion bearing inbound map emplace satchel destruction shootdown strike soldiering
+        /// flank` (2026-11-18). Without the word the line is Soldiering's, unmoved (above).
+        /// </summary>
+        [TestCase(1, 4358, 2927729006u, 1073066131u, 3672172536u, "us morale broke")]
+        [TestCase(7, 5298, 1759440552u, 1105900515u, 2638242403u, "vc morale broke")]
+        public void With_flanks_a_match_is_pinned(int seed, int ticks, uint at100, uint at1000, uint final, string reason)
+        {
+            var o = new MatchOptions
+            {
+                Seed = seed, Us = Plan.Ceiling, Vc = Plan.Ceiling, Cover = Map.Cover(),
+                Frag = true, SquadSmoke = true, Drill = true, Fieldcraft = true, Arms = true, Senses = true, Gunnery = true, Ammo = true,
+                Tactics = true, Fortune = true, FireControl = true, Ballistics = true, Vantage = true, Commander = true, Cohesion = true,
+                Bearing = true, Inbound = true, Emplace = true, Satchel = true, Destruction = true, Shootdown = true, Strike = true,
+                Soldiering = true, Flank = true,
+            };
+            var (a, m) = Played(o);
+            var (b, _) = Played(o);
+            CollectionAssert.AreEqual(a, b, "two runs of the same seed diverged");
+            Assert.AreEqual(ticks, m.State.Tick);
+            Assert.AreEqual(at100, a[100], "tick 100");
+            Assert.AreEqual(at1000, a[1000], "tick 1000");
+            Assert.AreEqual(final, a[a.Count - 1], "final tick");
+            Assert.AreEqual(reason, m.State.Reason);
+        }
+
+        // `simcs scenario hash 1` (rice-fields), 2026-11-18, with MatchOptions.Flank (PLAN §12.76; 5035, 3595252491u without it);
+        // before that 2026-10-19 (with its third lane, W2; 4095, 3543735617u with two lanes and
         // MatchOptions.Soldiering, PLAN §12.64; 6942, 2233128180u with the strike and napalm on the forest, §12.61-63).
         private const int RiceTicks = 5035;
-        private const uint RiceFinal = 3595252491u;
+        private const uint RiceFinal = 3905983211u;
 
         /// <summary>
         /// Shootdown (MatchOptions.Shootdown; the owner, 2026-10-15: "have the chopper have a chance to be knocked down

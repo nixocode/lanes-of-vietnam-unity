@@ -177,6 +177,8 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>At rest in his place: he sets off again only when it has moved a good pace from him (MatchOptions.Fieldcraft).</summary>
         public bool Still;
+        /// <summary>Killed by a round from his flank, in cover (MatchOptions.Flank): his side's morale takes more for him.</summary>
+        public bool Flanked;
 
         /// <summary>Ticks he has been still, and the posture he last changed from (MatchOptions.Gunnery).</summary>
         public int Rest;
@@ -286,6 +288,8 @@ namespace LanesOfVietnam.Sim
         public int Sent;
         /// <summary>Ticks it has waited on a river's bank for a crossing the enemy covers (MatchOptions.Soldiering).</summary>
         public int Bank;
+        /// <summary>The tick it last had a man killed from its flank, for its Flanked event (MatchOptions.Flank).</summary>
+        public int FlankedAt = Sim.Senses.Never;
 
         /// <summary>The card whose squad this is (MatchOptions.Arms; null in the baseline): what to call it.</summary>
         public string Card;
@@ -483,6 +487,12 @@ namespace LanesOfVietnam.Sim
         // area Id is alight along its line, centred on X, Z, Amount metres either way along the lane; Burned: man Id burned
         // in the napalm of area Target (his Kill is the next event). A bomb's Shell event has Rounds = Inbound.Jet.
         Wrecked, NapalmLit, Burned,
+        // Flank (MatchOptions.Flank): squad Id of Side had a man killed from its flank (at X, Z), by man Target: it is
+        // taken in enfilade. Once a squad in four seconds.
+        Flanked,
+        // Outflanked (MatchOptions.Flank): Side's men in lane Id have an enemy in the next lane behind them (Rounds 1), and
+        // lost Amount of morale for it (0 if the lane was turned too lately before); Rounds 0: it is no longer turned.
+        Outflanked,
     }
 
     public struct SimEvent
@@ -614,6 +624,8 @@ namespace LanesOfVietnam.Sim
         public bool Strike;
         /// <summary>Part 2: men take cover near them, advance in rushes and spread their fire (MatchOptions.Soldiering).</summary>
         public bool Soldiering;
+        /// <summary>Part 2: cover faces the enemy, and a round from the flank finds its man (MatchOptions.Flank).</summary>
+        public bool Flank;
         /// <summary>MatchOptions.Strike: the map's forests, and what of them has burned (the napalm on the forest).</summary>
         public List<Forest> Forests = new List<Forest>();
         public List<Burn> Burnt = new List<Burn>();
@@ -669,6 +681,13 @@ namespace LanesOfVietnam.Sim
 
         /// <summary>How far each side has pushed, in world X. Ground is a morale term.</summary>
         public readonly double[] Front = { 0, 0 };
+
+        /// <summary>MatchOptions.Flank: the tick each side's lane (side * Tune.MaxLanes + lane) was turned, or Senses.Never; and when it last cost morale.</summary>
+        public readonly int[] Outflanked = Fill(2 * Tune.MaxLanes, Sim.Senses.Never), OutflankShockAt = Fill(2 * Tune.MaxLanes, Sim.Senses.Never);
+        /// <summary>MatchOptions.Flank: for each side's lane, the enemy in the next lanes furthest into its ground, as x times the way the side fights (infinity: nobody).</summary>
+        public readonly double[] FlankLine = FillD(2 * Tune.MaxLanes, double.PositiveInfinity);
+        private static double[] FillD(int n, double v) { var a = new double[n]; for (int i = 0; i < n; i++) a[i] = v; return a; }
+        private static int[] Fill(int n, int v) { var a = new int[n]; for (int i = 0; i < n; i++) a[i] = v; return a; }
 
         /// <summary>
         /// Where each side's morale actually went. Balance without this is

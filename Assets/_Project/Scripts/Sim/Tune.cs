@@ -768,6 +768,31 @@ namespace LanesOfVietnam.Sim
         public const double LengthSkirmish = 1.55;  // ~2 min
         public const double LengthStandard = 1.0;   // ~3.5 min
         public const double LengthLong = 0.40;     // ~8 min
+
+        // --- Flank (MatchOptions.Flank): cover faces the enemy -----------------------------------------
+        /// <summary>A round from within this cosine of where a man in cover faces (sixty degrees) has all of his position against it.</summary>
+        public const double FlankFront = 0.5;
+        /// <summary>From beyond this cosine (behind him) only what the kind gives all round.</summary>
+        public const double FlankRear = -0.3;
+        /// <summary>What each kind of position keeps of its worth against a round from behind: a bowl, a roof, a parados, two returns, a heap.</summary>
+        public const double FlankCrater = 0.7, FlankBunker = 0.5, FlankTrench = 0.4, FlankSandbag = 0.3, FlankBerm = 0.15;
+        /// <summary>A round from the flank at a man in cover finds him this much more often (Warfare 1944's flank attack, +10%).</summary>
+        public const double FlankHit = 0.10;
+        /// <summary>A man killed from the flank costs his side this many times a casualty's morale.</summary>
+        public const double FlankMorale = 1.5;
+        /// <summary>Pin on each man of the squad of a man killed from the flank: taken in enfilade.</summary>
+        public const double FlankPin = 0.25;
+        /// <summary>Ticks between a squad's Flanked events (four seconds).</summary>
+        public const int FlankEvery = TickHz * 4;
+        /// <summary>A lane is turned when an enemy in the next lane is this far behind the last man of the side in it.</summary>
+        public const double OutflankBy = 3;
+        /// <summary>What a position is worth to a man in a turned lane.</summary>
+        public const double OutflankCover = 0.75;
+        /// <summary>The heart a side loses when one of its lanes is turned (a casualty's is 0.028), and the ticks before the same lane can cost it again.</summary>
+        public const double OutflankMorale = 0.05;
+        public const int OutflankRearm = TickHz * 20;
+        /// <summary>Ticks between looks at whether a lane is turned (half a second).</summary>
+        public const int OutflankEvery = TickHz / 2;
     }
 
     /// <summary>
